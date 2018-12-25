@@ -10,9 +10,13 @@ docker_image:
 - condaforge/linux-anvil
 gmp:
 - '6'
+ncurses:
+- '6.1'
 pin_run_as_build:
   gmp:
     max_pin: x
+  ncurses:
+    max_pin: x.x
   xz:
     max_pin: x.x
 xz:
