@@ -1,0 +1,19 @@
+c_compiler:
+- toolchain_c
+channel_sources:
+- conda-forge,defaults
+channel_targets:
+- conda-forge main
+cxx_compiler:
+- toolchain_cxx
+docker_image:
+- condaforge/linux-anvil
+gmp:
+- '6'
+pin_run_as_build:
+  gmp:
+    max_pin: x
+  xz:
+    max_pin: x.x
+xz:
+- '5.2'
