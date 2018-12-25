@@ -26,10 +26,12 @@ requirements:
     - autoconf  # [osx]
     - automake  # [osx]
     - gmp
+    - ncurses
   host:
     - xz
     - binutils  # [linux]
     - gmp
+    - ncurses
 test:
   commands:
     - ghc --help
