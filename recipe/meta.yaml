@@ -21,7 +21,7 @@ requirements:
   build:
     - {{ compiler('c') }}
     - {{ compiler('cxx') }}
-    - binutils  # [linux]
+    - binutils_impl_linux-64  # [linux]
     - sphinx  # [osx]
     - autoconf  # [osx]
     - automake  # [osx]
