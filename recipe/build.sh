@@ -1,5 +1,5 @@
 #!/bin/bash
-echo "$PREFIX/lib"
+echo $PREFIX/lib
 export CFLAGS="-I$PREFIX/include $CFLAGS"
 echo "$CFLAGS"
 export LDFLAGS="-L$PREFIX/lib $LDFLAGS"
@@ -10,7 +10,9 @@ ls -lrt $PREFIX/lib
 ./configure --prefix $PREFIX --with-gmp-includes=$PREFIX/include --with-gmp-libraries=$PREFIX/lib
 make install
 #Small test
-ldconfig -p | grep libgmp
+echo "ldconfig start"
+ldconfig -p
+echo "ldconfig end"
 echo "main = putStr \"smalltest\"" > Main.hs
-ghc -L$PREFIX/lib -fasm -v5 -o smalltest Main.hs 
+ghc -fasm -v5 -o smalltest Main.hs 
 ./smalltest
