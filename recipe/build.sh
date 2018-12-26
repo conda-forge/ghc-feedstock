@@ -1,7 +1,9 @@
 #!/bin/bash
 
-export CFLAGS="-I$PREFIX/include $CFLAGS" 
-export LDFLAGS="-L$PREFIX/lib -R$PREFIX/lib"
+export CFLAGS="-I$PREFIX/include $CFLAGS"
+echo "$CFLAGS"
+export LDFLAGS="-L$PREFIX/lib $LDFLAGS"
+echo "$LDFLAGS"
 export LD_LIBRARY_PATH="$PREFIX/lib:$LD_LIBRARY_PATH"
 export LIBRARY_PATH="$PREFIX/lib:$LIBRARY_PATH"
 ls -lrt $PREFIX/lib
