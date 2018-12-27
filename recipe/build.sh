@@ -22,5 +22,5 @@ fi
 echo "which ld"
 which ld
 echo "main = putStr \"smalltest\"" > Main.hs
-ghc -fasm -o smalltest Main.hs 
+ghc -L$PREFIX/lib -lgmp -fasm -o smalltest Main.hs 
 ./smalltest
