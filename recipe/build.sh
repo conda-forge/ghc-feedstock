@@ -1,4 +1,5 @@
 #!/bin/bash
+export PATH="$PREFIX/bin:$BUILD_PREFIX/bin:$PATH"
 echo $PREFIX/lib
 export CFLAGS="-I$PREFIX/include $CFLAGS"
 echo "$CFLAGS"
