@@ -9,7 +9,7 @@ export LIBRARY_PATH="$PREFIX/lib:$LIBRARY_PATH"
 ls -lrt $PREFIX/lib
 echo "Build_prefix/lib"
 ls -lrt $BUILD_PREFIX/lib
-./configure --prefix=$PREFIX --with-gmp-includes=$PREFIX/include --with-gmp-libraries=$PREFIX/lib LDFLAGS="-Wl,-L$PREFIX/lib -Wl,-rpath,$PREFIX/lib" CFLAGS="-Wall -I$PREFIX/include"
+./configure --prefix=$PREFIX --with-gmp-includes=$PREFIX/include --with-gmp-libraries=$PREFIX/lib LDFLAGS="-Wl,-L$PREFIX/lib -Wl,-rpath,$PREFIX/lib" CFLAGS="-I$PREFIX/include"
 make install
 #Small test
 #echo "ldconfig start"
