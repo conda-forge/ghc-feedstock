@@ -19,5 +19,5 @@ make install
 echo "which ld"
 which ld
 echo "main = putStr \"smalltest\"" > Main.hs
-ghc --print-ld-flags -L$PREFIX/lib -fasm -o smalltest Main.hs 
+ghc -fasm -o smalltest Main.hs 
 ./smalltest
