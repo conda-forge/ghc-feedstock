@@ -16,5 +16,5 @@ make install
 #ldconfig -p
 #echo "ldconfig end"
 echo "main = putStr \"smalltest\"" > Main.hs
-ghc -fasm -o smalltest Main.hs 
+ghc -dynamic -fasm -o smalltest Main.hs 
 ./smalltest
