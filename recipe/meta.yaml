@@ -29,6 +29,7 @@ requirements:
     - gmp
     - ncurses
     - libtool
+    - pthread-stubs
   host:
     - xz
     - binutils_impl_linux-64  # [linux and c_compiler != 'toolchain_c' ]
@@ -36,6 +37,7 @@ requirements:
     - gmp
     - ncurses
     - libtool
+    - pthread-stubs
 test:
   commands:
     - ghc --help
