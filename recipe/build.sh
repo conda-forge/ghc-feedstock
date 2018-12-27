@@ -16,7 +16,7 @@ make install
 #echo "ldconfig start"
 #ldconfig -p
 #echo "ldconfig end"
-if [ -f "$BUILD_PREFIX/bin/$BUILD_PREFIX/bin/x86_64-conda_cos6-linux-gnu-ld" ]; then
+if [ -f "$BUILD_PREFIX/bin/x86_64-conda_cos6-linux-gnu-ld" ]; then
    ln -s $BUILD_PREFIX/bin/x86_64-conda_cos6-linux-gnu-ld $BUILD_PREFIX/bin/ld
 fi
 echo "which ld"
