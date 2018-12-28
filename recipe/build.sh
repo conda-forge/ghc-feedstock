@@ -1,8 +1,3 @@
-#!/bin/bash
-until $(curl --output /dev/null --silent --head --fail http://myhost:myport); do
-    printf '.'
-    sleep 5
-done
 export PATH="$PREFIX/bin:$BUILD_PREFIX/bin:$PATH"
 echo $PREFIX/lib
 export CFLAGS="-I$PREFIX/include $CFLAGS"
@@ -15,7 +10,7 @@ ls -lrt $PREFIX/lib
 echo "Build_prefix/lib"
 ls -lrt $BUILD_PREFIX/lib
 ./configure --prefix=$PREFIX --with-gmp-includes=$PREFIX/include --with-gmp-libraries=$PREFIX/lib
-make install
+travis_wait make install
 #Small test
 #echo "ldconfig start"
 #ldconfig -v
