@@ -28,16 +28,12 @@ requirements:
     - automake  # [osx]
     - gmp
     - ncurses
-    - libtool
-    - pthread-stubs
   host:
     - xz
     - binutils_impl_linux-64  # [linux and c_compiler != 'toolchain_c' ]
     - binutils  # [linux and c_compiler == 'toolchain_c' ]
     - gmp
     - ncurses
-    - libtool
-    - pthread-stubs
 
 
 test:
