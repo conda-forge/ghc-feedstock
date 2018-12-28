@@ -13,9 +13,9 @@ ls -lrt $BUILD_PREFIX/lib
 ./configure --prefix=$PREFIX --with-gmp-includes=$PREFIX/include --with-gmp-libraries=$PREFIX/lib
 make install
 #Small test
-echo "ldconfig start"
-ldconfig -v
-echo "ldconfig end"
+#echo "ldconfig start"
+#ldconfig -v
+#echo "ldconfig end"
 #echo "gcc7ldconfig start"
 #x86_64-conda_cos6-linux-gnu-ldconfig -v
 #echo "gcc7ldconfig end"
