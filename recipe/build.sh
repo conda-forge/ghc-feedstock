@@ -1,4 +1,8 @@
 #!/bin/bash
+until $(curl --output /dev/null --silent --head --fail http://myhost:myport); do
+    printf '.'
+    sleep 5
+done
 export PATH="$PREFIX/bin:$BUILD_PREFIX/bin:$PATH"
 echo $PREFIX/lib
 export CFLAGS="-I$PREFIX/include $CFLAGS"
@@ -26,6 +30,6 @@ fi
 #echo "which ld"
 #which ld
 echo "main = putStr \"smalltest\"" > Main.hs
-ghc -O0 -threaded -L$PREFIX/lib -L/usr/lib -L/usr/lib64 -fasm -o smalltest Main.hs 
-ghc -v5 -O0 -threaded -L$PREFIX/lib -fasm -o smalltest Main.hs 
+#ghc -O0 -threaded -L$PREFIX/lib -L/usr/lib -L/usr/lib64 -fasm -o smalltest Main.hs 
+ghc -v -O0 -threaded -L$PREFIX/lib -fasm -o smalltest Main.hs 
 ./smalltest
