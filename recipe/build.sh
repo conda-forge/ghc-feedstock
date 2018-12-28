@@ -19,11 +19,12 @@ make install
 #echo "gcc7ldconfig start"
 #x86_64-conda_cos6-linux-gnu-ldconfig -v
 #echo "gcc7ldconfig end"
+#ldd --version ldd
 if [ -f "$BUILD_PREFIX/bin/x86_64-conda_cos6-linux-gnu-ld" ]; then
    ln -s $BUILD_PREFIX/bin/x86_64-conda_cos6-linux-gnu-ld $BUILD_PREFIX/bin/ld
 fi
 echo "which ld"
 which ld
 echo "main = putStr \"smalltest\"" > Main.hs
-ghc -L$PREFIX/lib -L/usr/lib -L/usr/lib64 -fasm -o smalltest Main.hs 
+ghc -threaded -L$PREFIX/lib -L/usr/lib -L/usr/lib64 -fasm -o smalltest Main.hs 
 ./smalltest
