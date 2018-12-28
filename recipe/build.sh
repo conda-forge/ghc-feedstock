@@ -10,7 +10,7 @@ ls -lrt $PREFIX/lib
 echo "Build_prefix/lib"
 ls -lrt $BUILD_PREFIX/lib
 ./configure --prefix=$PREFIX --with-gmp-includes=$PREFIX/include --with-gmp-libraries=$PREFIX/lib
-travis_wait make install
+make install
 #Small test
 #echo "ldconfig start"
 #ldconfig -v
