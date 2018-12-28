@@ -16,14 +16,14 @@ make install
 echo "ldconfig start"
 ldconfig -v
 echo "ldconfig end"
-echo "gcc7ldconfig start"
-x86_64-conda_cos6-linux-gnu-ldconfig -v
-echo "gcc7ldconfig end"
+#echo "gcc7ldconfig start"
+#x86_64-conda_cos6-linux-gnu-ldconfig -v
+#echo "gcc7ldconfig end"
 if [ -f "$BUILD_PREFIX/bin/x86_64-conda_cos6-linux-gnu-ld" ]; then
    ln -s $BUILD_PREFIX/bin/x86_64-conda_cos6-linux-gnu-ld $BUILD_PREFIX/bin/ld
 fi
 echo "which ld"
 which ld
 echo "main = putStr \"smalltest\"" > Main.hs
-ghc -L$PREFIX/lib  -L/usr/lib -fasm -o smalltest Main.hs 
+ghc -L$PREFIX/lib -L/usr/lib -L/usr/lib64 -fasm -o smalltest Main.hs 
 ./smalltest
