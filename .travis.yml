@@ -1,4 +1,4 @@
-travis_wait 30# This file was generated automatically from conda-smithy. To update this configuration,
+# This file was generated automatically from conda-smithy. To update this configuration,
 # update the conda-forge.yml and/or the recipe/meta.yaml.
 
 language: generic
