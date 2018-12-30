@@ -9,7 +9,8 @@ osx_image: xcode9.4
 
 env:
   matrix:
-    - CONFIG=osx_
+    - CONFIG=osx_c_compilerclangcxx_compilerclangxx
+    - CONFIG=osx_c_compilertoolchain_ccxx_compilertoolchain_cxx
 
   global:
     # The BINSTAR_TOKEN secure variable. This is defined canonically in conda-forge.yml.
@@ -60,5 +61,5 @@ install:
 script:
   # generate the build number clobber
   - make_build_number ./ ./recipe ./.ci_support/${CONFIG}.yaml
-  - conda build ./recipe -m ./.ci_support/${CONFIG}.yaml --clobber-file ./.ci_support/clobber_${CONFIG}.yaml
-  - upload_package ./ ./recipe ./.ci_support/${CONFIG}.yaml
+  - "travis_wait 40 conda build ./recipe -m ./.ci_support/${CONFIG}.yaml --clobber-file ./.ci_support/clobber_${CONFIG}.yaml"
+  - "travis_wait 40 upload_package ./ ./recipe ./.ci_support/${CONFIG}.yaml"
