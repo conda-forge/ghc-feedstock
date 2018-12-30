@@ -1,4 +1,4 @@
-# This file was generated automatically from conda-smithy. To update this configuration,
+travis_wait 30# This file was generated automatically from conda-smithy. To update this configuration,
 # update the conda-forge.yml and/or the recipe/meta.yaml.
 
 language: generic
@@ -61,5 +61,5 @@ install:
 script:
   # generate the build number clobber
   - make_build_number ./ ./recipe ./.ci_support/${CONFIG}.yaml
-  - conda build ./recipe -m ./.ci_support/${CONFIG}.yaml --clobber-file ./.ci_support/clobber_${CONFIG}.yaml
-  - upload_package ./ ./recipe ./.ci_support/${CONFIG}.yaml
+  - "travis_wait 30 conda build ./recipe -m ./.ci_support/${CONFIG}.yaml --clobber-file ./.ci_support/clobber_${CONFIG}.yaml"
+  - "travis_wait 30 upload_package ./ ./recipe ./.ci_support/${CONFIG}.yaml"
