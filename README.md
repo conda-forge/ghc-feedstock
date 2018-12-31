@@ -17,7 +17,7 @@ Current build status
 ====================
 
 [![Linux](https://img.shields.io/circleci/project/github/conda-forge/ghc-feedstock/master.svg?label=Linux)](https://circleci.com/gh/conda-forge/ghc-feedstock)
-[![OSX](https://img.shields.io/travis/conda-forge/ghc-feedstock/master.svg?label=macOS)](https://travis-ci.org/conda-forge/ghc-feedstock)
+![OSX disabled](https://img.shields.io/badge/OSX-disabled-lightgrey.svg)
 ![Windows disabled](https://img.shields.io/badge/Windows-disabled-lightgrey.svg)
 
 Current release info
