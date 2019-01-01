@@ -1,17 +1,17 @@
 {% set name = "ghc" %}
 {% set version = "8.4.4" %}
-{% set unixsha256 = "4c2a8857f76b7f3e34ecba0b51015d5cb8b767fe5377a7ec477abde10705ab1a" %}
+{% set unixsha256 = "11117735a58e507c481c09f3f39ae5a314e9fbf49fc3109528f99ea7959004b2" %}
 
 package:
   name: {{ name|lower }}
   version: {{ version }}
 
 source:
-  - url: https://downloads.haskell.org/~{{name}}/{{ version }}/{{ name }}-{{ version }}-x86_64-deb8-linux.tar.xz  # [linux]
+  - url: https://downloads.haskell.org/~{{name}}/{{ version }}/{{ name }}-{{ version }}-src.tar.xz  # [linux]
     sha256: {{ unixsha256 }}  # [linux]
 
 build:
-  number: 1001
+  number: 0
   skip: True  # [not linux]
 
 requirements:
@@ -22,6 +22,7 @@ requirements:
     - binutils  # [linux and c_compiler == 'toolchain_c' ]
     - gmp
     - ncurses
+    - ghc
   host:
     - xz
     - binutils_impl_linux-64  # [linux and c_compiler != 'toolchain_c' ]
