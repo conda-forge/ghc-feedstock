@@ -22,7 +22,7 @@ requirements:
     - binutils  # [linux and c_compiler == 'toolchain_c' ]
     - gmp
     - ncurses
-    - ghc
+    - ghc-8.2.2
   host:
     - xz
     - binutils_impl_linux-64  # [linux and c_compiler != 'toolchain_c' ]
