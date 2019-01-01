@@ -1,6 +1,6 @@
 {% set name = "ghc" %}
-{% set version = "8.2.2" %}
-{% set unixsha256 = "cd7afbca54edf9890da9f432c63366556246c85c1198e40c99df5af01c555834" %}
+{% set version = "8.4.4" %}
+{% set unixsha256 = "4c2a8857f76b7f3e34ecba0b51015d5cb8b767fe5377a7ec477abde10705ab1a" %}
 
 package:
   name: {{ name|lower }}
