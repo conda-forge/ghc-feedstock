@@ -23,6 +23,8 @@ requirements:
     - autoconf
     - libtool
     - make
+    - happy
+    - alex
   host:
     - xz
     - binutils_impl_linux-64  # [linux and c_compiler != 'toolchain_c' ]
