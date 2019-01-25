@@ -5,6 +5,9 @@ export LIBRARY_PATH="$PREFIX/lib:$LIBRARY_PATH"
 export C_INCLUDE_PATH="$PWD/includes:$PREFIX/include:$C_INCLUDE_PATH"
 ./configure --prefix=$PREFIX --with-gmp-includes=$PREFIX/include --with-gmp-libraries=$PREFIX/lib
 ls
+echo "includes"
+ls includes
+cp $PWD/includes/ghcversion.h $PREFIX/include
 make
 make install
 #Small test
