@@ -12,7 +12,7 @@ ghc-pkg describe rts > rts.pkg
 perl -pi -e 's/$PREFIX\/lib\/ghc-8.2.2\/rts/$PREFIX\/lib\/ghc-8.2.2\/rts \$\{pkgroot\}\/../g' rts.pkg
 cat rts.pkg
 ghc-pkg update rts.pkg
-perl -pi -e 's/GhcStage1HcOpts=/GhcStage0HcOpts= -threaded /g' mk/config.mk.in
+perl -pi -e 's/GhcHcOpts=/GhcStage0HcOpts= -threaded /g' mk/config.mk.in
 perl -pi -e 's/GhcStage1HcOpts=/GhcStage1HcOpts= -threaded /g' mk/config.mk.in
 perl -pi -e 's/GhcStage2HcOpts=/GhcStage2HcOpts= -threaded /g' mk/config.mk.in
 perl -pi -e 's/GhcStage3HcOpts=/GhcStage3HcOpts= -threaded /g' mk/config.mk.in
