@@ -8,6 +8,9 @@ ls
 echo "includes"
 ls includes
 #cp $PWD/includes/ghcversion.h $PREFIX/include
+cp mk/build.mk.sample mk/build.mk
+perl -pi -e 's/#BuildFlavour = quick/BuildFlavour = quick/g' rts.pkg
+./validate --build-only
 make
 ls includes
 make install
