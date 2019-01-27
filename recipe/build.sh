@@ -1,10 +1,10 @@
 export CC="x86_64-conda_cos6-linux-gnu-cc"
 export LD="x86_64-conda_cos6-linux-gnu-cc"
-export PATH="$PREFIX/bin:$BUILD_PREFIX/bin:$PATH"
+export PATH="$BUILD_PREFIX/bin:$PREFIX/bin:$PATH"
 export LD_LIBRARY_PATH="$PREFIX/lib:$LD_LIBRARY_PATH"
 export LIBRARY_PATH="$PREFIX/lib:$LIBRARY_PATH"
 export C_INCLUDE_PATH="$PREFIX/include:$C_INCLUDE_PATH"
-#export LDFLAGS=" -Wl,-L$PREFIX/lib -Wl,-lgmp -Wl,-lpthread $LDFLAGS "
+export LDFLAGS=" -L$PREFIX/lib -lgmp -lpthread $LDFLAGS "
 export CFLAGS=" -Wl,-L$PREFIX/lib -Wl,-lgmp -Wl,-lpthread $CFLAGS "
 export LIBS=" -lgmp -lpthread $LIBS "
 ghc-pkg recache
@@ -36,16 +36,17 @@ cat mk/config.mk.in
 cat mk/config.mk
 cp mk/build.mk.sample mk/build.mk
 perl -pi -e 's/#BuildFlavour = quick/BuildFlavour = quick/g' mk/build.mk
+perl -pi -e 's/#V=0/V=0/g' mk/build.mk
 #./validate --build-only
 echo "Settings"
 cat settings
 make 
 make install
 #Small test
-if [ -f "$BUILD_PREFIX/bin/x86_64-conda_cos6-linux-gnu-ld" ]; then
-   ln -s $BUILD_PREFIX/bin/x86_64-conda_cos6-linux-gnu-ld $BUILD_PREFIX/bin/ld
-fi
+#if [ -f "$BUILD_PREFIX/bin/x86_64-conda_cos6-linux-gnu-ld" ]; then
+#   ln -s $BUILD_PREFIX/bin/x86_64-conda_cos6-linux-gnu-ld $BUILD_PREFIX/bin/ld
+#fi
 echo "main = putStr \"smalltest\"" > Main.hs
-ghc -v -O0 -threaded -L$PREFIX/lib -fasm -o smalltest Main.hs 
+ghc -v -O0 -threaded -L$PREFIX/lib -pgmc x86_64-conda_cos6-linux-gnu-cc -pgml x86_64-conda_cos6-linux-gnu-cc -fasm -o smalltest Main.hs 
 ./smalltest
 
