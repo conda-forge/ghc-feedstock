@@ -5,7 +5,7 @@ export LD_LIBRARY_PATH="$PREFIX/lib:$LD_LIBRARY_PATH"
 export LIBRARY_PATH="$PREFIX/lib:$LIBRARY_PATH"
 export C_INCLUDE_PATH="$PWD/includes:$PREFIX/include:$C_INCLUDE_PATH"
 export LDFLAGS=" -Wl,-L$PREFIX/lib -Wl,-lgmp -Wl,-lpthread $LDFLAGS "
-export CFLAGS=" -Wl,-L$PREFIX/lib -Wl,-lgmp -Wl,-lpthread $LDFLAGS "
+#export CFLAGS=" -Wl,-L$PREFIX/lib -Wl,-lgmp -Wl,-lpthread $LDFLAGS "
 export LIBS=" -lgmp -lpthread $LIBS "
 ghc-pkg recache
 ghc-pkg describe rts
@@ -13,10 +13,10 @@ ghc-pkg describe rts > rts.pkg
 perl -pi -e 's/$PREFIX\/lib\/ghc-8.2.2\/rts/$PREFIX\/lib\/ghc-8.2.2\/rts \$\{pkgroot\}\/../g' rts.pkg
 cat rts.pkg
 ghc-pkg update rts.pkg
-export CONF_GCC_LINKER_OPTS_STAGE0=" -lgmp -lpthread "
-export CONF_GCC_LINKER_OPTS_STAGE1=" -lgmp -lpthread "
-export CONF_GCC_LINKER_OPTS_STAGE2=" -lgmp -lpthread "
-export CONF_GCC_LINKER_OPTS_STAGE3=" -lgmp -lpthread "
+#export CONF_GCC_LINKER_OPTS_STAGE0=" -lgmp -lpthread "
+#export CONF_GCC_LINKER_OPTS_STAGE1=" -lgmp -lpthread "
+#export CONF_GCC_LINKER_OPTS_STAGE2=" -lgmp -lpthread "
+#export CONF_GCC_LINKER_OPTS_STAGE3=" -lgmp -lpthread "
 export CONF_LD_LINKER_OPTS_STAGE0=" -lgmp -lpthread "
 export CONF_LD_LINKER_OPTS_STAGE1=" -lgmp -lpthread "
 export CONF_LD_LINKER_OPTS_STAGE2=" -lgmp -lpthread "
