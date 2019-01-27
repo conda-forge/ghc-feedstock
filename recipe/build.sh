@@ -13,14 +13,14 @@ ghc-pkg describe rts > rts.pkg
 perl -pi -e 's/$PREFIX\/lib\/ghc-8.2.2\/rts/$PREFIX\/lib\/ghc-8.2.2\/rts \$\{pkgroot\}\/../g' rts.pkg
 cat rts.pkg
 ghc-pkg update rts.pkg
-export CONF_GCC_LINKER_OPTS_STAGE0 =" -L$PREFIX/lib -lgmp -lpthread "
-export CONF_GCC_LINKER_OPTS_STAGE1 =" -L$PREFIX/lib -lgmp -lpthread "
-export CONF_GCC_LINKER_OPTS_STAGE2 =" -L$PREFIX/lib -lgmp -lpthread "
-export CONF_GCC_LINKER_OPTS_STAGE3 =" -L$PREFIX/lib -lgmp -lpthread "
-export CONF_HC_OPTS_STAGE0=" -lgmp -threaded -pgmc x86_64-conda_cos6-linux-gnu-cc -pgml x86_64-conda_cos6-linux-gnu-cc "
-export CONF_HC_OPTS_STAGE1=" -lgmp -threaded -pgmc x86_64-conda_cos6-linux-gnu-cc -pgml x86_64-conda_cos6-linux-gnu-cc "
-export CONF_HC_OPTS_STAGE2=" -lgmp -threaded -pgmc x86_64-conda_cos6-linux-gnu-cc -pgml x86_64-conda_cos6-linux-gnu-cc "
-export CONF_HC_OPTS_STAGE3=" -lgmp -threaded -pgmc x86_64-conda_cos6-linux-gnu-cc -pgml x86_64-conda_cos6-linux-gnu-cc "
+#export CONF_GCC_LINKER_OPTS_STAGE0=" -L$PREFIX/lib -lgmp -lpthread "
+#export CONF_GCC_LINKER_OPTS_STAGE1=" -L$PREFIX/lib -lgmp -lpthread "
+#export CONF_GCC_LINKER_OPTS_STAGE2=" -L$PREFIX/lib -lgmp -lpthread "
+#export CONF_GCC_LINKER_OPTS_STAGE3=" -L$PREFIX/lib -lgmp -lpthread "
+export CONF_HC_OPTS_STAGE0=" -L$PREFIX/lib -lgmp -threaded -pgmc x86_64-conda_cos6-linux-gnu-cc -pgml x86_64-conda_cos6-linux-gnu-cc "
+export CONF_HC_OPTS_STAGE1=" -L$PREFIX/lib -lgmp -threaded -pgmc x86_64-conda_cos6-linux-gnu-cc -pgml x86_64-conda_cos6-linux-gnu-cc "
+export CONF_HC_OPTS_STAGE2=" -L$PREFIX/lib -lgmp -threaded -pgmc x86_64-conda_cos6-linux-gnu-cc -pgml x86_64-conda_cos6-linux-gnu-cc "
+export CONF_HC_OPTS_STAGE3=" -L$PREFIX/lib -lgmp -threaded -pgmc x86_64-conda_cos6-linux-gnu-cc -pgml x86_64-conda_cos6-linux-gnu-cc "
 perl -pi -e 's/GhcLibHcOpts=/GhcLibHcOpts= -pgmc x86_64-conda_cos6-linux-gnu-cc -pgml x86_64-conda_cos6-linux-gnu-cc -threaded /g' mk/config.mk.in
 perl -pi -e 's/GhcRtsHcOpts=-O2 -fomit-frame-pointer -g/GhcRtsHcOpts=-O2 -fomit-frame-pointer -g -pgmc x86_64-conda_cos6-linux-gnu-cc -pgml x86_64-conda_cos6-linux-gnu-cc -threaded /g' mk/config.mk.in
 perl -pi -e 's/GhcHcOpts=/GhcHcOpts= -pgmc x86_64-conda_cos6-linux-gnu-cc -pgml x86_64-conda_cos6-linux-gnu-cc -threaded /g' mk/config.mk.in
