@@ -17,10 +17,6 @@ export CONF_GCC_LINKER_OPTS_STAGE0=" -lgmp -lpthread "
 export CONF_GCC_LINKER_OPTS_STAGE1=" -lgmp -lpthread "
 export CONF_GCC_LINKER_OPTS_STAGE2=" -lgmp -lpthread "
 export CONF_GCC_LINKER_OPTS_STAGE3=" -lgmp -lpthread "
-#export CONF_LD_LINKER_OPTS_STAGE0=" -lgmp -lpthread "
-#export CONF_LD_LINKER_OPTS_STAGE1=" -lgmp -lpthread "
-#export CONF_LD_LINKER_OPTS_STAGE2=" -lgmp -lpthread "
-#export CONF_LD_LINKER_OPTS_STAGE3=" -lgmp -lpthread "
 export CONF_HC_OPTS_STAGE0=" -L$PREFIX/lib -lgmp -threaded -pgmc x86_64-conda_cos6-linux-gnu-cc -pgml x86_64-conda_cos6-linux-gnu-cc "
 export CONF_HC_OPTS_STAGE1=" -L$PREFIX/lib -lgmp -threaded -pgmc x86_64-conda_cos6-linux-gnu-cc -pgml x86_64-conda_cos6-linux-gnu-cc "
 export CONF_HC_OPTS_STAGE2=" -L$PREFIX/lib -lgmp -threaded -pgmc x86_64-conda_cos6-linux-gnu-cc -pgml x86_64-conda_cos6-linux-gnu-cc "
@@ -32,7 +28,7 @@ perl -pi -e 's/GhcStage1HcOpts=/GhcStage1HcOpts= -pgmc x86_64-conda_cos6-linux-g
 perl -pi -e 's/GhcStage2HcOpts=/GhcStage2HcOpts= -pgmc x86_64-conda_cos6-linux-gnu-cc -pgml x86_64-conda_cos6-linux-gnu-cc -threaded /g' mk/config.mk.in
 perl -pi -e 's/GhcStage3HcOpts=/GhcStage3HcOpts= -pgmc x86_64-conda_cos6-linux-gnu-cc -pgml x86_64-conda_cos6-linux-gnu-cc -threaded /g' mk/config.mk.in
 cat mk/config.mk.in
-./configure --prefix=$PREFIX --with-gmp-includes=$PREFIX/include --with-gmp-libraries=$PREFIX/lib CC=$BUILD_PREFIX/x86_64-conda_cos6-linux-gnu-gcc LD=$BUILD_PREFIX/x86_64-conda_cos6-linux-gnu-cc
+./configure --prefix=$PREFIX --with-gmp-includes=$PREFIX/include --with-gmp-libraries=$PREFIX/lib CC=$BUILD_PREFIX/x86_64-conda_cos6-linux-gnu-cc LD=$BUILD_PREFIX/x86_64-conda_cos6-linux-gnu-cc
 cat mk/config.mk
 cp mk/build.mk.sample mk/build.mk
 perl -pi -e 's/#BuildFlavour = quick/BuildFlavour = quick/g' mk/build.mk
