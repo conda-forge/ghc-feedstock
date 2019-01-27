@@ -5,6 +5,7 @@ export LD_LIBRARY_PATH="$PREFIX/lib:$LD_LIBRARY_PATH"
 export LIBRARY_PATH="$PREFIX/lib:$LIBRARY_PATH"
 export C_INCLUDE_PATH="$PWD/includes:$PREFIX/include:$C_INCLUDE_PATH"
 export LDFLAGS=" -Wl,-L$PREFIX/lib -Wl,-lgmp -Wl,-lpthread $LDFLAGS "
+export CFLAGS=" -Wl,-L$PREFIX/lib -Wl,-lgmp -Wl,-lpthread $LDFLAGS "
 export LIBS=" -lgmp -lpthread $LIBS "
 ghc-pkg recache
 ghc-pkg describe rts
@@ -13,10 +14,10 @@ perl -pi -e 's/$PREFIX\/lib\/ghc-8.2.2\/rts/$PREFIX\/lib\/ghc-8.2.2\/rts \$\{pkg
 cat rts.pkg
 ghc-pkg update rts.pkg
 perl -pi -e 's/GhcRtsHcOpts=-O2 -fomit-frame-pointer -g/GhcRtsCcOpts=-O2 -fomit-frame-pointer -g -threaded /g' mk/config.mk.in
-perl -pi -e 's/GhcHcOpts=/GhcStage0HcOpts= -threaded /g' mk/config.mk.in
-perl -pi -e 's/GhcStage1HcOpts=/GhcStage1HcOpts= -threaded /g' mk/config.mk.in
-perl -pi -e 's/GhcStage2HcOpts=/GhcStage2HcOpts= -threaded /g' mk/config.mk.in
-perl -pi -e 's/GhcStage3HcOpts=/GhcStage3HcOpts= -threaded /g' mk/config.mk.in
+perl -pi -e 's/GhcHcOpts=/GhcStage0HcOpts= -L$PREFIX/lib -threaded /g' mk/config.mk.in
+perl -pi -e 's/GhcStage1HcOpts=/GhcStage1HcOpts= -L$PREFIX/lib -threaded /g' mk/config.mk.in
+perl -pi -e 's/GhcStage2HcOpts=/GhcStage2HcOpts= -L$PREFIX/lib -threaded /g' mk/config.mk.in
+perl -pi -e 's/GhcStage3HcOpts=/GhcStage3HcOpts= -L$PREFIX/lib -threaded /g' mk/config.mk.in
 ./configure --prefix=$PREFIX --with-gmp-includes=$PREFIX/include --with-gmp-libraries=$PREFIX/lib
 cat mk/config.mk
 cp mk/build.mk.sample mk/build.mk
