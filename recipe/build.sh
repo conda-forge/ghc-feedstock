@@ -32,7 +32,7 @@ perl -pi -e 's/GhcStage1HcOpts=/GhcStage1HcOpts= -pgmc x86_64-conda_cos6-linux-g
 perl -pi -e 's/GhcStage2HcOpts=/GhcStage2HcOpts= -pgmc x86_64-conda_cos6-linux-gnu-cc -pgml x86_64-conda_cos6-linux-gnu-cc -threaded /g' mk/config.mk.in
 perl -pi -e 's/GhcStage3HcOpts=/GhcStage3HcOpts= -pgmc x86_64-conda_cos6-linux-gnu-cc -pgml x86_64-conda_cos6-linux-gnu-cc -threaded /g' mk/config.mk.in
 cat mk/config.mk.in
-./configure --prefix=$PREFIX --with-gmp-includes=$PREFIX/include --with-gmp-libraries=$PREFIX/lib --with-gcc=$BUILD_PREFIX/x86_64-conda_cos6-linux-gnu-gcc --with-ld=$BUILD_PREFIX/x86_64-conda_cos6-linux-gnu-cc
+./configure --prefix=$PREFIX --with-gmp-includes=$PREFIX/include --with-gmp-libraries=$PREFIX/lib CC=$BUILD_PREFIX/x86_64-conda_cos6-linux-gnu-gcc LD=$BUILD_PREFIX/x86_64-conda_cos6-linux-gnu-cc
 cat mk/config.mk
 cp mk/build.mk.sample mk/build.mk
 perl -pi -e 's/#BuildFlavour = quick/BuildFlavour = quick/g' mk/build.mk
