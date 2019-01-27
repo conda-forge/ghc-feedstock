@@ -33,6 +33,7 @@ cat mk/config.mk
 cp mk/build.mk.sample mk/build.mk
 perl -pi -e 's/#BuildFlavour = quick/BuildFlavour = quick/g' mk/build.mk
 perl -pi -e 's/#V=0/V=0/g' mk/build.mk
+perl -pi -e 's/#HADDOCK_DOCS = YES/HADDOCK_DOCS = NO/g' mk/build.mk
 #./validate --build-only
 echo "Settings"
 cat settings
