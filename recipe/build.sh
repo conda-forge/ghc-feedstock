@@ -4,7 +4,7 @@ export PATH="$BUILD_PREFIX/bin:$PREFIX/bin:$PATH"
 export LD_LIBRARY_PATH="$PREFIX/lib:$LD_LIBRARY_PATH"
 export LIBRARY_PATH="$PREFIX/lib:$LIBRARY_PATH"
 export C_INCLUDE_PATH="$PREFIX/include:$C_INCLUDE_PATH"
-export LDFLAGS=" -L$PREFIX/lib -lgmp -lpthread $LDFLAGS "
+export LDFLAGS=" -lgmp -lpthread $LDFLAGS "
 export CFLAGS=" -Wl,-L$PREFIX/lib -Wl,-lgmp -Wl,-lpthread $CFLAGS "
 export LIBS=" -lgmp -lpthread $LIBS "
 ghc-pkg recache
@@ -13,10 +13,10 @@ ghc-pkg describe rts > rts.pkg
 perl -pi -e 's/$PREFIX\/lib\/ghc-8.2.2\/rts/$PREFIX\/lib\/ghc-8.2.2\/rts \$\{pkgroot\}\/../g' rts.pkg
 cat rts.pkg
 ghc-pkg update rts.pkg
-#export CONF_GCC_LINKER_OPTS_STAGE0=" -lgmp -lpthread "
-#export CONF_GCC_LINKER_OPTS_STAGE1=" -lgmp -lpthread "
-#export CONF_GCC_LINKER_OPTS_STAGE2=" -lgmp -lpthread "
-#export CONF_GCC_LINKER_OPTS_STAGE3=" -lgmp -lpthread "
+export CONF_GCC_LINKER_OPTS_STAGE0=$LDFLAGS
+export CONF_GCC_LINKER_OPTS_STAGE1=$LDFLAGS
+export CONF_GCC_LINKER_OPTS_STAGE2=$LDFLAGS
+export CONF_GCC_LINKER_OPTS_STAGE3=$LDFLAGS
 export SRC_HC_OPTS=" -L$PREFIX/lib -lgmp -threaded -pgmc x86_64-conda_cos6-linux-gnu-cc -pgml x86_64-conda_cos6-linux-gnu-cc "
 #export CONF_HC_OPTS_STAGE0=" -L$PREFIX/lib -lgmp -threaded -pgmc x86_64-conda_cos6-linux-gnu-cc -pgml x86_64-conda_cos6-linux-gnu-cc "
 #export CONF_HC_OPTS_STAGE1=" -L$PREFIX/lib -lgmp -threaded -pgmc x86_64-conda_cos6-linux-gnu-cc -pgml x86_64-conda_cos6-linux-gnu-cc "
