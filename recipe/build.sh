@@ -47,7 +47,7 @@ perl -pi -e 's/#BuildFlavour = quick/BuildFlavour = quick/g' mk/build.mk
 echo "V=0" >> mk/build.mk
 #echo "HADDOCK_DOCS = NO" >> mk/build.mk
 echo "SRC_HC_OPTS = -O0 -H64m -L$PREFIX/lib -lgmp -threaded -pgmc x86_64-conda_cos6-linux-gnu-cc -pgml x86_64-conda_cos6-linux-gnu-cc " >> mk/build.mk
-echo "SRC_HSC2HS_OPTS = -L$PREFIX/lib -lgmp -threaded -pgmc x86_64-conda_cos6-linux-gnu-cc -pgml x86_64-conda_cos6-linux-gnu-cc " >> mk/build.mk
+echo "SRC_HSC2HS_OPTS = -L$PREFIX/lib -lgmp -threaded " >> mk/build.mk
 cat mk/build.mk
 #./validate --build-only
 echo "Settings"
