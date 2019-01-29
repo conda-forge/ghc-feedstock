@@ -13,19 +13,19 @@ ghc-pkg recache
 #perl -pi -e 's/$PREFIX\/lib\/ghc-8.2.2\/rts/$PREFIX\/lib\/ghc-8.2.2\/rts \$\{pkgroot\}\/../g' rts.pkg
 #cat rts.pkg
 #ghc-pkg update rts.pkg
-export CONF_GCC_LINKER_OPTS_STAGE0=$LDFLAGS
-export CONF_GCC_LINKER_OPTS_STAGE1=$LDFLAGS
-export CONF_GCC_LINKER_OPTS_STAGE2=$LDFLAGS
-export CONF_GCC_LINKER_OPTS_STAGE3=$LDFLAGS
-export CONF_CC_LINKER_OPTS_STAGE0=$LDFLAGS
-export CONF_CC_LINKER_OPTS_STAGE1=$LDFLAGS
-export CONF_CC_LINKER_OPTS_STAGE2=$LDFLAGS
-export CONF_CC_LINKER_OPTS_STAGE3=$LDFLAGS
-export CONF_CPP_OPTS_STAGE0=$CFLAGS
-export CONF_CPP_OPTS_STAGE1=$CFLAGS
-export CONF_CPP_OPTS_STAGE2=$CFLAGS
-export CONF_CPP_OPTS_STAGE3=$CFLAGS
-export SRC_HC_OPTS=" -L$PREFIX/lib -lgmp -threaded -pgmc x86_64-conda_cos6-linux-gnu-cc -pgml x86_64-conda_cos6-linux-gnu-cc "
+#export CONF_GCC_LINKER_OPTS_STAGE0=$LDFLAGS
+#export CONF_GCC_LINKER_OPTS_STAGE1=$LDFLAGS
+#export CONF_GCC_LINKER_OPTS_STAGE2=$LDFLAGS
+#export CONF_GCC_LINKER_OPTS_STAGE3=$LDFLAGS
+#export CONF_CC_LINKER_OPTS_STAGE0=$LDFLAGS
+#export CONF_CC_LINKER_OPTS_STAGE1=$LDFLAGS
+#export CONF_CC_LINKER_OPTS_STAGE2=$LDFLAGS
+#export CONF_CC_LINKER_OPTS_STAGE3=$LDFLAGS
+#export CONF_CPP_OPTS_STAGE0=$CFLAGS
+#export CONF_CPP_OPTS_STAGE1=$CFLAGS
+#export CONF_CPP_OPTS_STAGE2=$CFLAGS
+#export CONF_CPP_OPTS_STAGE3=$CFLAGS
+#export SRC_HC_OPTS=" -L$PREFIX/lib -lgmp -threaded -pgmc x86_64-conda_cos6-linux-gnu-cc -pgml x86_64-conda_cos6-linux-gnu-cc "
 #export SRC_HSC2HS_OPTS=" -L$PREFIX/lib -lgmp -threaded -pgmc x86_64-conda_cos6-linux-gnu-cc -pgml x86_64-conda_cos6-linux-gnu-cc "
 #export CONF_HC_OPTS_STAGE0=" -L$PREFIX/lib -lgmp -threaded -pgmc x86_64-conda_cos6-linux-gnu-cc -pgml x86_64-conda_cos6-linux-gnu-cc "
 #export CONF_HC_OPTS_STAGE1=" -L$PREFIX/lib -lgmp -threaded -pgmc x86_64-conda_cos6-linux-gnu-cc -pgml x86_64-conda_cos6-linux-gnu-cc "
