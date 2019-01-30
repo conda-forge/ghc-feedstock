@@ -55,7 +55,7 @@ echo "Settings"
 cat settings
 make 
 make install
-#Small test
+#Small test 
 #if [ -f "$BUILD_PREFIX/bin/x86_64-conda_cos6-linux-gnu-ld" ]; then
 #   ln -s $BUILD_PREFIX/bin/x86_64-conda_cos6-linux-gnu-ld $BUILD_PREFIX/bin/ld
 #fi
