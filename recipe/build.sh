@@ -53,7 +53,7 @@ echo "CONF_LD_LINKER_OPTS_STAGE2 = -L$PREFIX/lib -lgmp -lpthread " >> mk/build.m
 echo "CONF_LD_LINKER_OPTS_STAGE3 = -L$PREFIX/lib -lgmp -lpthread " >> mk/build.mk
 echo "SRC_HSC2HS_OPTS = -lgmp -lpthread " >> mk/build.mk
 #echo "libraries/integer-gmp_CONFIGURE_OPTS = --ghc-options=\" -L$PREFIX/lib -lgmp -threaded -pgmc x86_64-conda_cos6-linux-gnu-cc -pgml x86_64-conda_cos6-linux-gnu-cc \"" >> mk/build.mk
-echo "libraries/integer-gmp_CONFIGURE_OPTS = --with-gmp-includes=\"$PREFIX/include\" --with-gmp-libraries=\"$PREFIX/include\" " >> mk/build.mk
+#echo "libraries/integer-gmp_CONFIGURE_OPTS = --with-gmp-includes=\"$PREFIX/include\" --with-gmp-libraries=\"$PREFIX/include\" " >> mk/build.mk
 cat mk/build.mk
 #./validate --build-only
 echo "Settings"
