@@ -47,8 +47,12 @@ perl -pi -e 's/#BuildFlavour = quick/BuildFlavour = quick/g' mk/build.mk
 echo "V=0" >> mk/build.mk
 #echo "HADDOCK_DOCS = NO" >> mk/build.mk
 echo "SRC_HC_OPTS = -O0 -H64m -L$PREFIX/lib -lgmp -threaded -pgmc x86_64-conda_cos6-linux-gnu-cc -pgml x86_64-conda_cos6-linux-gnu-cc " >> mk/build.mk
+echo "CONF_CC_LINKER_OPTS_STAGE0 = -L$PREFIX/lib -lgmp -lpthread " >> mk/build.mk
+echo "CONF_CC_LINKER_OPTS_STAGE1 = -L$PREFIX/lib -lgmp -lpthread " >> mk/build.mk
+echo "CONF_CC_LINKER_OPTS_STAGE2 = -L$PREFIX/lib -lgmp -lpthread " >> mk/build.mk
+echo "CONF_CC_LINKER_OPTS_STAGE3 = -L$PREFIX/lib -lgmp -lpthread " >> mk/build.mk
 echo "SRC_HSC2HS_OPTS = -lgmp -lpthread " >> mk/build.mk
-echo "libraries/integer-gmp_CONFIGURE_OPTS = --ghc-options=\" -L$PREFIX/lib -lgmp -threaded -pgmc x86_64-conda_cos6-linux-gnu-cc -pgml x86_64-conda_cos6-linux-gnu-cc \"" >> mk/build.mk
+echo "libraries/integer-gmp_CONFIGURE_OPTS = LDFLAGS=\"$LDFLAGS\" --ghc-options=\" -L$PREFIX/lib -lgmp -threaded -pgmc x86_64-conda_cos6-linux-gnu-cc -pgml x86_64-conda_cos6-linux-gnu-cc \"" >> mk/build.mk
 cat mk/build.mk
 #./validate --build-only
 echo "Settings"
