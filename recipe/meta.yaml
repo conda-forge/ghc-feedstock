@@ -1,13 +1,13 @@
 {% set name = "ghc" %}
-{% set version = "8.2.2" %}
+{% set version = "8.4.4" %}
 
 package:
   name: {{ name|lower }}
   version: {{ version }}
 
 source:
-  - url: https://downloads.haskell.org/~ghc/{{ version }}/ghc-{{ version }}-x86_64-deb7-linux.tar.xz
-    sha256: "cd7afbca54edf9890da9f432c63366556246c85c1198e40c99df5af01c555834"
+  - url: https://downloads.haskell.org/~ghc/{{ version }}/ghc-{{ version }}-x86_64-fedora27-linux.tar.xz
+    sha256: "8ab2befddc14d1434d0aad0c5d3c7e0c2b78ff84caa3429fa62527bfc6b86095"
 
 build:
   number: 0
