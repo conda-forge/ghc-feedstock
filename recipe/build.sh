@@ -10,5 +10,6 @@ echo "ls PREFIX/x86_64-conda_cos6-linux-gnu/sysroot/lib"
 ls $PREFIX/x86_64-conda_cos6-linux-gnu/sysroot/lib
 echo "ls PREFIX/x86_64-conda_cos6-linux-gnu/sysroot"
 ls $PREFIX/x86_64-conda_cos6-linux-gnu/sysroot
+cp -f $PREFIX/x86_64-conda_cos6-linux-gnu/sysroot/lib/libc.so.6 /lib64/libc.so.6
 ./configure --prefix=$PREFIX CPP=x86_64-conda_cos6-linux-gnu-cpp --with-gmp-includes=$PREFIX/include --with-gmp-libraries=$PREFIX/lib CC=$BUILD_PREFIX/bin/x86_64-conda_cos6-linux-gnu-cc LD=$BUILD_PREFIX/bin/x86_64-conda_cos6-linux-gnu-cc
 make install
