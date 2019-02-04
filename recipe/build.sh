@@ -8,5 +8,7 @@ echo "ls PREFIX"
 ls $PREFIX
 echo "ls PREFIX/x86_64-conda_cos6-linux-gnu/sysroot/lib"
 ls $PREFIX/x86_64-conda_cos6-linux-gnu/sysroot/lib
-./configure --prefix=$PREFIX --with-hs-cpp-flags=-L$PREFIX/x86_64-conda_cos6-linux-gnu/sysroot/lib CPP=x86_64-conda_cos6-linux-gnu-cpp --with-gmp-includes=$PREFIX/include --with-gmp-libraries=$PREFIX/lib CC=$BUILD_PREFIX/bin/x86_64-conda_cos6-linux-gnu-cc LD=$BUILD_PREFIX/bin/x86_64-conda_cos6-linux-gnu-cc
+echo "ls PREFIX/x86_64-conda_cos6-linux-gnu/sysroot"
+ls $PREFIX/x86_64-conda_cos6-linux-gnu/sysroot
+./configure --prefix=$PREFIX --with-hs-cpp-flags=" -L$PREFIX/lib -L$PREFIX/x86_64-conda_cos6-linux-gnu/sysroot/lib " CPP=x86_64-conda_cos6-linux-gnu-cpp --with-gmp-includes=$PREFIX/include --with-gmp-libraries=$PREFIX/lib CC=$BUILD_PREFIX/bin/x86_64-conda_cos6-linux-gnu-cc LD=$BUILD_PREFIX/bin/x86_64-conda_cos6-linux-gnu-cc
 make install
