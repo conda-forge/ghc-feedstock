@@ -6,7 +6,7 @@ export LIBRARY_PATH="$PREFIX/lib:$LIBRARY_PATH"
 export C_INCLUDE_PATH="$PREFIX/include:$C_INCLUDE_PATH"
 #export LDFLAGS=" -L$PREFIX/lib -lgmp -lpthread $LDFLAGS "
 #export CFLAGS=" -Wl,-L$PREFIX/lib -Wl,-lgmp -Wl,-lpthread $CFLAGS "
-export LIBS=" -lgmp -lpthread $LIBS "
+export LIBS=" -lgmp -lpthread -lgcc_s $LIBS "
 ghc-pkg recache
 #ghc-pkg describe rts
 #ghc-pkg describe rts > rts.pkg
@@ -47,7 +47,7 @@ perl -pi -e 's/#BuildFlavour = quick\n/BuildFlavour = quick\n/' mk/build.mk
 #perl -pi -e 's/#HADDOCK_DOCS = YES/HADDOCK_DOCS = NO/g' mk/build.mk
 echo "V=0" >> mk/build.mk
 #echo "HADDOCK_DOCS = NO" >> mk/build.mk
-echo "SRC_HC_OPTS = -O0 -H64m -L$PREFIX/lib -lgmp -threaded -pgmc x86_64-conda_cos6-linux-gnu-cc -pgml x86_64-conda_cos6-linux-gnu-cc " >> mk/build.mk
+echo "SRC_HC_OPTS = -O0 -H64m -L$PREFIX/lib -lgmp -threaded -lgcc_s -pgmc x86_64-conda_cos6-linux-gnu-cc -pgml x86_64-conda_cos6-linux-gnu-cc " >> mk/build.mk
 echo "CONF_CC_OPTS_STAGE0 = -L$PREFIX/lib -lgmp -lpthread " >> mk/build.mk
 echo "CONF_CC_OPTS_STAGE1 = -L$PREFIX/lib -lgmp -lpthread " >> mk/build.mk
 echo "CONF_CC_OPTS_STAGE2 = -L$PREFIX/lib -lgmp -lpthread " >> mk/build.mk
