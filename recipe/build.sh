@@ -1,4 +1,4 @@
---with-system-libffiexport CC="x86_64-conda_cos6-linux-gnu-cc"
+CC="x86_64-conda_cos6-linux-gnu-cc"
 export LD="x86_64-conda_cos6-linux-gnu-cc"
 export PATH="$BUILD_PREFIX/bin:$PREFIX/bin:$PATH"
 export LD_LIBRARY_PATH="$PREFIX/lib:$LD_LIBRARY_PATH"
