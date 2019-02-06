@@ -24,9 +24,9 @@ ghc-pkg recache
 #export CONF_CC_LINKER_OPTS_STAGE2=$LDFLAGS
 #export CONF_CC_LINKER_OPTS_STAGE3=$LDFLAGS
 #export CONF_CPP_OPTS_STAGE0=$CFLAGS
-#export CONF_CPP_OPTS_STAGE1=$CFLAGS
-#export CONF_CPP_OPTS_STAGE2=$CFLAGS
-#export CONF_CPP_OPTS_STAGE3=$CFLAGS
+export CONF_CPP_OPTS_STAGE1="$CPPFLAGS"
+export CONF_CPP_OPTS_STAGE2="$CPPFLAGS"
+export CONF_CPP_OPTS_STAGE3="$CPPFLAGS"
 #export SRC_HC_OPTS=" -L$PREFIX/lib -lgmp -threaded -pgmc x86_64-conda_cos6-linux-gnu-cc -pgml x86_64-conda_cos6-linux-gnu-cc "
 #export SRC_HSC2HS_OPTS=" -L$PREFIX/lib -lgmp -threaded -pgmc x86_64-conda_cos6-linux-gnu-cc -pgml x86_64-conda_cos6-linux-gnu-cc "
 #export CONF_HC_OPTS_STAGE0=" -L$PREFIX/lib -lgmp -threaded -pgmc x86_64-conda_cos6-linux-gnu-cc -pgml x86_64-conda_cos6-linux-gnu-cc "
@@ -41,7 +41,7 @@ ghc-pkg recache
 #perl -pi -e 's/GhcStage3HcOpts=/GhcStage3HcOpts= -pgmc x86_64-conda_cos6-linux-gnu-cc -pgml x86_64-conda_cos6-linux-gnu-cc -threaded /g' mk/config.mk.in
 #cat mk/config.mk.in
 #./configure --prefix=$PREFIX --with-hs-cpp=$BUILD_PREFIX/bin/x86_64-conda_cos6-linux-gnu-cpp --with-gmp-includes="$PREFIX/include" --with-curses-libraries="$PREFIX/lib" --with-gmp-libraries="$PREFIX/lib" CC="$BUILD_PREFIX/bin/x86_64-conda_cos6-linux-gnu-cc" LD="$BUILD_PREFIX/bin/x86_64-conda_cos6-linux-gnu-cc" CPPFLAGS="$_INCLUDE_PATH" LDFLAGS=" -L$PREFIX/lib -lgmp -lpthread" 
-./configure --prefix=$PREFIX --with-ffi-includes=$PREFIX/include --with-ffi-libraries=$PREFIX/lib --with-system-libffi AR=x86_64-conda_cos6-linux-gnu-ar CPP=x86_64-conda_cos6-linux-gnu-cpp CPPFLAGS=-I$PREFIX/include --with-gmp-includes=$PREFIX/include --with-curses-libraries=$PREFIX/lib --with-gmp-libraries=$PREFIX/lib LDFLAGS=-L$PREFIX/lib CC=$BUILD_PREFIX/bin/x86_64-conda_cos6-linux-gnu-cc LD=$BUILD_PREFIX/bin/x86_64-conda_cos6-linux-gnu-cc LIBTOOL=LD=$BUILD_PREFIX/bin/libtool CPPFLAGS="$CPPFLAGS"
+./configure --prefix=$PREFIX --with-ffi-includes=$PREFIX/include --with-ffi-libraries=$PREFIX/lib --with-system-libffi AR=x86_64-conda_cos6-linux-gnu-ar CPP=x86_64-conda_cos6-linux-gnu-cpp CPPFLAGS=-I$PREFIX/include --with-gmp-includes=$PREFIX/include --with-curses-libraries=$PREFIX/lib --with-gmp-libraries=$PREFIX/lib LDFLAGS=-L$PREFIX/lib CC=$BUILD_PREFIX/bin/x86_64-conda_cos6-linux-gnu-cc LD=$BUILD_PREFIX/bin/x86_64-conda_cos6-linux-gnu-cc LIBTOOL=LD=$BUILD_PREFIX/bin/libtool
 #cat mk/config.mk
 cp mk/build.mk.sample mk/build.mk
 perl -pi -e 's/#BuildFlavour = quick\n/BuildFlavour = quick\n/' mk/build.mk
@@ -57,7 +57,7 @@ echo "CONF_CC_OPTS_STAGE3 = -L$PREFIX/lib -lgmp -lpthread " >> mk/build.mk
 echo "SRC_HSC2HS_OPTS = -lgmp -lpthread " >> mk/build.mk
 #echo "libraries/integer-gmp_CONFIGURE_OPTS += --configure-option=LDFLAGS=\" -L$PREFIX/lib \" --ghc-options=\" -L$PREFIX/lib -lgmp -threaded -pgmc x86_64-conda_cos6-linux-gnu-cc -pgml x86_64-conda_cos6-linux-gnu-cc \"" >> mk/build.mk
 #echo "libraries/integer-gmp_CONFIGURE_OPTS = --with-gmp-includes=\"$PREFIX/include\" --with-gmp-libraries=\"$PREFIX/include\" " >> mk/build.mk
-echo "GhcLibHcOpts= -L$PREFIX/lib -lgmp -threaded -lgcc_s -pgmP x86_64-conda_cos6-linux-gnu-cpp -pgmc x86_64-conda_cos6-linux-gnu-cc -pgml x86_64-conda_cos6-linux-gnu-cc " >> mk/build.mk
+#echo "GhcLibHcOpts= -L$PREFIX/lib -lgmp -threaded -lgcc_s -pgmP x86_64-conda_cos6-linux-gnu-cpp -pgmc x86_64-conda_cos6-linux-gnu-cc -pgml x86_64-conda_cos6-linux-gnu-cc " >> mk/build.mk
 cat mk/build.mk
 #./validate --build-only
 echo "Settings"
