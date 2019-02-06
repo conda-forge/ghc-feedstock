@@ -5,7 +5,9 @@ export LD_LIBRARY_PATH="$PREFIX/lib:$LD_LIBRARY_PATH"
 export LIBRARY_PATH="$PREFIX/lib:$LIBRARY_PATH"
 export C_INCLUDE_PATH="$PREFIX/include:$C_INCLUDE_PATH"
 #export LDFLAGS=" -L$PREFIX/lib -lgmp -lpthread $LDFLAGS "
-#export CFLAGS=" -Wl,-L$PREFIX/lib -Wl,-lgmp -Wl,-lpthread $CFLAGS "
+export CPPFLAGS=" -Wl,-L$PREFIX/lib -Wl,-lgmp -Wl,-lpthread -Wl,-lgcc_s $CPPFLAGS "
+echo "echo CPPFLAGS"
+echo $CPPFLAGS
 export LIBS=" -lgmp -lpthread -lgcc_s $LIBS "
 ghc-pkg recache
 #ghc-pkg describe rts
@@ -55,7 +57,7 @@ echo "CONF_CC_OPTS_STAGE3 = -L$PREFIX/lib -lgmp -lpthread " >> mk/build.mk
 echo "SRC_HSC2HS_OPTS = -lgmp -lpthread " >> mk/build.mk
 #echo "libraries/integer-gmp_CONFIGURE_OPTS += --configure-option=LDFLAGS=\" -L$PREFIX/lib \" --ghc-options=\" -L$PREFIX/lib -lgmp -threaded -pgmc x86_64-conda_cos6-linux-gnu-cc -pgml x86_64-conda_cos6-linux-gnu-cc \"" >> mk/build.mk
 #echo "libraries/integer-gmp_CONFIGURE_OPTS = --with-gmp-includes=\"$PREFIX/include\" --with-gmp-libraries=\"$PREFIX/include\" " >> mk/build.mk
-echo "GhcLibHcOpts= -L$PREFIX/lib -lgmp -threaded -lgcc_s -pgmc x86_64-conda_cos6-linux-gnu-cc -pgml x86_64-conda_cos6-linux-gnu-cc " >> mk/build.mk
+echo "GhcLibHcOpts= -L$PREFIX/lib -lgmp -threaded -lgcc_s -pgmP x86_64-conda_cos6-linux-gnu-cpp -pgmc x86_64-conda_cos6-linux-gnu-cc -pgml x86_64-conda_cos6-linux-gnu-cc " >> mk/build.mk
 cat mk/build.mk
 #./validate --build-only
 echo "Settings"
