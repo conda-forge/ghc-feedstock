@@ -1,6 +1,6 @@
-CC="x86_64-conda_cos6-linux-gnu-cc"
+export CC="x86_64-conda_cos6-linux-gnu-cc"
 export LD="x86_64-conda_cos6-linux-gnu-cc"
-rm -r $BUILD_PREFIX/x86_64-conda_cos6-linux-gnu
+ldconfig -p
 export PATH="$BUILD_PREFIX/bin:$PREFIX/bin:$PATH"
 export LD_LIBRARY_PATH="$PREFIX/lib:$LD_LIBRARY_PATH"
 export LIBRARY_PATH="$PREFIX/lib:$LIBRARY_PATH"
