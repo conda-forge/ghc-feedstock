@@ -1,12 +1,12 @@
 export CC="x86_64-conda_cos6-linux-gnu-cc"
 export LD="x86_64-conda_cos6-linux-gnu-cc"
-ldconfig -p
 export PATH="$BUILD_PREFIX/bin:$PREFIX/bin:$PATH"
 export LD_LIBRARY_PATH="$PREFIX/lib:$LD_LIBRARY_PATH"
 export LIBRARY_PATH="$PREFIX/lib:$LIBRARY_PATH"
 export C_INCLUDE_PATH="$PREFIX/include:$C_INCLUDE_PATH"
 #export LDFLAGS=" -L$PREFIX/lib -lgmp -lpthread $LDFLAGS "
 export CPPFLAGS=" -Wl,-L$PREFIX/lib -Wl,-lgmp -Wl,-lpthread -Wl,-lgcc_s $CPPFLAGS "
+ldconfig -p
 echo "echo CPPFLAGS"
 echo $CPPFLAGS
 export LIBS=" -lgmp -lpthread -lgcc_s $LIBS "
@@ -28,6 +28,7 @@ ghc-pkg recache
 export CONF_CPP_OPTS_STAGE1="$CPPFLAGS"
 export CONF_CPP_OPTS_STAGE2="$CPPFLAGS"
 export CONF_CPP_OPTS_STAGE3="$CPPFLAGS"
+
 #export SRC_HC_OPTS=" -L$PREFIX/lib -lgmp -threaded -pgmc x86_64-conda_cos6-linux-gnu-cc -pgml x86_64-conda_cos6-linux-gnu-cc "
 #export SRC_HSC2HS_OPTS=" -L$PREFIX/lib -lgmp -threaded -pgmc x86_64-conda_cos6-linux-gnu-cc -pgml x86_64-conda_cos6-linux-gnu-cc "
 #export CONF_HC_OPTS_STAGE0=" -L$PREFIX/lib -lgmp -threaded -pgmc x86_64-conda_cos6-linux-gnu-cc -pgml x86_64-conda_cos6-linux-gnu-cc "
@@ -50,7 +51,7 @@ perl -pi -e 's/#BuildFlavour = quick\n/BuildFlavour = quick\n/' mk/build.mk
 #perl -pi -e 's/#HADDOCK_DOCS = YES/HADDOCK_DOCS = NO/g' mk/build.mk
 echo "V=0" >> mk/build.mk
 #echo "HADDOCK_DOCS = NO" >> mk/build.mk
-echo "SRC_HC_OPTS = -O0 -H64m -L$PREFIX/lib -lgmp -threaded -lgcc -lgcc_s -pgmc x86_64-conda_cos6-linux-gnu-cc -pgml x86_64-conda_cos6-linux-gnu-cc " >> mk/build.mk
+echo "SRC_HC_OPTS = -O0 -H64m -L$PREFIX/lib/gcc/x86_64-conda_cos6-linux-gnu/7.3.0 -L$PREFIX/lib -lgmp -threaded -lgcc -lgcc_s -pgmc x86_64-conda_cos6-linux-gnu-cc -pgml x86_64-conda_cos6-linux-gnu-cc " >> mk/build.mk
 #echo "CONF_CC_OPTS_STAGE0 = -L$PREFIX/lib -lgmp -lpthread " >> mk/build.mk
 #echo "CONF_CC_OPTS_STAGE1 = -L$PREFIX/lib -lgmp -lpthread " >> mk/build.mk
 #echo "CONF_CC_OPTS_STAGE2 = -L$PREFIX/lib -lgmp -lpthread " >> mk/build.mk
