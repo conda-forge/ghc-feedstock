@@ -5,8 +5,6 @@ export LD_LIBRARY_PATH="$PREFIX/lib:$LD_LIBRARY_PATH"
 export LIBRARY_PATH="$PREFIX/lib:$LIBRARY_PATH"
 export C_INCLUDE_PATH="$PREFIX/include:$C_INCLUDE_PATH"
 #export LDFLAGS=" -L$PREFIX/lib -lgmp -lpthread $LDFLAGS "
-ldconfig $PREFIX/lib/gcc/x86_64-conda_cos6-linux-gnu/7.3.0
-ldconfig $PREFIX/lib
 export CPPFLAGS=" -Wl,-L$PREFIX/lib -Wl,-lgmp -Wl,-lpthread -Wl,-lgcc_s $CPPFLAGS "
 ldconfig -p
 echo "echo CPPFLAGS"
