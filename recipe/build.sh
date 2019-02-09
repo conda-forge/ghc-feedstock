@@ -6,9 +6,9 @@ export LIBRARY_PATH="$PREFIX/lib:$LIBRARY_PATH"
 export C_INCLUDE_PATH="$PREFIX/include:$C_INCLUDE_PATH"
 #export LDFLAGS=" -L$PREFIX/lib -lgmp -lpthread $LDFLAGS "
 export CPPFLAGS=" -Wl,-L$PREFIX/lib -Wl,-lgmp -Wl,-lpthread -Wl,-lgcc_s $CPPFLAGS "
-ldconfig -p
-echo "echo CPPFLAGS"
-echo $CPPFLAGS
+#ldconfig -p
+#echo "echo CPPFLAGS"
+#echo $CPPFLAGS
 export LIBS=" -lgmp -lpthread -lgcc_s $LIBS "
 ghc-pkg recache
 #ghc-pkg describe rts
@@ -43,7 +43,7 @@ export CONF_CPP_OPTS_STAGE3="$CPPFLAGS"
 #perl -pi -e 's/GhcStage3HcOpts=/GhcStage3HcOpts= -pgmc x86_64-conda_cos6-linux-gnu-cc -pgml x86_64-conda_cos6-linux-gnu-cc -threaded /g' mk/config.mk.in
 #cat mk/config.mk.in
 #./configure --prefix=$PREFIX --with-hs-cpp=$BUILD_PREFIX/bin/x86_64-conda_cos6-linux-gnu-cpp --with-gmp-includes="$PREFIX/include" --with-curses-libraries="$PREFIX/lib" --with-gmp-libraries="$PREFIX/lib" CC="$BUILD_PREFIX/bin/x86_64-conda_cos6-linux-gnu-cc" LD="$BUILD_PREFIX/bin/x86_64-conda_cos6-linux-gnu-cc" CPPFLAGS="$_INCLUDE_PATH" LDFLAGS=" -L$PREFIX/lib -lgmp -lpthread" 
-./configure --prefix=$PREFIX --with-ffi-includes=$PREFIX/include --with-ffi-libraries=$PREFIX/lib --with-system-libffi AR=x86_64-conda_cos6-linux-gnu-ar CPP=x86_64-conda_cos6-linux-gnu-cpp CPPFLAGS=-I$PREFIX/include --with-gmp-includes=$PREFIX/include --with-curses-libraries=$PREFIX/lib --with-gmp-libraries=$PREFIX/lib LDFLAGS=-L$PREFIX/lib CC=$BUILD_PREFIX/bin/x86_64-conda_cos6-linux-gnu-cc LD=$BUILD_PREFIX/bin/x86_64-conda_cos6-linux-gnu-cc LIBTOOL=LD=$BUILD_PREFIX/bin/libtool
+./configure --prefix=$PREFIX --with-ffi-includes=$PREFIX/include --with-ffi-libraries=$PREFIX/lib --with-system-libffi AR=x86_64-conda_cos6-linux-gnu-ar CPP=x86_64-conda_cos6-linux-gnu-cpp CPPFLAGS=-I$PREFIX/include --with-gmp-includes=$PREFIX/include --with-curses-libraries=$PREFIX/lib --with-gmp-libraries=$PREFIX/lib LDFLAGS=-L$PREFIX/lib CC=$BUILD_PREFIX/bin/x86_64-conda_cos6-linux-gnu-cc LD=$BUILD_PREFIX/bin/x86_64-conda_cos6-linux-gnu-cc LIBTOOL=LD=$BUILD_PREFIX/bin/libtool --with-hs-cpp-flags="-E -undef -traditional -Wl,-L$PREFIX/lib -Wl,-L$PREFIX/lib/gcc/x86_64-conda_cos6-linux-gnu/7.3.0 -Wl,-lgcc_s -Wl,-lgcc " AR=$BUILD_PREFIX/bin/x86_64-conda_cos6-linux-gnu-ar
 #cat mk/config.mk
 cp mk/build.mk.sample mk/build.mk
 perl -pi -e 's/#BuildFlavour = quick\n/BuildFlavour = quick\n/' mk/build.mk
