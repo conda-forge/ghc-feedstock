@@ -1,17 +1,9 @@
-#export PATH="$BUILD_PREFIX/x86_64-conda_cos6-linux-gnu/bin:$PATH"
+export CC="cc"
+export LD="ld.gold"
+export PATH="$BUILD_PREFIX/x86_64-conda_cos6-linux-gnu/bin:$PREFIX/bin:$PATH"
 export LD_LIBRARY_PATH="$PREFIX/lib:$LD_LIBRARY_PATH"
 export LIBRARY_PATH="$PREFIX/lib:$LIBRARY_PATH"
 export C_INCLUDE_PATH="$PREFIX/include:$C_INCLUDE_PATH"
-ls "$BUILD_PREFIX/x86_64-conda_cos6-linux-gnu/bin/"
-export CC="$BUILD_PREFIX/x86_64-conda_cos6-linux-gnu/bin/cc"
-export CXX="$BUILD_PREFIX/x86_64-conda_cos6-linux-gnu/bin/cxx"
-export LD="$BUILD_PREFIX/x86_64-conda_cos6-linux-gnu/bin/ld.gold"
-export AS="$BUILD_PREFIX/x86_64-conda_cos6-linux-gnu/bin/as"
-export AR="$BUILD_PREFIX/x86_64-conda_cos6-linux-gnu/bin/ar"
-export NM="$BUILD_PREFIX/x86_64-conda_cos6-linux-gnu/bin/nm"
-export RANLIB="$BUILD_PREFIX/x86_64-conda_cos6-linux-gnu/bin/ranlib"
-export READELF="$BUILD_PREFIX/x86_64-conda_cos6-linux-gnu/bin/readelf"
-export STRIP="$BUILD_PREFIX/x86_64-conda_cos6-linux-gnu/bin/strip"
 #export LDFLAGS=" -L$PREFIX/lib -lgmp -lpthread $LDFLAGS "
 ##export CPPFLAGS=" -Wl,-L$PREFIX/lib -Wl,-lgmp -Wl,-lpthread -Wl,-lgcc_s $CPPFLAGS "
 #ldconfig -p
@@ -51,15 +43,18 @@ ghc-pkg recache
 #perl -pi -e 's/GhcStage3HcOpts=/GhcStage3HcOpts= -pgmc x86_64-conda_cos6-linux-gnu-cc -pgml x86_64-conda_cos6-linux-gnu-cc -threaded /g' mk/config.mk.in
 #cat mk/config.mk.in
 #./configure --prefix=$PREFIX --with-hs-cpp=$BUILD_PREFIX/bin/x86_64-conda_cos6-linux-gnu-cpp --with-gmp-includes="$PREFIX/include" --with-curses-libraries="$PREFIX/lib" --with-gmp-libraries="$PREFIX/lib" CC="$BUILD_PREFIX/bin/x86_64-conda_cos6-linux-gnu-cc" LD="$BUILD_PREFIX/bin/x86_64-conda_cos6-linux-gnu-cc" CPPFLAGS="$_INCLUDE_PATH" LDFLAGS=" -L$PREFIX/lib -lgmp -lpthread" 
-./configure --prefix=$PREFIX --enable-bootstrap-with-devel-snapshot --with-ffi-includes=$PREFIX/include --with-ffi-libraries=$PREFIX/lib --with-system-libffi AR=$BUILD_PREFIX/x86_64-conda_cos6-linux-gnu/bin/ar CPP=$BUILD_PREFIX/x86_64-conda_cos6-linux-gnu/bin/cpp CPPFLAGS=-I$PREFIX/include --with-gmp-includes=$PREFIX/include --with-curses-libraries=$PREFIX/lib --with-gmp-libraries=$PREFIX/lib LDFLAGS=-L$PREFIX/lib CC=$BUILD_PREFIX/x86_64-conda_cos6-linux-gnu/bin/cc LD=$BUILD_PREFIX/x86_64-conda_cos6-linux-gnu/bin/ld.gold LIBTOOL=$BUILD_PREFIX/x86_64-conda_cos6-linux-gnu/bin/libtool AR=$BUILD_PREFIX/x86_64-conda_cos6-linux-gnu/bin/ar CFLAGS=-fuse-ld=gold CONF_GCC_LINKER_OPTS_STAGE1=-fuse-ld=gold CONF_GCC_LINKER_OPTS_STAGE2=-fuse-ld=gold
+./configure --prefix=$PREFIX --enable-bootstrap-with-devel-snapshot --with-ffi-includes=$PREFIX/include --with-ffi-libraries=$PREFIX/lib --with-system-libffi AR=x86_64-conda_cos6-linux-gnu-ar CPP=x86_64-conda_cos6-linux-gnu-cpp CPPFLAGS=-I$PREFIX/include --with-gmp-includes=$PREFIX/include --with-curses-libraries=$PREFIX/lib --with-gmp-libraries=$PREFIX/lib LDFLAGS=-L$PREFIX/lib CC=$BUILD_PREFIX/bin/x86_64-conda_cos6-linux-gnu-cc LD=$BUILD_PREFIX/bin/x86_64-conda_cos6-linux-gnu-ld.gold LIBTOOL=LD=$BUILD_PREFIX/bin/libtool AR=$BUILD_PREFIX/x86_64-conda_cos6-linux-gnu/bin/ar CFLAGS=-fuse-ld=gold CONF_GCC_LINKER_OPTS_STAGE1=-fuse-ld=gold CONF_GCC_LINKER_OPTS_STAGE2=-fuse-ld=gold
 #cat mk/config.mk
 cp mk/build.mk.sample mk/build.mk
 perl -pi -e 's/#BuildFlavour = quick\n/BuildFlavour = quick\n/' mk/build.mk
 #perl -pi -e 's/#V=0/V=0/g' mk/build.mk
 #perl -pi -e 's/#HADDOCK_DOCS = YES/HADDOCK_DOCS = NO/g' mk/build.mk
 echo "V=0" >> mk/build.mk
+echo "GhcLibHcOpts += -fPIC" >> mk/build.mk
+echo "GhcRtsHcOpts += -fPIC" >> mk/build.mk
+echo "EXTRA_CC_OPTS += -std=gnu99" >> mk/build.mk
 #echo "HADDOCK_DOCS = NO" >> mk/build.mk
-echo "SRC_HC_OPTS = -O0 -H64m -L$PREFIX/lib/gcc/x86_64-conda_cos6-linux-gnu/7.3.0 -L$PREFIX/lib -lgmp -threaded -lgcc -lgcc_s -pgmc $BUILD_PREFIX/x86_64-conda_cos6-linux-gnu/bin/cc -pgml $BUILD_PREFIX/x86_64-conda_cos6-linux-gnu/bin/ld.gold " >> mk/build.mk
+echo "SRC_HC_OPTS = -O0 -H64m -L$PREFIX/lib/gcc/x86_64-conda_cos6-linux-gnu/7.3.0 -L$PREFIX/lib -lgmp -threaded -lgcc -lgcc_s -pgmc cc -pgml ld.gold " >> mk/build.mk
 #echo "CONF_CC_OPTS_STAGE0 = -Wl,-L$PREFIX/lib -Wl,-lgcc " >> mk/build.mk
 #echo "CONF_CC_OPTS_STAGE1 = -Wl,-L$PREFIX/lib " >> mk/build.mk
 #echo "CONF_CC_OPTS_STAGE2 = -Wl,-L$PREFIX/lib -Wl,-lgmp -lpthread " >> mk/build.mk
@@ -85,4 +80,3 @@ make install
 echo "main = putStr \"smalltest\"" > Main.hs
 ghc -v -O0 -threaded -L$PREFIX/lib -pgmc x86_64-conda_cos6-linux-gnu-cc -pgml x86_64-conda_cos6-linux-gnu-ld.gold -fasm -o smalltest Main.hs 
 ./smalltest
-
