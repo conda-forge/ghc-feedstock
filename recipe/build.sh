@@ -1,9 +1,17 @@
-export CC="cc"
-export LD="ld.gold"
-export PATH="$BUILD_PREFIX/x86_64-conda_cos6-linux-gnu/bin:$PREFIX/bin:$PATH"
+#export PATH="$BUILD_PREFIX/x86_64-conda_cos6-linux-gnu/bin:$PATH"
 export LD_LIBRARY_PATH="$PREFIX/lib:$LD_LIBRARY_PATH"
 export LIBRARY_PATH="$PREFIX/lib:$LIBRARY_PATH"
 export C_INCLUDE_PATH="$PREFIX/include:$C_INCLUDE_PATH"
+ls "$BUILD_PREFIX/x86_64-conda_cos6-linux-gnu/bin/"
+export CC="$BUILD_PREFIX/x86_64-conda_cos6-linux-gnu/bin/cc"
+export CXX="$BUILD_PREFIX/x86_64-conda_cos6-linux-gnu/bin/cxx"
+export LD="$BUILD_PREFIX/x86_64-conda_cos6-linux-gnu/bin/ld.gold"
+export AS="$BUILD_PREFIX/x86_64-conda_cos6-linux-gnu/bin/as"
+export AR="$BUILD_PREFIX/x86_64-conda_cos6-linux-gnu/bin/ar"
+export NM="$BUILD_PREFIX/x86_64-conda_cos6-linux-gnu/bin/nm"
+export RANLIB="$BUILD_PREFIX/x86_64-conda_cos6-linux-gnu/bin/ranlib"
+export READELF="$BUILD_PREFIX/x86_64-conda_cos6-linux-gnu/bin/readelf"
+export STRIP="$BUILD_PREFIX/x86_64-conda_cos6-linux-gnu/bin/strip"
 #export LDFLAGS=" -L$PREFIX/lib -lgmp -lpthread $LDFLAGS "
 ##export CPPFLAGS=" -Wl,-L$PREFIX/lib -Wl,-lgmp -Wl,-lpthread -Wl,-lgcc_s $CPPFLAGS "
 #ldconfig -p
@@ -51,7 +59,7 @@ perl -pi -e 's/#BuildFlavour = quick\n/BuildFlavour = quick\n/' mk/build.mk
 #perl -pi -e 's/#HADDOCK_DOCS = YES/HADDOCK_DOCS = NO/g' mk/build.mk
 echo "V=0" >> mk/build.mk
 #echo "HADDOCK_DOCS = NO" >> mk/build.mk
-echo "SRC_HC_OPTS = -O0 -H64m -L$PREFIX/lib/gcc/x86_64-conda_cos6-linux-gnu/7.3.0 -L$PREFIX/lib -lgmp -threaded -lgcc -lgcc_s -pgmc cc -pgml ld.gold " >> mk/build.mk
+echo "SRC_HC_OPTS = -O0 -H64m -L$PREFIX/lib/gcc/x86_64-conda_cos6-linux-gnu/7.3.0 -L$PREFIX/lib -lgmp -threaded -lgcc -lgcc_s -pgmc $BUILD_PREFIX/x86_64-conda_cos6-linux-gnu/bin/cc -pgml $BUILD_PREFIX/x86_64-conda_cos6-linux-gnu/bin/ld.gold " >> mk/build.mk
 #echo "CONF_CC_OPTS_STAGE0 = -Wl,-L$PREFIX/lib -Wl,-lgcc " >> mk/build.mk
 #echo "CONF_CC_OPTS_STAGE1 = -Wl,-L$PREFIX/lib " >> mk/build.mk
 #echo "CONF_CC_OPTS_STAGE2 = -Wl,-L$PREFIX/lib -Wl,-lgmp -lpthread " >> mk/build.mk
