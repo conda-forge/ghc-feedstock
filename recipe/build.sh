@@ -7,7 +7,7 @@ export LDFLAGS+=" -L$PREFIX/lib -lgmp -lpthread -no_dtrace_dof"
 #ldconfig -p
 #echo "echo CPPFLAGS"
 #echo $CPPFLAGS
-export LIBS=" -lgmp -lpthread -lgcc_s $LIBS "
+export LIBS=" -L$PREFIX/lib -lgmp -lpthread -lgcc_s $LIBS "
 export PRIM_EXTRA_LIBRARIES=" -lgmp -lpthread "
 export PRIM_CFLAGS=" -fuse-ld=gold "
 ghc-pkg recache
