@@ -8,6 +8,8 @@ export LDFLAGS+=" -L$PREFIX/lib -lgmp -lpthread -no_dtrace_dof"
 #echo "echo CPPFLAGS"
 #echo $CPPFLAGS
 export LIBS=" -lgmp -lpthread -lgcc_s $LIBS "
+export PRIM_EXTRA_LIBRARIES+=" -lgmp -lpthread "
+export PRIM_CFLAGS+=" -fuse-ld=gold "
 ghc-pkg recache
 #ghc-pkg describe rts
 #ghc-pkg describe rts > rts.pkg
