@@ -16,8 +16,8 @@ echo "GhcLibHcOpts += -fPIC" >> mk/build.mk
 echo "GhcRtsHcOpts += -fPIC" >> mk/build.mk
 echo "SplitObjs=NO" >> mk/build.mk
 echo "EXTRA_CC_OPTS += -std=gnu99" >> mk/build.mk
-#echo "SRC_HC_OPTS = -O0 -H64m -optl-fuse-ld=gold -optl-L$PREFIX/lib/gcc/x86_64-conda_cos6-linux-gnu/7.3.0 -optl-L$PREFIX/lib -lgmp -threaded -lgcc -lgcc_s -pgmc $BUILD_PREFIX/bin/x86_64-conda_cos6-linux-gnu-cc -pgml $BUILD_PREFIX/bin/x86_64-conda_cos6-linux-gnu-cc " >> mk/build.mk
-#echo "SRC_HSC2HS_OPTS = -lgmp -lpthread " >> mk/build.mk
+echo "SRC_HC_OPTS = -O0 -H64m -optl-fuse-ld=gold -optl-L$PREFIX/lib/gcc/x86_64-conda_cos6-linux-gnu/7.3.0 -optl-L$PREFIX/lib -lgmp -threaded -lgcc -lgcc_s -pgmc $BUILD_PREFIX/bin/x86_64-conda_cos6-linux-gnu-cc -pgml $BUILD_PREFIX/bin/x86_64-conda_cos6-linux-gnu-ld.gold " >> mk/build.mk
+echo "SRC_HSC2HS_OPTS = -lgmp -lpthread " >> mk/build.mk
 cat mk/build.mk
 make -j
 make install
