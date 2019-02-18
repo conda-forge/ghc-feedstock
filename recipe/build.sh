@@ -1,4 +1,7 @@
-export PATH="$BUILD_PREFIX/x86_64-conda_cos6-linux-gnu/bin:$PREFIX/bin:$PATH"
+export PATH="$BUILD_PREFIX/bin:$PREFIX/bin:$PATH"
+ln -s $BUILD_PREFIX/bin/x86_64-conda_cos6-linux-gnu-cc $BUILD_PREFIX/bin/ld
+echo "which ld"
+which ld
 export LD_LIBRARY_PATH="$PREFIX/lib:$LD_LIBRARY_PATH"
 export LIBRARY_PATH="$PREFIX/lib:$LIBRARY_PATH"
 export C_INCLUDE_PATH="$PREFIX/include:$C_INCLUDE_PATH"
@@ -13,8 +16,8 @@ ghc-pkg recache
 cp mk/build.mk.sample mk/build.mk
 perl -pi -e 's/#BuildFlavour = quick\n/BuildFlavour = quick\n/' mk/build.mk
 echo "V=0" >> mk/build.mk
-echo "GhcLibHcOpts += -fPIC -optl-fuse-ld=gold -optl-L$PREFIX/lib -lgcc -lgcc_s " >> mk/build.mk
-echo "GhcRtsHcOpts += -fPIC -optl-fuse-ld=gold -optl-L$PREFIX/lib -lgcc -lgcc_s " >> mk/build.mk
+echo "GhcLibHcOpts += -fPIC -optl-fuse-ld=gold -optl-L$PREFIX/lib -optl-L$PREFIX/lib/gcc/x86_64-conda_cos6-linux-gnu/7.3.0 -lgcc -lgcc_s " >> mk/build.mk
+echo "GhcRtsHcOpts += -fPIC -optl-fuse-ld=gold -optl-L$PREFIX/lib -optl-L$PREFIX/lib/gcc/x86_64-conda_cos6-linux-gnu/7.3.0 -lgcc -lgcc_s " >> mk/build.mk
 echo "SplitObjs=NO" >> mk/build.mk
 echo "EXTRA_CC_OPTS += -std=gnu99" >> mk/build.mk
 echo "SRC_HC_OPTS = -O0 -H64m -optl-fuse-ld=gold -optl-L$PREFIX/lib/gcc/x86_64-conda_cos6-linux-gnu/7.3.0 -optl-L$PREFIX/lib -lgmp -threaded -lgcc -lgcc_s -pgmc $BUILD_PREFIX/bin/x86_64-conda_cos6-linux-gnu-cc -pgml $BUILD_PREFIX/bin/x86_64-conda_cos6-linux-gnu-cc " >> mk/build.mk
