@@ -5,6 +5,9 @@ which ld
 ln -s $BUILD_PREFIX/bin/x86_64-conda_cos6-linux-gnu-cc $BUILD_PREFIX/bin/collect2
 echo "which collect2"
 which collect2
+ln -s $BUILD_PREFIX/bin/x86_64-conda_cos6-linux-gnu-ld.gold $BUILD_PREFIX/bin/ld.gold
+echo "which ld.gold"
+which ld.gold
 export LD_LIBRARY_PATH="$PREFIX/lib:$LD_LIBRARY_PATH"
 export LIBRARY_PATH="$PREFIX/lib:$LIBRARY_PATH"
 export C_INCLUDE_PATH="$PREFIX/include:$C_INCLUDE_PATH"
