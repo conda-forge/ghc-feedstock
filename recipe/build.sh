@@ -11,7 +11,7 @@ which ld.gold
 ln -s $BUILD_PREFIX/bin/x86_64-conda_cos6-linux-gnu-ar $BUILD_PREFIX/bin/ar
 echo "which ar"
 which ar
-ln -s $BUILD_PREFIX/bin/x86_64-conda_cos6-linux-gnu-ar $BUILD_PREFIX/bin/as
+ln -s $BUILD_PREFIX/bin/x86_64-conda_cos6-linux-gnu-as $BUILD_PREFIX/bin/as
 echo "which as"
 which as
 export LD_LIBRARY_PATH="$PREFIX/lib:$LD_LIBRARY_PATH"
@@ -38,8 +38,9 @@ echo "SRC_HSC2HS_OPTS = -lgmp -lpthread " >> mk/build.mk
 #cat mk/build.mk
 echo "config.mk"
 cat mk/config.mk
-perl -pi -e 's/LD_NO_GOLD = ld/LD_NO_GOLD = x86_64-conda_cos6-linux-gnu-cc/' mk/config.mk
-perl -pi -e 's/LD = ld/LD = ld.gold/' mk/config.mk
+perl -pi -e 's/LD_NO_GOLD = \$BUILD_PREFIX\/bin\/x86_64-conda_cos6-linux-gnu-cc/LD_NO_GOLD = \$BUILD_PREFIX\/bin\/x86_64-conda_cos6-linux-gnu-cc/' mk/config.mk
+perl -pi -e 's/LD = \$BUILD_PREFIX\/bin\/x86_64-conda_cos6-linux-gnu-cc/LD = \$BUILD_PREFIX\/bin\/ld.gold/' mk/config.mk
+perl -pi -e 's/AR = ar/AR = \$BUILD_PREFIX\/bin\/x86_64-conda_cos6-linux-gnu-ar/' mk/config.mk
 make -j
 make install
 echo "main = putStr \"smalltest\"" > Main.hs
