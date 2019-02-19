@@ -8,6 +8,12 @@ which collect2
 ln -s $BUILD_PREFIX/bin/x86_64-conda_cos6-linux-gnu-ld.gold $BUILD_PREFIX/bin/ld.gold
 echo "which ld.gold"
 which ld.gold
+ln -s $BUILD_PREFIX/bin/x86_64-conda_cos6-linux-gnu-ar $BUILD_PREFIX/bin/ar
+echo "which ar"
+which ar
+ln -s $BUILD_PREFIX/bin/x86_64-conda_cos6-linux-gnu-ar $BUILD_PREFIX/bin/as
+echo "which as"
+which as
 export LD_LIBRARY_PATH="$PREFIX/lib:$LD_LIBRARY_PATH"
 export LIBRARY_PATH="$PREFIX/lib:$LIBRARY_PATH"
 export C_INCLUDE_PATH="$PREFIX/include:$C_INCLUDE_PATH"
@@ -17,7 +23,7 @@ export LIBS=" -L$PREFIX/lib -lgmp -lpthread -lgcc_s $LIBS "
 #export PRIM_CFLAGS=" -fuse-ld=gold "
 export LD=$BUILD_PREFIX/bin/x86_64-conda_cos6-linux-gnu-cc
 ghc-pkg recache
-./configure --prefix=$PREFIX --enable-bootstrap-with-devel-snapshot --with-ffi-includes=$PREFIX/include --with-ffi-libraries=$PREFIX/lib --with-system-libffi CPP=$BUILD_PREFIX/bin/x86_64-conda_cos6-linux-gnu-cpp CPPFLAGS=-I$PREFIX/include --with-gmp-includes=$PREFIX/include --with-curses-libraries=$PREFIX/lib --with-gmp-libraries=$PREFIX/lib LDFLAGS=-L$PREFIX/lib CC=$BUILD_PREFIX/bin/x86_64-conda_cos6-linux-gnu-cc LD=$BUILD_PREFIX/bin/x86_64-conda_cos6-linux-gnu-cc AR=$BUILD_PREFIX/bin/x86_64-conda_cos6-linux-gnu-ar AS=$BUILD_PREFIX/bin/x86_64-conda_cos6-linux-gnu-as CFLAGS=-fuse-ld=gold CONF_GCC_LINKER_OPTS_STAGE0=-fuse-ld=gold CONF_GCC_LINKER_OPTS_STAGE1=-fuse-ld=gold CONF_GCC_LINKER_OPTS_STAGE2=-fuse-ld=gold CPPFLAGS=
+./configure --prefix=$PREFIX --enable-bootstrap-with-devel-snapshot --with-ffi-includes=$PREFIX/include --with-ffi-libraries=$PREFIX/lib --with-system-libffi CPP=$BUILD_PREFIX/bin/x86_64-conda_cos6-linux-gnu-cpp CPPFLAGS=-I$PREFIX/include --with-gmp-includes=$PREFIX/include --with-curses-libraries=$PREFIX/lib --with-gmp-libraries=$PREFIX/lib LDFLAGS=-L$PREFIX/lib CC=$BUILD_PREFIX/bin/x86_64-conda_cos6-linux-gnu-cc LD=$BUILD_PREFIX/bin/x86_64-conda_cos6-linux-gnu-cc AR=$BUILD_PREFIX/bin/ar AS=$BUILD_PREFIX/bin/as CFLAGS=-fuse-ld=gold CONF_GCC_LINKER_OPTS_STAGE0=-fuse-ld=gold CONF_GCC_LINKER_OPTS_STAGE1=-fuse-ld=gold CONF_GCC_LINKER_OPTS_STAGE2=-fuse-ld=gold CPPFLAGS=
 # CONF_CPP_OPTS_STAGE0=-fuse-ld=gold CONF_CPP_OPTS_STAGE1=-fuse-ld=gold CONF_CPP_OPTS_STAGE2=-fuse-ld=gold CONF_CC_OPTS_STAGE0=-fuse-ld=gold CONF_CC_OPTS_STAGE1=-fuse-ld=gold CONF_CC_OPTS_STAGE2=-fuse-ld=gold PRIM_EXTRA_LIBRARIES=-L$PREFIX/lib PRIM_CFLAGS=-fuse-ld=gold --with-iconv-includes=$PREFIX/include" "--with-iconv-libraries=$PREFIX/lib
 cp mk/build.mk.sample mk/build.mk
 perl -pi -e 's/#BuildFlavour = quick\n/BuildFlavour = quick\n/' mk/build.mk
