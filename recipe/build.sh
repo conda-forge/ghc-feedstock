@@ -16,11 +16,11 @@ echo "which as"
 which as
 echo "ls $PREFIX/lib"
 ls $PREFIX/lib
-echo "$BUILD_PREFIX/x86_64-conda_cos6-linux-gnu/lib/"
-ls $BUILD_PREFIX/x86_64-conda_cos6-linux-gnu/lib/
+echo "$BUILD_PREFIX/lib/gcc/x86_64-conda_cos6-linux-gnu/7.3.0"
+ls $BUILD_PREFIX/lib/gcc/x86_64-conda_cos6-linux-gnu/7.3.0
 #ln -s $BUILD_PREFIX/x86_64-conda_cos6-linux-gnu/lib/libgcc_s.so $PREFIX/lib/libgcc_s.so
-export LD_LIBRARY_PATH="$BUILD_PREFIX/x86_64-conda_cos6-linux-gnu/lib/:$PREFIX/lib:$LD_LIBRARY_PATH"
-export LIBRARY_PATH="$BUILD_PREFIX/x86_64-conda_cos6-linux-gnu/lib/:$PREFIX/lib:$LIBRARY_PATH"
+export LD_LIBRARY_PATH="$BUILD_PREFIX/lib/gcc/x86_64-conda_cos6-linux-gnu/7.3.0:$PREFIX/lib:$LD_LIBRARY_PATH"
+export LIBRARY_PATH="$BUILD_PREFIX/lib/gcc/x86_64-conda_cos6-linux-gnu/7.3.0:$PREFIX/lib:$LIBRARY_PATH"
 export C_INCLUDE_PATH="$PREFIX/include:$C_INCLUDE_PATH"
 export LDFLAGS+=" -L$PREFIX/lib -lgmp -lgcc -lpthread "
 export LIBS=" -L$PREFIX/lib -lgmp -lgcc -lpthread -lgcc_s $LIBS "
@@ -38,7 +38,7 @@ echo "GhcLibHcOpts += -fPIC -pgmc $BUILD_PREFIX/bin/x86_64-conda_cos6-linux-gnu-
 echo "GhcRtsHcOpts += -fPIC -pgmc $BUILD_PREFIX/bin/x86_64-conda_cos6-linux-gnu-cc -pgml $BUILD_PREFIX/bin/x86_64-conda_cos6-linux-gnu-cc -optl-fuse-ld=gold -optl-L$PREFIX/lib -optl-L$PREFIX/lib/gcc/x86_64-conda_cos6-linux-gnu/7.3.0 -optl-lgcc -optl-lgcc_s " >> mk/build.mk
 echo "SplitObjs=NO" >> mk/build.mk
 echo "EXTRA_CC_OPTS += -std=gnu99" >> mk/build.mk
-echo "SRC_HC_OPTS = -O0 -H64m -optl-fuse-ld=gold -optl-L$PREFIX/lib -lgmp -threaded -lgcc_s -pgmc $BUILD_PREFIX/bin/x86_64-conda_cos6-linux-gnu-cc -pgml $BUILD_PREFIX/bin/x86_64-conda_cos6-linux-gnu-cc " >> mk/build.mk
+echo "SRC_HC_OPTS = -O0 -H64m -optl-fuse-ld=gold -optl-L$BUILD_PREFIX/lib/gcc/x86_64-conda_cos6-linux-gnu/7.3.0 -optl-L$PREFIX/lib -lgmp -threaded -lgcc -lgcc_s -pgmc $BUILD_PREFIX/bin/x86_64-conda_cos6-linux-gnu-cc -pgml $BUILD_PREFIX/bin/x86_64-conda_cos6-linux-gnu-cc " >> mk/build.mk
 echo "SRC_HSC2HS_OPTS = -lgcc -lgmp -lpthread " >> mk/build.mk
 #cat mk/build.mk
 echo "config.mk"
