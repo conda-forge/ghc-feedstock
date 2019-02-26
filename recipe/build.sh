@@ -14,9 +14,13 @@ which ar
 ln -s $BUILD_PREFIX/bin/x86_64-conda_cos6-linux-gnu-as $BUILD_PREFIX/bin/as
 echo "which as"
 which as
-ln -s $BUILD_PREFIX/x86_64-conda_cos6-linux-gnu/lib/libgcc_s.so $PREFIX/lib/libgcc_s.so
-export LD_LIBRARY_PATH="$PREFIX/lib:$LD_LIBRARY_PATH"
-export LIBRARY_PATH="$PREFIX/lib:$LIBRARY_PATH"
+echo "ls $PREFIX/lib"
+ls $PREFIX/lib
+echo "$BUILD_PREFIX/x86_64-conda_cos6-linux-gnu/lib/"
+ls $BUILD_PREFIX/x86_64-conda_cos6-linux-gnu/lib/
+#ln -s $BUILD_PREFIX/x86_64-conda_cos6-linux-gnu/lib/libgcc_s.so $PREFIX/lib/libgcc_s.so
+export LD_LIBRARY_PATH="$BUILD_PREFIX/x86_64-conda_cos6-linux-gnu/lib/:$PREFIX/lib:$LD_LIBRARY_PATH"
+export LIBRARY_PATH="$BUILD_PREFIX/x86_64-conda_cos6-linux-gnu/lib/:$PREFIX/lib:$LIBRARY_PATH"
 export C_INCLUDE_PATH="$PREFIX/include:$C_INCLUDE_PATH"
 export LDFLAGS+=" -L$PREFIX/lib -lgmp -lgcc -lpthread "
 export LIBS=" -L$PREFIX/lib -lgmp -lgcc -lpthread -lgcc_s $LIBS "
