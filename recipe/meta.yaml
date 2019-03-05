@@ -1,5 +1,5 @@
 {% set name = "ghc" %}
-{% set version = "8.6.3" %}
+{% set version = "8.6.4" %}
 {% set unixsha256 = "9f9e37b7971935d88ba80426c36af14b1e0b3ec1d9c860f44a4391771bc07f23" %}
 
 package:
@@ -7,7 +7,7 @@ package:
   version: {{ version }}
 
 source:
-  - url: https://downloads.haskell.org/~{{name}}/{{ version }}/{{ name }}-{{ version }}-src.tar.xz  # [linux]
+  - url: https://github.com/ghc/ghc/archive/ghc-8.6.4-release.tar.gz #https://downloads.haskell.org/~{{name}}/{{ version }}/{{ name }}-{{ version }}-src.tar.xz  # [linux]
     sha256: {{ unixsha256 }}  # [linux]
 
 build:
