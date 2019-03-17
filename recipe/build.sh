@@ -39,7 +39,7 @@ ln -s $PREFIX/bin/x86_64-conda_cos6-linux-gnu-ld.gold $PREFIX/bin/ld.gold
 ln -s $PREFIX/bin/x86_64-conda_cos6-linux-gnu-ld $PREFIX/bin/ld
 ln -s $PREFIX/bin/x86_64-conda_cos6-linux-gnu-ar $PREFIX/bin/ar
 ln -s $PREFIX/bin/x86_64-conda_cos6-linux-gnu-as $PREFIX/bin/as
-cp $RECIPE_DIR/memcopy.c $PREFIX/lib
+#cp $RECIPE_DIR/memcopy.c $PREFIX/lib
 #gcc -c $PREFIX/lib/memcopy.c -o $PREFIX/lib/memcopy.o
 #gcc -shared $PREFIX/lib/memcopy.o -o $PREFIX/lib/memcopy.so
 
