@@ -1,13 +1,15 @@
 {% set name = "ghc" %}
 {% set version = "8.6.4" %}
-{% set unixsha256 = "b18c0a39b0e3ae3f6a5ca79f078110bc95f52ff11d550bbcebd1479e727368e6" %}
+{% set unixsha256 = "5b5d07e4463203a433c3ed3df461ba6cce11b6d2b9b264db31f3429075d0303a" %}
+#{% set version = "8.6.3" %}
+#{% set unixsha256 = "9f9e37b7971935d88ba80426c36af14b1e0b3ec1d9c860f44a4391771bc07f23" %}
 
 package:
   name: {{ name|lower }}
   version: {{ version }}
 
 source:
-  - url: https://github.com/ghc/ghc/archive/ghc-8.6.4-release.tar.gz #https://downloads.haskell.org/~{{name}}/{{ version }}/{{ name }}-{{ version }}-src.tar.xz  # [linux]
+  - url: https://downloads.haskell.org/~{{name}}/{{ version }}/{{ name }}-{{ version }}-src.tar.xz  # [linux]
     sha256: {{ unixsha256 }}  # [linux]
 
 build:
@@ -16,8 +18,6 @@ build:
 
 requirements:
   build:
-    - {{ compiler('c') }}
-    - {{ compiler('cxx') }}
     - ghc-bootstrap
     - automake
     - autoconf
@@ -28,7 +28,7 @@ requirements:
     - sphinx
   host:
     - xz
-    - binutils  # [linux and c_compiler == 'toolchain_c' ]
+    - gcc_impl_linux-64
     - gmp
     - ncurses
     - libffi
