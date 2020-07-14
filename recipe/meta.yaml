@@ -7,11 +7,11 @@ package:
   version: {{ version }}
 
 source:
-  - url: https://downloads.haskell.org/~{{name}}/{{ version }}/{{ name }}-{{ version }}-x86_64-deb7-linux.tar.xz  # [linux]
+  - url: https://downloads.haskell.org/~{{ name }}/{{ version }}/{{ name }}-{{ version }}-x86_64-deb7-linux.tar.xz  # [linux]
     sha256: {{ unixsha256 }}  # [linux]
 
 build:
-  number: 1001
+  number: 1002
   skip: True  # [not linux]
 
 requirements:
