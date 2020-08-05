@@ -11,7 +11,7 @@ source:
     sha256: {{ unixsha256 }}  # [linux]
 
 build:
-  number: 1001
+  number: 1002
   skip: True  # [not linux]
 
 requirements:
