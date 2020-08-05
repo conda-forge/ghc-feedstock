@@ -25,6 +25,7 @@ requirements:
     - binutils  # [linux and c_compiler == 'toolchain_c' ]
     - gmp
     - ncurses
+    - make  # [aarch64]
   host:
     - xz
     - binutils_impl_linux-64  # [linux and c_compiler != 'toolchain_c' ]
