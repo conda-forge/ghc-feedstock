@@ -14,7 +14,7 @@ source:
   sha256: {{ aarch64sha256 }}  # [aarch64]
 
 build:
-  number: 1001
+  number: 1002
   skip: True  # [not linux]
 
 requirements:
