@@ -8,9 +8,9 @@ package:
   version: {{ version }}
 
 source:
-  - url: https://downloads.haskell.org/~{{name}}/{{ version }}/{{ name }}-{{ version }}-x86_64-deb7-linux.tar.xz  # [linux and not aarch64]
-  sha256: {{ unixsha256 }}  # [linux and not aarch64]
-  - url: https://downloads.haskell.org/{{ name }}/{{ version }}/{{ name }}-{{ version }}-aarch64-deb8-linux.tar.xz  # [aarch64]
+  url: https://downloads.haskell.org/~{{name}}/{{ version }}/{{ name }}-{{ version }}-x86_64-deb7-linux.tar.xz  # [linux64]
+  sha256: {{ unixsha256 }}  # [linux64]
+  url: https://downloads.haskell.org/{{ name }}/{{ version }}/{{ name }}-{{ version }}-aarch64-deb8-linux.tar.xz  # [aarch64]
   sha256: {{ aarch64sha256 }}  # [aarch64]
 
 build:
