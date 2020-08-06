@@ -39,7 +39,7 @@ test:
 
 about:
   home: https://haskell.org/ghc/
-  license: BSD 3-Clause
+  license: BSD-3-Clause 
   license_family: BSD
   license_file: LICENSE
   summary: 'Glorious Glasgow Haskell Compilation System'
