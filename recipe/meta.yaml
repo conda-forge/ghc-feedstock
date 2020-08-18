@@ -1,31 +1,33 @@
 {% set name = "ghc" %}
 {% set version = "8.2.2" %}
 {% set unixsha256 = "cd7afbca54edf9890da9f432c63366556246c85c1198e40c99df5af01c555834" %}
+{% set aarch64sha256 = "676698b0b3744af80a610d9e18e40735b9cf8ec337c072d8314d85cba8af4acc" %}
 
 package:
   name: {{ name|lower }}
   version: {{ version }}
 
 source:
-  - url: https://downloads.haskell.org/~{{name}}/{{ version }}/{{ name }}-{{ version }}-x86_64-deb7-linux.tar.xz  # [linux]
-    sha256: {{ unixsha256 }}  # [linux]
+  url: https://downloads.haskell.org/~{{ name }}/{{ version }}/{{ name }}-{{ version }}-x86_64-deb7-linux.tar.xz  # [linux64]
+  sha256: {{ unixsha256 }}  # [linux64]
+  url: https://downloads.haskell.org/{{ name }}/{{ version }}/{{ name }}-{{ version }}-aarch64-deb8-linux.tar.xz  # [aarch64]
+  sha256: {{ aarch64sha256 }}  # [aarch64]
 
 build:
-  number: 1002
+  number: 1003
   skip: True  # [not linux]
 
 requirements:
   build:
     - {{ compiler('c') }}
     - {{ compiler('cxx') }}
-    - binutils_impl_linux-64  # [linux and c_compiler != 'toolchain_c' ]
-    - binutils  # [linux and c_compiler == 'toolchain_c' ]
     - gmp
     - ncurses
+    - make  # [aarch64]
+    - binutils_impl_{{ target_platform }}  # [linux]
   host:
     - xz
-    - binutils_impl_linux-64  # [linux and c_compiler != 'toolchain_c' ]
-    - binutils  # [linux and c_compiler == 'toolchain_c' ]
+    - binutils_impl_{{ target_platform }}  # [linux]
     - gmp
     - ncurses
 
@@ -35,7 +37,7 @@ test:
 
 about:
   home: https://haskell.org/ghc/
-  license: BSD 3-Clause
+  license: BSD-3-Clause 
   license_family: BSD
   license_file: LICENSE
   summary: 'Glorious Glasgow Haskell Compilation System'
@@ -46,3 +48,4 @@ about:
 extra:
   recipe-maintainers:
     - eggzilla
+    - step21
