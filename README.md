@@ -3,7 +3,7 @@ About ghc
 
 Home: https://haskell.org/ghc/
 
-Package license: BSD 3-Clause
+Package license: BSD-3-Clause
 
 Feedstock license: BSD-3-Clause
 
@@ -150,4 +150,5 @@ Feedstock Maintainers
 =====================
 
 * [@eggzilla](https://github.com/eggzilla/)
+* [@step21](https://github.com/step21/)
 
