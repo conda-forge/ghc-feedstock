@@ -1,15 +1,15 @@
+export CC="x86_64-conda_cos6-linux-gnu-cc"
+export LD="x86_64-conda_cos6-linux-gnu-cc"
 export PATH="$PREFIX/bin:$BUILD_PREFIX/bin:$PATH"
-#export CFLAGS="-I$PREFIX/include $CFLAGS"
-#export LDFLAGS="-Wl,-L$PREFIX/lib $LDFLAGS"
-export LD_LIBRARY_PATH="$PREFIX/lib:$LD_LIBRARY_PATH"
-export LIBRARY_PATH="$PREFIX/lib:$LIBRARY_PATH"
-./configure --prefix=$PREFIX --with-gmp-includes=$PREFIX/include --with-gmp-libraries=$PREFIX/lib
+export LD_LIBRARY_PATH="$PREFIX/x86_64-conda_cos6-linux-gnu/sysroot/lib:$PREFIX/lib:$LD_LIBRARY_PATH"
+export LIBRARY_PATH="$PREFIX/x86_64-conda_cos6-linux-gnu/sysroot/lib:$PREFIX/lib:$LIBRARY_PATH"
+export C_INCLUDE_PATH="$PREFIX/include:$C_INCLUDE_PATH"
+echo "ls PREFIX"
+ls $PREFIX
+echo "ls PREFIX/x86_64-conda_cos6-linux-gnu/sysroot/lib"
+ls $PREFIX/x86_64-conda_cos6-linux-gnu/sysroot/lib
+echo "ls PREFIX/x86_64-conda_cos6-linux-gnu/sysroot"
+ls $PREFIX/x86_64-conda_cos6-linux-gnu/sysroot
+cp -f $PREFIX/x86_64-conda_cos6-linux-gnu/sysroot/lib/libc.so.6 /lib64/libc.so.6
+./configure --prefix=$PREFIX CPP=x86_64-conda_cos6-linux-gnu-cpp --with-gmp-includes=$PREFIX/include --with-gmp-libraries=$PREFIX/lib CC=$BUILD_PREFIX/bin/x86_64-conda_cos6-linux-gnu-cc LD=$BUILD_PREFIX/bin/x86_64-conda_cos6-linux-gnu-cc
 make install
-#Small test
-if [ -f "$BUILD_PREFIX/bin/x86_64-conda_cos6-linux-gnu-ld" ]; then
-   ln -s $BUILD_PREFIX/bin/x86_64-conda_cos6-linux-gnu-ld $BUILD_PREFIX/bin/ld
-fi
-#echo "main = putStr \"smalltest\"" > Main.hs
-#ghc -v -O0 -threaded -L$PREFIX/lib -fasm -o smalltest Main.hs 
-#./smalltest
-ghc-pkg recache
