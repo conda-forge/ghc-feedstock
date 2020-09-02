@@ -6,12 +6,12 @@ export LIBRARY_PATH="$PREFIX/lib:$LIBRARY_PATH"
 if [ $ARCH == "aarch64" ]; then
    echo "aarch64 detected"
 fi
+./boot
 ./configure --prefix=$PREFIX --with-gmp-includes=$PREFIX/include --with-gmp-libraries=$PREFIX/lib
+make
 make install
 if [[ -f "$LD" && ! $BUILD_PREFIX/bin/ld ]]; then
    ln -s $LD $BUILD_PREFIX/bin/ld;
 fi
-#echo "main = putStr \"smalltest\"" > Main.hs
-#ghc -v -O0 -threaded -L$PREFIX/lib -fasm -o smalltest Main.hs 
-#./smalltest
-ghc-pkg recache
+
+#ghc-pkg recache
