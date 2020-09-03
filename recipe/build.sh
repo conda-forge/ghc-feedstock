@@ -20,7 +20,7 @@ which perl
 echo $TARGETPLATFORM
 #cp build.mk $BUILD_PREFIX/mk/
 ./boot
-./configure --prefix=$PREFIX #--with-gmp-includes=$PREFIX/include --with-gmp-libraries=$PREFIX/lib
+./configure --prefix=$BUILD_PREFIX --with-gmp-includes=$BUILD_PREFIX/include --with-gmp-libraries=$BUILD_PREFIX/lib
 make
 make install
 if [[ -f "$LD" && ! $BUILD_PREFIX/bin/ld ]]; then
