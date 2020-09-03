@@ -9,7 +9,7 @@ if [ $ARCH == "aarch64" ]; then
    echo "aarch64 detected"
 
 fi
-if [ $ARCH == "x86_64" ]; then
+if [ $ARCH == "64" ]; then
   echo "x86_64 detected"
   export TARGETPLATFORM="x86_64-unknown-linux"
 fi
