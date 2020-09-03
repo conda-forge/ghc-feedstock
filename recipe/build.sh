@@ -1,5 +1,3 @@
-yum install ghc 
-:
 export PATH="$PREFIX/bin:$BUILD_PREFIX/bin:$PATH"
 #export CFLAGS="-I$PREFIX/include $CFLAGS"
 #export LDFLAGS="-Wl,-L$PREFIX/lib $LDFLAGS"
