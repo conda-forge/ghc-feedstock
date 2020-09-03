@@ -18,7 +18,7 @@ fi
 uname -a
 which perl
 echo $TARGETPLATFORM
-cp build.mk $BUILD_PREFIX/mk/
+#cp build.mk $BUILD_PREFIX/mk/
 ./boot
 ./configure --prefix=$PREFIX --with-gmp-includes=$PREFIX/include --with-gmp-libraries=$PREFIX/lib
 make
