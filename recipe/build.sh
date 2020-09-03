@@ -1,4 +1,4 @@
-yum install epel-release
+yum install ghc 
 :
 export PATH="$PREFIX/bin:$BUILD_PREFIX/bin:$PATH"
 #export CFLAGS="-I$PREFIX/include $CFLAGS"
