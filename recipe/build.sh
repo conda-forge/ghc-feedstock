@@ -1,3 +1,5 @@
+unset host_alias
+unset build_alias
 export PATH="$PREFIX/bin:$BUILD_PREFIX/bin:$PATH"
 #export CFLAGS="-I$PREFIX/include $CFLAGS"
 #export LDFLAGS="-Wl,-L$PREFIX/lib $LDFLAGS"
@@ -16,7 +18,7 @@ fi
 uname -a
 which perl
 echo $TARGETPLATFORM
-cp $SRC_PREFIX/build.mk $BUILD_PREFIX/mk/
+cp build.mk $BUILD_PREFIX/mk/
 ./boot
 ./configure --prefix=$PREFIX --with-gmp-includes=$PREFIX/include --with-gmp-libraries=$PREFIX/lib
 make
