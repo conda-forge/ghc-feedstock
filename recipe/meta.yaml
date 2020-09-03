@@ -23,11 +23,13 @@ requirements:
     - make  # [aarch64]
     - automake
     - autoconf
+    - libffi
     - binutils_impl_{{ target_platform }}  # [linux]
   host:
     - xz
     - binutils_impl_{{ target_platform }}  # [linux]
     - gmp
+    - libffi
     - ncurses
 
 test:
