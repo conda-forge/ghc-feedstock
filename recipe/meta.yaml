@@ -24,12 +24,14 @@ requirements:
     - automake
     - autoconf
     - libffi
+    - cffi
     - binutils_impl_{{ target_platform }}  # [linux]
   host:
     - xz
     - binutils_impl_{{ target_platform }}  # [linux]
     - gmp
     - libffi
+    - cffi
     - ncurses
 
 test:
