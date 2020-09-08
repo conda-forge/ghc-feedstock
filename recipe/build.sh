@@ -20,7 +20,10 @@ which perl
 echo $TARGETPLATFORM
 #cp build.mk $BUILD_PREFIX/mk/
 ./boot
-./configure --prefix=$PREFIX --with-gmp-includes=$PREFIX/include --with-gmp-libraries=$PREFIX/lib
+#./configure --prefix=$PREFIX --with-gmp-includes=$PREFIX/include --with-gmp-libraries=$PREFIX/lib
+if [ $ARCH == "64" ]; then
+  ./configure --prefix=$PREFIX CPP=x86_64-conda_cos6-linux-gnu-cpp --with-gmp-includes=$PREFIX/include --with-gmp-libraries=$PREFIX/lib CC=$BUILD_PREFIX/bin/x86_64-conda_cos6-linux-gnu-cc LD=$BUILD_PREFIX/bin/x86_64-conda_cos6-linux-gnu-cc
+fi
 make
 make install
 if [[ -f "$LD" && ! $BUILD_PREFIX/bin/ld ]]; then
