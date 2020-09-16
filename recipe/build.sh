@@ -13,6 +13,7 @@ ln -s $PREFIX/bin/x86_64-conda_cos6-linux-gnu-ld $PREFIX/bin/ld
 echo "ls $PREFIX/lib"
 ls $PREFIX/lib
 echo "$BUILD_PREFIX/lib/gcc/x86_64-conda_cos6-linux-gnu/7.3.0"
+ls $PREFIX/lib/gcc/x86_64-conda_cos6-linux-gnu/
 ls $PREFIX/lib/gcc/x86_64-conda_cos6-linux-gnu/7.3.0
 
 export LD=$PREFIX/bin/x86_64-conda_cos6-linux-gnu-cc
