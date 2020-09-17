@@ -34,6 +34,7 @@ source run_conda_forge_build_setup
 /usr/bin/sudo -n yum install -y epel-release
 /usr/bin/sudo -n yum repolist
 /usr/bin/sudo -n yum install -y ghc cabal-install
+/usr/bin/sudo -n ghc-pkg recache
 
 
 # make the build number clobber
