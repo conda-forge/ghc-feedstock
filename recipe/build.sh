@@ -8,7 +8,7 @@ export LIBRARY_PATH="$PREFIX/lib:$LIBRARY_PATH"
 # from eggzilla/ghc-feedstock
 #echo "echo $PREFIX/lib/gcc/x86_64-conda_cos6-linux-gnu/7.3.0"
 #ls $PREFIX/lib/gcc/x86_64-conda_cos6-linux-gnu/7.3.0
-ls $PREFIX/lib/gcc/x86_64-conda_cos6-linux-gnu
+ls $PREFIX/lib/gcc
 ln -s $PREFIX/bin/x86_64-conda_cos6-linux-gnu-ld.gold $PREFIX/bin/ld.gold
 ln -s $PREFIX/bin/x86_64-conda_cos6-linux-gnu-ld $PREFIX/bin/ld
 echo "ls $PREFIX/lib"
