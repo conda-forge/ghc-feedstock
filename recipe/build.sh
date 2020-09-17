@@ -8,7 +8,10 @@ export LIBRARY_PATH="$PREFIX/lib:$LIBRARY_PATH"
 # from eggzilla/ghc-feedstock
 echo "prefix"
 ls $PREFIX
-
+echo "prefix bin"
+ls $PREFIX/bin
+echo "prefix lib"
+ls $PREFIX/lib
 #ls $PREFIX/lib/gcc
 #ln -s $PREFIX/bin/x86_64-conda_cos6-linux-gnu-ld.gold $PREFIX/bin/ld.gold
 #ln -s $PREFIX/bin/x86_64-conda_cos6-linux-gnu-ld $PREFIX/bin/ld
@@ -21,7 +24,7 @@ ls $PREFIX
 
 export LD=$PREFIX/bin/x86_64-conda_cos6-linux-gnu-cc
 export LD_NO_GOLD=$PREFIX/bin/x86_64-conda_cos6-linux-gnu-cc
-ghc-pkg recache
+
 if [ $ARCH == "aarch64" ]; then
    echo "aarch64 detected"
 
