@@ -32,6 +32,11 @@ source run_conda_forge_build_setup
 # run "conda smithy rerender" and this line will be updated
 # automatically.
 #/usr/bin/sudo -n yum install -y epel-release ghc cabal-install
+/usr/bin/sudo -n yum info epel-release
+/usr/bin/sudo -n yum clean -n all
+/usr/bin/sudo -n yum -y update
+/usr/bin/sudo -n yum info epel-release
+/usr/bin/sudo -n yum install -y update
 /usr/bin/sudo -n yum install -y epel-release
 /usr/bin/sudo -n yum repolist
 /usr/bin/sudo -n yum install -y ghc cabal-install
