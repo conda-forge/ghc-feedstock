@@ -14,13 +14,21 @@ docker_image:
 - condaforge/linux-anvil-comp7
 gmp:
 - '6'
+libffi:
+- '3.2'
 ncurses:
 - '6.2'
+perl:
+- 5.26.2
 pin_run_as_build:
   gmp:
     max_pin: x
+  libffi:
+    max_pin: x.x
   ncurses:
     max_pin: x.x
+  perl:
+    max_pin: x.x.x
   xz:
     max_pin: x.x
 target_platform:
