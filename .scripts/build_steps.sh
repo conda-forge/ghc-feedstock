@@ -36,7 +36,6 @@ source run_conda_forge_build_setup
 /usr/bin/sudo -n yum clean all
 /usr/bin/sudo -n yum -y update
 /usr/bin/sudo -n yum info epel-release
-/usr/bin/sudo -n yum install -y update
 /usr/bin/sudo -n yum install -y epel-release
 /usr/bin/sudo -n yum repolist
 /usr/bin/sudo -n yum install -y ghc cabal-install
