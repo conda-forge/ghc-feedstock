@@ -1,6 +1,6 @@
 {% set name = "ghc" %}
-{% set version = "7.4.2" %}
-{% set srchash = "f2ee1289a33cc70539287129841acc7eaf16112bb60c59b5a6ee91887bfd836d" %}
+{% set version = "7.10.3" %}
+{% set srchash = "3e29a56a74ed6a74d3ee2a6db9389f2462837da46ca6dce9d2965f9c152f0c15" %}
 package:
   name: {{ name|lower }}
   version: {{ version }}
