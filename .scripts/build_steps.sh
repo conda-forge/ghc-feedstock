@@ -31,8 +31,12 @@ source run_conda_forge_build_setup
 # "recipe/yum_requirements.txt" file. After updating that file,
 # run "conda smithy rerender" and this line will be updated
 # automatically.
-/usr/bin/sudo -n yum install -y epel-release ghc cabal-install
-
+#/usr/bin/sudo -n yum install -y epel-release ghc cabal-install
+/usr/bin/sudo -n yum install -y epel-release
+/usr/bin/sudo -n yum repolist
+/usr/bin/sudo -n yum install -y ghc cabal-install
+# apparently this requires a password but yum does not
+#/usr/bin/sudo -n ghc-pkg recache
 
 # make the build number clobber
 make_build_number "${FEEDSTOCK_ROOT}" "${RECIPE_ROOT}" "${CONFIG_FILE}"
