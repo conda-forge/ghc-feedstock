@@ -21,7 +21,7 @@ requirements:
     - gmp
     - ncurses
     - perl
-    - make  # [aarch64]
+    - make
     - automake
     - autoconf
     - libffi
