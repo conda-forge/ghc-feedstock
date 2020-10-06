@@ -33,8 +33,8 @@ echo "PWD"
 ls $PWD
 echo "build prefix"
 ls $BUILD_PREFIX
-echo "build prefix mk"
-ls $BUILD_PREFIX/mk/
+echo "pwd mk"
+ls $PWD/mk/
 echo "booting ghc"
 ./boot
 # from eggzilla
@@ -53,7 +53,7 @@ echo "build prefix again"
 ls $BUILD_PREFIX
 # from eggzilla
 echo "trying to copy build config"
-cp $BUILD_PREFIX/mk/build.mk.sample $BUILD_PREFIX/mk/build.mk
+cp $PWD/mk/build.mk.sample $PWD/mk/build.mk
 perl -pi -e 's/#BuildFlavour = quick\n/BuildFlavour = quickest\n/' mk/build.mk
 #echo "V=0" >> mk/build.mk
 #
