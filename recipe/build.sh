@@ -28,7 +28,7 @@ fi
 echo "Targetplatform"
 echo $TARGETPLATFORM
 
-cp $BUILD_PREFIX/mk/build.mk.sample $BUILD_PREFIX/mk/build.mk
+#cp $BUILD_PREFIX/mk/build.mk.sample $BUILD_PREFIX/mk/build.mk
 ls $PWD
 ls $BUILD_PREFIX
 ./boot
