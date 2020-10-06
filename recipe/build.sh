@@ -43,10 +43,12 @@ echo "booting ghc"
 echo "ARCH"
 echo $ARCH
 if [ $ARCH == "64" ]; then
-:  ./configure --prefix=$PREFIX CC=$PREFIX/bin/cc
+  echo "running configure for x86_64"
+  ./configure --prefix=$PREFIX CC=$PREFIX/bin/cc
   #./configure --prefix=$PREFIX CPP=x86_64-conda_cos6-linux-gnu-cpp --with-gmp-includes=$PREFIX/include --with-gmp-libraries=$PREFIX/lib CC=$BUILD_PREFIX/bin/x86_64-conda_cos6-linux-gnu-cc LD=$BUILD_PREFIX/bin/x86_64-conda_cos6-linux-gnu-cc
 fi
 if [ $ARCH == "aarch64" ]; then
+  echo "running configure for aarch64"
   ./configure --prefix=$BUILD_PREFIX --with-gmp-includes=$BUILD_PREFIX/include --with-gmp-libraries=$BUILD_PREFIX/lib
 fi
 echo "PWD again"
