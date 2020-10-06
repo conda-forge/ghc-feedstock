@@ -39,8 +39,11 @@ fi
 if [ $ARCH == "aarch64" ]; then
   ./configure --prefix=$BUILD_PREFIX --with-gmp-includes=$BUILD_PREFIX/include --with-gmp-libraries=$BUILD_PREFIX/lib
 fi
+ls $PWD
+ls $BUILD_PREFIX
 # from eggzilla
 cp mk/build.mk.sample mk/build.mk
+cp $BUILD_PREFIX/mk/build.mk.sample $BUILD_PREFIX/mk/build.mk
 perl -pi -e 's/#BuildFlavour = quick\n/BuildFlavour = quickest\n/' mk/build.mk
 #echo "V=0" >> mk/build.mk
 #
