@@ -29,8 +29,13 @@ echo "Targetplatform"
 echo $TARGETPLATFORM
 
 #cp $BUILD_PREFIX/mk/build.mk.sample $BUILD_PREFIX/mk/build.mk
+echo "PWD"
 ls $PWD
+echo "build prefix"
 ls $BUILD_PREFIX
+echo "build prefix mk"
+ls $BUILD_PREFIX/mk/
+echo "booting ghc"
 ./boot
 # from eggzilla
 # ./configure --prefix=$PREFIX --enable-bootstrap-with-devel-snapshot --with-ffi-includes=$PREFIX/include --with-ffi-libraries=$PREFIX/lib --with-system-libffi CPP=$PREFIX/bin/cpp --with-gmp-includes=$PREFIX/include --with-curses-libraries=$PREFIX/lib --with-gmp-libraries=$PREFIX/lib LDFLAGS=-L$PREFIX/lib CC=$PREFIX/bin/cc LD=$PREFIX/bin/cc AR=$PREFIX/bin/ar AS=$BUILD_PREFIX/bin/as CFLAGS=-fno-builtin CONF_GCC_LINKER_OPTS_STAGE0=-fuse-ld=gold CONF_GCC_LINKER_OPTS_STAGE1=-fuse-ld=gold CONF_GCC_LINKER_OPTS_STAGE2=-fuse-ld=gold LD_NO_GOLD=$PREFIX/bin/cc
@@ -42,9 +47,12 @@ fi
 if [ $ARCH == "aarch64" ]; then
   ./configure --prefix=$BUILD_PREFIX --with-gmp-includes=$BUILD_PREFIX/include --with-gmp-libraries=$BUILD_PREFIX/lib
 fi
+echo "PWD again"
 ls $PWD
+echo "build prefix again"
 ls $BUILD_PREFIX
 # from eggzilla
+echo "trying to copy build config"
 cp $BUILD_PREFIX/mk/build.mk.sample $BUILD_PREFIX/mk/build.mk
 perl -pi -e 's/#BuildFlavour = quick\n/BuildFlavour = quickest\n/' mk/build.mk
 #echo "V=0" >> mk/build.mk
