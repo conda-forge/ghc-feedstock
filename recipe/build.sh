@@ -1,6 +1,6 @@
 unset host_alias
 unset build_alias
-export PATH="$PREFIX/bin:$BUILD_PREFIX/bin:$PATH"
+export PATH="$BUILD_PREFIX/bin:$PREFIX/bin:$PATH"
 #export CFLAGS="-I$PREFIX/include $CFLAGS"
 #export LDFLAGS="-Wl,-L$PREFIX/lib $LDFLAGS"
 #export LD_LIBRARY_PATH="$PREFIX/lib:$LD_LIBRARY_PATH"
