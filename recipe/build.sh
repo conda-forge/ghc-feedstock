@@ -45,6 +45,8 @@ echo $ARCH
 echo "ghc"
 which ghc
 if [ $ARCH == "64" ]; then
+  echo "running autoreconfigure"
+  autoreconf -vfi
   echo "running cc -v"
   $BUILD_PREFIX/bin/x86_64-conda-linux-gnu-cc -v
   echo "running configure for x86_64
