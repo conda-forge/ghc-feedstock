@@ -45,10 +45,12 @@ echo $ARCH
 echo "ghc"
 which ghc
 if [ $ARCH == "64" ]; then
+  echo "running cc -h"
+  $BUILD_PREFIX/bin/x86_64-conda-linux-gnu-cc -h
   echo "running configure for x86_64
   #export CC=$BUILD_PREFIX/bin/x86_64-conda-linux-gnu-cc"
   echo $CC
-  ./configure --prefix=$PREFIX 
+  ./configure --prefix=$PREFIX CC=$BUILD_PREFIX/bin/x86_64-conda-linux-gnu-cc 
   #./configure --prefix=$PREFIX CPP=x86_64-conda_cos6-linux-gnu-cpp --with-gmp-includes=$PREFIX/include --with-gmp-libraries=$PREFIX/lib CC=$BUILD_PREFIX/bin/x86_64-conda_cos6-linux-gnu-cc LD=$BUILD_PREFIX/bin/x86_64-conda_cos6-linux-gnu-cc
 fi
 if [ $ARCH == "aarch64" ]; then
