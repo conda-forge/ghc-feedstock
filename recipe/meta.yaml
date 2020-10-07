@@ -25,6 +25,7 @@ requirements:
     - automake
     - autoconf
     - libffi
+    - libtool
     - cffi
     - binutils_impl_{{ target_platform }}  # [linux]
   host:
