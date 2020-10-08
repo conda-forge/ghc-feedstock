@@ -1,35 +1,37 @@
-BUILD:
-- aarch64-conda_cos7-linux-gnu
 c_compiler:
 - gcc
 c_compiler_version:
-- '7'
-cdt_arch:
-- aarch64
-cdt_name:
-- cos7
+- '8'
 channel_sources:
-- conda-forge
+- conda-forge,defaults
 channel_targets:
 - conda-forge main
 cxx_compiler:
 - gxx
 cxx_compiler_version:
-- '7'
+- '8'
 docker_image:
-- condaforge/linux-anvil-aarch64
+- linux-anvil-cos7-x86_64
 gmp:
 - '6'
+libffi:
+- '3.2'
 ncurses:
 - '6.2'
+perl:
+- 5.26.2
 pin_run_as_build:
   gmp:
     max_pin: x
+  libffi:
+    max_pin: x.x
   ncurses:
     max_pin: x.x
+  perl:
+    max_pin: x.x.x
   xz:
     max_pin: x.x
 target_platform:
-- linux-aarch64
+- linux-ppc64le
 xz:
 - '5.2'
