@@ -8,7 +8,8 @@ package:
   version: {{ version }}
 
 source:
-  - url: https://downloads.haskell.org/~ghc/{{ version }}/{{ name }}-{{ version }}-x86_64-centos7-linux.tar.xz  # [build_platform == "linux-64"]
+  - url: https://downloads.haskell.org/~ghc/{{ version }}/{{ name }}-{{ version }}-x86_64-centos70-linux.tar.xz  # [build_platform == "linux-64"]
+    # https://downloads.haskell.org/ghc/8.4.4/ghc-8.4.4-x86_64-centos70-linux.tar.xz
     folder: binary                                                                                              # [build_platform == "linux-64"]
   - url: https://downloads.haskell.org/~ghc/{{ version }}/{{ name }}-{{ version }}-src.tar.xz
     folder: source
