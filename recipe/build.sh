@@ -1,80 +1,42 @@
 unset host_alias
 unset build_alias
-export PATH="$BUILD_PREFIX/bin:$PREFIX/bin:$PATH"
-#export CFLAGS="-I$PREFIX/include $CFLAGS"
-#export LDFLAGS="-Wl,-L$PREFIX/lib $LDFLAGS"
-#export LD_LIBRARY_PATH="$PREFIX/lib:$LD_LIBRARY_PATH"
-#export LIBRARY_PATH="$PREFIX/lib:$LIBRARY_PATH"
-# from eggzilla/ghc-feedstock
-#ln -s $PREFIX/bin/x86_64-conda_cos6-linux-gnu-ld $PREFIX/bin/ld
-#echo "ls $PREFIX/lib"
-#ls $PREFIX/lib
-#echo "$BUILD_PREFIX/lib/gcc/x86_64-conda_cos6-linux-gnu/7.3.0"
-#ls $PREFIX/lib/gcc/
-#ls $PREFIX/lib/gcc/x86_64-conda_cos6-linux-gnu
-#ls $PREFIX/lib/gcc/x86_64-conda_cos6-linux-gnu/7.3.0
+unset CFLAGS
+unset CXXFLAGS
+unset CPPFLAGS
+unset LDFLAGS
 
-#export LD=$PREFIX/bin/x86_64-conda_cos6-linux-gnu-cc
-#export LD_NO_GOLD=$PREFIX/bin/x86_64-conda_cos6-linux-gnu-cc
+export GHC_BUILD=$(echo $BUILD | sed "s/conda/unknown/g")
+export GHC_HOST=$(echo $HOST | sed "s/conda/unknown/g")
 
-if [ $ARCH == "aarch64" ]; then
-   echo "aarch64 detected"
+# Make sure libraries for build are found without LDFLAGS
+cp $BUILD_PREFIX/lib/libgmp.so $BUILD_PREFIX/$BUILD/sysroot/usr/lib/
+cp $BUILD_PREFIX/lib/libncurses.so $BUILD_PREFIX/$BUILD/sysroot/usr/lib/
+cp $BUILD_PREFIX/lib/libtinfo.so $BUILD_PREFIX/$BUILD/sysroot/usr/lib/
 
-fi
-if [ $ARCH == "64" ]; then
-  echo "x86_64 detected"
-  export TARGETPLATFORM="x86_64-unknown-linux"
-fi
-echo "Targetplatform"
-echo $TARGETPLATFORM
+# Make sure libraries for host are found without LDFLAGS
+cp $PREFIX/lib/libgmp.so $BUILD_PREFIX/$HOST/sysroot/usr/lib/
+cp $PREFIX/lib/libncurses.so $BUILD_PREFIX/$HOST/sysroot/usr/lib/
+cp $PREFIX/lib/libtinfo.so $BUILD_PREFIX/$HOST/sysroot/usr/lib/
 
-#cp $BUILD_PREFIX/mk/build.mk.sample $BUILD_PREFIX/mk/build.mk
-echo "PWD"
-ls $PWD
-echo "build prefix"
-ls $BUILD_PREFIX
-echo "pwd mk"
-ls $PWD/mk/
-echo "booting ghc"
-./boot
-# from eggzilla
-# ./configure --prefix=$PREFIX --enable-bootstrap-with-devel-snapshot --with-ffi-includes=$PREFIX/include --with-ffi-libraries=$PREFIX/lib --with-system-libffi CPP=$PREFIX/bin/cpp --with-gmp-includes=$PREFIX/include --with-curses-libraries=$PREFIX/lib --with-gmp-libraries=$PREFIX/lib LDFLAGS=-L$PREFIX/lib CC=$PREFIX/bin/cc LD=$PREFIX/bin/cc AR=$PREFIX/bin/ar AS=$BUILD_PREFIX/bin/as CFLAGS=-fno-builtin CONF_GCC_LINKER_OPTS_STAGE0=-fuse-ld=gold CONF_GCC_LINKER_OPTS_STAGE1=-fuse-ld=gold CONF_GCC_LINKER_OPTS_STAGE2=-fuse-ld=gold LD_NO_GOLD=$PREFIX/bin/cc
-#./configure --prefix=$PREFIX --with-gmp-includes=$PREFIX/include --with-gmp-libraries=$PREFIX/lib
-echo "ARCH"
-echo $ARCH
-echo "ghc"
-which ghc
-if [ $ARCH == "64" ]; then
-  echo "running autoreconfigure"
-  cp $BUILD_PREFIX/share/libtool/build-aux/config.* .
-  #autoreconf -vfi
-  echo "running cc -v"
-  $BUILD_PREFIX/bin/x86_64-conda-linux-gnu-cc -v
-  echo "running configure for x86_64
-  #export CC=$BUILD_PREFIX/bin/x86_64-conda-linux-gnu-cc"
-  echo $CC
-  ./configure --prefix=$PREFIX --target=x86_64-unknown-linux CC=$BUILD_PREFIX/bin/x86_64-conda-linux-cc CPP=$BUILD_PREFIX/bin/x86_64-conda-linux-cpp 
-  #./configure --prefix=$PREFIX CPP=x86_64-conda_cos6-linux-gnu-cpp --with-gmp-includes=$PREFIX/include --with-gmp-libraries=$PREFIX/lib CC=$BUILD_PREFIX/bin/x86_64-conda_cos6-linux-gnu-cc LD=$BUILD_PREFIX/bin/x86_64-conda_cos6-linux-gnu-cc
-fi
-if [ $ARCH == "aarch64" ]; then
-  echo "running configure for aarch64"
-  ./configure --prefix=$BUILD_PREFIX --with-gmp-includes=$BUILD_PREFIX/include --with-gmp-libraries=$BUILD_PREFIX/lib
-fi
-echo "PWD again"
-ls $PWD
-echo "build prefix again"
-ls $BUILD_PREFIX
-# from eggzilla
-echo "trying to copy build config"
-cp $PWD/mk/build.mk.sample $PWD/mk/build.mk
-perl -pi -e 's/#BuildFlavour = quick\n/BuildFlavour = quickest\n/' mk/build.mk
-#echo "V=0" >> mk/build.mk
-echo "make"
-which make
-make
-make install
-#iif [[ -f "$LD" && ! $BUILD_PREFIX/bin/ld ]]; then
-#   ln -s $LD $BUILD_PREFIX/bin/ld;
-#fi
+# workaround some bugs in autoconf scripts
+cp $(which $AR) $BUILD_PREFIX/bin/$GHC_HOST-ar
+cp $(which $GCC) $BUILD_PREFIX/bin/$GHC_HOST-gcc
 
-#ghc-pkg recache
+pushd binary
+  # stage0 compiler: --build=$GHC_BUILD --host=$GHC_BUILD --target=$GHC_BUILD
+  LDFLAGS="-L$BUILD_PREFIX/lib -Wl,-rpath,$BUILD_PREFIX/lib -Wl,-rpath-link,$BUILD_PREFIX/lib"  CC=$BUILD-gcc AR=$BUILD-ar LD=$BUILD-ld NM=$BUILD-nm OBJDUMP=$BUILD-objdump RANLIB=$BUILD-ranlib CPP=$BUILD-cpp ./configure --prefix=$BUILD_PREFIX --with-gmp-includes=$BUILD_PREFIX/include --with-gmp-libraries=$BUILD_PREFIX/lib --build=$GHC_BUILD --host=$GHC_BUILD --target=$GHC_BUILD
+  make install
+popd
+
+pushd source
+  # stage1 compiler: --build=$GHC_BUILD --host=$GHC_BUILD --target=$GHC_HOST
+  # stage2 compiler: --build=$GHC_BUILD --host=$GHC_HOST --target=$GHC_HOST
+  export CC=$GCC
+  ./configure --prefix=$PREFIX --with-gmp-includes=$PREFIX/include --with-gmp-libraries=$PREFIX/lib --build=$GHC_BUILD --host=$GHC_BUILD --target=$GHC_HOST
+  make HADDOCK_DOCS=NO BUILD_SPHINX_HTML=NO BUILD_SPHINX_PDF=NO install -j${CPU_COUNT}
+popd
+
+#echo "main = putStr \"smalltest\"" > Main.hs
+#ghc -v -O0 -threaded -L$PREFIX/lib -fasm -o smalltest Main.hs
+#./smalltest
+ghc-pkg recache

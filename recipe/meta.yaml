@@ -1,40 +1,40 @@
 {% set name = "ghc" %}
-{% set version = "7.10.3" %}
-{% set srchash = "3e29a56a74ed6a74d3ee2a6db9389f2462837da46ca6dce9d2965f9c152f0c15" %}
+{% set version = "8.10.2" %}
+{% set unixsha256 = "cd7afbca54edf9890da9f432c63366556246c85c1198e40c99df5af01c555834" %}
+{% set aarch64sha256 = "676698b0b3744af80a610d9e18e40735b9cf8ec337c072d8314d85cba8af4acc" %}
+
 package:
   name: {{ name|lower }}
   version: {{ version }}
 
 source:
-  url: https://downloads.haskell.org/~{{ name }}/{{ version }}/{{ name }}-{{ version }}-src.tar.bz2
-  sha256: {{ srchash }}
+  - url: https://downloads.haskell.org/~ghc/{{ version }}/{{ name }}-{{ version }}-x86_64-centos7-linux.tar.xz  # [build_platform == "linux-64"]
+    folder: binary                                                                                              # [build_platform == "linux-64"]
+  - url: https://downloads.haskell.org/~ghc/{{ version }}/{{ name }}-{{ version }}-src.tar.xz
+    folder: source
 
 build:
-  number: 1003
+  number: 0
   skip: True  # [not linux]
 
 requirements:
   build:
     - {{ compiler('c') }}
     - {{ compiler('cxx') }}
-    - sysroot_linux-64 2.17  # [linux64]
+    - patchelf
     - gmp
     - ncurses
     - perl
     - make
     - automake
     - autoconf
-    - libffi
     - libtool
-    - cffi
-    - binutils_impl_{{ target_platform }}  # [linux]
   host:
     - xz
-    - binutils_impl_{{ target_platform }}  # [linux]
     - gmp
+    - ncurses
     - libffi
     - cffi
-    - ncurses
 
 test:
   commands:
