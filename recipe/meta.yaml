@@ -1,5 +1,5 @@
 {% set name = "ghc" %}
-{% set version = "8.6.5" %}
+{% set version = "8.4.4" %}
 {% set unixsha256 = "cd7afbca54edf9890da9f432c63366556246c85c1198e40c99df5af01c555834" %}
 {% set aarch64sha256 = "676698b0b3744af80a610d9e18e40735b9cf8ec337c072d8314d85cba8af4acc" %}
 
