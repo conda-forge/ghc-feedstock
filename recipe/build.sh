@@ -17,6 +17,7 @@ cp $BUILD_PREFIX/lib/libtinfo.so $BUILD_PREFIX/$BUILD/sysroot/usr/lib/
 cp $PREFIX/lib/libgmp.so $BUILD_PREFIX/$HOST/sysroot/usr/lib/
 cp $PREFIX/lib/libncurses.so $BUILD_PREFIX/$HOST/sysroot/usr/lib/
 cp $PREFIX/lib/libtinfo.so $BUILD_PREFIX/$HOST/sysroot/usr/lib/
+ln -s $BUILD_PREFIX/$HOST/sysroor/usr/lib/libtinfo.so $BUILD_PREFIX/$HOST/sysroot/usr/lib/libtinfo.so.6
 
 # workaround some bugs in autoconf scripts
 cp $(which $AR) $BUILD_PREFIX/bin/$GHC_HOST-ar
