@@ -34,7 +34,7 @@ pushd binary
   OBJDUMP=$BUILD-objdump \
   RANLIB=$BUILD-ranlib \
   CPP=$BUILD-cpp \
-  STIRP=$BUILD-strip \
+  STRIP=$BUILD-strip \
   ./configure --prefix=$BUILD_PREFIX \
     --with-gmp-includes=$BUILD_PREFIX/include \
     --with-gmp-libraries=$BUILD_PREFIX/lib \
