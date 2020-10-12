@@ -44,3 +44,19 @@ xz:
 zip_keys:
 - - c_compiler_version
   - cxx_compiler_version
+build_platform:
+- linux-64
+build_platform:
+- linux-64
+build_platform:
+- linux-64
+build_platform:
+- linux-64
+build_platform:
+- linux-64
+build_platform:
+- linux-64
+build_platform:
+- linux-64
+build_platform:
+- linux-64

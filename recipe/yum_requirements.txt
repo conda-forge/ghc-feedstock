@@ -1,3 +1,0 @@
-epel-release
-ghc
-cabal-install

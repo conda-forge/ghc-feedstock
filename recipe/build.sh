@@ -17,12 +17,13 @@ cp $BUILD_PREFIX/lib/libtinfo.so $BUILD_PREFIX/$BUILD/sysroot/usr/lib/
 cp $PREFIX/lib/libgmp.so $BUILD_PREFIX/$HOST/sysroot/usr/lib/
 cp $PREFIX/lib/libncurses.so $BUILD_PREFIX/$HOST/sysroot/usr/lib/
 cp $PREFIX/lib/libtinfo.so $BUILD_PREFIX/$HOST/sysroot/usr/lib/
-# link was somehow necessary locally?
 ln -s $BUILD_PREFIX/$HOST/sysroot/usr/lib/libtinfo.so $BUILD_PREFIX/$HOST/sysroot/usr/lib/libtinfo.so.6
 
+echo "ar and gcc test"
 # workaround some bugs in autoconf scripts
 cp $(which $AR) $BUILD_PREFIX/bin/$GHC_HOST-ar
 cp $(which $GCC) $BUILD_PREFIX/bin/$GHC_HOST-gcc
+cp $(which $STRIP) $BUILD_PREFIX/bin/$GHC_HOST-strip
 
 pushd binary
   # stage0 compiler: --build=$GHC_BUILD --host=$GHC_BUILD --target=$GHC_BUILD
@@ -48,8 +49,8 @@ pushd source
   # stage1 compiler: --build=$GHC_BUILD --host=$GHC_BUILD --target=$GHC_HOST
   # stage2 compiler: --build=$GHC_BUILD --host=$GHC_HOST --target=$GHC_HOST
   export CC=$GCC
-  ./configure --prefix=$PREFIX --with-gmp-includes=$PREFIX/include --with-gmp-libraries=$PREFIX/lib --build=$GHC_BUILD --host=$GHC_BUILD --target=$GHC_HOST
-  make all
+  ./configure --prefix=$PREFIX --with-gmp-includes=$PREFIX/include --with-gmp-libraries=$PREFIX/lib --with-gmp-includes=$PREFIX/include --build=$GHC_BUILD --host=$GHC_BUILD --target=$GHC_HOST
+  make HADDOCK_DOCS=NO BUILD_SPHINX_HTML=NO BUILD_SPHINX_PDF=NO all -j${CPU_COUNT}
   make HADDOCK_DOCS=NO BUILD_SPHINX_HTML=NO BUILD_SPHINX_PDF=NO install -j${CPU_COUNT}
 popd
 
