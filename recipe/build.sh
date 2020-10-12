@@ -50,7 +50,7 @@ pushd source
   # stage2 compiler: --build=$GHC_BUILD --host=$GHC_HOST --target=$GHC_HOST
   export CC=$GCC
   ./configure --prefix=$PREFIX --with-gmp-libraries=$PREFIX/lib --with-gmp-includes=$PREFIX/include --build=$GHC_BUILD --host=$GHC_BUILD --target=$GHC_HOST
-  make HADDOCK_DOCS=NO BUILD_SPHINX_HTML=NO BUILD_SPHINX_PDF=NO show VALUE=libraries/binary_dist-boot_v_ALL_OBJS
+  #make HADDOCK_DOCS=NO BUILD_SPHINX_HTML=NO BUILD_SPHINX_PDF=NO show VALUE=libraries/binary_dist-boot_v_ALL_OBJS
   make HADDOCK_DOCS=NO BUILD_SPHINX_HTML=NO BUILD_SPHINX_PDF=NO show VALUE=$PREFIX/libraries/binary_dist-boot_v_ALL_OBJS
   make HADDOCK_DOCS=NO BUILD_SPHINX_HTML=NO BUILD_SPHINX_PDF=NO -j${CPU_COUNT}
   make HADDOCK_DOCS=NO BUILD_SPHINX_HTML=NO BUILD_SPHINX_PDF=NO install -j${CPU_COUNT}
