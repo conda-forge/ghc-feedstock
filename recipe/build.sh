@@ -24,7 +24,7 @@ cp $(which $GCC) $BUILD_PREFIX/bin/$GHC_HOST-gcc
 
 pushd binary
   # stage0 compiler: --build=$GHC_BUILD --host=$GHC_BUILD --target=$GHC_BUILD
-  LDFLAGS="-L$BUILD_PREFIX/lib -Wl,-rpath,$BUILD_PREFIX/lib -Wl,-rpath-link,$BUILD_PREFIX/lib" CC=$BUILD-gcc AR=$BUILD-ar LD=$BUILD-ld NM=$BUILD-nm OBJDUMP=$BUILD-objdump RANLIB=$BUILD-ranlib CPP=$BUILD-cpp STRIP=$BUILD-strip ./configure --prefix=$BUILD_PREFIX --with-gmp-includes=$BUILD_PREFIX/include --with-gmp-libraries=$BUILD_PREFIX/lib --build=$GHC_BUILD --host=$GHC_BUILD --target=$GHC_BUILD
+  HADDOCK_DOCS=NO BUILD_SPHINX_HTML=NO BUILD_SPHINX_PDF=NO LDFLAGS="-L$BUILD_PREFIX/lib -Wl,-rpath,$BUILD_PREFIX/lib -Wl,-rpath-link,$BUILD_PREFIX/lib" CC=$BUILD-gcc AR=$BUILD-ar LD=$BUILD-ld NM=$BUILD-nm OBJDUMP=$BUILD-objdump RANLIB=$BUILD-ranlib CPP=$BUILD-cpp STRIP=$BUILD-strip ./configure --prefix=$BUILD_PREFIX --with-gmp-includes=$BUILD_PREFIX/include --with-gmp-libraries=$BUILD_PREFIX/lib --build=$GHC_BUILD --host=$GHC_BUILD --target=$GHC_BUILD
   make install -j${CPU_COUNT}
 popd
 
