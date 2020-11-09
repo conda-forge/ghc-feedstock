@@ -20,7 +20,6 @@ jobs:
         CONFIG: linux_ppc64le_
         UPLOAD_PACKAGES: 'True'
         DOCKER_IMAGE: condaforge/linux-anvil-cos7-x86_64
-    maxParallel: 8
   timeoutInMinutes: 360
 
   steps:
