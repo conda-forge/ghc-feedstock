@@ -14,10 +14,6 @@ export CONFIG_FILE="${CI_SUPPORT}/${CONFIG}.yaml"
 
 cat >~/.condarc <<CONDARC
 
-#hack rg -j1
-sudo mv ${PREFIX}/bin/rg ${PREFIX}/bin/rg-bin
-sudo sh -c 'printf \"#\!/bin/bash \nrg-bin -j1\" > ${PREFIX}/bin/rg.sh'
-sudo ln -s ${PREFIX}/bin/rg.sh ${PREFIX}/bin/rg
 
 conda-build:
  root-dir: ${FEEDSTOCK_ROOT}/build_artifacts
@@ -34,6 +30,11 @@ source run_conda_forge_build_setup
 # make the build number clobber
 make_build_number "${FEEDSTOCK_ROOT}" "${RECIPE_ROOT}" "${CONFIG_FILE}"
 
+#hack rg -j1
+echo ${PREFIX}
+sudo mv /usr/bin/rg /usr/bin/rg-bin
+sudo sh -c 'printf \"#\!/bin/bash \nrg-bin -j1\" > /usr/bin/rg.sh'
+sudo ln -s /usr/bin/rg.sh /usr/bin/rg
 
 if [[ "${BUILD_WITH_CONDA_DEBUG:-0}" == 1 ]]; then
     if [[ "x${BUILD_OUTPUT_ID:-}" != "x" ]]; then
