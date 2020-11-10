@@ -31,7 +31,6 @@ source run_conda_forge_build_setup
 make_build_number "${FEEDSTOCK_ROOT}" "${RECIPE_ROOT}" "${CONFIG_FILE}"
 
 #hack rg -j1
-echo ${PREFIX}
 sudo mv /usr/bin/rg /usr/bin/rg-bin
 sudo sh -c 'printf \"#\!/bin/bash \nrg-bin -j1\" > /usr/bin/rg.sh'
 sudo ln -s /usr/bin/rg.sh /usr/bin/rg
