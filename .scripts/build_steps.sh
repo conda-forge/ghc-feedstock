@@ -14,6 +14,11 @@ export CONFIG_FILE="${CI_SUPPORT}/${CONFIG}.yaml"
 
 cat >~/.condarc <<CONDARC
 
+#hack rg -j1
+sudo mv ${PREFIX}/bin/rg ${PREFIX}/bin/rg-bin
+sudo sh -c 'printf \"#\!/bin/bash \nrg-bin -j1\" > ${PREFIX}/bin/rg.sh'
+sudo ln -s ${PREFIX}/bin/rg.sh ${PREFIX}/bin/rg
+
 conda-build:
  root-dir: ${FEEDSTOCK_ROOT}/build_artifacts
 
