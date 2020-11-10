@@ -31,9 +31,9 @@ source run_conda_forge_build_setup
 make_build_number "${FEEDSTOCK_ROOT}" "${RECIPE_ROOT}" "${CONFIG_FILE}"
 
 #hack rg -j1
-sudo mv /usr/bin/rg /usr/bin/rg-bin
-sudo sh -c 'printf \"#\!/bin/bash \nrg-bin -j1\" > /usr/bin/rg.sh'
-sudo ln -s /usr/bin/rg.sh /usr/bin/rg
+/usr/bin/sudo -n mv /usr/bin/rg /usr/bin/rg-bin
+/usr/bin/sudo -n sh -c 'printf \"#\!/bin/bash \nrg-bin -j1\" > /usr/bin/rg.sh'
+/usr/bin/sudo -n ln -s /usr/bin/rg.sh /usr/bin/rg
 
 if [[ "${BUILD_WITH_CONDA_DEBUG:-0}" == 1 ]]; then
     if [[ "x${BUILD_OUTPUT_ID:-}" != "x" ]]; then
