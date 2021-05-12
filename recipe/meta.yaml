@@ -3,7 +3,7 @@
 
 package:
   name: {{ name|lower }}
-  version: {{ version }}-alpha2
+  version: {{ version }}.alpha2
 
 source:
   - url: https://downloads.haskell.org/~ghc/9.2.1-alpha2/{{ name }}-9.2.0.20210422-x86_64-apple-darwin.tar.xz   # [osx]
