@@ -28,6 +28,7 @@ pushd binary
   cp $BUILD_PREFIX/share/gnuconfig/config.* .
   # stage0 compiler: --build=$GHC_BUILD --host=$GHC_BUILD --target=$GHC_BUILD
   (
+    unset CFLAGS
     LDFLAGS=${LDFLAGS//$PREFIX/$BUILD_PREFIX}
     CC=${CC_FOR_BUILD:-$CC}
     AR=($CC -print-prog-name=ar)
