@@ -8,7 +8,7 @@ package:
 source:
   - url: https://downloads.haskell.org/~ghc/9.2.1-alpha2/{{ name }}-9.2.0.20210422-x86_64-apple-darwin.tar.xz   # [osx]
     folder: binary                                                                                              # [osx]
-    sha256: binary                                                                                              # [osx]
+    sha256: 8884c059f2b76e4c4309ff6bd7a7dde37663f751fd26220e9a2bcabb4d69a401                                    # [osx]
     patches:                                                                                                    # [osx]
       # https://gitlab.haskell.org/ghc/ghc/-/issues/19734
       - 0001-Fix-dangling-ncursesw-link.patch                                                                   # [osx]
@@ -17,7 +17,7 @@ source:
     sha256: binary                                                                                              # [build_platform == "linux-64"]
   - url: https://downloads.haskell.org/~ghc/9.2.1-alpha2/{{ name }}-9.2.0.20210422-src.tar.xz
     folder: source
-    sha256: hhhhhh
+    sha256: 69be189e6e7f8d51a9078ac8f177176bc5bff54edc8352974c50c1f0e110df27
     patches:
       # https://gitlab.haskell.org/ghc/ghc/-/issues/19631
       - 0001-Update-binary-submodule.patch
