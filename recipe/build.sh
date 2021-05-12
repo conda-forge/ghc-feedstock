@@ -4,16 +4,8 @@ set -exuo pipefail
 
 unset host_alias
 unset build_alias
-unset CFLAGS
-unset CXXFLAGS
-unset CPPFLAGS
-unset LDFLAGS
 
-if [[ "${target_platform}" == "osx-arm64" ]]; then
-  export GHC_BUILD=x86_64-apple-darwin
-else
-  export GHC_BUILD=$(echo $BUILD | sed "s/conda/unknown/g")
-fi
+export GHC_BUILD=$(echo $BUILD | sed "s/conda/unknown/g")
 export GHC_HOST=$(echo $HOST | sed "s/conda/unknown/g")
 
 if [[ "${target_platform}" == linux-* ]]; then
