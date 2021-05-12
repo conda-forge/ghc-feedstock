@@ -1,35 +1,51 @@
 {% set name = "ghc" %}
-{% set version = "8.2.2" %}
-{% set unixsha256 = "cd7afbca54edf9890da9f432c63366556246c85c1198e40c99df5af01c555834" %}
-{% set aarch64sha256 = "676698b0b3744af80a610d9e18e40735b9cf8ec337c072d8314d85cba8af4acc" %}
+{% set version = "9.2.1" %}
 
 package:
   name: {{ name|lower }}
-  version: {{ version }}
+  version: {{ version }}.alpha2
 
 source:
-  url: https://downloads.haskell.org/~{{ name }}/{{ version }}/{{ name }}-{{ version }}-x86_64-deb7-linux.tar.xz  # [linux64]
-  sha256: {{ unixsha256 }}  # [linux64]
-  url: https://downloads.haskell.org/{{ name }}/{{ version }}/{{ name }}-{{ version }}-aarch64-deb8-linux.tar.xz  # [aarch64]
-  sha256: {{ aarch64sha256 }}  # [aarch64]
+  - url: https://downloads.haskell.org/~ghc/9.2.1-alpha2/{{ name }}-9.2.0.20210422-x86_64-apple-darwin.tar.xz   # [osx]
+    folder: binary                                                                                              # [osx]
+    sha256: 8884c059f2b76e4c4309ff6bd7a7dde37663f751fd26220e9a2bcabb4d69a401                                    # [osx]
+    patches:                                                                                                    # [osx]
+      # https://gitlab.haskell.org/ghc/ghc/-/issues/19734
+      - 0001-Fix-dangling-ncursesw-link.patch                                                                   # [osx]
+  - url: https://downloads.haskell.org/~ghc/9.2.1-alpha2/{{ name }}-9.2.0.20210422-x86_64-centos7-linux.tar.xz  # [build_platform == "linux-64"]
+    folder: binary                                                                                              # [build_platform == "linux-64"]
+    sha256: dee4f158f2d59bfe97ec3f5773b6b31aa911f9b128a5e56eeefa2dccc754d295                                    # [build_platform == "linux-64"]
+  - url: https://downloads.haskell.org/~ghc/9.2.1-alpha2/{{ name }}-9.2.0.20210422-src.tar.xz
+    folder: source
+    sha256: 69be189e6e7f8d51a9078ac8f177176bc5bff54edc8352974c50c1f0e110df27
+    patches:
+      # https://gitlab.haskell.org/ghc/ghc/-/issues/19631
+      - 0001-Update-binary-submodule.patch
 
 build:
-  number: 1003
-  skip: True  # [not linux]
+  number: 0
+  skip: True  # [not unix]
 
 requirements:
   build:
     - {{ compiler('c') }}
     - {{ compiler('cxx') }}
+    - patchelf  # [linux]
+    - gnuconfig
     - gmp
     - ncurses
-    - make  # [aarch64]
-    - binutils_impl_{{ target_platform }}  # [linux]
+    - perl *
+    - make
+    - automake
+    - autoconf
+    - libtool
+    - llvmdev  # [aarch64]
   host:
     - xz
-    - binutils_impl_{{ target_platform }}  # [linux]
     - gmp
     - ncurses
+    - libffi
+    - cffi
 
 test:
   commands:
@@ -39,7 +55,7 @@ about:
   home: https://haskell.org/ghc/
   license: BSD-3-Clause 
   license_family: BSD
-  license_file: LICENSE
+  license_file: binary/LICENSE
   summary: 'Glorious Glasgow Haskell Compilation System'
 
   doc_url: https://downloads.haskell.org/~ghc/latest/docs/html/users_guide/
