@@ -1,4 +1,0 @@
-docker_image:                           # [os.environ.get("BUILD_PLATFORM", "") == "linux-64"]
-  - condaforge/linux-anvil-cos7-x86_64  # [os.environ.get("BUILD_PLATFORM", "") == "linux-64"]
-cuda_compiler_version:                  # [os.environ.get("BUILD_PLATFORM", "") == "linux-64"]
-  - None                                # [os.environ.get("BUILD_PLATFORM", "") == "linux-64"]
