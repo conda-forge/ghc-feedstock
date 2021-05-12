@@ -1,25 +1,26 @@
 {% set name = "ghc" %}
 {% set version = "9.2.1" %}
-{% set unixsha256 = "cd7afbca54edf9890da9f432c63366556246c85c1198e40c99df5af01c555834" %}
-{% set aarch64sha256 = "676698b0b3744af80a610d9e18e40735b9cf8ec337c072d8314d85cba8af4acc" %}
 
 package:
-  name: {{ name|lower }}-alpha2
-  version: {{ version }}
+  name: {{ name|lower }}
+  version: {{ version }}-alpha2
 
 source:
   - url: https://downloads.haskell.org/~ghc/9.2.1-alpha2/{{ name }}-9.2.0.20210422-x86_64-apple-darwin.tar.xz   # [osx]
     folder: binary                                                                                              # [osx]
+    sha256: binary                                                                                              # [osx]
     patches:                                                                                                    # [osx]
+      # https://gitlab.haskell.org/ghc/ghc/-/issues/19734
       - 0001-Fix-dangling-ncursesw-link.patch                                                                   # [osx]
-  #- url: https://downloads.haskell.org/~ghc/{{ version }}/{{ name }}-{{ version }}-x86_64-apple-darwin.tar.xz   # [osx]
-  #  folder: binary                                                                                              # [osx]
-  - url: https://downloads.haskell.org/~ghc/{{ version }}/{{ name }}-{{ version }}-x86_64-centos7-linux.tar.xz  # [build_platform == "linux-64"]
+  - url: https://downloads.haskell.org/~ghc/9.2.1-alpha2/{{ name }}-9.2.0.20210422-x86_64-centos7-linux.tar.xz  # [build_platform == "linux-64"]
     folder: binary                                                                                              # [build_platform == "linux-64"]
+    sha256: binary                                                                                              # [build_platform == "linux-64"]
   - url: https://downloads.haskell.org/~ghc/9.2.1-alpha2/{{ name }}-9.2.0.20210422-src.tar.xz
     folder: source
-  #- url: https://downloads.haskell.org/~ghc/{{ version }}/{{ name }}-{{ version }}-src.tar.xz
-  # folder: source
+    sha256: hhhhhh
+    patches:
+      # https://gitlab.haskell.org/ghc/ghc/-/issues/19631
+      - 0001-Update-binary-submodule.patch
 
 build:
   number: 0

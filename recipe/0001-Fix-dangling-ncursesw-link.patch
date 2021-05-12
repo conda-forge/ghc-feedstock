@@ -1,0 +1,24 @@
+From af459ff46bc258656f481f6ee00d75e365b8aa75 Mon Sep 17 00:00:00 2001
+From: "Uwe L. Korn" <uwe.korn@quantco.com>
+Date: Wed, 12 May 2021 15:24:59 +0200
+Subject: [PATCH] Fix dangling ncursesw link
+
+---
+ ghc.mk | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/ghc.mk b/ghc.mk
+index 2481001..19e6877 100644
+--- a/ghc.mk
++++ b/ghc.mk
+@@ -983,6 +983,7 @@ install_packages: rts/dist/package.conf.install
+ 	                                  '$(ghclibdir)'              \
+ 	                                  '$(docdir)/html/libraries'  \
+ 	                                  '$(GhcLibWays)'))
++	install_name_tool -change /nix/store/wxx8sfsa5x1753r8d1x8dx2927qncwbw-ncurses-6.2/lib/libncursesw.6.dylib ${BUILD_PREFIX}/lib/libncursesw.6.dylib ${BUILD_PREFIX}/lib/ghc-9.2.0.20210422/terminfo-0.4.1.4/libHSterminfo-0.4.1.4-ghc9.2.0.20210422.dylib
+ 	"$(INSTALLED_GHC_PKG_REAL)" --force --global-package-db "$(INSTALLED_PACKAGE_CONF)" update rts/dist/package.conf.install
+ 	$(foreach p, $(INSTALL_PACKAGES),                             \
+ 	    $(call make-command,                                      \
+-- 
+2.30.1 (Apple Git-130)
+
