@@ -37,7 +37,7 @@ pushd binary
       CPP=$BUILD-cpp
     fi
     LD=$BUILD-ld OBJDUMP=$BUILD-objdump RANLIB=$BUILD-ranlib STRIP=$BUILD-strip ./configure --prefix=$BUILD_PREFIX --with-gmp-includes=$BUILD_PREFIX/include --with-gmp-libraries=$BUILD_PREFIX/lib --build=$GHC_BUILD --host=$GHC_BUILD --target=$GHC_BUILD || (cat config.log; exit 1)
-    make install #-j${CPU_COUNT}
+    make install -j${CPU_COUNT}
   )
 popd
 
@@ -48,9 +48,11 @@ pushd source
     export CC=$GCC
   fi
   cp $BUILD_PREFIX/share/gnuconfig/config.* .
-  ./configure --prefix=$PREFIX --with-gmp-includes=$PREFIX/include --with-gmp-libraries=$PREFIX/lib --build=$GHC_BUILD --host=$GHC_BUILD --target=$GHC_HOST
-  make HADDOCK_DOCS=NO BUILD_SPHINX_HTML=NO BUILD_SPHINX_PDF=NO #-j${CPU_COUNT}
-  make HADDOCK_DOCS=NO BUILD_SPHINX_HTML=NO BUILD_SPHINX_PDF=NO install #-j${CPU_COUNT}
+  #./configure --prefix=$PREFIX --with-gmp-includes=$PREFIX/include --with-gmp-libraries=$PREFIX/lib --build=$GHC_BUILD --host=$GHC_BUILD --target=$GHC_HOST
+  #./configure --prefix=$PREFIX --with-gmp-includes=$PREFIX/include --with-gmp-libraries=$PREFIX/lib --build=$GHC_BUILD --host=$GHC_HOST --target=$GHC_HOST
+  ./configure --prefix=$PREFIX --with-gmp-includes=$PREFIX/include --with-gmp-libraries=$PREFIX/lib --target=$GHC_HOST
+  make HADDOCK_DOCS=NO BUILD_SPHINX_HTML=NO BUILD_SPHINX_PDF=NO -j${CPU_COUNT}
+  make HADDOCK_DOCS=NO BUILD_SPHINX_HTML=NO BUILD_SPHINX_PDF=NO install -j${CPU_COUNT}
 popd
 
 #echo "main = putStr \"smalltest\"" > Main.hs

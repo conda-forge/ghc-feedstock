@@ -1,26 +1,20 @@
 {% set name = "ghc" %}
-{% set version = "9.2.1" %}
+{% set version = "8.10.4" %}
 
 package:
   name: {{ name|lower }}
-  version: {{ version }}.alpha2
+  version: {{ version }}
 
 source:
-  - url: https://downloads.haskell.org/~ghc/9.2.1-alpha2/{{ name }}-9.2.0.20210422-x86_64-apple-darwin.tar.xz   # [osx]
+  - url: https://downloads.haskell.org/~ghc/{{ version }}/{{ name }}-{{ version }}-x86_64-apple-darwin.tar.xz   # [osx]
     folder: binary                                                                                              # [osx]
     sha256: 8884c059f2b76e4c4309ff6bd7a7dde37663f751fd26220e9a2bcabb4d69a401                                    # [osx]
-    patches:                                                                                                    # [osx]
-      # https://gitlab.haskell.org/ghc/ghc/-/issues/19734
-      - 0001-Fix-dangling-ncursesw-link.patch                                                                   # [osx]
-  - url: https://downloads.haskell.org/~ghc/9.2.1-alpha2/{{ name }}-9.2.0.20210422-x86_64-centos7-linux.tar.xz  # [build_platform == "linux-64"]
+  - url: https://downloads.haskell.org/~ghc/{{ version }}/{{ name }}-{{ version }}-x86_64-centos7-linux.tar.xz  # [build_platform == "linux-64"]
     folder: binary                                                                                              # [build_platform == "linux-64"]
-    sha256: dee4f158f2d59bfe97ec3f5773b6b31aa911f9b128a5e56eeefa2dccc754d295                                    # [build_platform == "linux-64"]
-  - url: https://downloads.haskell.org/~ghc/9.2.1-alpha2/{{ name }}-9.2.0.20210422-src.tar.xz
+    sha256: fb8a91f0cf06594172aff46c2f6f7486179e1c3760855c79fbdd3012598cc2cd                                    # [build_platform == "linux-64"]
+  - url: https://downloads.haskell.org/~ghc/{{ version }}/{{ name }}-{{ version }}-src.tar.xz
     folder: source
-    sha256: 69be189e6e7f8d51a9078ac8f177176bc5bff54edc8352974c50c1f0e110df27
-    patches:
-      # https://gitlab.haskell.org/ghc/ghc/-/issues/19631
-      - 0001-Update-binary-submodule.patch
+    sha256: 52af871b4e08550257d720c2944ac85727d0b948407cef1bebfe7508c224910e
 
 build:
   number: 0
@@ -34,7 +28,7 @@ requirements:
     - gnuconfig
     - gmp
     - ncurses
-    - perl *
+    - perl
     - make
     - automake
     - autoconf
