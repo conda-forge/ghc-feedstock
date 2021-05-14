@@ -8,7 +8,7 @@ package:
 source:
   - url: https://downloads.haskell.org/~ghc/{{ version }}/{{ name }}-{{ version }}-x86_64-apple-darwin.tar.xz   # [osx]
     folder: binary                                                                                              # [osx]
-    sha256: 8884c059f2b76e4c4309ff6bd7a7dde37663f751fd26220e9a2bcabb4d69a401                                    # [osx]
+    sha256: 725ecf6543e63b81a3581fb8c97afd21a08ae11bc0fa4f8ee25d45f0362ef6d5                                    # [osx]
   - url: https://downloads.haskell.org/~ghc/{{ version }}/{{ name }}-{{ version }}-x86_64-centos7-linux.tar.xz  # [build_platform == "linux-64"]
     folder: binary                                                                                              # [build_platform == "linux-64"]
     sha256: fb8a91f0cf06594172aff46c2f6f7486179e1c3760855c79fbdd3012598cc2cd                                    # [build_platform == "linux-64"]
