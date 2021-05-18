@@ -50,7 +50,7 @@ pushd source
   cp $BUILD_PREFIX/share/gnuconfig/config.* .
   #./configure --prefix=$PREFIX --with-gmp-includes=$PREFIX/include --with-gmp-libraries=$PREFIX/lib --build=$GHC_BUILD --host=$GHC_BUILD --target=$GHC_HOST
   #./configure --prefix=$PREFIX --with-gmp-includes=$PREFIX/include --with-gmp-libraries=$PREFIX/lib --build=$GHC_BUILD --host=$GHC_HOST --target=$GHC_HOST
-  ./configure --prefix=$PREFIX --with-gmp-includes=$PREFIX/include --with-gmp-libraries=$PREFIX/lib --with-system-libffi --target=$GHC_HOST
+  ./configure --prefix=$PREFIX --with-gmp-includes=$PREFIX/include --with-gmp-libraries=$PREFIX/lib --with-ffi-includes=$PREFIX/include --with-ffi-libraries=$PREFIX/lib --target=$GHC_HOST
   make HADDOCK_DOCS=NO BUILD_SPHINX_HTML=NO BUILD_SPHINX_PDF=NO -j${CPU_COUNT}
   make HADDOCK_DOCS=NO BUILD_SPHINX_HTML=NO BUILD_SPHINX_PDF=NO install -j${CPU_COUNT}
   # Delete profile-enabled static libraries, other distributions don't seem to ship them either and they are very heavy.
