@@ -24,6 +24,8 @@ if [[ "${target_platform}" == linux-* ]]; then
   cp $(which $GCC) $BUILD_PREFIX/bin/$GHC_HOST-gcc
 fi
 
+mkdir stage0
+stage0="$( pwd )/stage0"
 pushd binary
   cp $BUILD_PREFIX/share/gnuconfig/config.* .
   # stage0 compiler: --build=$GHC_BUILD --host=$GHC_BUILD --target=$GHC_BUILD
@@ -36,7 +38,7 @@ pushd binary
     if [[ "${build_platform}" == linux-* ]]; then
       CPP=$BUILD-cpp
     fi
-    LD=$BUILD-ld OBJDUMP=$BUILD-objdump RANLIB=$BUILD-ranlib STRIP=$BUILD-strip ./configure --prefix=$BUILD_PREFIX --with-gmp-includes=$BUILD_PREFIX/include --with-gmp-libraries=$BUILD_PREFIX/lib --build=$GHC_BUILD --host=$GHC_BUILD --target=$GHC_BUILD || (cat config.log; exit 1)
+    LD=$BUILD-ld OBJDUMP=$BUILD-objdump RANLIB=$BUILD-ranlib STRIP=$BUILD-strip ./configure --prefix="${stage0}" --with-gmp-includes=$BUILD_PREFIX/include --with-gmp-libraries=$BUILD_PREFIX/lib --build=$GHC_BUILD --host=$GHC_BUILD --target=$GHC_BUILD || (cat config.log; exit 1)
     make install -j${CPU_COUNT}
   )
 popd
@@ -48,16 +50,16 @@ pushd source
     export CC=$GCC
   fi
   cp $BUILD_PREFIX/share/gnuconfig/config.* .
-  ./configure --prefix=$PREFIX --with-gmp-includes=$PREFIX/include --with-gmp-libraries=$PREFIX/lib --with-ffi-includes=$PREFIX/include --with-ffi-libraries=$PREFIX/lib --target=$GHC_HOST
-  make HADDOCK_DOCS=NO BUILD_SPHINX_HTML=NO BUILD_SPHINX_PDF=NO -j${CPU_COUNT}
-  make HADDOCK_DOCS=NO BUILD_SPHINX_HTML=NO BUILD_SPHINX_PDF=NO install -j${CPU_COUNT}
+  (
+    PATH="${stage0}/bin:${PATH}"
+    ./configure --prefix=$PREFIX --with-gmp-includes=$PREFIX/include --with-gmp-libraries=$PREFIX/lib --with-ffi-includes=$PREFIX/include --with-ffi-libraries=$PREFIX/lib --target=$GHC_HOST
+    make HADDOCK_DOCS=NO BUILD_SPHINX_HTML=NO BUILD_SPHINX_PDF=NO -j${CPU_COUNT}
+    make HADDOCK_DOCS=NO BUILD_SPHINX_HTML=NO BUILD_SPHINX_PDF=NO install -j${CPU_COUNT}
+  )
   # Delete profile-enabled static libraries, other distributions don't seem to ship them either and they are very heavy.
   find $PREFIX/lib/ghc-${PKG_VERSION} -name '*_p.a' -delete
   find $PREFIX/lib/ghc-${PKG_VERSION} -name '*.p_o' -delete
 popd
-
-# Remove ghc from $BUILD_PREFIX to speedup conda-build post-processing
-rm -rf "$BUILD_PREFIX/lib/ghc-${PKG_VERSION}"
 
 #echo "main = putStr \"smalltest\"" > Main.hs
 #ghc -v -O0 -threaded -L$PREFIX/lib -fasm -o smalltest Main.hs
