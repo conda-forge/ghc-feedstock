@@ -60,8 +60,3 @@ pushd source
   find $PREFIX/lib/ghc-${PKG_VERSION} -name '*_p.a' -delete
   find $PREFIX/lib/ghc-${PKG_VERSION} -name '*.p_o' -delete
 popd
-
-#echo "main = putStr \"smalltest\"" > Main.hs
-#ghc -v -O0 -threaded -L$PREFIX/lib -fasm -o smalltest Main.hs
-#./smalltest
-ghc-pkg recache
