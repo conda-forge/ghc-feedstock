@@ -154,4 +154,5 @@ Feedstock Maintainers
 
 * [@eggzilla](https://github.com/eggzilla/)
 * [@step21](https://github.com/step21/)
+* [@xhochy](https://github.com/xhochy/)
 
