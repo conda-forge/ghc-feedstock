@@ -1,35 +1,45 @@
 {% set name = "ghc" %}
-{% set version = "8.2.2" %}
-{% set unixsha256 = "cd7afbca54edf9890da9f432c63366556246c85c1198e40c99df5af01c555834" %}
-{% set aarch64sha256 = "676698b0b3744af80a610d9e18e40735b9cf8ec337c072d8314d85cba8af4acc" %}
+{% set version = "8.10.4" %}
 
 package:
   name: {{ name|lower }}
   version: {{ version }}
 
 source:
-  url: https://downloads.haskell.org/~{{ name }}/{{ version }}/{{ name }}-{{ version }}-x86_64-deb7-linux.tar.xz  # [linux64]
-  sha256: {{ unixsha256 }}  # [linux64]
-  url: https://downloads.haskell.org/{{ name }}/{{ version }}/{{ name }}-{{ version }}-aarch64-deb8-linux.tar.xz  # [aarch64]
-  sha256: {{ aarch64sha256 }}  # [aarch64]
+  - url: https://downloads.haskell.org/~ghc/{{ version }}/{{ name }}-{{ version }}-x86_64-apple-darwin.tar.xz   # [osx]
+    folder: binary                                                                                              # [osx]
+    sha256: 725ecf6543e63b81a3581fb8c97afd21a08ae11bc0fa4f8ee25d45f0362ef6d5                                    # [osx]
+  - url: https://downloads.haskell.org/~ghc/{{ version }}/{{ name }}-{{ version }}-x86_64-centos7-linux.tar.xz  # [build_platform == "linux-64"]
+    folder: binary                                                                                              # [build_platform == "linux-64"]
+    sha256: fb8a91f0cf06594172aff46c2f6f7486179e1c3760855c79fbdd3012598cc2cd                                    # [build_platform == "linux-64"]
+  - url: https://downloads.haskell.org/~ghc/{{ version }}/{{ name }}-{{ version }}-src.tar.xz
+    folder: source
+    sha256: 52af871b4e08550257d720c2944ac85727d0b948407cef1bebfe7508c224910e
 
 build:
-  number: 1003
-  skip: True  # [not linux]
+  number: 0
+  skip: True  # [not unix]
 
 requirements:
   build:
     - {{ compiler('c') }}
     - {{ compiler('cxx') }}
+    - patchelf  # [linux]
+    - gnuconfig
     - gmp
     - ncurses
-    - make  # [aarch64]
-    - binutils_impl_{{ target_platform }}  # [linux]
+    - perl
+    - make
+    - automake
+    - autoconf
+    - libtool
+    - llvmdev  # [aarch64]
   host:
     - xz
-    - binutils_impl_{{ target_platform }}  # [linux]
     - gmp
     - ncurses
+    - libffi
+    - cffi
 
 test:
   commands:
@@ -39,7 +49,7 @@ about:
   home: https://haskell.org/ghc/
   license: BSD-3-Clause 
   license_family: BSD
-  license_file: LICENSE
+  license_file: binary/LICENSE
   summary: 'Glorious Glasgow Haskell Compilation System'
 
   doc_url: https://downloads.haskell.org/~ghc/latest/docs/html/users_guide/
@@ -49,3 +59,4 @@ extra:
   recipe-maintainers:
     - eggzilla
     - step21
+    - xhochy
