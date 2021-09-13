@@ -44,7 +44,6 @@ requirements:
 test:
   commands:
     - ghc --help
-    - ghc hello.hs -o hello
 
 about:
   home: https://haskell.org/ghc/
