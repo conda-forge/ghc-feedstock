@@ -28,6 +28,7 @@ CONDARC
 BUILD_CMD=build
 
 conda install --yes --quiet "conda-forge-ci-setup=3" conda-build pip ${GET_BOA:-} -c conda-forge
+conda update --yes -c conda-forge/label/lief_dev py-lief
 
 # set up the condarc
 setup_conda_rc "${FEEDSTOCK_ROOT}" "${RECIPE_ROOT}" "${CONFIG_FILE}"
