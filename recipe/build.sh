@@ -47,7 +47,10 @@ pushd source
   # stage1 compiler: --build=$GHC_BUILD --host=$GHC_BUILD --target=$GHC_HOST
   # stage2 compiler: --build=$GHC_BUILD --host=$GHC_HOST --target=$GHC_HOST
   if [[ "${target_platform}" == linux-* ]]; then
-    export CC=$GCC
+    export CC=$(basename $GCC)
+    export AR=$(basename $AR)
+    export LD=$(basename $LD)
+    export RANLIB=$(basename $RANLIB)
   fi
   cp $BUILD_PREFIX/share/gnuconfig/config.* .
   (
