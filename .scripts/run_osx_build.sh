@@ -27,7 +27,6 @@ conda install -n base --quiet --yes "conda-forge-ci-setup=3" conda-build pip ${G
 conda update --yes -c conda-forge/label/lief_dev py-lief
 
 
-
 echo -e "\n\nSetting up the condarc and mangling the compiler."
 setup_conda_rc ./ ./recipe ./.ci_support/${CONFIG}.yaml
 

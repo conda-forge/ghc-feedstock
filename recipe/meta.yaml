@@ -42,8 +42,11 @@ requirements:
     - cffi
 
 test:
+  files:
+    - hello.hs
   commands:
     - ghc --help
+    - ghc hello.hs -o hello
 
 about:
   home: https://haskell.org/ghc/
