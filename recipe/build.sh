@@ -64,6 +64,9 @@ pushd source
   find $PREFIX/lib/ghc-${PKG_VERSION} -name '*.p_o' -delete
 popd
 
-if [[ "${target_platform}" == "${build_platform}" ]]; then
-  ghc-pkg recache
-fi
+# Delete package cache as it is invalid on installation.
+# This needs to be regenerated on activation.
+rm $PREFIX/lib/ghc-${PKG_VERSION}/package.conf.d/package.cache
+
+mkdir -p "${PREFIX}/etc/conda/activate.d"
+cp "${RECIPE_DIR}/activate.sh" "${PREFIX}/etc/conda/activate.d/${PKG_NAME}_activate.sh"
