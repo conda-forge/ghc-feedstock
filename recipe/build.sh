@@ -47,7 +47,10 @@ pushd source
   # stage1 compiler: --build=$GHC_BUILD --host=$GHC_BUILD --target=$GHC_HOST
   # stage2 compiler: --build=$GHC_BUILD --host=$GHC_HOST --target=$GHC_HOST
   if [[ "${target_platform}" == linux-* ]]; then
-    export CC=$GCC
+    export CC=$(basename $GCC)
+    export AR=$(basename $AR)
+    export LD=$(basename $LD)
+    export RANLIB=$(basename $RANLIB)
   fi
   cp $BUILD_PREFIX/share/gnuconfig/config.* .
   (
@@ -60,3 +63,10 @@ pushd source
   find $PREFIX/lib/ghc-${PKG_VERSION} -name '*_p.a' -delete
   find $PREFIX/lib/ghc-${PKG_VERSION} -name '*.p_o' -delete
 popd
+
+# Delete package cache as it is invalid on installation.
+# This needs to be regenerated on activation.
+rm $PREFIX/lib/ghc-${PKG_VERSION}/package.conf.d/package.cache
+
+mkdir -p "${PREFIX}/etc/conda/activate.d"
+cp "${RECIPE_DIR}/activate.sh" "${PREFIX}/etc/conda/activate.d/${PKG_NAME}_activate.sh"

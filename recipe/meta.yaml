@@ -17,7 +17,7 @@ source:
     sha256: 52af871b4e08550257d720c2944ac85727d0b948407cef1bebfe7508c224910e
 
 build:
-  number: 1
+  number: 2
   skip: True  # [not unix]
 
 requirements:
@@ -33,13 +33,16 @@ requirements:
     - automake
     - autoconf
     - libtool
-    - llvmdev  # [aarch64]
+    - llvmdev 9.*  # [aarch64]
   host:
     - xz
     - gmp
     - ncurses
     - libffi
     - cffi
+  run:
+    - {{ c_compiler }}_{{ target_platform }} >={{ c_compiler_version }}
+    - llvm-tools 9.*  # [aarch64]
 
 test:
   files:
