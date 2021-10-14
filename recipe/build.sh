@@ -56,8 +56,12 @@ pushd source
   (
     PATH="${stage0}/bin:${PATH}"
     ./configure --prefix=$PREFIX --with-gmp-includes=$PREFIX/include --with-gmp-libraries=$PREFIX/lib --with-ffi-includes=$PREFIX/include --with-ffi-libraries=$PREFIX/lib --target=$GHC_HOST
-    make HADDOCK_DOCS=NO BUILD_SPHINX_HTML=NO BUILD_SPHINX_PDF=NO -j${CPU_COUNT}
-    make HADDOCK_DOCS=NO BUILD_SPHINX_HTML=NO BUILD_SPHINX_PDF=NO install -j${CPU_COUNT}
+    EXTRA_HC_OPTS=""
+    for flag in ${LDFLAGS}; do
+	EXTRA_HC_OPTS="${EXTRA_HC_OPTS} -optl${flag}"
+    done
+    make HADDOCK_DOCS=NO BUILD_SPHINX_HTML=NO BUILD_SPHINX_PDF=NO "EXTRA_HC_OPTS=${EXTRA_HC_OPTS}" -j${CPU_COUNT}
+    make HADDOCK_DOCS=NO BUILD_SPHINX_HTML=NO BUILD_SPHINX_PDF=NO "EXTRA_HC_OPTS=${EXTRA_HC_OPTS}" install -j${CPU_COUNT}
   )
   # Delete profile-enabled static libraries, other distributions don't seem to ship them either and they are very heavy.
   find $PREFIX/lib/ghc-${PKG_VERSION} -name '*_p.a' -delete
