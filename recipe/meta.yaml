@@ -1,8 +1,12 @@
 {% set name = "ghc" %}
 {% set version = "8.10.7" %}
 
+{% if ghc_target_platform is undefined %}
+{% set ghc_target_platform = "foo" %}
+{% endif %}
+
 package:
-  name: {{ name|lower }}
+  name: {{ name|lower }}-split
   version: {{ version }}
 
 source:
@@ -17,39 +21,62 @@ source:
     sha256: e3eef6229ce9908dfe1ea41436befb0455fefb1932559e860ad4c606b0d03c9d
 
 build:
-  number: 0
+  number: 1
   skip: true  # [not unix]
 
-requirements:
-  build:
-    - {{ compiler('c') }}
-    - {{ compiler('cxx') }}
-    - patchelf  # [linux]
-    - gnuconfig
-    - gmp
-    - ncurses
-    - perl
-    - make
-    - automake
-    - autoconf
-    - libtool
-    - llvmdev 9.*  # [aarch64]
-  host:
-    - xz
-    - gmp
-    - ncurses
-    - libffi
-    - cffi
-  run:
-    - {{ c_compiler }}_{{ target_platform }} >={{ c_compiler_version }}
-    - llvm-tools 9.*  # [aarch64]
-
-test:
-  files:
-    - hello.hs
-  commands:
-    - ghc --help
-    - ghc hello.hs -o hello
+outputs:
+  - name: ghc_{{ ghc_target_platform }}
+    script: build-compiler.sh
+    requirements:
+      build:
+        - {{ compiler('c') }}
+        - {{ compiler('cxx') }}
+{% if ghc_target_platform.startswith("linux") %}
+        - gcc_{{ ghc_target_platform }}
+{% elif ghc_target_platform.startswith("osx") %}
+        - clang_{{ ghc_target_platform }}
+{% endif %}
+        - patchelf  # [linux]
+        - gnuconfig
+        - gmp
+        - ncurses
+        - perl
+        - make
+        - automake
+        - autoconf
+        - libtool
+        - llvmdev 9.*  # [aarch64]
+        - sed
+      host:
+        - xz
+        - gmp
+        - ncurses
+        - libffi
+        - cffi
+      run:
+        - {{ c_compiler }}_{{ ghc_target_platform }} >={{ c_compiler_version }}
+        - llvm-tools 9.*  # [aarch64]
+    test:
+      files:
+        - hello.hs
+      commands:
+        - echo {{ ghc_target_platform }}-{{ ghc_target_arch }}
+        - ghc --help
+        - ghc hello.hs -o hello
+  - name: ghc
+    build:
+      skip: true  # [ghc_target_platform != target_platform]
+    requirements:
+      host:
+        - {{ pin_subpackage('ghc_' + ghc_target_platform, exact=True) }}
+      run:
+        - {{ pin_subpackage('ghc_' + ghc_target_platform, exact=True) }}
+    test:
+      files:
+        - hello.hs
+      commands:
+        - ghc hello.hs -o hello
+        - ./hello
 
 about:
   home: https://haskell.org/ghc/
@@ -62,6 +89,7 @@ about:
   dev_url: https://github.com/ghc/ghc
 
 extra:
+  feedstock-name: ghc
   recipe-maintainers:
     - eggzilla
     - step21

@@ -1,0 +1,16 @@
+ghc_target_arch:
+  - x86_64-unknown-linux-gnu  # [linux]
+  - aarch64-unknown-linux-gnu  # [linux]
+  - x86_64-apple-darwin  # [osx]
+  #- aarch64-apple-darwin  # [osx]
+  - other  # [not unix]
+ghc_target_platform:
+  - linux-64  # [linux]
+  - linux-aarch64  # [linux]
+  - osx-64  # [osx]
+  #- osx-arm64  # [osx]
+  - other  # [not unix]
+zip_keys:
+  -
+    - ghc_target_arch
+    - ghc_target_platform

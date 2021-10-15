@@ -7,6 +7,7 @@ unset build_alias
 
 export GHC_BUILD=$(echo $BUILD | sed "s/conda/unknown/g")
 export GHC_HOST=$(echo $HOST | sed "s/conda/unknown/g")
+export GHC_TARGET=${ghc_target_arch}
 
 if [[ "${target_platform}" == linux-* ]]; then
   # Make sure libraries for build are found without LDFLAGS
@@ -55,7 +56,7 @@ pushd source
   cp $BUILD_PREFIX/share/gnuconfig/config.* .
   (
     PATH="${stage0}/bin:${PATH}"
-    ./configure --prefix=$PREFIX --with-gmp-includes=$PREFIX/include --with-gmp-libraries=$PREFIX/lib --with-ffi-includes=$PREFIX/include --with-ffi-libraries=$PREFIX/lib --target=$GHC_HOST
+    ./configure --prefix=$PREFIX --with-gmp-includes=$PREFIX/include --with-gmp-libraries=$PREFIX/lib --with-ffi-includes=$PREFIX/include --with-ffi-libraries=$PREFIX/lib --target=$GHC_TARGET
     EXTRA_HC_OPTS=""
     for flag in ${LDFLAGS}; do
 	EXTRA_HC_OPTS="${EXTRA_HC_OPTS} -optl${flag}"
