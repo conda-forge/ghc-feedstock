@@ -2,12 +2,8 @@
 
 # TODOs:
 # * What to do about CFLAGS?
-# * symlink lib/ghc-arch- to lib/conda-arch-
-# * split into version specific and unspecific files
-# * ensure plain ghc still works
 # * add ppc64le
 # * add darwin in possible separate PR
-# * are there still files left to be deleted from the PKG since we have switched to quick-cross now?
 
 set -x
 if [[ "${target_platform}" == linux-* ]]; then
@@ -28,6 +24,12 @@ export AR_GHC_TARGET="${AR}"
 export CC_GHC_TARGET="${CC}"
 export CFLAGS_GHC_TARGET="${CFLAGS}"
 export LD_GHC_TARGET="${LD}"
+
+if [[ "${ghc_target_platform}" == linux-* ]]; then
+  export AR_GHC_TARGET=$(basename ${AR_GHC_TARGET})
+  export CC_GHC_TARGET=$(basename ${CC_GHC_TARGET})
+  export LD_GHC_TARGET=$(basename ${LD_GHC_TARGET})
+fi
 
 if [[ "${target_platform}" == linux-* ]]; then
   # Enforce these flags to set from scratch
@@ -124,13 +126,17 @@ pushd source
 popd
 
 mkdir -p "${PREFIX}/etc/conda/activate.d"
-cp "${RECIPE_DIR}/activate.sh" "${PREFIX}/etc/conda/activate.d/${PKG_NAME}_activate.sh"
+cp "${RECIPE_DIR}/activate.sh" "${PREFIX}/etc/conda/activate.d/${PKG_NAME}_${PKG_VERSION}_activate.sh"
 
 # Delete package cache as it is invalid on installation.
 # This needs to be regenerated on activation.
-sed -i -e "s/conda_target_arch/${conda_target_arch}/g" "${PREFIX}/etc/conda/activate.d/${PKG_NAME}_activate.sh"
-GHC_BINARIES="ghc-${PKG_VERSION} ghc-pkg-${PKG_VERSION} ghci-${PKG_VERSION} hp2ps hpc hsc2hs runghc-${PKG_VERSION}"
+sed -i -e "s/conda_target_arch/${conda_target_arch}/g" "${PREFIX}/etc/conda/activate.d/${PKG_NAME}_${PKG_VERSION}_activate.sh"
+sed -i -e "s/PKG_VERSION/${PKG_VERSION}/g" "${PREFIX}/etc/conda/activate.d/${PKG_NAME}_${PKG_VERSION}_activate.sh"
+GHC_BINARIES="ghc-${PKG_VERSION} ghc-pkg-${PKG_VERSION} ghci-${PKG_VERSION} runghc-${PKG_VERSION}"
 GHC_DEL_LINKS="ghc ghci ghc-pkg runghc runhaskell"
+GHC_MOVED_BINARIES="hp2ps hpc hsc2hs"
+
+mkdir -p ${SRC_DIR}/moved_binaries
 if [[ "${ghc_target_arch}" == "${GHC_HOST}" ]]; then
   rm $PREFIX/lib/ghc-${PKG_VERSION}/package.conf.d/package.cache
   for exe in ${GHC_BINARIES}; do
@@ -139,6 +145,10 @@ if [[ "${ghc_target_arch}" == "${GHC_HOST}" ]]; then
   for exe in ${GHC_DEL_LINKS}; do
     rm ${PREFIX}/bin/${exe}
   done
+  for exe in ${GHC_MOVED_BINARIES}; do
+    mv ${PREFIX}/bin/${exe} ${SRC_DIR}/moved_binaries/${conda_target_arch}-${exe}
+  done
+  ln -s ${PREFIX}/lib/${conda_target_arch}-ghc-${PKG_VERSION} ${PREFIX}/lib/ghc-${PKG_VERSION}
 else
   rm $PREFIX/lib/${ghc_target_arch}-ghc-${PKG_VERSION}/package.conf.d/package.cache
   for exe in ${GHC_BINARIES}; do
@@ -147,13 +157,8 @@ else
   for exe in ${GHC_DEL_LINKS}; do
     rm ${PREFIX}/bin/${ghc_target_arch}-${exe}
   done
+  for exe in ${GHC_MOVED_BINARIES}; do
+    mv ${PREFIX}/bin/${ghc_target_arch}-${exe} ${SRC_DIR}/moved_binaries/${conda_target_arch}-${exe}
+  done
+  ln -s ${PREFIX}/lib/${conda_target_arch}-ghc-${PKG_VERSION} ${PREFIX}/lib/${ghc_target_arch}-ghc-${PKG_VERSION}
 fi
-
-# Regenerate symlinks
-pushd ${PREFIX}/bin
-  ln -s ${PREFIX}/bin/${conda_target_arch}-ghc-${PKG_VERSION} ${PREFIX}/bin/${conda_target_arch}-ghc
-  ln -s ${PREFIX}/bin/${conda_target_arch}-ghci-${PKG_VERSION} ${PREFIX}/bin/${conda_target_arch}-ghci
-  ln -s ${PREFIX}/bin/${conda_target_arch}-ghc-pkg-${PKG_VERSION} ${PREFIX}/bin/${conda_target_arch}-ghc-pkg
-  ln -s ${PREFIX}/bin/${conda_target_arch}-runghc-${PKG_VERSION} ${PREFIX}/bin/${conda_target_arch}-runghc
-  ln -s ${PREFIX}/bin/${conda_target_arch}-runghc ${PREFIX}/bin/${conda_target_arch}-runhaskell
-popd

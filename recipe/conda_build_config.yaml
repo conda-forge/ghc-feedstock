@@ -1,4 +1,5 @@
 # We cannot cross-compile a cross-compilers, thus not all combinations are activated.
+# This is due to the limitation of the GHC bootstrapping needs to have BUILD == HOST
 ghc_target_arch:
   - x86_64-unknown-linux-gnu  # [linux64]
   - aarch64-unknown-linux-gnu  # [linux]

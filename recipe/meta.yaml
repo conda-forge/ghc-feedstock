@@ -25,7 +25,7 @@ build:
   skip: true  # [not unix]
 
 outputs:
-  - name: ghc_{{ ghc_target_platform }}
+  - name: ghc_{{ ghc_target_platform }}_{{ version }}
     script: build-compiler.sh
     requirements:
       build:
@@ -59,6 +59,20 @@ outputs:
         - {{ c_compiler }}_{{ ghc_target_platform }} >={{ c_compiler_version }}
         - llvm-tools 11.*  # [osx]
         - llvm-tools 12.*  # [linux]
+    test:
+      files:
+        - hello.hs
+      commands:
+        - echo {{ ghc_target_platform }}-{{ ghc_target_arch }}-{{ conda_target_arch }}
+        - {{ conda_target_arch }}-ghc-{{ version }} --help
+        - {{ conda_target_arch }}-ghc-{{ version }} hello.hs -o hello
+  - name: ghc_{{ ghc_target_platform }}
+    script: build-compiler-links.sh
+    requirements:
+      host:
+        - {{ pin_subpackage('ghc_' + ghc_target_platform + '_' + version, exact=True) }}
+      run:
+        - {{ pin_subpackage('ghc_' + ghc_target_platform + '_' + version, exact=True) }}
     test:
       files:
         - hello.hs
