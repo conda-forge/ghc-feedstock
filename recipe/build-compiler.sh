@@ -9,8 +9,32 @@
 # * add darwin in possible separate PR
 # * are there still files left to be deleted from the PKG since we have switched to quick-cross now?
 
+set -x
 if [[ "${target_platform}" == linux-* ]]; then
-  # Scripts are activated in alphabetical order, we though want to have the correct target_platform activated here
+  # Enforce these flags to set from scratch
+  unset CFLAGS
+  unset CXXFLAGS
+  unset LDFLAGS
+  # First get the flags for the cross-compilation target
+  echo Activate binutils
+  source $CONDA_PREFIX/etc/conda/activate.d/activate-binutils_${ghc_target_platform}.sh
+  echo Activate gcc
+  source $CONDA_PREFIX/etc/conda/activate.d/activate-gcc_${ghc_target_platform}.sh
+  echo Activate gxx
+  source $CONDA_PREFIX/etc/conda/activate.d/activate-gxx_${ghc_target_platform}.sh
+fi
+
+export AR_GHC_TARGET="${AR}"
+export CC_GHC_TARGET="${CC}"
+export CFLAGS_GHC_TARGET="${CFLAGS}"
+export LD_GHC_TARGET="${LD}"
+
+if [[ "${target_platform}" == linux-* ]]; then
+  # Enforce these flags to set from scratch
+  unset CFLAGS
+  unset CXXFLAGS
+  unset LDFLAGS
+  # Ensure the correct target scripts are activated here.
   echo Activate binutils
   source $CONDA_PREFIX/etc/conda/activate.d/activate-binutils_${target_platform}.sh
   echo Activate gcc
@@ -83,10 +107,10 @@ pushd source
     fi
     export CONF_CC_OPTS_STAGE0="${CFLAGS}"
     # FIXME: Somehow this should be set to CFLAGS?
-    # export CONF_CC_OPTS_STAGE1="${CFLAGS}"
+    export CONF_CC_OPTS_STAGE1="${CFLAGS_GHC_TARGET}"
     unset CFLAGS
     autoreconf
-    ./configure --prefix=$PREFIX --with-gmp-includes=$PREFIX/include --with-gmp-libraries=$PREFIX/lib --with-ffi-includes=$PREFIX/include --with-ffi-libraries=$PREFIX/lib --build=$GHC_BUILD --target=$GHC_TARGET CC=$(echo ${ghc_target_arch}| sed 's/unknown/conda/g')-cc LD=$(echo ${ghc_target_arch}| sed 's/unknown/conda/g')-ld
+    ./configure --prefix=$PREFIX --with-gmp-includes=$PREFIX/include --with-gmp-libraries=$PREFIX/lib --with-ffi-includes=$PREFIX/include --with-ffi-libraries=$PREFIX/lib --build=$GHC_BUILD --target=$GHC_TARGET CC="${CC_GHC_TARGET}" LD="${LD_GHC_TARGET}"
     EXTRA_HC_OPTS=""
     for flag in ${LDFLAGS}; do
 	EXTRA_HC_OPTS="${EXTRA_HC_OPTS} -optl${flag}"
