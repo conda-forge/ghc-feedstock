@@ -3,7 +3,7 @@ ghc_target_arch:
   - x86_64-unknown-linux-gnu  # [linux64]
   - aarch64-unknown-linux-gnu  # [linux]
   # - powerpc64le-unknown-linux-gnu  # [linux64]
-  - x86_64-apple-darwin  # [osx]
+  - x86_64-apple-darwin13.4.0  # [osx]
   # - aarch64-apple-darwin  # [osx]
   - other  # [not unix]
 conda_target_arch:

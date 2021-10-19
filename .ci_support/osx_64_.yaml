@@ -15,7 +15,7 @@ cxx_compiler:
 cxx_compiler_version:
 - '11'
 ghc_target_arch:
-- x86_64-apple-darwin
+- x86_64-apple-darwin13.4.0
 ghc_target_platform:
 - osx-64
 gmp:
