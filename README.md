@@ -72,14 +72,10 @@ Current release info
 | Name | Downloads | Version | Platforms |
 | --- | --- | --- | --- |
 | [![Conda Recipe](https://img.shields.io/badge/recipe-ghc-green.svg)](https://anaconda.org/conda-forge/ghc) | [![Conda Downloads](https://img.shields.io/conda/dn/conda-forge/ghc.svg)](https://anaconda.org/conda-forge/ghc) | [![Conda Version](https://img.shields.io/conda/vn/conda-forge/ghc.svg)](https://anaconda.org/conda-forge/ghc) | [![Conda Platforms](https://img.shields.io/conda/pn/conda-forge/ghc.svg)](https://anaconda.org/conda-forge/ghc) |
-<<<<<<< HEAD
-| [![Conda Recipe](https://img.shields.io/badge/recipe-ghc_osx--64-green.svg)](https://anaconda.org/conda-forge/ghc_osx-64) | [![Conda Downloads](https://img.shields.io/conda/dn/conda-forge/ghc_osx-64.svg)](https://anaconda.org/conda-forge/ghc_osx-64) | [![Conda Version](https://img.shields.io/conda/vn/conda-forge/ghc_osx-64.svg)](https://anaconda.org/conda-forge/ghc_osx-64) | [![Conda Platforms](https://img.shields.io/conda/pn/conda-forge/ghc_osx-64.svg)](https://anaconda.org/conda-forge/ghc_osx-64) |
-=======
 | [![Conda Recipe](https://img.shields.io/badge/recipe-ghc_linux--64-green.svg)](https://anaconda.org/conda-forge/ghc_linux-64) | [![Conda Downloads](https://img.shields.io/conda/dn/conda-forge/ghc_linux-64.svg)](https://anaconda.org/conda-forge/ghc_linux-64) | [![Conda Version](https://img.shields.io/conda/vn/conda-forge/ghc_linux-64.svg)](https://anaconda.org/conda-forge/ghc_linux-64) | [![Conda Platforms](https://img.shields.io/conda/pn/conda-forge/ghc_linux-64.svg)](https://anaconda.org/conda-forge/ghc_linux-64) |
 | [![Conda Recipe](https://img.shields.io/badge/recipe-ghc_linux--64_8.10.7-green.svg)](https://anaconda.org/conda-forge/ghc_linux-64_8.10.7) | [![Conda Downloads](https://img.shields.io/conda/dn/conda-forge/ghc_linux-64_8.10.7.svg)](https://anaconda.org/conda-forge/ghc_linux-64_8.10.7) | [![Conda Version](https://img.shields.io/conda/vn/conda-forge/ghc_linux-64_8.10.7.svg)](https://anaconda.org/conda-forge/ghc_linux-64_8.10.7) | [![Conda Platforms](https://img.shields.io/conda/pn/conda-forge/ghc_linux-64_8.10.7.svg)](https://anaconda.org/conda-forge/ghc_linux-64_8.10.7) |
 | [![Conda Recipe](https://img.shields.io/badge/recipe-ghc_linux--aarch64-green.svg)](https://anaconda.org/conda-forge/ghc_linux-aarch64) | [![Conda Downloads](https://img.shields.io/conda/dn/conda-forge/ghc_linux-aarch64.svg)](https://anaconda.org/conda-forge/ghc_linux-aarch64) | [![Conda Version](https://img.shields.io/conda/vn/conda-forge/ghc_linux-aarch64.svg)](https://anaconda.org/conda-forge/ghc_linux-aarch64) | [![Conda Platforms](https://img.shields.io/conda/pn/conda-forge/ghc_linux-aarch64.svg)](https://anaconda.org/conda-forge/ghc_linux-aarch64) |
 | [![Conda Recipe](https://img.shields.io/badge/recipe-ghc_linux--aarch64_8.10.7-green.svg)](https://anaconda.org/conda-forge/ghc_linux-aarch64_8.10.7) | [![Conda Downloads](https://img.shields.io/conda/dn/conda-forge/ghc_linux-aarch64_8.10.7.svg)](https://anaconda.org/conda-forge/ghc_linux-aarch64_8.10.7) | [![Conda Version](https://img.shields.io/conda/vn/conda-forge/ghc_linux-aarch64_8.10.7.svg)](https://anaconda.org/conda-forge/ghc_linux-aarch64_8.10.7) | [![Conda Platforms](https://img.shields.io/conda/pn/conda-forge/ghc_linux-aarch64_8.10.7.svg)](https://anaconda.org/conda-forge/ghc_linux-aarch64_8.10.7) |
->>>>>>> 37a3c3c (Build version specific package)
 
 Installing ghc
 ==============
@@ -91,17 +87,10 @@ conda config --add channels conda-forge
 conda config --set channel_priority strict
 ```
 
-<<<<<<< HEAD
-Once the `conda-forge` channel has been enabled, `ghc, ghc_osx-64` can be installed with:
-
-```
-conda install ghc ghc_osx-64
-=======
 Once the `conda-forge` channel has been enabled, `ghc, ghc_linux-64, ghc_linux-64_8.10.7, ghc_linux-aarch64, ghc_linux-aarch64_8.10.7` can be installed with:
 
 ```
 conda install ghc ghc_linux-64 ghc_linux-64_8.10.7 ghc_linux-aarch64 ghc_linux-aarch64_8.10.7
->>>>>>> 37a3c3c (Build version specific package)
 ```
 
 It is possible to list all of the versions of `ghc` available on your platform with:
