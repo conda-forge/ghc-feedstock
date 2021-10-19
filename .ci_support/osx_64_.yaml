@@ -8,6 +8,8 @@ channel_sources:
 - conda-forge
 channel_targets:
 - conda-forge main
+conda_target_arch:
+- x86_64-apple-darwin13.4.0
 cxx_compiler:
 - clangxx
 cxx_compiler_version:
@@ -45,4 +47,5 @@ zip_keys:
 - - c_compiler_version
   - cxx_compiler_version
 - - ghc_target_arch
+  - conda_target_arch
   - ghc_target_platform

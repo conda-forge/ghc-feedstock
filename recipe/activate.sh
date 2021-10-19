@@ -1,3 +1,3 @@
 #!/bin/bash
 
-ghc-pkg recache
+conda_target_arch-ghc-pkg recache

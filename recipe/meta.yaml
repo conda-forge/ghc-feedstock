@@ -33,6 +33,7 @@ outputs:
         - {{ compiler('cxx') }}
 {% if ghc_target_platform.startswith("linux") %}
         - gcc_{{ ghc_target_platform }}
+        - gxx_{{ ghc_target_platform }}
 {% elif ghc_target_platform.startswith("osx") %}
         - clang_{{ ghc_target_platform }}
 {% endif %}
@@ -45,7 +46,7 @@ outputs:
         - automake
         - autoconf
         - libtool
-        - llvmdev 9.*  # [aarch64]
+        - llvmdev 12.*
         - sed
       host:
         - xz
@@ -55,15 +56,16 @@ outputs:
         - cffi
       run:
         - {{ c_compiler }}_{{ ghc_target_platform }} >={{ c_compiler_version }}
-        - llvm-tools 9.*  # [aarch64]
+        - llvm-tools 12.*
     test:
       files:
         - hello.hs
       commands:
-        - echo {{ ghc_target_platform }}-{{ ghc_target_arch }}
-        - ghc --help
-        - ghc hello.hs -o hello
+        - echo {{ ghc_target_platform }}-{{ ghc_target_arch }}-{{ conda_target_arch }}
+        - {{ conda_target_arch }}-ghc --help
+        - {{ conda_target_arch }}-ghc hello.hs -o hello
   - name: ghc
+    script: build-ghc.sh
     build:
       skip: true  # [ghc_target_platform != target_platform]
     requirements:
@@ -75,6 +77,7 @@ outputs:
       files:
         - hello.hs
       commands:
+        - echo {{ ghc_target_platform }}-{{ ghc_target_arch }}-{{ conda_target_arch }}
         - ghc hello.hs -o hello
         - ./hello
 

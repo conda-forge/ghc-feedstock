@@ -31,31 +31,24 @@ Current build status
         <table>
           <thead><tr><th>Variant</th><th>Status</th></tr></thead>
           <tbody><tr>
-              <td>linux_64_ghc_target_archaarch64-unknown-linux-gnughc_target_platformlinux-aarch64</td>
+              <td>linux_64_conda_target_archaarch64-conda-linux-gnughc_target_archaarch64-unknown-linux-gnughc_target_platformlinux-aarch64</td>
               <td>
                 <a href="https://dev.azure.com/conda-forge/feedstock-builds/_build/latest?definitionId=2401&branchName=master">
-                  <img src="https://dev.azure.com/conda-forge/feedstock-builds/_apis/build/status/ghc-feedstock?branchName=master&jobName=linux&configuration=linux_64_ghc_target_archaarch64-unknown-linux-gnughc_target_platformlinux-aarch64" alt="variant">
+                  <img src="https://dev.azure.com/conda-forge/feedstock-builds/_apis/build/status/ghc-feedstock?branchName=master&jobName=linux&configuration=linux_64_conda_target_archaarch64-conda-linux-gnughc_target_archaarch64-unknown-linux-gnughc_target_platformlinux-aarch64" alt="variant">
                 </a>
               </td>
             </tr><tr>
-              <td>linux_64_ghc_target_archx86_64-unknown-linux-gnughc_target_platformlinux-64</td>
+              <td>linux_64_conda_target_archx86_64-conda-linux-gnughc_target_archx86_64-unknown-linux-gnughc_target_platformlinux-64</td>
               <td>
                 <a href="https://dev.azure.com/conda-forge/feedstock-builds/_build/latest?definitionId=2401&branchName=master">
-                  <img src="https://dev.azure.com/conda-forge/feedstock-builds/_apis/build/status/ghc-feedstock?branchName=master&jobName=linux&configuration=linux_64_ghc_target_archx86_64-unknown-linux-gnughc_target_platformlinux-64" alt="variant">
+                  <img src="https://dev.azure.com/conda-forge/feedstock-builds/_apis/build/status/ghc-feedstock?branchName=master&jobName=linux&configuration=linux_64_conda_target_archx86_64-conda-linux-gnughc_target_archx86_64-unknown-linux-gnughc_target_platformlinux-64" alt="variant">
                 </a>
               </td>
             </tr><tr>
-              <td>linux_aarch64_ghc_target_archaarch64-unknown-linux-gnughc_target_platformlinux-aarch64</td>
+              <td>linux_aarch64</td>
               <td>
                 <a href="https://dev.azure.com/conda-forge/feedstock-builds/_build/latest?definitionId=2401&branchName=master">
-                  <img src="https://dev.azure.com/conda-forge/feedstock-builds/_apis/build/status/ghc-feedstock?branchName=master&jobName=linux&configuration=linux_aarch64_ghc_target_archaarch64-unknown-linux-gnughc_target_platformlinux-aarch64" alt="variant">
-                </a>
-              </td>
-            </tr><tr>
-              <td>linux_aarch64_ghc_target_archx86_64-unknown-linux-gnughc_target_platformlinux-64</td>
-              <td>
-                <a href="https://dev.azure.com/conda-forge/feedstock-builds/_build/latest?definitionId=2401&branchName=master">
-                  <img src="https://dev.azure.com/conda-forge/feedstock-builds/_apis/build/status/ghc-feedstock?branchName=master&jobName=linux&configuration=linux_aarch64_ghc_target_archx86_64-unknown-linux-gnughc_target_platformlinux-64" alt="variant">
+                  <img src="https://dev.azure.com/conda-forge/feedstock-builds/_apis/build/status/ghc-feedstock?branchName=master&jobName=linux&configuration=linux_aarch64_" alt="variant">
                 </a>
               </td>
             </tr><tr>
@@ -79,7 +72,8 @@ Current release info
 | Name | Downloads | Version | Platforms |
 | --- | --- | --- | --- |
 | [![Conda Recipe](https://img.shields.io/badge/recipe-ghc-green.svg)](https://anaconda.org/conda-forge/ghc) | [![Conda Downloads](https://img.shields.io/conda/dn/conda-forge/ghc.svg)](https://anaconda.org/conda-forge/ghc) | [![Conda Version](https://img.shields.io/conda/vn/conda-forge/ghc.svg)](https://anaconda.org/conda-forge/ghc) | [![Conda Platforms](https://img.shields.io/conda/pn/conda-forge/ghc.svg)](https://anaconda.org/conda-forge/ghc) |
-| [![Conda Recipe](https://img.shields.io/badge/recipe-ghc_osx--64-green.svg)](https://anaconda.org/conda-forge/ghc_osx-64) | [![Conda Downloads](https://img.shields.io/conda/dn/conda-forge/ghc_osx-64.svg)](https://anaconda.org/conda-forge/ghc_osx-64) | [![Conda Version](https://img.shields.io/conda/vn/conda-forge/ghc_osx-64.svg)](https://anaconda.org/conda-forge/ghc_osx-64) | [![Conda Platforms](https://img.shields.io/conda/pn/conda-forge/ghc_osx-64.svg)](https://anaconda.org/conda-forge/ghc_osx-64) |
+| [![Conda Recipe](https://img.shields.io/badge/recipe-ghc_linux--64-green.svg)](https://anaconda.org/conda-forge/ghc_linux-64) | [![Conda Downloads](https://img.shields.io/conda/dn/conda-forge/ghc_linux-64.svg)](https://anaconda.org/conda-forge/ghc_linux-64) | [![Conda Version](https://img.shields.io/conda/vn/conda-forge/ghc_linux-64.svg)](https://anaconda.org/conda-forge/ghc_linux-64) | [![Conda Platforms](https://img.shields.io/conda/pn/conda-forge/ghc_linux-64.svg)](https://anaconda.org/conda-forge/ghc_linux-64) |
+| [![Conda Recipe](https://img.shields.io/badge/recipe-ghc_linux--aarch64-green.svg)](https://anaconda.org/conda-forge/ghc_linux-aarch64) | [![Conda Downloads](https://img.shields.io/conda/dn/conda-forge/ghc_linux-aarch64.svg)](https://anaconda.org/conda-forge/ghc_linux-aarch64) | [![Conda Version](https://img.shields.io/conda/vn/conda-forge/ghc_linux-aarch64.svg)](https://anaconda.org/conda-forge/ghc_linux-aarch64) | [![Conda Platforms](https://img.shields.io/conda/pn/conda-forge/ghc_linux-aarch64.svg)](https://anaconda.org/conda-forge/ghc_linux-aarch64) |
 
 Installing ghc
 ==============
@@ -91,10 +85,10 @@ conda config --add channels conda-forge
 conda config --set channel_priority strict
 ```
 
-Once the `conda-forge` channel has been enabled, `ghc, ghc_osx-64` can be installed with:
+Once the `conda-forge` channel has been enabled, `ghc, ghc_linux-64, ghc_linux-aarch64` can be installed with:
 
 ```
-conda install ghc ghc_osx-64
+conda install ghc ghc_linux-64 ghc_linux-aarch64
 ```
 
 It is possible to list all of the versions of `ghc` available on your platform with:

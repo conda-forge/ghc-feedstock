@@ -8,6 +8,8 @@ channel_sources:
 - conda-forge
 channel_targets:
 - conda-forge main
+conda_target_arch:
+- aarch64-conda-linux-gnu
 cxx_compiler:
 - gxx
 cxx_compiler_version:
@@ -15,9 +17,9 @@ cxx_compiler_version:
 docker_image:
 - quay.io/condaforge/linux-anvil-cos7-cuda:10.2
 ghc_target_arch:
-- x86_64-unknown-linux-gnu
+- aarch64-unknown-linux-gnu
 ghc_target_platform:
-- linux-64
+- linux-aarch64
 gmp:
 - '6'
 libffi:
@@ -47,4 +49,5 @@ zip_keys:
 - - cdt_name
   - docker_image
 - - ghc_target_arch
+  - conda_target_arch
   - ghc_target_platform
