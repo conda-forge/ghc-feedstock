@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # TODOs:
-# * What to do about CFLAGS?
+# * Check CONF_CC_OPTS_STAGE2
 # * add ppc64le
 # * add darwin in possible separate PR
 
@@ -88,8 +88,6 @@ pushd binary
 popd
 
 pushd source
-  # stage1 compiler: --build=$GHC_BUILD --host=$GHC_BUILD --target=$GHC_HOST
-  # stage2 compiler: --build=$GHC_BUILD --host=$GHC_HOST --target=$GHC_HOST
   if [[ "${target_platform}" == linux-* ]]; then
     export CC=$(basename $GCC)
     export AR=$(basename $AR)
@@ -102,14 +100,15 @@ pushd source
     PATH="${stage0}/bin:${PATH}"
     export ac_cv_prog_fp_prog_ar="${AR}"
     if [[ "${ghc_target_platform}" != "${target_platform}" ]]; then
-      sed 's/#\(BuildFlavour = quick-cross\)/\1/' mk/build.mk.sample > mk/build.mk
+      sed 's/#\(BuildFlavour = perf-cross\)/\1/' mk/build.mk.sample > mk/build.mk
       echo 'Stage1Only = YES' >> mk/build.mk
     else
-      sed 's/#\(BuildFlavour = quick\)/\1/' mk/build.mk.sample > mk/build.mk
+      sed 's/#\(BuildFlavour = perf\)/\1/' mk/build.mk.sample > mk/build.mk
     fi
     export CONF_CC_OPTS_STAGE0="${CFLAGS}"
-    # FIXME: Somehow this should be set to CFLAGS?
     export CONF_CC_OPTS_STAGE1="${CFLAGS_GHC_TARGET}"
+    # FIXME: Does this work?
+    # export CONF_CC_OPTS_STAGE2="${CFLAGS_GHC_TARGET}"
     unset CFLAGS
     autoreconf
     ./configure --prefix=$PREFIX --with-gmp-includes=$PREFIX/include --with-gmp-libraries=$PREFIX/lib --with-ffi-includes=$PREFIX/include --with-ffi-libraries=$PREFIX/lib --build=$GHC_BUILD --target=$GHC_TARGET CC="${CC_GHC_TARGET}" LD="${LD_GHC_TARGET}"
@@ -121,15 +120,13 @@ pushd source
     make HADDOCK_DOCS=NO BUILD_SPHINX_HTML=NO BUILD_SPHINX_PDF=NO "EXTRA_HC_OPTS=${EXTRA_HC_OPTS}" install -j${CPU_COUNT}
   )
   # Delete profile-enabled static libraries, other distributions don't seem to ship them either and they are very heavy.
-  #find $PREFIX/lib/ghc-${PKG_VERSION} -name '*_p.a' -delete
-  #find $PREFIX/lib/ghc-${PKG_VERSION} -name '*.p_o' -delete
+  find $PREFIX/lib/ghc-${PKG_VERSION} -name '*_p.a' -delete
+  find $PREFIX/lib/ghc-${PKG_VERSION} -name '*.p_o' -delete
 popd
 
 mkdir -p "${PREFIX}/etc/conda/activate.d"
 cp "${RECIPE_DIR}/activate.sh" "${PREFIX}/etc/conda/activate.d/${PKG_NAME}_${PKG_VERSION}_activate.sh"
 
-# Delete package cache as it is invalid on installation.
-# This needs to be regenerated on activation.
 sed -i -e "s/conda_target_arch/${conda_target_arch}/g" "${PREFIX}/etc/conda/activate.d/${PKG_NAME}_${PKG_VERSION}_activate.sh"
 sed -i -e "s/PKG_VERSION/${PKG_VERSION}/g" "${PREFIX}/etc/conda/activate.d/${PKG_NAME}_${PKG_VERSION}_activate.sh"
 GHC_BINARIES="ghc-${PKG_VERSION} ghc-pkg-${PKG_VERSION} ghci-${PKG_VERSION} runghc-${PKG_VERSION}"
@@ -138,6 +135,8 @@ GHC_MOVED_BINARIES="hp2ps hpc hsc2hs"
 
 mkdir -p ${SRC_DIR}/moved_binaries
 if [[ "${ghc_target_arch}" == "${GHC_HOST}" ]]; then
+  # Delete package cache as it is invalid on installation.
+  # This needs to be regenerated on activation.
   rm $PREFIX/lib/ghc-${PKG_VERSION}/package.conf.d/package.cache
   for exe in ${GHC_BINARIES}; do
     mv ${PREFIX}/bin/${exe} ${PREFIX}/bin/${conda_target_arch}-${exe}
@@ -148,7 +147,7 @@ if [[ "${ghc_target_arch}" == "${GHC_HOST}" ]]; then
   for exe in ${GHC_MOVED_BINARIES}; do
     mv ${PREFIX}/bin/${exe} ${SRC_DIR}/moved_binaries/${conda_target_arch}-${exe}
   done
-  ln -s ${PREFIX}/lib/${conda_target_arch}-ghc-${PKG_VERSION} ${PREFIX}/lib/ghc-${PKG_VERSION}
+  ln -s ${PREFIX}/lib/ghc-${PKG_VERSION} ${PREFIX}/lib/${conda_target_arch}-ghc-${PKG_VERSION}
 else
   rm $PREFIX/lib/${ghc_target_arch}-ghc-${PKG_VERSION}/package.conf.d/package.cache
   for exe in ${GHC_BINARIES}; do
@@ -160,5 +159,5 @@ else
   for exe in ${GHC_MOVED_BINARIES}; do
     mv ${PREFIX}/bin/${ghc_target_arch}-${exe} ${SRC_DIR}/moved_binaries/${conda_target_arch}-${exe}
   done
-  ln -s ${PREFIX}/lib/${conda_target_arch}-ghc-${PKG_VERSION} ${PREFIX}/lib/${ghc_target_arch}-ghc-${PKG_VERSION}
+  ln -s ${PREFIX}/lib/${ghc_target_arch}-ghc-${PKG_VERSION} ${PREFIX}/lib/${conda_target_arch}-ghc-${PKG_VERSION}
 fi
