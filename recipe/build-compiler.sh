@@ -116,7 +116,7 @@ pushd source
     unset CFLAGS
     autoreconf
     cp $RECIPE_DIR/cpp_wrapper.sh $PREFIX/bin/${conda_target_arch}-ghc_cpp_wrapper-${PKG_VERSION}
-    sed -i "s;CPP;${CPP};g" $PREFIX/bin/${conda_target_arch}-ghc_cpp_wrapper-${PKG_VERSION}
+    sed -i "s;CPP;${CPP:-${CC} -E};g" $PREFIX/bin/${conda_target_arch}-ghc_cpp_wrapper-${PKG_VERSION}
     ./configure --prefix=$PREFIX --with-gmp-includes=$PREFIX/include --with-gmp-libraries=$PREFIX/lib --with-ffi-includes=$PREFIX/include --with-ffi-libraries=$PREFIX/lib --build=$GHC_BUILD --target=$GHC_TARGET CC="${CC_GHC_TARGET}" LD="${LD_GHC_TARGET}" NM="${NM_GHC_TARGET}" STRIP="${STRIP_GHC_TARGET}" CPP="$PREFIX/bin/${conda_target_arch}-ghc_cpp_wrapper-${PKG_VERSION}"
     EXTRA_HC_OPTS=""
     for flag in ${LDFLAGS}; do
