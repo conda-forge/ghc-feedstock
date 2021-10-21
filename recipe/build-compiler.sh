@@ -22,13 +22,17 @@ fi
 
 export AR_GHC_TARGET="${AR}"
 export CC_GHC_TARGET="${CC}"
-export CFLAGS_GHC_TARGET="${CFLAGS}"
+export CFLAGS_GHC_TARGET="${CFLAGS//-fno-plt/}"
 export LD_GHC_TARGET="${LD}"
+export NM_GHC_TARGET="${NM}"
+export STRIP_GHC_TARGET="${STRIP}"
 
 if [[ "${ghc_target_platform}" == linux-* ]]; then
   export AR_GHC_TARGET=$(basename ${AR_GHC_TARGET})
   export CC_GHC_TARGET=$(basename ${CC_GHC_TARGET})
   export LD_GHC_TARGET=$(basename ${LD_GHC_TARGET})
+  export NM_GHC_TARGET=$(basename ${NM_GHC_TARGET})
+  export STRIP_GHC_TARGET=$(basename ${STRIP_GHC_TARGET})
 fi
 
 if [[ "${target_platform}" == linux-* ]]; then
@@ -111,7 +115,9 @@ pushd source
     # export CONF_CC_OPTS_STAGE2="${CFLAGS_GHC_TARGET}"
     unset CFLAGS
     autoreconf
-    ./configure --prefix=$PREFIX --with-gmp-includes=$PREFIX/include --with-gmp-libraries=$PREFIX/lib --with-ffi-includes=$PREFIX/include --with-ffi-libraries=$PREFIX/lib --build=$GHC_BUILD --target=$GHC_TARGET CC="${CC_GHC_TARGET}" LD="${LD_GHC_TARGET}"
+    cp $RECIPE_DIR/cpp_wrapper.sh $PREFIX/bin/${conda_target_arch}-ghc_cpp_wrapper-${PKG_VERSION}
+    sed -i "s;CPP;${CPP};g" $PREFIX/bin/${conda_target_arch}-ghc_cpp_wrapper-${PKG_VERSION}
+    ./configure --prefix=$PREFIX --with-gmp-includes=$PREFIX/include --with-gmp-libraries=$PREFIX/lib --with-ffi-includes=$PREFIX/include --with-ffi-libraries=$PREFIX/lib --build=$GHC_BUILD --target=$GHC_TARGET CC="${CC_GHC_TARGET}" LD="${LD_GHC_TARGET}" NM="${NM_GHC_TARGET}" STRIP="${STRIP_GHC_TARGET}" CPP="$PREFIX/bin/${conda_target_arch}-ghc_cpp_wrapper-${PKG_VERSION}"
     EXTRA_HC_OPTS=""
     for flag in ${LDFLAGS}; do
 	EXTRA_HC_OPTS="${EXTRA_HC_OPTS} -optl${flag}"
@@ -119,9 +125,6 @@ pushd source
     make HADDOCK_DOCS=NO BUILD_SPHINX_HTML=NO BUILD_SPHINX_PDF=NO "EXTRA_HC_OPTS=${EXTRA_HC_OPTS}" -j${CPU_COUNT}
     make HADDOCK_DOCS=NO BUILD_SPHINX_HTML=NO BUILD_SPHINX_PDF=NO "EXTRA_HC_OPTS=${EXTRA_HC_OPTS}" install -j${CPU_COUNT}
   )
-  # Delete profile-enabled static libraries, other distributions don't seem to ship them either and they are very heavy.
-  find $PREFIX/lib/ghc-${PKG_VERSION} -name '*_p.a' -delete
-  find $PREFIX/lib/ghc-${PKG_VERSION} -name '*.p_o' -delete
 popd
 
 mkdir -p "${PREFIX}/etc/conda/activate.d"
@@ -148,6 +151,9 @@ if [[ "${ghc_target_arch}" == "${GHC_HOST}" ]]; then
     mv ${PREFIX}/bin/${exe} ${SRC_DIR}/moved_binaries/${conda_target_arch}-${exe}
   done
   ln -s ${PREFIX}/lib/ghc-${PKG_VERSION} ${PREFIX}/lib/${conda_target_arch}-ghc-${PKG_VERSION}
+  # Delete profile-enabled static libraries, other distributions don't seem to ship them either and they are very heavy.
+  find $PREFIX/lib/ghc-${PKG_VERSION} -name '*_p.a' -delete
+  find $PREFIX/lib/ghc-${PKG_VERSION} -name '*.p_o' -delete
 else
   rm $PREFIX/lib/${ghc_target_arch}-ghc-${PKG_VERSION}/package.conf.d/package.cache
   for exe in ${GHC_BINARIES}; do
@@ -160,4 +166,7 @@ else
     mv ${PREFIX}/bin/${ghc_target_arch}-${exe} ${SRC_DIR}/moved_binaries/${conda_target_arch}-${exe}
   done
   ln -s ${PREFIX}/lib/${ghc_target_arch}-ghc-${PKG_VERSION} ${PREFIX}/lib/${conda_target_arch}-ghc-${PKG_VERSION}
+  # Delete profile-enabled static libraries, other distributions don't seem to ship them either and they are very heavy.
+  find $PREFIX/lib/${ghc_target_arch}-ghc-${PKG_VERSION} -name '*_p.a' -delete
+  find $PREFIX/lib/${ghc_target_arch}-ghc-${PKG_VERSION} -name '*.p_o' -delete
 fi
