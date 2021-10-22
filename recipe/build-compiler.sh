@@ -107,7 +107,7 @@ pushd source
       sed 's/#\(BuildFlavour = perf-cross\)/\1/' mk/build.mk.sample > mk/build.mk
       echo 'Stage1Only = YES' >> mk/build.mk
     else
-      sed 's/#\(BuildFlavour = perf\)/\1/' mk/build.mk.sample > mk/build.mk
+      sed 's/#\(BuildFlavour = quick\)/\1/' mk/build.mk.sample > mk/build.mk
     fi
     export CONF_CC_OPTS_STAGE0="${CFLAGS}"
     export CONF_CC_OPTS_STAGE1="${CFLAGS_GHC_TARGET}"
