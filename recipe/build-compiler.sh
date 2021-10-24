@@ -2,7 +2,6 @@
 
 # TODOs:
 # * Check CONF_CC_OPTS_STAGE2
-# * add ppc64le
 # * add darwin in possible separate PR
 
 set -x
@@ -137,7 +136,7 @@ GHC_DEL_LINKS="ghc ghci ghc-pkg runghc runhaskell"
 GHC_MOVED_BINARIES="hp2ps hpc hsc2hs"
 
 mkdir -p ${SRC_DIR}/moved_binaries
-if [[ "${ghc_target_arch}" == "${GHC_HOST}" ]]; then
+if [[ "${GHC_HOST}" == ${ghc_target_arch}* ]]; then
   # Delete package cache as it is invalid on installation.
   # This needs to be regenerated on activation.
   rm $PREFIX/lib/ghc-${PKG_VERSION}/package.conf.d/package.cache
