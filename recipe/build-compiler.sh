@@ -103,7 +103,11 @@ pushd source
     PATH="${stage0}/bin:${PATH}"
     export ac_cv_prog_fp_prog_ar="${AR}"
     if [[ "${ghc_target_platform}" != "${target_platform}" ]]; then
-      sed 's/#\(BuildFlavour = perf-cross\)$/\1/' mk/build.mk.sample > mk/build.mk
+      if [[ "${ghc_target_platform}" == "linux-ppc64le" ]]; then
+        sed 's/#\(BuildFlavour = perf-cross-ncg\)$/\1/' mk/build.mk.sample > mk/build.mk
+      else
+        sed 's/#\(BuildFlavour = perf-cross\)$/\1/' mk/build.mk.sample > mk/build.mk
+      fi
       echo 'Stage1Only = YES' >> mk/build.mk
     else
       sed 's/#\(BuildFlavour = quick\)/\1/' mk/build.mk.sample > mk/build.mk
