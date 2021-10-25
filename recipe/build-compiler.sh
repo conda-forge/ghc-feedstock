@@ -103,10 +103,13 @@ pushd source
     PATH="${stage0}/bin:${PATH}"
     export ac_cv_prog_fp_prog_ar="${AR}"
     if [[ "${ghc_target_platform}" != "${target_platform}" ]]; then
-      sed 's/#\(BuildFlavour = perf-cross\)/\1/' mk/build.mk.sample > mk/build.mk
+      sed 's/#\(BuildFlavour = perf-cross\)$/\1/' mk/build.mk.sample > mk/build.mk
       echo 'Stage1Only = YES' >> mk/build.mk
     else
       sed 's/#\(BuildFlavour = quick\)/\1/' mk/build.mk.sample > mk/build.mk
+    fi
+    if [[ "${target_platform}" == osx-* ]]; then
+      echo "DYNAMIC_GHC_PROGRAMS = NO" >> mk/build.mk
     fi
     export CONF_CC_OPTS_STAGE0="${CFLAGS}"
     export CONF_CC_OPTS_STAGE1="${CFLAGS_GHC_TARGET}"
@@ -116,13 +119,17 @@ pushd source
     autoreconf
     cp $RECIPE_DIR/cpp_wrapper.sh $PREFIX/bin/${conda_target_arch}-ghc_cpp_wrapper-${PKG_VERSION}
     sed -i "s;CPP;${CPP:-${CC} -E};g" $PREFIX/bin/${conda_target_arch}-ghc_cpp_wrapper-${PKG_VERSION}
-    ./configure --prefix=$PREFIX --with-gmp-includes=$PREFIX/include --with-gmp-libraries=$PREFIX/lib --with-ffi-includes=$PREFIX/include --with-ffi-libraries=$PREFIX/lib --build=$GHC_BUILD --target=$GHC_TARGET CC="${CC_GHC_TARGET}" LD="${LD_GHC_TARGET}" NM="${NM_GHC_TARGET}" STRIP="${STRIP_GHC_TARGET}" CPP="$PREFIX/bin/${conda_target_arch}-ghc_cpp_wrapper-${PKG_VERSION}"
+    ./configure --prefix=$PREFIX --with-curses-libraries-stage0=${BUILD_PREFIX}/lib --with-gmp-includes=$PREFIX/include --with-gmp-libraries=$PREFIX/lib --with-ffi-includes=$PREFIX/include --with-ffi-libraries=$PREFIX/lib --build=$GHC_BUILD --target=$GHC_TARGET CC="${CC_GHC_TARGET}" LD="${LD_GHC_TARGET}" NM="${NM_GHC_TARGET}" STRIP="${STRIP_GHC_TARGET}" CPP="$PREFIX/bin/${conda_target_arch}-ghc_cpp_wrapper-${PKG_VERSION}" --with-iconv-includes=$PREFIX/include --with-iconv-libraries=$PREFIX/lib
     EXTRA_HC_OPTS=""
     for flag in ${LDFLAGS}; do
 	EXTRA_HC_OPTS="${EXTRA_HC_OPTS} -optl${flag}"
     done
-    make HADDOCK_DOCS=NO BUILD_SPHINX_HTML=NO BUILD_SPHINX_PDF=NO "EXTRA_HC_OPTS=${EXTRA_HC_OPTS}" -j${CPU_COUNT}
-    make HADDOCK_DOCS=NO BUILD_SPHINX_HTML=NO BUILD_SPHINX_PDF=NO "EXTRA_HC_OPTS=${EXTRA_HC_OPTS}" install -j${CPU_COUNT}
+    if [[ "${target_platform}" == osx-* ]]; then
+      # Force linkage to system libiconv
+      CONF_HC_OPTS_STAGE0="-optl${CONDA_BUILD_SYSROOT}/usr/lib/libiconv.tbd"
+    fi
+    make HADDOCK_DOCS=NO BUILD_SPHINX_HTML=NO BUILD_SPHINX_PDF=NO "EXTRA_HC_OPTS=${EXTRA_HC_OPTS}" CONF_HC_OPTS_STAGE0=${CONF_HC_OPTS_STAGE0:-} -j${CPU_COUNT}
+    make HADDOCK_DOCS=NO BUILD_SPHINX_HTML=NO BUILD_SPHINX_PDF=NO "EXTRA_HC_OPTS=${EXTRA_HC_OPTS}" CONF_HC_OPTS_STAGE0=${CONF_HC_OPTS_STAGE0:-} install -j${CPU_COUNT}
   )
 popd
 
@@ -136,7 +143,7 @@ GHC_DEL_LINKS="ghc ghci ghc-pkg runghc runhaskell"
 GHC_MOVED_BINARIES="hp2ps hpc hsc2hs"
 
 mkdir -p ${SRC_DIR}/moved_binaries
-if [[ "${GHC_HOST}" == ${ghc_target_arch}* ]]; then
+if [[ "${GHC_HOST/arm64/aarch64}" == ${ghc_target_arch}* ]]; then
   # Delete package cache as it is invalid on installation.
   # This needs to be regenerated on activation.
   rm $PREFIX/lib/ghc-${PKG_VERSION}/package.conf.d/package.cache

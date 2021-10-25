@@ -1,26 +1,26 @@
 # We cannot cross-compile a cross-compilers, thus not all combinations are activated.
 # This is due to the limitation of the GHC bootstrapping needs to have BUILD == HOST
 ghc_target_arch:
-  - x86_64-unknown-linux-gnu  # [linux64]
-  - aarch64-unknown-linux-gnu  # [linux]
+  - x86_64-unknown-linux-gnu       # [linux64]
+  - aarch64-unknown-linux-gnu      # [linux]
   - powerpc64le-unknown-linux-gnu  # [linux64]
-  - x86_64-apple-darwin  # [osx]
-  # - aarch64-apple-darwin  # [osx]
+  - x86_64-apple-darwin            # [osx and x86_64]
+  - aarch64-apple-darwin           # [osx and arm64]
   - other  # [not unix]
 conda_target_arch:
-  - x86_64-conda-linux-gnu           # [linux64]
-  - aarch64-conda-linux-gnu          # [linux]
-  - powerpc64le-conda-linux-gnu      # [linux64]
-  - x86_64-apple-darwin13.4.0     # [osx]
-  # - arm64-apple-darwin20.0.0      # [osx]
+  - x86_64-conda-linux-gnu        # [linux64]
+  - aarch64-conda-linux-gnu       # [linux]
+  - powerpc64le-conda-linux-gnu   # [linux64]
+  - x86_64-apple-darwin13.4.0     # [osx and x86_64]
+  - arm64-apple-darwin20.0.0      # [osx and arm64]
   - other  # [not unix]
 ghc_target_platform:
-  - linux-64  # [linux64]
+  - linux-64       # [linux64]
   - linux-aarch64  # [linux]
   - linux-ppc64le  # [linux64]
-  - osx-64  # [osx]
-  # - osx-arm64  # [osx]
-  - other  # [not unix]
+  - osx-64         # [osx and x86_64]
+  - osx-arm64      # [osx and arm64]
+  - other          # [not unix]
 zip_keys:
   -
     - ghc_target_arch
