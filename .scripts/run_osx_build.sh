@@ -26,7 +26,7 @@ conda activate base
 
 echo -e "\n\nInstalling conda-forge-ci-setup=3 and conda-build."
 conda install -n base --quiet --yes "conda-forge-ci-setup=3" conda-build pip ${GET_BOA:-}
-conda update --yes -c conda-forge/label/lief_dev py-lief
+
 
 
 echo -e "\n\nSetting up the condarc and mangling the compiler."
@@ -54,6 +54,10 @@ source run_conda_forge_build_setup
 
 echo -e "\n\nMaking the build clobber file"
 make_build_number ./ ./recipe ./.ci_support/${CONFIG}.yaml
+
+if [[ "${HOST_PLATFORM}" != "${BUILD_PLATFORM}" ]]; then
+    EXTRA_CB_OPTIONS="${EXTRA_CB_OPTIONS:-} --no-test"
+fi
 
 conda $BUILD_CMD ./recipe -m ./.ci_support/${CONFIG}.yaml --suppress-variables --clobber-file ./.ci_support/clobber_${CONFIG}.yaml ${EXTRA_CB_OPTIONS:-}
 ( startgroup "Validating outputs" ) 2> /dev/null
