@@ -130,7 +130,11 @@ pushd source
     done
     if [[ "${target_platform}" == osx-* ]]; then
       # Force linkage to system libiconv
-      CONF_HC_OPTS_STAGE0="-optl${CONDA_BUILD_SYSROOT}/usr/lib/libiconv.tbd"
+      if [[ "${CONDA_BUILD_SYSROOT}" == *"10.9"* ]]; then
+        CONF_HC_OPTS_STAGE0="-optl${CONDA_BUILD_SYSROOT}/usr/lib/libiconv.dylib"
+      else
+        CONF_HC_OPTS_STAGE0="-optl${CONDA_BUILD_SYSROOT}/usr/lib/libiconv.tbd"
+      fi
     fi
     make HADDOCK_DOCS=NO BUILD_SPHINX_HTML=NO BUILD_SPHINX_PDF=NO "EXTRA_HC_OPTS=${EXTRA_HC_OPTS}" CONF_HC_OPTS_STAGE0=${CONF_HC_OPTS_STAGE0:-} -j${CPU_COUNT}
     make HADDOCK_DOCS=NO BUILD_SPHINX_HTML=NO BUILD_SPHINX_PDF=NO "EXTRA_HC_OPTS=${EXTRA_HC_OPTS}" CONF_HC_OPTS_STAGE0=${CONF_HC_OPTS_STAGE0:-} install -j${CPU_COUNT}
