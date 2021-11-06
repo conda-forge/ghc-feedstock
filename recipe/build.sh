@@ -60,8 +60,9 @@ pushd source
     for flag in ${LDFLAGS}; do
 	EXTRA_HC_OPTS="${EXTRA_HC_OPTS} -optl${flag}"
     done
-    make HADDOCK_DOCS=NO BUILD_SPHINX_HTML=NO BUILD_SPHINX_PDF=NO "EXTRA_HC_OPTS=${EXTRA_HC_OPTS}" -j${CPU_COUNT}
-    make HADDOCK_DOCS=NO BUILD_SPHINX_HTML=NO BUILD_SPHINX_PDF=NO "EXTRA_HC_OPTS=${EXTRA_HC_OPTS}" install -j${CPU_COUNT}
+    # HADDOCK_DOCS=YES causes haddock (the binary) to be built & installed
+    make HADDOCK_DOCS=YES BUILD_SPHINX_HTML=NO BUILD_SPHINX_PDF=NO "EXTRA_HC_OPTS=${EXTRA_HC_OPTS}" -j${CPU_COUNT}
+    make HADDOCK_DOCS=YES BUILD_SPHINX_HTML=NO BUILD_SPHINX_PDF=NO "EXTRA_HC_OPTS=${EXTRA_HC_OPTS}" install -j${CPU_COUNT}
   )
   # Delete profile-enabled static libraries, other distributions don't seem to ship them either and they are very heavy.
   find $PREFIX/lib/ghc-${PKG_VERSION} -name '*_p.a' -delete
