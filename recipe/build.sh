@@ -52,6 +52,15 @@ pushd source
     export LD=$(basename $LD)
     export RANLIB=$(basename $RANLIB)
   fi
+  # HADDOCK_DOCS=YES causes haddock (the binary) to be built & installed
+  # As of 2021-11-07, it does not work on linux-aarch64, however, as it is cross-compiling
+  if [[ "${target_platform}" == linux-aarch64* ]]; then
+    HADDOCK_DOCS=NO
+  else
+    HADDOCK_DOCS=YES
+  fi
+
+
   cp $BUILD_PREFIX/share/gnuconfig/config.* .
   (
     PATH="${stage0}/bin:${PATH}"
@@ -60,9 +69,8 @@ pushd source
     for flag in ${LDFLAGS}; do
 	EXTRA_HC_OPTS="${EXTRA_HC_OPTS} -optl${flag}"
     done
-    # HADDOCK_DOCS=YES causes haddock (the binary) to be built & installed
-    make HADDOCK_DOCS=YES BUILD_SPHINX_HTML=NO BUILD_SPHINX_PDF=NO "EXTRA_HC_OPTS=${EXTRA_HC_OPTS}" -j${CPU_COUNT}
-    make HADDOCK_DOCS=YES BUILD_SPHINX_HTML=NO BUILD_SPHINX_PDF=NO "EXTRA_HC_OPTS=${EXTRA_HC_OPTS}" install -j${CPU_COUNT}
+    make HADDOCK_DOCS=${HADDOCK_DOCS} BUILD_SPHINX_HTML=NO BUILD_SPHINX_PDF=NO "EXTRA_HC_OPTS=${EXTRA_HC_OPTS}" -j${CPU_COUNT}
+    make HADDOCK_DOCS=${HADDOCK_DOCS} BUILD_SPHINX_HTML=NO BUILD_SPHINX_PDF=NO "EXTRA_HC_OPTS=${EXTRA_HC_OPTS}" install -j${CPU_COUNT}
   )
   # Delete profile-enabled static libraries, other distributions don't seem to ship them either and they are very heavy.
   find $PREFIX/lib/ghc-${PKG_VERSION} -name '*_p.a' -delete
