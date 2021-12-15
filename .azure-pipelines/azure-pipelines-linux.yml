@@ -11,15 +11,15 @@ jobs:
       linux_64_conda_target_archaarch64-conda-linux-gnughc_target_archaarch64-unknown-linux-gnughc_target_platformlinux-aarch64:
         CONFIG: linux_64_conda_target_archaarch64-conda-linux-gnughc_target_archaarch64-unknown-linux-gnughc_target_platformlinux-aarch64
         UPLOAD_PACKAGES: 'True'
-        DOCKER_IMAGE: quay.io/condaforge/linux-anvil-cos7-cuda:10.2
+        DOCKER_IMAGE: quay.io/condaforge/linux-anvil-cos7-x86_64
       ? linux_64_conda_target_archpowerpc64le-conda-linux-gnughc_target_archpowerpc64le-unknown-linux-gnughc_target_platformlinux-ppc64le
       : CONFIG: linux_64_conda_target_archpowerpc64le-conda-linux-gnughc_target_archpowerpc64le-unknown-linux-gnughc_target_platformlinux-ppc64le
         UPLOAD_PACKAGES: 'True'
-        DOCKER_IMAGE: quay.io/condaforge/linux-anvil-cos7-cuda:10.2
+        DOCKER_IMAGE: quay.io/condaforge/linux-anvil-cos7-x86_64
       linux_64_conda_target_archx86_64-conda-linux-gnughc_target_archx86_64-unknown-linux-gnughc_target_platformlinux-64:
         CONFIG: linux_64_conda_target_archx86_64-conda-linux-gnughc_target_archx86_64-unknown-linux-gnughc_target_platformlinux-64
         UPLOAD_PACKAGES: 'True'
-        DOCKER_IMAGE: quay.io/condaforge/linux-anvil-cos7-cuda:10.2
+        DOCKER_IMAGE: quay.io/condaforge/linux-anvil-cos7-x86_64
       linux_aarch64_:
         CONFIG: linux_aarch64_
         UPLOAD_PACKAGES: 'True'
