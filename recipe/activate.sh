@@ -1,6 +1,6 @@
 #!/bin/bash
 
-if [[ "${PKG_NAME:-}" != "ghc_osx-arm64" ]]; then
+if [[ "${PKG_NAME:-}" != "ghc_osx-arm64" && "${PKG_NAME:-}" != "ghc"]]; then
   conda_target_arch-ghc-pkg-PKG_VERSION recache
 fi
 export GHC=${CONDA_PREFIX}/bin/conda_target_arch-ghc-PKG_VERSION
