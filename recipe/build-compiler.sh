@@ -17,6 +17,16 @@ if [[ "${target_platform}" == linux-* ]]; then
   source $CONDA_PREFIX/etc/conda/activate.d/activate-gcc_${ghc_target_platform}.sh
   echo Activate gxx
   source $CONDA_PREFIX/etc/conda/activate.d/activate-gxx_${ghc_target_platform}.sh
+elif [[ "${target_platform}" == osx-* ]]; then
+  unset CC
+  unset OBJC
+  unset CFLAGS
+  unset CXXFLAGS
+  unset LDFLAGS
+  echo Activate clang
+  source $CONDA_PREFIX/etc/conda/activate.d/activate_clang_${ghc_target_platform}.sh
+  echo Activate clang++
+  source $CONDA_PREFIX/etc/conda/activate.d/activate_clangxx_${ghc_target_platform}.sh
 fi
 
 export AR_GHC_TARGET="${AR}"
@@ -46,6 +56,16 @@ if [[ "${target_platform}" == linux-* ]]; then
   source $CONDA_PREFIX/etc/conda/activate.d/activate-gcc_${target_platform}.sh
   echo Activate gxx
   source $CONDA_PREFIX/etc/conda/activate.d/activate-gxx_${target_platform}.sh
+elif [[ "${target_platform}" == osx-* ]]; then
+  unset CC
+  unset OBJC
+  unset CFLAGS
+  unset CXXFLAGS
+  unset LDFLAGS
+  echo Activate clang
+  source $CONDA_PREFIX/etc/conda/activate.d/activate_clang_${target_platform}.sh
+  echo Activate clang++
+  source $CONDA_PREFIX/etc/conda/activate.d/activate_clangxx_${target_platform}.sh
 fi
 
 # Only now switch to strict bash mode, otherwise activation may fail
@@ -102,15 +122,19 @@ pushd source
     export
     PATH="${stage0}/bin:${PATH}"
     export ac_cv_prog_fp_prog_ar="${AR}"
+    #if [[ "${ghc_target_platform}" != "${target_platform}" ]]; then
+    #  if [[ "${ghc_target_platform}" == "linux-ppc64le" ]]; then
+    #    sed 's/#\(BuildFlavour = perf-cross-ncg\)$/\1/' mk/build.mk.sample > mk/build.mk
+    #  else
+    #    sed 's/#\(BuildFlavour = perf-cross\)$/\1/' mk/build.mk.sample > mk/build.mk
+    #  fi
+    #  echo 'Stage1Only = YES' >> mk/build.mk
+    #else
+    #  sed 's/#\(BuildFlavour = quick\)/\1/' mk/build.mk.sample > mk/build.mk
+    #fi
+    sed 's/#\(BuildFlavour = quick\)/\1/' mk/build.mk.sample > mk/build.mk
     if [[ "${ghc_target_platform}" != "${target_platform}" ]]; then
-      if [[ "${ghc_target_platform}" == "linux-ppc64le" ]]; then
-        sed 's/#\(BuildFlavour = perf-cross-ncg\)$/\1/' mk/build.mk.sample > mk/build.mk
-      else
-        sed 's/#\(BuildFlavour = perf-cross\)$/\1/' mk/build.mk.sample > mk/build.mk
-      fi
       echo 'Stage1Only = YES' >> mk/build.mk
-    else
-      sed 's/#\(BuildFlavour = quick\)/\1/' mk/build.mk.sample > mk/build.mk
     fi
     if [[ "${target_platform}" == osx-* ]]; then
       echo "DYNAMIC_GHC_PROGRAMS = NO" >> mk/build.mk
@@ -123,20 +147,43 @@ pushd source
     autoreconf
     cp $RECIPE_DIR/cpp_wrapper.sh $PREFIX/bin/${conda_target_arch}-ghc_cpp_wrapper-${PKG_VERSION}
     sed -i "s;CPP;${CPP:-${CC} -E};g" $PREFIX/bin/${conda_target_arch}-ghc_cpp_wrapper-${PKG_VERSION}
-    ./configure --prefix=$PREFIX --with-curses-libraries-stage0=${BUILD_PREFIX}/lib --with-gmp-includes=$PREFIX/include --with-gmp-libraries=$PREFIX/lib --with-ffi-includes=$PREFIX/include --with-ffi-libraries=$PREFIX/lib --build=$GHC_BUILD --target=$GHC_TARGET CC="${CC_GHC_TARGET}" LD="${LD_GHC_TARGET}" NM="${NM_GHC_TARGET}" STRIP="${STRIP_GHC_TARGET}" CPP="$PREFIX/bin/${conda_target_arch}-ghc_cpp_wrapper-${PKG_VERSION}" --with-iconv-includes=$PREFIX/include --with-iconv-libraries=$PREFIX/lib
-    EXTRA_HC_OPTS=""
+    export fp_prog_ar="$(basename $(${CC_GHC_TARGET} --print-prog-name ar))"
+    export ac_cv_prog_RANLIB="$(basename $(${CC_GHC_TARGET} --print-prog-name ranlib))"
+    export ac_cv_prog_LIBTOOL="$(basename $(${CC_GHC_TARGET} --print-prog-name libtool))"
+    export ac_cv_prog_OTOOL="$(basename $(${CC_GHC_TARGET} --print-prog-name otool))"
+    export ac_cv_prog_INSTALL_NAME_TOOL="$(basename $(${CC_GHC_TARGET} --print-prog-name install_name_tool))"
+    ./configure \
+	    --prefix=$PREFIX \
+	    --with-curses-libraries-stage0=${BUILD_PREFIX}/lib \
+	    --with-gmp-includes=$PREFIX/include \
+	    --with-gmp-libraries=$PREFIX/lib \
+	    --with-ffi-includes=$PREFIX/include \
+	    --with-ffi-libraries=$PREFIX/lib \
+	    --build=$GHC_BUILD \
+	    --target=$GHC_TARGET \
+	   CC="${CC_GHC_TARGET}" \
+	   CLANG="${CC_GHC_TARGET}" \
+	   LD="$(basename $(${CC_GHC_TARGET} --print-prog-name ld))" \
+	   NM="$(basename $(${CC_GHC_TARGET} --print-prog-name nm))" \
+	   STRIP="$(basename $(${CC_GHC_TARGET} --print-prog-name strip))" \
+	   CPP="$PREFIX/bin/${conda_target_arch}-ghc_cpp_wrapper-${PKG_VERSION}" \
+	   --with-iconv-includes=$PREFIX/include \
+	   --with-iconv-libraries=$PREFIX/lib
+    export EXTRA_HC_OPTS=""
     for flag in ${LDFLAGS}; do
-	EXTRA_HC_OPTS="${EXTRA_HC_OPTS} -optl${flag}"
+	export EXTRA_HC_OPTS="${EXTRA_HC_OPTS} -optl${flag}"
     done
     if [[ "${target_platform}" == osx-* ]]; then
       # Force linkage to system libiconv
       if [[ "${CONDA_BUILD_SYSROOT}" == *"10.9"* ]]; then
-        CONF_HC_OPTS_STAGE0="-optl${CONDA_BUILD_SYSROOT}/usr/lib/libiconv.dylib"
+        export CONF_HC_OPTS_STAGE0="-optl${CONDA_BUILD_SYSROOT}/usr/lib/libiconv.dylib"
       else
-        CONF_HC_OPTS_STAGE0="-optl${CONDA_BUILD_SYSROOT}/usr/lib/libiconv.tbd"
+        export CONF_HC_OPTS_STAGE0="-optl${CONDA_BUILD_SYSROOT}/usr/lib/libiconv.tbd"
       fi
     fi
-    make HADDOCK_DOCS=NO BUILD_SPHINX_HTML=NO BUILD_SPHINX_PDF=NO "EXTRA_HC_OPTS=${EXTRA_HC_OPTS}" CONF_HC_OPTS_STAGE0=${CONF_HC_OPTS_STAGE0:-} -j${CPU_COUNT}
+    export > env
+    make HADDOCK_DOCS=NO BUILD_SPHINX_HTML=NO BUILD_SPHINX_PDF=NO "EXTRA_HC_OPTS=${EXTRA_HC_OPTS}" CONF_HC_OPTS_STAGE0=${CONF_HC_OPTS_STAGE0:-} -j${CPU_COUNT}||true
+    make HADDOCK_DOCS=NO BUILD_SPHINX_HTML=NO BUILD_SPHINX_PDF=NO "EXTRA_HC_OPTS=${EXTRA_HC_OPTS}" CONF_HC_OPTS_STAGE0=${CONF_HC_OPTS_STAGE0:-}
     make HADDOCK_DOCS=NO BUILD_SPHINX_HTML=NO BUILD_SPHINX_PDF=NO "EXTRA_HC_OPTS=${EXTRA_HC_OPTS}" CONF_HC_OPTS_STAGE0=${CONF_HC_OPTS_STAGE0:-} install -j${CPU_COUNT}
   )
 popd

@@ -59,10 +59,17 @@ Current build status
                 </a>
               </td>
             </tr><tr>
-              <td>osx_64</td>
+              <td>osx_64_conda_target_archarm64-apple-darwin20.0.0ghc_target_archaarch64-apple-darwinghc_target_platformosx-arm64</td>
               <td>
                 <a href="https://dev.azure.com/conda-forge/feedstock-builds/_build/latest?definitionId=2401&branchName=master">
-                  <img src="https://dev.azure.com/conda-forge/feedstock-builds/_apis/build/status/ghc-feedstock?branchName=master&jobName=osx&configuration=osx_64_" alt="variant">
+                  <img src="https://dev.azure.com/conda-forge/feedstock-builds/_apis/build/status/ghc-feedstock?branchName=master&jobName=osx&configuration=osx_64_conda_target_archarm64-apple-darwin20.0.0ghc_target_archaarch64-apple-darwinghc_target_platformosx-arm64" alt="variant">
+                </a>
+              </td>
+            </tr><tr>
+              <td>osx_64_conda_target_archx86_64-apple-darwin13.4.0ghc_target_archx86_64-apple-darwinghc_target_platformosx-64</td>
+              <td>
+                <a href="https://dev.azure.com/conda-forge/feedstock-builds/_build/latest?definitionId=2401&branchName=master">
+                  <img src="https://dev.azure.com/conda-forge/feedstock-builds/_apis/build/status/ghc-feedstock?branchName=master&jobName=osx&configuration=osx_64_conda_target_archx86_64-apple-darwin13.4.0ghc_target_archx86_64-apple-darwinghc_target_platformosx-64" alt="variant">
                 </a>
               </td>
             </tr><tr>
@@ -88,6 +95,8 @@ Current release info
 | [![Conda Recipe](https://img.shields.io/badge/recipe-ghc-green.svg)](https://anaconda.org/conda-forge/ghc) | [![Conda Downloads](https://img.shields.io/conda/dn/conda-forge/ghc.svg)](https://anaconda.org/conda-forge/ghc) | [![Conda Version](https://img.shields.io/conda/vn/conda-forge/ghc.svg)](https://anaconda.org/conda-forge/ghc) | [![Conda Platforms](https://img.shields.io/conda/pn/conda-forge/ghc.svg)](https://anaconda.org/conda-forge/ghc) |
 | [![Conda Recipe](https://img.shields.io/badge/recipe-ghc_osx--64-green.svg)](https://anaconda.org/conda-forge/ghc_osx-64) | [![Conda Downloads](https://img.shields.io/conda/dn/conda-forge/ghc_osx-64.svg)](https://anaconda.org/conda-forge/ghc_osx-64) | [![Conda Version](https://img.shields.io/conda/vn/conda-forge/ghc_osx-64.svg)](https://anaconda.org/conda-forge/ghc_osx-64) | [![Conda Platforms](https://img.shields.io/conda/pn/conda-forge/ghc_osx-64.svg)](https://anaconda.org/conda-forge/ghc_osx-64) |
 | [![Conda Recipe](https://img.shields.io/badge/recipe-ghc_osx--64_8.10.7-green.svg)](https://anaconda.org/conda-forge/ghc_osx-64_8.10.7) | [![Conda Downloads](https://img.shields.io/conda/dn/conda-forge/ghc_osx-64_8.10.7.svg)](https://anaconda.org/conda-forge/ghc_osx-64_8.10.7) | [![Conda Version](https://img.shields.io/conda/vn/conda-forge/ghc_osx-64_8.10.7.svg)](https://anaconda.org/conda-forge/ghc_osx-64_8.10.7) | [![Conda Platforms](https://img.shields.io/conda/pn/conda-forge/ghc_osx-64_8.10.7.svg)](https://anaconda.org/conda-forge/ghc_osx-64_8.10.7) |
+| [![Conda Recipe](https://img.shields.io/badge/recipe-ghc_osx--arm64-green.svg)](https://anaconda.org/conda-forge/ghc_osx-arm64) | [![Conda Downloads](https://img.shields.io/conda/dn/conda-forge/ghc_osx-arm64.svg)](https://anaconda.org/conda-forge/ghc_osx-arm64) | [![Conda Version](https://img.shields.io/conda/vn/conda-forge/ghc_osx-arm64.svg)](https://anaconda.org/conda-forge/ghc_osx-arm64) | [![Conda Platforms](https://img.shields.io/conda/pn/conda-forge/ghc_osx-arm64.svg)](https://anaconda.org/conda-forge/ghc_osx-arm64) |
+| [![Conda Recipe](https://img.shields.io/badge/recipe-ghc_osx--arm64_8.10.7-green.svg)](https://anaconda.org/conda-forge/ghc_osx-arm64_8.10.7) | [![Conda Downloads](https://img.shields.io/conda/dn/conda-forge/ghc_osx-arm64_8.10.7.svg)](https://anaconda.org/conda-forge/ghc_osx-arm64_8.10.7) | [![Conda Version](https://img.shields.io/conda/vn/conda-forge/ghc_osx-arm64_8.10.7.svg)](https://anaconda.org/conda-forge/ghc_osx-arm64_8.10.7) | [![Conda Platforms](https://img.shields.io/conda/pn/conda-forge/ghc_osx-arm64_8.10.7.svg)](https://anaconda.org/conda-forge/ghc_osx-arm64_8.10.7) |
 
 Installing ghc
 ==============
@@ -99,10 +108,10 @@ conda config --add channels conda-forge
 conda config --set channel_priority strict
 ```
 
-Once the `conda-forge` channel has been enabled, `ghc, ghc_osx-64, ghc_osx-64_8.10.7` can be installed with:
+Once the `conda-forge` channel has been enabled, `ghc, ghc_osx-64, ghc_osx-64_8.10.7, ghc_osx-arm64, ghc_osx-arm64_8.10.7` can be installed with:
 
 ```
-conda install ghc ghc_osx-64 ghc_osx-64_8.10.7
+conda install ghc ghc_osx-64 ghc_osx-64_8.10.7 ghc_osx-arm64 ghc_osx-arm64_8.10.7
 ```
 
 It is possible to list all of the versions of `ghc` available on your platform with:
