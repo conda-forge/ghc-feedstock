@@ -150,28 +150,29 @@ pushd source
     autoreconf
     cp $RECIPE_DIR/cpp_wrapper.sh $PREFIX/bin/${conda_target_arch}-ghc_cpp_wrapper-${PKG_VERSION}
     sed -i "s;CPP;${CPP:-${CC} -E};g" $PREFIX/bin/${conda_target_arch}-ghc_cpp_wrapper-${PKG_VERSION}
-    export fp_prog_ar="$(basename $(${CC_GHC_TARGET} --print-prog-name ar))"
-    export ac_cv_prog_RANLIB="$(basename $(${CC_GHC_TARGET} --print-prog-name ranlib))"
-    export ac_cv_prog_LIBTOOL="$(basename $(${CC_GHC_TARGET} --print-prog-name libtool))"
-    export ac_cv_prog_OTOOL="$(basename $(${CC_GHC_TARGET} --print-prog-name otool))"
-    export ac_cv_prog_INSTALL_NAME_TOOL="$(basename $(${CC_GHC_TARGET} --print-prog-name install_name_tool))"
-    ./configure \
-	    --prefix=$PREFIX \
-	    --with-curses-libraries-stage0=${BUILD_PREFIX}/lib \
-	    --with-gmp-includes=$PREFIX/include \
-	    --with-gmp-libraries=$PREFIX/lib \
-	    --with-ffi-includes=$PREFIX/include \
-	    --with-ffi-libraries=$PREFIX/lib \
-	    --build=$GHC_BUILD \
-	    --target=$GHC_TARGET \
-	   CC="${CC_GHC_TARGET}" \
-	   CLANG="${CC_GHC_TARGET}" \
-	   LD="$(basename $(${CC_GHC_TARGET} --print-prog-name ld))" \
-	   NM="$(basename $(${CC_GHC_TARGET} --print-prog-name nm))" \
-	   STRIP="$(basename $(${CC_GHC_TARGET} --print-prog-name strip))" \
-	   CPP="$PREFIX/bin/${conda_target_arch}-ghc_cpp_wrapper-${PKG_VERSION}" \
-	   --with-iconv-includes=$PREFIX/include \
-	   --with-iconv-libraries=$PREFIX/lib
+#    export fp_prog_ar="$(basename $(${CC_GHC_TARGET} --print-prog-name ar))"
+#    export ac_cv_prog_RANLIB="$(basename $(${CC_GHC_TARGET} --print-prog-name ranlib))"
+#    export ac_cv_prog_LIBTOOL="$(basename $(${CC_GHC_TARGET} --print-prog-name libtool))"
+#    export ac_cv_prog_OTOOL="$(basename $(${CC_GHC_TARGET} --print-prog-name otool))"
+#    export ac_cv_prog_INSTALL_NAME_TOOL="$(basename $(${CC_GHC_TARGET} --print-prog-name install_name_tool))"
+#    ./configure \
+#	    --prefix=$PREFIX \
+#	    --with-curses-libraries-stage0=${BUILD_PREFIX}/lib \
+#	    --with-gmp-includes=$PREFIX/include \
+#	    --with-gmp-libraries=$PREFIX/lib \
+#	    --with-ffi-includes=$PREFIX/include \
+#	    --with-ffi-libraries=$PREFIX/lib \
+#	    --build=$GHC_BUILD \
+#	    --target=$GHC_TARGET \
+#	   CC="${CC_GHC_TARGET}" \
+#	   CLANG="${CC_GHC_TARGET}" \
+#	   LD="$(basename $(${CC_GHC_TARGET} --print-prog-name ld))" \
+#	   NM="$(basename $(${CC_GHC_TARGET} --print-prog-name nm))" \
+#	   STRIP="$(basename $(${CC_GHC_TARGET} --print-prog-name strip))" \
+#	   CPP="$PREFIX/bin/${conda_target_arch}-ghc_cpp_wrapper-${PKG_VERSION}" \
+#	   --with-iconv-includes=$PREFIX/include \
+#	   --with-iconv-libraries=$PREFIX/lib
+    ./configure --prefix=$PREFIX --with-curses-libraries-stage0=${BUILD_PREFIX}/lib --with-gmp-includes=$PREFIX/include --with-gmp-libraries=$PREFIX/lib --with-ffi-includes=$PREFIX/include --with-ffi-libraries=$PREFIX/lib --build=$GHC_BUILD --target=$GHC_TARGET CC="${CC_GHC_TARGET}" LD="${LD_GHC_TARGET}" NM="${NM_GHC_TARGET}" STRIP="${STRIP_GHC_TARGET}" CPP="$PREFIX/bin/${conda_target_arch}-ghc_cpp_wrapper-${PKG_VERSION}" --with-iconv-includes=$PREFIX/include --with-iconv-libraries=$PREFIX/lib
     export EXTRA_HC_OPTS=""
     for flag in ${LDFLAGS}; do
 	export EXTRA_HC_OPTS="${EXTRA_HC_OPTS} -optl${flag}"
