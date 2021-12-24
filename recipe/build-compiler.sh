@@ -138,9 +138,9 @@ pushd source
     #if [[ "${ghc_target_platform}" != "${target_platform}" ]]; then
     #  echo 'Stage1Only = YES' >> mk/build.mk
     #fi
-    #if [[ "${target_platform}" == osx-* ]]; then
-    #  echo "DYNAMIC_GHC_PROGRAMS = NO" >> mk/build.mk
-    #fi
+    if [[ "${target_platform}" == osx-* ]]; then
+      echo "DYNAMIC_GHC_PROGRAMS = NO" >> mk/build.mk
+    fi
 
     export CONF_CC_OPTS_STAGE0="${CFLAGS}"
     export CONF_CC_OPTS_STAGE1="${CFLAGS_GHC_TARGET}"
