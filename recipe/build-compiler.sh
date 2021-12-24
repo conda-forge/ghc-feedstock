@@ -122,25 +122,25 @@ pushd source
     export
     PATH="${stage0}/bin:${PATH}"
     export ac_cv_prog_fp_prog_ar="${AR}"
-    #if [[ "${ghc_target_platform}" != "${target_platform}" ]]; then
-    #  if [[ "${ghc_target_platform}" == "linux-ppc64le" ]]; then
-    #    sed 's/#\(BuildFlavour = perf-cross-ncg\)$/\1/' mk/build.mk.sample > mk/build.mk
-    #  else
-    #    sed 's/#\(BuildFlavour = perf-cross\)$/\1/' mk/build.mk.sample > mk/build.mk
-    #  fi
-    #  echo 'Stage1Only = YES' >> mk/build.mk
-    #else
-    #  sed 's/#\(BuildFlavour = quick\)/\1/' mk/build.mk.sample > mk/build.mk
-    #fi
-
-    sed 's/#\(BuildFlavour = quick\)/\1/' mk/build.mk.sample > mk/build.mk
-    echo "GhcLibHcOpts       = -O2" >> mk/build.mk
     if [[ "${ghc_target_platform}" != "${target_platform}" ]]; then
+      if [[ "${ghc_target_platform}" == "linux-ppc64le" ]]; then
+        sed 's/#\(BuildFlavour = perf-cross-ncg\)$/\1/' mk/build.mk.sample > mk/build.mk
+      else
+        sed 's/#\(BuildFlavour = perf-cross\)$/\1/' mk/build.mk.sample > mk/build.mk
+      fi
       echo 'Stage1Only = YES' >> mk/build.mk
+    else
+      sed 's/#\(BuildFlavour = quick\)/\1/' mk/build.mk.sample > mk/build.mk
     fi
-    if [[ "${target_platform}" == osx-* ]]; then
-      echo "DYNAMIC_GHC_PROGRAMS = NO" >> mk/build.mk
-    fi
+
+    #sed 's/#\(BuildFlavour = quick\)/\1/' mk/build.mk.sample > mk/build.mk
+    #echo "GhcLibHcOpts       = -O2" >> mk/build.mk
+    #if [[ "${ghc_target_platform}" != "${target_platform}" ]]; then
+    #  echo 'Stage1Only = YES' >> mk/build.mk
+    #fi
+    #if [[ "${target_platform}" == osx-* ]]; then
+    #  echo "DYNAMIC_GHC_PROGRAMS = NO" >> mk/build.mk
+    #fi
 
     export CONF_CC_OPTS_STAGE0="${CFLAGS}"
     export CONF_CC_OPTS_STAGE1="${CFLAGS_GHC_TARGET}"
