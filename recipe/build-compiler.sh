@@ -119,9 +119,7 @@ pushd source
   fi
   cp $BUILD_PREFIX/share/gnuconfig/config.* .
   (
-    export
     PATH="${stage0}/bin:${PATH}"
-    export ac_cv_prog_fp_prog_ar="${AR}"
     if [[ "${ghc_target_platform}" != "${target_platform}" ]]; then
       if [[ "${ghc_target_platform}" == "linux-ppc64le" ]]; then
         sed 's/#\(BuildFlavour = perf-cross-ncg\)$/\1/' mk/build.mk.sample > mk/build.mk
@@ -150,6 +148,7 @@ pushd source
     autoreconf
     cp $RECIPE_DIR/cpp_wrapper.sh $PREFIX/bin/${conda_target_arch}-ghc_cpp_wrapper-${PKG_VERSION}
     sed -i "s;CPP;${CPP:-${CC} -E};g" $PREFIX/bin/${conda_target_arch}-ghc_cpp_wrapper-${PKG_VERSION}
+    export ac_cv_prog_fp_prog_ar="${AR}"
 #    export fp_prog_ar="$(basename $(${CC_GHC_TARGET} --print-prog-name ar))"
 #    export ac_cv_prog_RANLIB="$(basename $(${CC_GHC_TARGET} --print-prog-name ranlib))"
 #    export ac_cv_prog_LIBTOOL="$(basename $(${CC_GHC_TARGET} --print-prog-name libtool))"
@@ -172,7 +171,22 @@ pushd source
 #	   CPP="$PREFIX/bin/${conda_target_arch}-ghc_cpp_wrapper-${PKG_VERSION}" \
 #	   --with-iconv-includes=$PREFIX/include \
 #	   --with-iconv-libraries=$PREFIX/lib
-    ./configure --prefix=$PREFIX --with-curses-libraries-stage0=${BUILD_PREFIX}/lib --with-gmp-includes=$PREFIX/include --with-gmp-libraries=$PREFIX/lib --with-ffi-includes=$PREFIX/include --with-ffi-libraries=$PREFIX/lib --build=$GHC_BUILD --target=$GHC_TARGET CC="${CC_GHC_TARGET}" LD="${LD_GHC_TARGET}" NM="${NM_GHC_TARGET}" STRIP="${STRIP_GHC_TARGET}" CPP="$PREFIX/bin/${conda_target_arch}-ghc_cpp_wrapper-${PKG_VERSION}" --with-iconv-includes=$PREFIX/include --with-iconv-libraries=$PREFIX/lib
+    ./configure \
+	    --prefix=$PREFIX \
+	    --with-curses-libraries-stage0=${BUILD_PREFIX}/lib \
+	    --with-gmp-includes=$PREFIX/include \
+	    --with-gmp-libraries=$PREFIX/lib \
+	    --with-ffi-includes=$PREFIX/include \
+	    --with-ffi-libraries=$PREFIX/lib \
+	    --build=$GHC_BUILD \
+	    --target=$GHC_TARGET \
+	    CC="${CC_GHC_TARGET}" \
+	    LD="${LD_GHC_TARGET}" \
+	    NM="${NM_GHC_TARGET}" \
+	    STRIP="${STRIP_GHC_TARGET}" \
+	    CPP="$PREFIX/bin/${conda_target_arch}-ghc_cpp_wrapper-${PKG_VERSION}" \
+	    --with-iconv-includes=$PREFIX/include \
+	    --with-iconv-libraries=$PREFIX/lib || (cat config.log; exit 1)
     export EXTRA_HC_OPTS=""
     for flag in ${LDFLAGS}; do
 	export EXTRA_HC_OPTS="${EXTRA_HC_OPTS} -optl${flag}"
