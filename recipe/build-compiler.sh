@@ -181,6 +181,7 @@ pushd source
 	    --build=$GHC_BUILD \
 	    --target=$GHC_TARGET \
 	    CC="${CC_GHC_TARGET}" \
+	    CLANG="${CC_GHC_TARGET}" \
 	    LD="${LD_GHC_TARGET}" \
 	    NM="${NM_GHC_TARGET}" \
 	    STRIP="${STRIP_GHC_TARGET}" \
