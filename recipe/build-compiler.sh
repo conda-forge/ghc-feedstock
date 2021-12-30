@@ -130,7 +130,7 @@ pushd source
       sed 's/#\(BuildFlavour = quick\)/\1/' mk/build.mk.sample > mk/build.mk
     fi
 
-    #echo "SRC_HC_OPTS        = -O -H64m" >> mk/build.mk
+    echo "SRC_HC_OPTS        = -O -H64m" >> mk/build.mk
     echo "GhcLibHcOpts       = -O2" >> mk/build.mk
     if [[ "${ghc_target_platform}" != "${target_platform}" ]]; then
       echo "GhcStage1HcOpts    = -O2" >> mk/build.mk
