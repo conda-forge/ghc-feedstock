@@ -132,6 +132,8 @@ pushd source
 
     echo "SRC_HC_OPTS        = -O -H64m" >> mk/build.mk
     echo "GhcLibHcOpts       = -O2" >> mk/build.mk
+    echo "BUILD_PROF_LIBS    = NO" >> mk/build.mk
+    echo "SplitSections      = NO" >> mk/build.mk
     if [[ "${ghc_target_platform}" != "${target_platform}" ]]; then
       echo "GhcStage1HcOpts    = -O2" >> mk/build.mk
       echo "Stage1Only = YES" >> mk/build.mk
