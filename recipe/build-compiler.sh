@@ -134,6 +134,11 @@ pushd source
     echo "GhcLibHcOpts       = -O2" >> mk/build.mk
     echo "BUILD_PROF_LIBS    = NO" >> mk/build.mk
     echo "SplitSections      = NO" >> mk/build.mk
+    echo "HADDOCK_DOCS       = NO" >> mk/build.mk
+    echo "BUILD_SPHINX_HTML  = NO" >> mk/build.mk
+    echo "BUILD_SPHINX_PDF   = NO" >> mk/build.mk
+    echo "BUILD_MAN          = NO" >> mk/build.mk
+    echo "WITH_TERMINFO      = NO" >> mk/build.mk
     if [[ "${ghc_target_platform}" != "${target_platform}" ]]; then
       echo "GhcStage1HcOpts    = -O2" >> mk/build.mk
       echo "Stage1Only = YES" >> mk/build.mk
