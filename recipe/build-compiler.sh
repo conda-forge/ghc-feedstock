@@ -134,7 +134,6 @@ pushd source
     echo "GhcLibHcOpts       = -O2" >> mk/build.mk
     echo "BUILD_PROF_LIBS    = NO" >> mk/build.mk
     echo "SplitSections      = NO" >> mk/build.mk
-    echo "HADDOCK_DOCS       = NO" >> mk/build.mk
     echo "BUILD_SPHINX_HTML  = NO" >> mk/build.mk
     echo "BUILD_SPHINX_PDF   = NO" >> mk/build.mk
     echo "BUILD_MAN          = NO" >> mk/build.mk
@@ -142,10 +141,13 @@ pushd source
     if [[ "${ghc_target_platform}" != "${target_platform}" ]]; then
       echo "GhcStage1HcOpts    = -O2" >> mk/build.mk
       echo "Stage1Only = YES" >> mk/build.mk
+      export HADDOCK_DOCS=NO
     else
       echo "GhcStage1HcOpts    = -O" >> mk/build.mk
       echo "GhcStage2HcOpts    = -O2" >> mk/build.mk
+      export HADDOCK_DOCS=YES
     fi
+    echo "HADDOCK_DOCS       = ${HADDOCK_DOCS}" >> mk/build.mk
     if [[ "${target_platform}" == osx-* ]]; then
       echo "DYNAMIC_GHC_PROGRAMS = NO" >> mk/build.mk
     fi
@@ -194,9 +196,9 @@ pushd source
       fi
     fi
     export > env
-    make HADDOCK_DOCS=NO "EXTRA_HC_OPTS=${EXTRA_HC_OPTS}" CONF_HC_OPTS_STAGE0=${CONF_HC_OPTS_STAGE0:-} -j${CPU_COUNT}||true
-    make HADDOCK_DOCS=NO "EXTRA_HC_OPTS=${EXTRA_HC_OPTS}" CONF_HC_OPTS_STAGE0=${CONF_HC_OPTS_STAGE0:-}
-    make HADDOCK_DOCS=NO "EXTRA_HC_OPTS=${EXTRA_HC_OPTS}" CONF_HC_OPTS_STAGE0=${CONF_HC_OPTS_STAGE0:-} install -j${CPU_COUNT}
+    make "HADDOCK_DOCS=${HADDOCK_DOCS}" "EXTRA_HC_OPTS=${EXTRA_HC_OPTS}" CONF_HC_OPTS_STAGE0=${CONF_HC_OPTS_STAGE0:-} -j${CPU_COUNT}||true
+    make "HADDOCK_DOCS=${HADDOCK_DOCS}" "EXTRA_HC_OPTS=${EXTRA_HC_OPTS}" CONF_HC_OPTS_STAGE0=${CONF_HC_OPTS_STAGE0:-}
+    make "HADDOCK_DOCS=${HADDOCK_DOCS}" "EXTRA_HC_OPTS=${EXTRA_HC_OPTS}" CONF_HC_OPTS_STAGE0=${CONF_HC_OPTS_STAGE0:-} install -j${CPU_COUNT}
   )
 popd
 
