@@ -130,6 +130,21 @@ pushd source
       sed 's/#\(BuildFlavour = quick\)/\1/' mk/build.mk.sample > mk/build.mk
     fi
 
+    export HADDOCK_DOCS=NO
+    if [[ "${ghc_target_platform}" != "${target_platform}" ]]; then
+      echo "GhcStage1HcOpts    = -O2" >> mk/build.mk
+      echo "Stage1Only = YES" >> mk/build.mk
+    else
+      echo "GhcStage1HcOpts    = -O" >> mk/build.mk
+      echo "GhcStage2HcOpts    = -O2" >> mk/build.mk
+      if [[ "${build_platform}" == "${target_platform}" ]]; then
+        # We can only build haddock for the fully native case.
+        export HADDOCK_DOCS=YES
+      fi
+    fi
+    if [[ "${target_platform}" == osx-* ]]; then
+      echo "DYNAMIC_GHC_PROGRAMS = NO" >> mk/build.mk
+    fi
     echo "SRC_HC_OPTS        = -O -H64m" >> mk/build.mk
     echo "GhcLibHcOpts       = -O2" >> mk/build.mk
     echo "BUILD_PROF_LIBS    = NO" >> mk/build.mk
@@ -138,19 +153,7 @@ pushd source
     echo "BUILD_SPHINX_PDF   = NO" >> mk/build.mk
     echo "BUILD_MAN          = NO" >> mk/build.mk
     echo "WITH_TERMINFO      = NO" >> mk/build.mk
-    if [[ "${ghc_target_platform}" != "${target_platform}" ]]; then
-      echo "GhcStage1HcOpts    = -O2" >> mk/build.mk
-      echo "Stage1Only = YES" >> mk/build.mk
-      export HADDOCK_DOCS=NO
-    else
-      echo "GhcStage1HcOpts    = -O" >> mk/build.mk
-      echo "GhcStage2HcOpts    = -O2" >> mk/build.mk
-      export HADDOCK_DOCS=YES
-    fi
     echo "HADDOCK_DOCS       = ${HADDOCK_DOCS}" >> mk/build.mk
-    if [[ "${target_platform}" == osx-* ]]; then
-      echo "DYNAMIC_GHC_PROGRAMS = NO" >> mk/build.mk
-    fi
 
     export CONF_CC_OPTS_STAGE0="${CFLAGS}"
     export CONF_CC_OPTS_STAGE1="${CFLAGS_GHC_TARGET}"
