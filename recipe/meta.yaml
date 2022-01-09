@@ -70,6 +70,9 @@ outputs:
         - {{ conda_target_arch }}-ghc-{{ version }} --help
         - {{ conda_target_arch }}-ghc-{{ version }} hello.hs -o hello
   - name: ghc_{{ ghc_target_platform }}
+    # We will build this in a a separate repository with the correct cross-compilation activation
+    build:
+      skip: true  # [ghc_target_platform != target_platform]
     script: build-compiler-links.sh
     requirements:
       host:
