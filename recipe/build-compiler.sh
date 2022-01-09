@@ -120,15 +120,15 @@ pushd source
   cp $BUILD_PREFIX/share/gnuconfig/config.* .
   (
     PATH="${stage0}/bin:${PATH}"
-    if [[ "${ghc_target_platform}" != "${target_platform}" ]]; then
-      if [[ "${ghc_target_platform}" == "linux-ppc64le" ]]; then
-        sed 's/#\(BuildFlavour = perf-cross-ncg\)$/\1/' mk/build.mk.sample > mk/build.mk
-      else
-        sed 's/#\(BuildFlavour = perf-cross\)$/\1/' mk/build.mk.sample > mk/build.mk
-      fi
-    else
-      sed 's/#\(BuildFlavour = quick\)/\1/' mk/build.mk.sample > mk/build.mk
-    fi
+    #if [[ "${ghc_target_platform}" != "${target_platform}" ]]; then
+    #  if [[ "${ghc_target_platform}" == "linux-ppc64le" ]]; then
+    #    sed 's/#\(BuildFlavour = perf-cross-ncg\)$/\1/' mk/build.mk.sample > mk/build.mk
+    #  else
+    #    sed 's/#\(BuildFlavour = perf-cross\)$/\1/' mk/build.mk.sample > mk/build.mk
+    #  fi
+    #else
+    #  sed 's/#\(BuildFlavour = quick\)/\1/' mk/build.mk.sample > mk/build.mk
+    #fi
 
     export HADDOCK_DOCS=NO
     if [[ "${ghc_target_platform}" != "${target_platform}" ]]; then
