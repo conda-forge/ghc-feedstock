@@ -134,7 +134,7 @@ pushd source
     if [[ "${ghc_target_platform}" != "${target_platform}" ]]; then
       echo "GhcStage1HcOpts    = -O2" >> mk/build.mk
       echo "Stage1Only = YES" >> mk/build.mk
-      echo "BIGNUM_BACKEND       = native" >> mk/build.mk
+      echo "INTEGER_LIBRARY      = integer-simple" >> mk/build.mk
     else
       echo "GhcStage1HcOpts    = -O" >> mk/build.mk
       echo "GhcStage2HcOpts    = -O2" >> mk/build.mk
