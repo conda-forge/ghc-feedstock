@@ -1,27 +1,33 @@
+MACOSX_DEPLOYMENT_TARGET:
+- '10.9'
 c_compiler:
-- gcc
+- clang
 c_compiler_version:
-- '9'
-cdt_name:
-- cos7
+- '11'
 channel_sources:
-- conda-forge,defaults
+- conda-forge
 channel_targets:
 - conda-forge main
+conda_target_arch:
+- x86_64-apple-darwin13.4.0
 cxx_compiler:
-- gxx
+- clangxx
 cxx_compiler_version:
-- '9'
-docker_image:
-- quay.io/condaforge/linux-anvil-cos7-cuda:10.2
+- '11'
+ghc_target_arch:
+- x86_64-apple-darwin
+ghc_target_platform:
+- osx-64
 gmp:
 - '6'
 libffi:
 - '3.3'
+macos_machine:
+- x86_64-apple-darwin13.4.0
 ncurses:
 - '6.2'
 perl:
-- 5.26.2
+- 5.32.1
 pin_run_as_build:
   gmp:
     max_pin: x
@@ -29,16 +35,15 @@ pin_run_as_build:
     max_pin: x.x
   ncurses:
     max_pin: x.x
-  perl:
-    max_pin: x.x.x
   xz:
     max_pin: x.x
 target_platform:
-- linux-64
+- osx-64
 xz:
 - '5.2'
 zip_keys:
 - - c_compiler_version
   - cxx_compiler_version
-- - cdt_name
-  - docker_image
+- - ghc_target_arch
+  - conda_target_arch
+  - ghc_target_platform
