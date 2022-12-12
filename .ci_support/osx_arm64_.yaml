@@ -1,33 +1,29 @@
-BUILD:
-- aarch64-conda_cos7-linux-gnu
+MACOSX_DEPLOYMENT_TARGET:
+- '11.0'
 c_compiler:
-- gcc
+- clang
 c_compiler_version:
-- '9'
-cdt_arch:
-- aarch64
-cdt_name:
-- cos7
+- '11'
 channel_sources:
 - conda-forge
 channel_targets:
 - conda-forge main
 conda_target_arch:
-- aarch64-conda-linux-gnu
+- arm64-apple-darwin20.0.0
 cxx_compiler:
-- gxx
+- clangxx
 cxx_compiler_version:
-- '9'
-docker_image:
-- quay.io/condaforge/linux-anvil-cos7-x86_64
+- '11'
 ghc_target_arch:
-- aarch64-unknown-linux-gnu
+- aarch64-apple-darwin
 ghc_target_platform:
-- linux-aarch64
+- osx-arm64
 gmp:
 - '6'
 libffi:
 - '3.3'
+macos_machine:
+- arm64-apple-darwin20.0.0
 ncurses:
 - '6.2'
 perl:
@@ -42,7 +38,7 @@ pin_run_as_build:
   xz:
     max_pin: x.x
 target_platform:
-- linux-aarch64
+- osx-arm64
 xz:
 - '5.2'
 zip_keys:
