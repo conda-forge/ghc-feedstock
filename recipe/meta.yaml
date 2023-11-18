@@ -1,18 +1,17 @@
-{% set name = "ghc" %}
 {% set version = "9.4.8" %}
 
 package:
-  name: {{ name|lower }}
+  name: ghc
   version: {{ version }}
 
 source:
-  - url: https://downloads.haskell.org/~ghc/{{ version }}/{{ name }}-{{ version }}-x86_64-apple-darwin.tar.xz  # [osx]
+  - url: https://downloads.haskell.org/~ghc/{{ version }}/ghc-{{ version }}-x86_64-apple-darwin.tar.xz  # [osx]
     folder: binary  # [osx]
     sha256: f2e8366fd3754dd9388510792aba2d2abecb1c2f7f1e5555f6065c3c5e2ffec4  # [osx]
-  - url: https://downloads.haskell.org/~ghc/{{ version }}/{{ name }}-{{ version }}-x86_64-centos7-linux.tar.xz  # [build_platform == "linux-64"]
+  - url: https://downloads.haskell.org/~ghc/{{ version }}/ghc-{{ version }}-x86_64-centos7-linux.tar.xz  # [build_platform == "linux-64"]
     folder: binary  # [build_platform == "linux-64"]
     sha256: 540d3a8ddcf6175efeeec54a73893526a6acf464825f7d3d7a396158fc3f6928  # [build_platform == "linux-64"]
-  - url: https://downloads.haskell.org/~ghc/{{ version }}/{{ name }}-{{ version }}-src.tar.xz
+  - url: https://downloads.haskell.org/~ghc/{{ version }}/ghc-{{ version }}-src.tar.xz
     folder: source
     sha256: 15213888064a0ec4e7723d075f31b87a678ce0851773d58b44ef7aa3de996458
 
