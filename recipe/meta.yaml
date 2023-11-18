@@ -1,5 +1,5 @@
 {% set name = "ghc" %}
-{% set version = "9.2.4" %}
+{% set version = "9.4.8" %}
 
 package:
   name: {{ name|lower }}
@@ -33,7 +33,7 @@ requirements:
     - automake
     - autoconf
     - libtool
-    - llvmdev 9.*  # [aarch64]
+    - llvmdev   # [aarch64]
   host:
     - xz
     - gmp
@@ -42,7 +42,7 @@ requirements:
     - cffi
   run:
     - {{ c_compiler }}_{{ target_platform }} >={{ c_compiler_version }}
-    - llvm-tools 9.*  # [aarch64]
+    - llvm-tools  # [aarch64]
 
 test:
   files:
