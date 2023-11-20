@@ -41,7 +41,7 @@ requirements:
     - libffi
     - cffi
   run:
-    - {{ c_compiler }}_{{ target_platform }} >={{ c_compiler_version }}
+    - {{ c_compiler }}_{{ target_platform }}
     - llvm-tools 9.*  # [aarch64]
 
 test:
