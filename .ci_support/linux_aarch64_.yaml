@@ -3,7 +3,7 @@ BUILD:
 c_compiler:
 - gcc
 c_compiler_version:
-- 9.3.0
+- '11'
 cdt_arch:
 - aarch64
 cdt_name:
