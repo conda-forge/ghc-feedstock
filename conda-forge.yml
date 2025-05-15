@@ -1,6 +1,7 @@
 conda_forge_output_validation: true
 os_version:
-  linux_64: cos7
+  linux_64: alma8
+  linux_aarch64: alma8
 build_platform:
   linux_aarch64: linux_64
 github:
