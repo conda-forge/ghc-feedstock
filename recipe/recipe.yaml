@@ -108,6 +108,7 @@ build:
 
 requirements:
   build:
+    - ${{ stdlib('c') }}
     - ${{ compiler('c') }}
     - ${{ compiler('cxx') }}
     - autoconf
