@@ -1,0 +1,188 @@
+context:
+  version: "9.12.2"
+
+package:
+  name: ghc
+  version: ${{ version }}
+
+source:
+  - url: https://downloads.haskell.org/~ghc/${{ version }}/ghc-${{ version }}-src.tar.xz
+    sha256: 0e49cd5dde43f348c5716e5de9a5d7a0f8d68d945dc41cf75dfdefe65084f933
+  # Bootstrap GHC compilers
+  - if: target_platform == "osx-arm64"
+    then:
+      url: https://downloads.haskell.org/~ghc/9.10.1/ghc-9.10.1-aarch64-apple-darwin.tar.xz
+      sha256: ffaf83b5d7a8b2c04920c6e3909c0be21dde27baf380d095fa27e840a3a2e804
+      target_directory: bootstrap-ghc
+  - if: target_platform == "osx-64"
+    then:
+      url: https://downloads.haskell.org/~ghc/9.10.1/ghc-9.10.1-x86_64-apple-darwin.tar.xz
+      sha256: 8cf22188930e10d7ac5270d425e21a3dab606af73a655493639345200c650be9
+      target_directory: bootstrap-ghc
+  - if: target_platform == "linux-aarch64"
+    then:
+      url: https://downloads.haskell.org/~ghc/9.10.1/ghc-9.10.1-aarch64-deb10-linux.tar.xz
+      sha256: e6df50e62b696e3a8b759670fc79207ccc26e88a79a047561ca1ccb8846157dd
+      target_directory: bootstrap-ghc
+  - if: target_platform == "linux-64"
+    then:
+      url: https://downloads.haskell.org/~ghc/9.10.1/ghc-9.10.1-x86_64-ubuntu20_04-linux.tar.xz
+      sha256: ae3be406fdb73bd2b0c22baada77a8ff2f8cde6220dd591dc24541cfe9d895eb
+      target_directory: bootstrap-ghc
+  # Cabal install
+  - if: target_platform == "osx-arm64"
+    then:
+      url: https://downloads.haskell.org/~cabal/cabal-install-3.14.1.1/cabal-install-3.14.1.1-aarch64-darwin.tar.xz
+      sha256: bd40920fb3d5bcf3d78ce93445039ba43bc5edf769c52234223f25b83e3cc682
+      target_directory: bootstrap-cabal
+  - if: target_platform == "osx-64"
+    then:
+      url: https://downloads.haskell.org/~cabal/cabal-install-3.14.1.1/cabal-install-3.14.1.1-x86_64-darwin.tar.xz
+      sha256: 3690d8f7aa368141574f9eaf8e75bc26932ed7b422f5ade107d6972b3b72532f
+      target_directory: bootstrap-cabal
+  - if: target_platform == "linux-aarch64"
+    then:
+      url: https://downloads.haskell.org/~cabal/cabal-install-3.14.1.1/cabal-install-3.14.1.1-aarch64-linux-deb10.tar.xz
+      sha256: bf5fbe5d911c771b1601b80b00e9f9fb3db7f800258204322e411fdf1661a866
+      target_directory: bootstrap-cabal
+  - if: target_platform == "linux-64"
+    then:
+      url: https://downloads.haskell.org/~cabal/cabal-install-3.14.1.1/cabal-install-3.14.1.1-x86_64-linux-ubuntu20_04.tar.xz
+      sha256: 91d2b65907e95462396fa96892ebbd903861fc07b5cb74993c612e33d4c0cc65
+      target_directory: bootstrap-cabal
+
+build:
+  script: |
+    #!/bin/bash
+    set -ex
+
+    unset host_alias
+    unset build_alias
+    
+    export GHC_BUILD=$(echo $BUILD | sed "s/conda/unknown/g")
+    export GHC_HOST=$(echo $HOST | sed "s/conda/unknown/g")
+    
+    # Set environment variables
+    export MergeObjsCmd=ld
+    export CC=${CC}
+    export CXX=${CXX}
+    export M4=${BUILD_PREFIX}/bin/m4
+    export PYTHON=${BUILD_PREFIX}/bin/python
+
+    # Set up binary directory
+    mkdir -p binary
+
+    # Install bootstrap GHC
+    pushd bootstrap-ghc || exit 1
+      ./configure --prefix=$PWD/../binary \
+          --build=$GHC_BUILD \
+          --target=$GHC_BUILD \
+          ""
+      make install
+      if [[ "$target_platform" == linux-* ]]; then
+        # Set library path for bootstrap executables
+        export LD_LIBRARY_PATH=$PREFIX/lib:$LD_LIBRARY_PATH
+        
+        # Optionally use patchelf to fix the RPATH of the bootstrap GHC binaries
+        find binary -type f -executable -exec patchelf --set-rpath "$PREFIX/lib" {} \; 2>/dev/null || true
+      fi
+    popd
+
+    # Add binary GHC to PATH
+    export PATH=$PWD/binary/bin:$PATH
+
+    # Install cabal-install
+    mkdir -p binary/bin
+    cp bootstrap-cabal/cabal binary/bin/
+
+    # Update cabal package database
+    cabal v2-update
+
+    # Configure and build GHC
+    CONFIGURE_ARGS=(
+      --prefix=$PREFIX
+      --build=$GHC_BUILD
+      --target=$GHC_BUILD
+      --disable-numa
+      --enable-libffi-adjustors
+      --with-system-libffi=yes
+      --with-ffi-includes=$PREFIX/include
+      --disable-exec-static-tramp
+      --with-ffi-libraries=$PREFIX/lib
+      --with-gmp-includes=$PREFIX/include
+      --with-gmp-libraries=$PREFIX/lib
+      --with-gmp-libraries=$PREFIX/lib
+      --with-curses-includes=$PREFIX/include
+      --with-curses-libraries=$PREFIX/lib
+    )
+
+    # if [[ "$target_platform" == osx-* ]]; then
+    #   CONFIGURE_ARGS="$CONFIGURE_ARGS --with-ffi-libraries=$SDKROOT/usr/lib --with-ffi-includes=$SDKROOT/usr/include/ffi"
+    # fi
+
+    ./configure ${CONFIGURE_ARGS[@]}
+
+    # Build and install using hadrian
+    hadrian/build install -j${CPU_COUNT} --prefix=$PREFIX --flavour=release --docs=no-sphinx-pdfs
+
+    # Create bash completion
+    mkdir -p $PREFIX/etc/bash_completion.d
+    cp utils/completion/ghc.bash $PREFIX/etc/bash_completion.d/ghc
+
+    # Clean up package cache
+    rm -f $PREFIX/lib/ghc-$PKG_VERSION/lib/package.conf.d/package.cache
+    rm -f $PREFIX/lib/ghc-$PKG_VERSION/lib/package.conf.d/package.cache.lock
+
+    # Run post-install
+    $PREFIX/bin/ghc-pkg recache
+
+requirements:
+  build:
+    - ${{ compiler('c') }}
+    - ${{ compiler('cxx') }}
+    - ${{ stdlib('c') }}
+    # - autoconf
+    # - automake
+    - gmp
+    - libiconv
+    - libffi
+    - m4
+    - make
+    - ncurses
+    - patchelf
+    - python 3.12.*
+    - sed
+    - sphinx
+    - zstd
+    # - xz
+  host:
+    - gmp
+    - libffi
+    - ncurses
+  run:
+    - gmp
+    - libffi
+    - ncurses
+
+tests:
+  - script: |
+      echo 'main = putStrLn "Hello conda-forge"' > hello.hs
+      ghc hello.hs
+      ./hello
+  - script: ghc --version
+
+about:
+  homepage: https://haskell.org/ghc/
+  license: BSD-3-Clause
+  summary: Glorious Glasgow Haskell Compilation System
+  description: |
+    GHC is a state-of-the-art, open source, compiler and interactive environment 
+    for the functional language Haskell.
+  documentation: https://www.haskell.org/ghc/documentation.html
+  repository: https://gitlab.haskell.org/ghc/ghc
+
+extra:
+  recipe-maintainers:
+    - eggzilla
+    - step21
+    - xhochy
