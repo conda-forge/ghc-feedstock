@@ -52,6 +52,7 @@ source:
       target_directory: bootstrap-cabal
 
 build:
+  number: 0
   script: |
     #!/bin/bash
     set -ex
