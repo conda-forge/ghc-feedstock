@@ -63,6 +63,7 @@ about:
 
 extra:
   recipe-maintainers:
+    - mementorc
     - eggzilla
     - step21
     - xhochy
