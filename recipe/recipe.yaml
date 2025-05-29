@@ -53,6 +53,7 @@ source:
 
 build:
   number: 0
+  skip: ppc64le
   script: |
     #!/bin/bash
     set -ex
@@ -75,10 +76,7 @@ build:
 
     # Install bootstrap GHC
     pushd bootstrap-ghc || exit 1
-      ./configure --prefix=$PWD/../binary \
-          --build=$GHC_BUILD \
-          --target=$GHC_BUILD \
-          ""
+      ./configure --prefix=$PWD/../binary --host=$GHC_BUILD
       make install
       if [[ "$target_platform" == linux-* ]]; then
         # Set library path for bootstrap executables
@@ -142,8 +140,8 @@ requirements:
     - ${{ compiler('c') }}
     - ${{ compiler('cxx') }}
     - ${{ stdlib('c') }}
-    # - autoconf
-    # - automake
+    - autoconf
+    - automake
     - gmp
     - libiconv
     - libffi
@@ -175,6 +173,7 @@ tests:
 about:
   homepage: https://haskell.org/ghc/
   license: BSD-3-Clause
+  license_file: LICENSE
   summary: Glorious Glasgow Haskell Compilation System
   description: |
     GHC is a state-of-the-art, open source, compiler and interactive environment 
