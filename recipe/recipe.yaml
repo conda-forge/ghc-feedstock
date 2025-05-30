@@ -85,6 +85,7 @@ requirements:
     - gmp
     - libffi
     - ncurses
+    - c-compiler
 
 tests:
   - script: |

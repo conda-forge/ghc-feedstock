@@ -10,3 +10,9 @@ build_platform:
   linux_ppc64le: linux_64
   osx_arm64: osx_64
 test: native_and_emulated
+azure:
+    # toggle for freeing up some extra space on the default Azure Pipelines
+    # linux image before running the Docker container for building
+    free_disk_space: true
+
+
