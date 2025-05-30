@@ -1,9 +1,9 @@
 diff --git a/hadrian/src/Settings/Builders/Ghc.hs b/hadrian/src/Settings/Builders/Ghc.hs
-index 7f06dcb4e4..c5240a6c94 100644
+index c1b0584c59..bd7d294eb9 100644
 --- a/hadrian/src/Settings/Builders/Ghc.hs
 +++ b/hadrian/src/Settings/Builders/Ghc.hs
-@@ -14,6 +14,8 @@ import Rules.Libffi (libffiName)
- import qualified Data.Set as Set
+@@ -15,6 +15,8 @@ import qualified Data.Set as Set
+ import System.Directory
  import Data.Version.Extra
  
 +import System.Environment (lookupEnv)
@@ -11,7 +11,7 @@ index 7f06dcb4e4..c5240a6c94 100644
  ghcBuilderArgs :: Args
  ghcBuilderArgs = mconcat
    [ compileAndLinkHs, compileC, compileCxx, findHsDependencies
-@@ -107,6 +109,9 @@ ghcLinkArgs = builder (Ghc LinkHs) ? do
+@@ -108,6 +110,9 @@ ghcLinkArgs = builder (Ghc LinkHs) ? do
      osxTarget <- expr isOsxTarget
      winTarget <- expr isWinTarget
  
@@ -21,7 +21,7 @@ index 7f06dcb4e4..c5240a6c94 100644
      let
          dynamic = Dynamic `wayUnit` way
          originToLibsDir = makeRelativeNoSysLink originPath distPath
-@@ -146,6 +151,10 @@ ghcLinkArgs = builder (Ghc LinkHs) ? do
+@@ -147,6 +152,10 @@ ghcLinkArgs = builder (Ghc LinkHs) ? do
                  , notStage0 ? targetSupportsRPaths ? mconcat
                        [ arg ("-optl-Wl,-rpath," ++ rpath)
                        , isProgram pkg ? arg ("-optl-Wl,-rpath," ++ bindistRpath)
