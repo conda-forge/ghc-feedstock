@@ -85,6 +85,7 @@ requirements:
         - automake
         - m4
         - make
+        - ncurses
         - sed
       else:
         - m2-autoconf
@@ -94,7 +95,6 @@ requirements:
     - gmp
     - libiconv
     - libffi
-    - ncurses
     - python 3.12.*
     - sphinx
     - zstd

@@ -19,14 +19,13 @@ pushd bootstrap-ghc
     CC="${CC_FOR_BUILD}" \
     CXX="${CXX_FOR_BUILD}" \
     ./configure \
-    --prefix="${PWD}"/../binary \
-    > ../_logs/bs-configure.log 2>&1
-  make install > ../_logs/bs-make-install.log 2>&1
+    --prefix="${PWD}"/../binary #> ../_logs/bs-configure.log 2>&1
+  make install #> ../_logs/bs-make-install.log 2>&1
 popd
 
 if [[ -d target-ghc-libs ]]; then
   pushd target-ghc-libs
-    ./configure --prefix="${PWD}"/../binary --target="${GHC_TARGET}" > ../_logs/bs-libs-configure.log 2>&1
+    ./configure --prefix="${PWD}"/../binary --target="${GHC_TARGET}" #> ../_logs/bs-libs-configure.log 2>&1
   popd
 fi
 
@@ -76,7 +75,7 @@ CONFIGURE_ARGS=(
 )
 
 export LD_LIBRARY_PATH=$PREFIX/lib:$LD_LIBRARY_PATH
-./configure "${CONFIGURE_ARGS[@]}" > _logs/configure.log 2>&1
+./configure "${CONFIGURE_ARGS[@]}" #> _logs/configure.log 2>&1
 
 # Build and install using hadrian
 hadrian/build install -j"${CPU_COUNT}" --prefix="${PREFIX}" --flavour=release --freeze1 --docs=no-sphinx-pdfs
