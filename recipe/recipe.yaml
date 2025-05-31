@@ -1,9 +1,5 @@
 context:
   version: "9.12.2"
-  ghc_binaries: [
-          "ghc", "ghc-pkg", "ghci", "haddock", "hp2ps",
-          "hpc", "hsc2hs", "runghc", "runhaskell",
-        ]
 
 package:
   name: ghc
