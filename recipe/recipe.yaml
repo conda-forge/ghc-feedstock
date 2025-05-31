@@ -1,5 +1,9 @@
 context:
   version: "9.12.2"
+  ghc_binaries: [
+          "ghc", "ghc-pkg", "ghci", "haddock", "hp2ps",
+          "hpc", "hsc2hs", "runghc", "runhaskell",
+        ]
 
 package:
   name: ghc
@@ -112,39 +116,14 @@ requirements:
 
 tests:
   - package_contents:
-      bin:
-        {% set ghc_binaries = [
-          "ghc", "ghc-pkg", "ghci", "haddock", "hp2ps",
-          "hpc", "hsc2hs", "runghc", "runhaskell",
-        ] %}
-        {% for b in ghc_binaries %}
-        - ${{ b }}
-        - ${{ b }}-${{ version }}
-        {% endfor %}
       files:
         - etc/bash_completion.d/ghc
-        {% set ghc_binaries = [
-          "ghc", "ghc-pkg", "runghc", "runhaskell"
-        ] %}
-        {% for b in ghc_binaries %}
-        - lib/ghc-${{ version }}/bin/${{ b }}
-        - lib/ghc-${{ version }}/bin/${{ b }}-${{ version }}
-        {% endfor %}
-        {% set ghc_binaries = [
-          "ghc-iserv", "ghc-iserv-dyn", "ghc-iserv-prof", "unlit",
-          "ghc-toolchain-bin","haddock", "hp2ps", "hpc", "hsc2hs",
-        ] %}
-        {% for b in ghc_binaries %}
-        - lib/ghc-${{ version }}/bin/${{ b }}
-        - lib/ghc-${{ version }}/bin/${{ b }}-ghc-${{ version }}
-        {% endfor %}
 
         - lib/ghc-${{ version }}/lib/html/**
         - lib/ghc-${{ version }}/lib/latex/haddock.sty
         - lib/ghc-${{ version }}/lib/llvm-passes
         - lib/ghc-${{ version }}/lib/llvm-targets
         - lib/ghc-${{ version }}/lib/package.conf.d/**
-
         - lib/ghc-${{ version }}/lib/dyld.mjs
         - lib/ghc-${{ version }}/lib/ghc-interp.js
         - lib/ghc-${{ version }}/lib/ghc-usage.txt
@@ -157,6 +136,41 @@ tests:
         - share/doc/ghc-${{ version }}/html/**
         - share/man/man1/ghc.1
 
+  - script:
+      interpreter: python
+      content: |
+        import os, sys, pathlib
+        binaries = [
+          "ghc", "ghc-pkg", "ghci", "haddock", "hp2ps",
+          "hpc", "hsc2hs", "runghc", "runhaskell"
+        ]
+        all_files=[f'{b}' for b in binaries] + [f'{b}-${{ version }}' for b in binaries]
+        missing=[f for f in all_files if not pathlib.Path(os.environ['CONDA_PREFIX']).joinpath('bin', f).exists()]
+        exit(1) if missing else exit(0)
+
+  - script:
+      interpreter: python
+      content: |
+        import os, sys, pathlib
+        binaries = [
+          "ghc", "ghc-pkg", "runghc", "runhaskell"
+        ]
+        all_files=[f'{b}' for b in binaries] + [f'{b}-${{ version }}' for b in binaries]
+        missing=[f for f in all_files if not pathlib.Path(os.environ['CONDA_PREFIX']).joinpath('lib', 'ghc-${{ version }}', 'bin', f).exists()]
+        exit(1) if missing else exit(0)
+
+  - script:
+      interpreter: python
+      content: |
+        import os, sys, pathlib
+        binaries = [
+          "ghc-iserv", "ghc-iserv-dyn", "ghc-iserv-prof", "unlit",
+          "ghc-toolchain-bin","haddock", "hp2ps", "hpc", "hsc2hs",
+        ]
+        all_files=[f'{b}' for b in binaries] + [f'{b}-ghc-${{ version }}' for b in binaries]
+        missing=[f for f in all_files if not pathlib.Path(os.environ['CONDA_PREFIX']).joinpath('lib', 'ghc-${{ version }}', 'bin', f).exists()]
+        exit(1) if missing else exit(0)
+
   - script: |
       ghc --version
       ghc-pkg --version
@@ -167,6 +181,7 @@ tests:
       hsc2hs --version
       runghc --version
       runhaskell --version
+
   - script: |
       echo 'main = putStrLn "Hello conda-forge"' > hello.hs
       ghc hello.hs
