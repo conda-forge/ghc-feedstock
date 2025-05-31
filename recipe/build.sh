@@ -1,28 +1,54 @@
 #!/usr/bin/env bash
 set -ex
 
+unset host_alias
+
 # Set environment variables
-export MergeObjsCmd=ld
+export MergeObjsCmd=${LD_GOLD}
 export CC=${CC}
 export CXX=${CXX}
+export LDFLAGS="${LDFLAGS} -Wl,--allow-multiple-definition"
 export M4=${BUILD_PREFIX}/bin/m4
 export PYTHON=${BUILD_PREFIX}/bin/python
+export LD_LIBRARY_PATH=$BUILD_PREFIX/lib:$LD_LIBRARY_PATH
+
+if [[ "$target_platform" == "linux-"* ]]; then
+  GHC_BUILD=x86_64-unknown-linux
+  GHC_HOST=x86_64-unknown-linux
+  if [[ "$target_platform" == "linux-64" ]]; then
+    GHC_TARGET=x86_64-conda-linux-gnu
+  elif [[ "$target_platform" == "linux-aarch64" ]]; then
+    GHC_TARGET=aarch64-conda-linux-gnu
+  fi
+elif [[ "$target_platform" == "osx-"* ]]; then
+  GHC_BUILD=x86_64-apple-darwin
+  GHC_HOST=x86_64-apple-darwin
+  if [[ "$target_platform" == "osx-64" ]]; then
+    GHC_TARGET=x86_64-apple-darwin13.4.0
+  elif [[ "$target_platform" == "osx-arm64" ]]; then
+    GHC_TARGET=aarch64-apple-darwin20.0.0
+  fi
+fi
 
 # Set up binary directory
-mkdir -p binary
+mkdir -p binary _logs
 
-# Install bootstrap GHC
-pushd bootstrap-ghc || exit 1
-  ./configure --prefix=$PWD/../binary
-  make install
-#  if [[ "$target_platform" == linux-* ]]; then
-#    # Set library path for bootstrap executables
-#    export LD_LIBRARY_PATH=$PREFIX/lib:$LD_LIBRARY_PATH
-#
-#    # Optionally use patchelf to fix the RPATH of the bootstrap GHC binaries
-#    find binary -type f -executable -exec patchelf --set-rpath "$BUILD_PREFIX/lib" {} \; 2>/dev/null || true
-#  fi
+# Install bootstrap GHC - Set conda platform moniker
+pushd bootstrap-ghc
+    CC="${CC_FOR_BUILD}" \
+    CXX="${CXX_FOR_BUILD}" \
+    LD_LIBRARY_PATH=$BUILD_PREFIX/lib:$LD_LIBRARY_PATH \
+    ./configure \
+    --prefix="${PWD}"/../binary \
+    > ../_logs/bs-configure.log 2>&1
+  make install > ../_logs/bs-make-install.log 2>&1
 popd
+
+if [[ -d target-ghc-libs ]]; then
+  pushd target-ghc-libs
+    ./configure --prefix="${PWD}"/../binary --target="${GHC_TARGET}" > ../_logs/bs-libs-configure.log 2>&1
+  popd
+fi
 
 # Add binary GHC to PATH
 export PATH=$PWD/binary/bin:$PATH
@@ -32,48 +58,53 @@ mkdir -p binary/bin
 cp bootstrap-cabal/cabal binary/bin/
 
 # Update cabal package database
-cabal v2-update
+cabal v2-update > _logs/cabal-configure.log 2>&1
 
 # Configure and build GHC
 CONFIGURE_ARGS=(
-  --prefix=$PREFIX
+  --prefix="${PREFIX}"
+  --build="${GHC_BUILD}"
+  --host="${GHC_HOST}"
+  --target="${GHC_TARGET}"
   --disable-numa
-  --enable-libffi-adjustors
   --with-system-libffi=yes
-  --with-ffi-includes=$PREFIX/include
-  --disable-exec-static-tramp
-  --with-ffi-libraries=$PREFIX/lib
-  --with-gmp-includes=$PREFIX/include
-  --with-gmp-libraries=$PREFIX/lib
-  --with-gmp-libraries=$PREFIX/lib
-  --with-curses-includes=$PREFIX/include
-  --with-curses-libraries=$PREFIX/lib
+  --with-ffi-includes="${PREFIX}"/include
+  --with-ffi-libraries="${PREFIX}"/lib
+  --with-gmp-includes="${PREFIX}"/include
+  --with-gmp-libraries="${PREFIX}"/lib
+  --with-curses-includes="${PREFIX}"/include
+  --with-curses-libraries="${PREFIX}"/lib
 )
 
-if [[ "$target_platform" == "linux-"* ]]; then
-  CONFIGURE_ARGS+=(--build=x86_64-unknown-linux --host=x86_64-unknown-linux)
-elif [[ "$target_platform" == "osx-"* ]]; then
-  CONFIGURE_ARGS+=(--build=x86_64-apple-darwin13.4.0 --host=x86_64-apple-darwin13.4.0)
-fi
-
-if [[ "$target_platform" == "linux-aarch64" ]]; then
-  CONFIGURE_ARGS+=(--target=aarch64-unknown-linux)
-elif [[ "$target_platform" == "osx-arm64" ]]; then
-  CONFIGURE_ARGS+=(--target=aarch64-apple-darwin)
-fi
-
-./configure ${CONFIGURE_ARGS[@]}
+export LD_LIBRARY_PATH=$PREFIX/lib:$LD_LIBRARY_PATH
+./configure "${CONFIGURE_ARGS[@]}" > _logs/configure.log 2>&1
 
 # Build and install using hadrian
-hadrian/build install -j${CPU_COUNT} --prefix=$PREFIX --flavour=release --freeze1 --docs=no-sphinx-pdfs
+hadrian/build install -j"${CPU_COUNT}" --prefix="${PREFIX}" --flavour=release --freeze1 --docs=no-sphinx-pdfs
 
 # Create bash completion
-mkdir -p $PREFIX/etc/bash_completion.d
-cp utils/completion/ghc.bash $PREFIX/etc/bash_completion.d/ghc
+mkdir -p "${PREFIX}"/etc/bash_completion.d
+cp utils/completion/ghc.bash "${PREFIX}"/etc/bash_completion.d/ghc
 
 # Clean up package cache
-rm -f $PREFIX/lib/ghc-$PKG_VERSION/lib/package.conf.d/package.cache
-rm -f $PREFIX/lib/ghc-$PKG_VERSION/lib/package.conf.d/package.cache.lock
+rm -f "${PREFIX}"/lib/ghc-"${PKG_VERSION}"/lib/package.conf.d/package.cache
+rm -f "${PREFIX}"/lib/ghc-"${PKG_VERSION}"/lib/package.conf.d/package.cache.lock
 
 # Run post-install
-$PREFIX/bin/ghc-pkg recache
+if [[ -n "${CROSSCOMPILING_EMULATOR:-}" ]]; then
+  "${PREFIX}"/bin/ghc-pkg recache
+else
+  "${CROSSCOMPILING_EMULATOR}" "${PREFIX}"/bin/ghc-pkg recache
+fi
+
+# # For macOS, fix library paths if needed
+# if [[ "$target_platform" == "osx-"* ]]; then
+#   find "${PREFIX}/lib" -name "*.dylib" -o -name "*.so" | while read lib; do
+#     install_name_tool -change "@rpath/libgmp.10.dylib" "${PREFIX}/lib/libgmp.10.dylib" "$lib" || true
+#   done
+#
+#   # Also fix executables
+#   find "${PREFIX}/bin" -type f -executable | while read exe; do
+#     install_name_tool -change "@rpath/libgmp.10.dylib" "${PREFIX}/lib/libgmp.10.dylib" "$exe" || true
+#   done
+# fi

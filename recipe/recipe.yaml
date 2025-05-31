@@ -22,16 +22,25 @@ source:
       url: https://downloads.haskell.org/~ghc/9.10.1/ghc-9.10.1-x86_64-apple-darwin.tar.xz
       sha256: 8cf22188930e10d7ac5270d425e21a3dab606af73a655493639345200c650be9
       target_directory: bootstrap-ghc
-  - if: target_platform == "linux-aarch64"
-    then:
-      url: https://downloads.haskell.org/~ghc/9.10.1/ghc-9.10.1-aarch64-deb10-linux.tar.xz
-      sha256: e6df50e62b696e3a8b759670fc79207ccc26e88a79a047561ca1ccb8846157dd
-      target_directory: bootstrap-ghc
+  # - if: target_platform == "linux-aarch64"
+  #   then:
+  #     url: https://downloads.haskell.org/~ghc/9.10.1/ghc-9.10.1-aarch64-deb10-linux.tar.xz
+  #     sha256: e6df50e62b696e3a8b759670fc79207ccc26e88a79a047561ca1ccb8846157dd
+  #     target_directory: bootstrap-ghc
   - if: target_platform == "linux-64"
     then:
       url: https://downloads.haskell.org/~ghc/9.10.1/ghc-9.10.1-x86_64-ubuntu20_04-linux.tar.xz
       sha256: ae3be406fdb73bd2b0c22baada77a8ff2f8cde6220dd591dc24541cfe9d895eb
       target_directory: bootstrap-ghc
+  - if: target_platform == "linux-aarch64"
+    then:
+      - url: https://downloads.haskell.org/~ghc/9.10.1/ghc-9.10.1-x86_64-ubuntu20_04-linux.tar.xz
+        sha256: ae3be406fdb73bd2b0c22baada77a8ff2f8cde6220dd591dc24541cfe9d895eb
+        target_directory: bootstrap-ghc
+      - url: https://downloads.haskell.org/~ghc/9.10.1/ghc-9.10.1-aarch64-deb10-linux.tar.xz
+        sha256: e6df50e62b696e3a8b759670fc79207ccc26e88a79a047561ca1ccb8846157dd
+        target_directory: target-ghc-libs
+
   # Cabal install
   - if: target_platform == "osx-arm64"
     then:
@@ -43,12 +52,17 @@ source:
       url: https://downloads.haskell.org/~cabal/cabal-install-3.14.1.1/cabal-install-3.14.1.1-x86_64-darwin.tar.xz
       sha256: 3690d8f7aa368141574f9eaf8e75bc26932ed7b422f5ade107d6972b3b72532f
       target_directory: bootstrap-cabal
-  - if: target_platform == "linux-aarch64"
-    then:
-      url: https://downloads.haskell.org/~cabal/cabal-install-3.14.1.1/cabal-install-3.14.1.1-aarch64-linux-deb10.tar.xz
-      sha256: bf5fbe5d911c771b1601b80b00e9f9fb3db7f800258204322e411fdf1661a866
-      target_directory: bootstrap-cabal
+  # - if: target_platform == "linux-aarch64"
+  #   then:
+  #     url: https://downloads.haskell.org/~cabal/cabal-install-3.14.1.1/cabal-install-3.14.1.1-aarch64-linux-deb10.tar.xz
+  #     sha256: bf5fbe5d911c771b1601b80b00e9f9fb3db7f800258204322e411fdf1661a866
+  #     target_directory: bootstrap-cabal
   - if: target_platform == "linux-64"
+    then:
+      url: https://downloads.haskell.org/~cabal/cabal-install-3.14.1.1/cabal-install-3.14.1.1-x86_64-linux-ubuntu20_04.tar.xz
+      sha256: 91d2b65907e95462396fa96892ebbd903861fc07b5cb74993c612e33d4c0cc65
+      target_directory: bootstrap-cabal
+  - if: target_platform == "linux-aarch64"
     then:
       url: https://downloads.haskell.org/~cabal/cabal-install-3.14.1.1/cabal-install-3.14.1.1-x86_64-linux-ubuntu20_04.tar.xz
       sha256: 91d2b65907e95462396fa96892ebbd903861fc07b5cb74993c612e33d4c0cc65
@@ -63,21 +77,29 @@ requirements:
     - ${{ compiler('c') }}
     - ${{ compiler('cxx') }}
     - ${{ stdlib('c') }}
-    - autoconf
-    - automake
+    - if: build_platform == linux-aarch64
+      then: sysroot_${{ build_platform }} >=2.28
+    - if: unix
+      then:
+        - autoconf
+        - automake
+        - m4
+        - make
+        - sed
+      else:
+        - m2-autoconf
+        - m2-automake-wrapper
+        - m2-m4
+        - m2-make
     - gmp
     - libiconv
     - libffi
-    - m4
-    - make
     - ncurses
-    - patchelf
     - python 3.12.*
-    - sed
     - sphinx
     - zstd
-    # - xz
   host:
+    - ${{ compiler('c') }}
     - gmp
     - libffi
     - ncurses
@@ -87,12 +109,68 @@ requirements:
     - ncurses
     - c-compiler
 
+
 tests:
+  - package_contents:
+      bin:
+        {% set ghc_binaries = [
+          "ghc", "ghc-pkg", "ghci", "haddock", "hp2ps",
+          "hpc", "hsc2hs", "runghc", "runhaskell",
+        ] %}
+        {% for b in ghc_binaries %}
+        - ${{ b }}
+        - ${{ b }}-${{ version }}
+        {% endfor %}
+      files:
+        - etc/bash_completion.d/ghc
+        {% set ghc_binaries = [
+          "ghc", "ghc-pkg", "runghc", "runhaskell"
+        ] %}
+        {% for b in ghc_binaries %}
+        - lib/ghc-${{ version }}/bin/${{ b }}
+        - lib/ghc-${{ version }}/bin/${{ b }}-${{ version }}
+        {% endfor %}
+        {% set ghc_binaries = [
+          "ghc-iserv", "ghc-iserv-dyn", "ghc-iserv-prof", "unlit",
+          "ghc-toolchain-bin","haddock", "hp2ps", "hpc", "hsc2hs",
+        ] %}
+        {% for b in ghc_binaries %}
+        - lib/ghc-${{ version }}/bin/${{ b }}
+        - lib/ghc-${{ version }}/bin/${{ b }}-ghc-${{ version }}
+        {% endfor %}
+
+        - lib/ghc-${{ version }}/lib/html/**
+        - lib/ghc-${{ version }}/lib/latex/haddock.sty
+        - lib/ghc-${{ version }}/lib/llvm-passes
+        - lib/ghc-${{ version }}/lib/llvm-targets
+        - lib/ghc-${{ version }}/lib/package.conf.d/**
+
+        - lib/ghc-${{ version }}/lib/dyld.mjs
+        - lib/ghc-${{ version }}/lib/ghc-interp.js
+        - lib/ghc-${{ version }}/lib/ghc-usage.txt
+        - lib/ghc-${{ version }}/lib/ghci-usage.txt
+        - lib/ghc-${{ version }}/lib/post-link.mjs
+        - lib/ghc-${{ version }}/lib/prelude.mjs
+        - lib/ghc-${{ version }}/lib/settings
+        - lib/ghc-${{ version }}/lib/template-hsc.h
+
+        - share/doc/ghc-${{ version }}/html/**
+        - share/man/man1/ghc.1
+
+  - script: |
+      ghc --version
+      ghc-pkg --version
+      ghci --version
+      haddock --version
+      hp2ps --version
+      hpc --version
+      hsc2hs --version
+      runghc --version
+      runhaskell --version
   - script: |
       echo 'main = putStrLn "Hello conda-forge"' > hello.hs
       ghc hello.hs
       ./hello
-  - script: ghc --version
 
 about:
   homepage: https://haskell.org/ghc/
