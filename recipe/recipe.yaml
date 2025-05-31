@@ -77,7 +77,7 @@ requirements:
     - ${{ compiler('c') }}
     - ${{ compiler('cxx') }}
     - ${{ stdlib('c') }}
-    - if: build_platform == linux-aarch64
+    - if: target_platform == linux-aarch64
       then: sysroot_${{ build_platform }} >=2.28
     - if: unix
       then:
@@ -102,12 +102,16 @@ requirements:
     - ${{ compiler('c') }}
     - gmp
     - libffi
-    - ncurses
+    - if: unix
+      then:
+        - ncurses
   run:
+    - c-compiler
     - gmp
     - libffi
-    - ncurses
-    - c-compiler
+    - if: unix
+      then:
+        - ncurses
 
 
 tests:

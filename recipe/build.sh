@@ -7,7 +7,6 @@ unset host_alias
 export MergeObjsCmd=${LD_GOLD}
 export CC=${CC}
 export CXX=${CXX}
-export LDFLAGS="${LDFLAGS} -Wl,--allow-multiple-definition"
 export M4=${BUILD_PREFIX}/bin/m4
 export PYTHON=${BUILD_PREFIX}/bin/python
 
