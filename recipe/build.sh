@@ -10,25 +10,6 @@ export CXX=${CXX}
 export LDFLAGS="${LDFLAGS} -Wl,--allow-multiple-definition"
 export M4=${BUILD_PREFIX}/bin/m4
 export PYTHON=${BUILD_PREFIX}/bin/python
-export LD_LIBRARY_PATH=$BUILD_PREFIX/lib:$LD_LIBRARY_PATH
-
-if [[ "$target_platform" == "linux-"* ]]; then
-  GHC_BUILD=x86_64-unknown-linux
-  GHC_HOST=x86_64-unknown-linux
-  if [[ "$target_platform" == "linux-64" ]]; then
-    GHC_TARGET=x86_64-conda-linux-gnu
-  elif [[ "$target_platform" == "linux-aarch64" ]]; then
-    GHC_TARGET=aarch64-conda-linux-gnu
-  fi
-elif [[ "$target_platform" == "osx-"* ]]; then
-  GHC_BUILD=x86_64-apple-darwin
-  GHC_HOST=x86_64-apple-darwin
-  if [[ "$target_platform" == "osx-64" ]]; then
-    GHC_TARGET=x86_64-apple-darwin13.4.0
-  elif [[ "$target_platform" == "osx-arm64" ]]; then
-    GHC_TARGET=aarch64-apple-darwin20.0.0
-  fi
-fi
 
 # Set up binary directory
 mkdir -p binary _logs
@@ -37,7 +18,6 @@ mkdir -p binary _logs
 pushd bootstrap-ghc
     CC="${CC_FOR_BUILD}" \
     CXX="${CXX_FOR_BUILD}" \
-    LD_LIBRARY_PATH=$BUILD_PREFIX/lib:$LD_LIBRARY_PATH \
     ./configure \
     --prefix="${PWD}"/../binary \
     > ../_logs/bs-configure.log 2>&1
@@ -59,6 +39,25 @@ cp bootstrap-cabal/cabal binary/bin/
 
 # Update cabal package database
 cabal v2-update > _logs/cabal-configure.log 2>&1
+
+case "$target_platform" in
+  linux-*)
+    GHC_BUILD=x86_64-unknown-linux
+    GHC_HOST=x86_64-unknown-linux
+    ;;
+  osx-*)
+    GHC_BUILD=x86_64-apple-darwin
+    GHC_HOST=x86_64-apple-darwin
+    ;;
+esac
+
+# Set target-specific values
+case "$target_platform" in
+  linux-64)      GHC_TARGET=x86_64-conda-linux-gnu ;;
+  linux-aarch64) GHC_TARGET=aarch64-conda-linux-gnu ;;
+  osx-64)        GHC_TARGET=x86_64-apple-darwin13.4.0 ;;
+  osx-arm64)     GHC_TARGET=aarch64-apple-darwin20.0.0 ;;
+esac
 
 # Configure and build GHC
 CONFIGURE_ARGS=(
