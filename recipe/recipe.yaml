@@ -10,12 +10,21 @@ source:
     sha256: 0e49cd5dde43f348c5716e5de9a5d7a0f8d68d945dc41cf75dfdefe65084f933
     patches:
       - patch-rpath-macos.patch
+  - if: target_platform == "win-64"
+    then:
+      url: https://downloads.haskell.org/~ghc/${{ version }}/ghc-${{ version }}-windows-extra-src.tar.gz
+      sha256: 84f3cfc2567f226dd8b74e1afad4c1c15b82e9fc13baa3a58b9a0d4345ff6505
 
   # Bootstrap GHC compilers
+  # - if: target_platform == "osx-arm64"
+  #   then:
+  #     url: https://downloads.haskell.org/~ghc/9.10.1/ghc-9.10.1-aarch64-apple-darwin.tar.xz
+  #     sha256: ffaf83b5d7a8b2c04920c6e3909c0be21dde27baf380d095fa27e840a3a2e804
+  #     target_directory: bootstrap-ghc
   - if: target_platform == "osx-arm64"
     then:
-      url: https://downloads.haskell.org/~ghc/9.10.1/ghc-9.10.1-aarch64-apple-darwin.tar.xz
-      sha256: ffaf83b5d7a8b2c04920c6e3909c0be21dde27baf380d095fa27e840a3a2e804
+      url: https://downloads.haskell.org/~ghc/9.10.1/ghc-9.10.1-x86_64-apple-darwin.tar.xz
+      sha256: 8cf22188930e10d7ac5270d425e21a3dab606af73a655493639345200c650be9
       target_directory: bootstrap-ghc
   - if: target_platform == "osx-64"
     then:
@@ -42,15 +51,20 @@ source:
       #   target_directory: target-ghc-libs
   - if: target_platform == "win-64"
     then:
-      url: https://downloads.haskell.org/~ghc/9.10.1/ghc-9.10.1-windows.zip
-      sha256: 55f7d9e99b8e2d4e0e193b2f0275501e6d9c1ebd29cadbea6a0da48a8587e3e0
+      url: https://downloads.haskell.org/~ghc/9.10.1/ghc-9.10.1-x86_64-unknown-mingw32.tar.gz
+      sha256: 2e7d766deaaaef95ddc563aebc5f6cbeb286c51a3c124ab31a89a250f88711f9
       target_directory: bootstrap-ghc
 
   # Cabal install
+  # - if: target_platform == "osx-arm64"
+  #   then:
+  #     url: https://downloads.haskell.org/~cabal/cabal-install-3.14.1.1/cabal-install-3.14.1.1-aarch64-darwin.tar.xz
+  #     sha256: bd40920fb3d5bcf3d78ce93445039ba43bc5edf769c52234223f25b83e3cc682
+  #     target_directory: bootstrap-cabal
   - if: target_platform == "osx-arm64"
     then:
-      url: https://downloads.haskell.org/~cabal/cabal-install-3.14.1.1/cabal-install-3.14.1.1-aarch64-darwin.tar.xz
-      sha256: bd40920fb3d5bcf3d78ce93445039ba43bc5edf769c52234223f25b83e3cc682
+      url: https://downloads.haskell.org/~cabal/cabal-install-3.14.1.1/cabal-install-3.14.1.1-x86_64-darwin.tar.xz
+      sha256: 3690d8f7aa368141574f9eaf8e75bc26932ed7b422f5ade107d6972b3b72532f
       target_directory: bootstrap-cabal
   - if: target_platform == "osx-64"
     then:
