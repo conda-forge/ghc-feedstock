@@ -37,9 +37,14 @@ source:
       - url: https://downloads.haskell.org/~ghc/9.10.1/ghc-9.10.1-x86_64-ubuntu20_04-linux.tar.xz
         sha256: ae3be406fdb73bd2b0c22baada77a8ff2f8cde6220dd591dc24541cfe9d895eb
         target_directory: bootstrap-ghc
-      - url: https://downloads.haskell.org/~ghc/9.10.1/ghc-9.10.1-aarch64-deb10-linux.tar.xz
-        sha256: e6df50e62b696e3a8b759670fc79207ccc26e88a79a047561ca1ccb8846157dd
-        target_directory: target-ghc-libs
+      # - url: https://downloads.haskell.org/~ghc/9.10.1/ghc-9.10.1-aarch64-deb10-linux.tar.xz
+      #   sha256: e6df50e62b696e3a8b759670fc79207ccc26e88a79a047561ca1ccb8846157dd
+      #   target_directory: target-ghc-libs
+  - if: target_platform == "win-64"
+    then:
+      url: https://downloads.haskell.org/~ghc/9.10.1/ghc-9.10.1-windows.zip
+      sha256: 55f7d9e99b8e2d4e0e193b2f0275501e6d9c1ebd29cadbea6a0da48a8587e3e0
+      target_directory: bootstrap-ghc
 
   # Cabal install
   - if: target_platform == "osx-arm64"
@@ -67,6 +72,11 @@ source:
       url: https://downloads.haskell.org/~cabal/cabal-install-3.14.1.1/cabal-install-3.14.1.1-x86_64-linux-ubuntu20_04.tar.xz
       sha256: 91d2b65907e95462396fa96892ebbd903861fc07b5cb74993c612e33d4c0cc65
       target_directory: bootstrap-cabal
+  - if: target_platform == "win-64"
+    then:
+      url: https://downloads.haskell.org/~cabal/cabal-install-3.14.1.1/cabal-install-3.14.1.1-x86_64-windows.zip
+      sha256: e313d60f849d4d7838406c154d60fdef8bfb7214848ac614ebafff19972c194e
+      target_directory: bootstrap-cabal
 
 build:
   number: 0
@@ -77,8 +87,10 @@ requirements:
     - ${{ compiler('c') }}
     - ${{ compiler('cxx') }}
     - ${{ stdlib('c') }}
-    - if: target_platform == linux-aarch64
+    - if: target_platform == "linux-aarch64"
       then: sysroot_${{ build_platform }} >=2.28
+    - if: linux
+      then: patchelf
     - if: unix
       then:
         - autoconf
@@ -90,11 +102,13 @@ requirements:
       else:
         - m2-autoconf
         - m2-automake-wrapper
+        - m2-grep
         - m2-m4
         - m2-make
     - gmp
     - libiconv
     - libffi
+    - libllvm19
     - python 3.12.*
     - sphinx
     - zstd
