@@ -2,6 +2,7 @@
 set -eu
 
 _log_index=0
+_debug=1
 
 # Function to run a command, log its output, and increment log index
 run_and_log() {
@@ -54,7 +55,12 @@ export CC=${CC}
 export CXX=${CXX}
 export M4=${BUILD_PREFIX}/bin/m4
 export PYTHON=${BUILD_PREFIX}/bin/python
-export CPU_COUNT=12
+
+if [[ $(uname -a) == *"debian-ser6"* ]] && [[ "${_debug}" == "1"]]; then
+  # Setting for local run
+  export CPU_COUNT=12
+  echo "*** Setting CPU COUNT to 12 ***"
+fi
 
 # Set up binary directory
 mkdir -p binary _logs
@@ -64,7 +70,11 @@ pushd bootstrap-ghc
   CC="${CC_FOR_BUILD}" \
   CXX="${CXX_FOR_BUILD}" \
   LDFLAGS="${LDFLAGS//$PREFIX/$BUILD_PREFIX}" \
-  run_and_log "bs-configure" ./configure --prefix="${SRC_DIR}"/binary
+  if [[ "${target_platform}" == "win-64" ]] && [[ "${_debug}" == "1" ]]; then
+    ./configure --prefix="${SRC_DIR}"/binary
+  else
+    run_and_log "bs-configure" ./configure --prefix="${SRC_DIR}"/binary
+  fi
   run_and_log "bs-make-install" make install
 
   if [[ "${build_platform}" == "linux-64" ]]; then
@@ -129,17 +139,23 @@ CONFIGURE_ARGS=(
   --with-iconv-libraries="${PREFIX}"/lib
 )
 
+# osx-arm64 in later stages ends-up doing:
+# checking for aarch64-apple-darwin20.0.0-gcc... $BUILD_PREFIX/bin/x86_64-apple-darwin13.4.0-clang
+# Maybe a cache setting?
+CC="${CC}" \
+CXX="${CXX}" \
+LDFLAGS="${LDFLAGS}" \
 run_and_log "ghc-configure" ./configure "${CONFIGURE_ARGS[@]}"
 
 # Build and install using hadrian
-if [[ "${target_platform}" == "osx-arm64" ]]; then
+if [[ "${target_platform}" == "osx-arm64" ]] && [[ "${_debug}" == "1" ]]; then
   hadrian/build stage1:exe:ghc-bin -j"${CPU_COUNT}" --flavour=release --docs=none --progress-info=none
 else
   run_and_log "stage1_exe" hadrian/build stage1:exe:ghc-bin -j"${CPU_COUNT}" --flavour=release --docs=none --progress-info=none
 fi
 
 # Debugging:
-if [[ "${target_platform}" == "osx-64" ]]; then
+if ([[ "${target_platform}" == "osx-64" ]] || [[ "${target_platform}" == "linux-64" ]]) && [[ "${_debug}" == "1" ]]; then
   hadrian/build stage1:lib:ghc -j"${CPU_COUNT}" --flavour=release --docs=none --progress-info=none
 else
   run_and_log "stage1_lib" hadrian/build stage1:lib:ghc -j"${CPU_COUNT}" --flavour=release --docs=none --progress-info=none
