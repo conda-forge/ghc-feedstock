@@ -21,20 +21,20 @@ run_and_log() {
     sleep 10
     let "tail_counter += 1"
     # After 3 cycles (30 seconds), show log tail and reset counter
-    if [ $tail_counter -ge 3 ]; then
+    if [ $tail_counter -ge 11 ]; then
       echo "."
-      tail -5 "${SRC_DIR}/_logs/${_log_index}_${_logname}.log"
+      tail -20 "${SRC_DIR}/_logs/${_log_index}_${_logname}.log"
       tail_counter=0
     fi
   done
   wait $cmd_pid
   local exit_code=$?
 
-  echo ".";echo ".";echo ".";echo "."
-  printf "[--- %s ---]" "${cmd[*]}"
+  echo "|";echo "|";echo "|";echo "|"
+  printf "[--- %s ---]" "${cmd[*]}"; echo " "
   tail -50 "${SRC_DIR}/_logs/${_log_index}_${_logname}.log"
   echo "[---------------------------------------]"
-  echo ".";echo ".";echo ".";echo "."
+  echo "|";echo "|";echo "|";echo "|"
 
   let "_log_index += 1"
 
@@ -118,27 +118,40 @@ CONFIGURE_ARGS=(
   --target="${GHC_TARGET}"
   --disable-numa
   --with-system-libffi=yes
+  --with-curses-includes="${PREFIX}"/include
+  --with-curses-libraries="${PREFIX}"/lib
   --with-ffi-includes="${PREFIX}"/include
   --with-ffi-libraries="${PREFIX}"/lib
   --with-gmp-includes="${PREFIX}"/include
   --with-gmp-libraries="${PREFIX}"/lib
-  --with-curses-includes="${PREFIX}"/include
-  --with-curses-libraries="${PREFIX}"/lib
+  --with-iconv-includes="${PREFIX}"/include
+  --with-iconv-libraries="${PREFIX}"/lib
 )
 
 run_and_log "ghc-configure" ./configure "${CONFIGURE_ARGS[@]}"
 
 # Build and install using hadrian
-run_and_log "stage1_exe" hadrian/build stage1:exe:ghc-bin -j"${CPU_COUNT}" --flavour=release --docs=none --progress-info=none
-run_and_log "stage1_lib" hadrian/build stage1:lib:ghc -j"${CPU_COUNT}" --flavour=release --docs=none --progress-info=none
+if [[ "${target_platform}" == "osx-arm64" ]]; then
+  hadrian/build stage1:exe:ghc-bin -j"${CPU_COUNT}" --flavour=release --docs=none --progress-info=none
+else
+  run_and_log "stage1_exe" hadrian/build stage1:exe:ghc-bin -j"${CPU_COUNT}" --flavour=release --docs=none --progress-info=none
+fi
+
+# Debugging:
+if [[ "${target_platform}" == "osx-64" ]]; then
+  hadrian/build stage1:lib:ghc -j"${CPU_COUNT}" --flavour=release --docs=none --progress-info=none
+else
+  run_and_log "stage1_lib" hadrian/build stage1:lib:ghc -j"${CPU_COUNT}" --flavour=release --docs=none --progress-info=none
+fi
+
 run_and_log "stage2_exe" hadrian/build stage2:exe:ghc-bin -j"${CPU_COUNT}" --flavour=release --freeze1 --docs=none --progress-info=none
 run_and_log "stage2_lib" hadrian/build stage2:lib:ghc -j"${CPU_COUNT}" --flavour=release --freeze1 --docs=none --progress-info=none
 run_and_log "build_all"  hadrian/build -j"${CPU_COUNT}" --flavour=release --freeze1 --freeze2 --docs=no-sphinx-pdfs --progress-info=none
 
 if [[ -n "${CROSSCOMPILING_EMULATOR:-}" ]]; then
-  run_and_log "install" hadrian/build install -j"${CPU_COUNT}" --prefix="${PREFIX}" --flavour=release --docs=no-sphinx-pdfs
+  run_and_log "install" hadrian/build install -j"${CPU_COUNT}" --prefix="${PREFIX}" --flavour=release --freeze1 --freeze2 --docs=no-sphinx-pdfs
 else
-  run_and_log "install_xcompiled" CC="${CC_FOR_BUILD}" hadrian/build install -j"${CPU_COUNT}" --prefix="${PREFIX}" --flavour=release --docs=no-sphinx-pdfs
+  CC="${CC_FOR_BUILD}" run_and_log "install_xcompiled" hadrian/build install -j"${CPU_COUNT}" --prefix="${PREFIX}" --flavour=release --freeze1 --freeze2 --docs=no-sphinx-pdfs
 fi
 
 # Create bash completion
@@ -151,7 +164,9 @@ rm -f "${PREFIX}"/lib/ghc-"${PKG_VERSION}"/lib/package.conf.d/package.cache.lock
 
 # Run post-install
 if [[ -n "${CROSSCOMPILING_EMULATOR:-}" ]]; then
-  run_and_log "recache_xcompiled" "${CROSSCOMPILING_EMULATOR}" "${PREFIX}"/bin/ghc-pkg recache
+  "${CROSSCOMPILING_EMULATOR}" "${PREFIX}"/bin/ghc-pkg recache
+  # run_and_log "recache_xcompiled" "${CROSSCOMPILING_EMULATOR}" "${PREFIX}"/bin/ghc-pkg recache
 else
-  run_and_log "recache" "${PREFIX}"/bin/ghc-pkg recache
+  "${PREFIX}"/bin/ghc-pkg recache
+  # run_and_log "recache" "${PREFIX}"/bin/ghc-pkg recache
 fi

@@ -101,6 +101,9 @@ requirements:
     - ${{ compiler('c') }}
     - ${{ compiler('cxx') }}
     - ${{ stdlib('c') }}
+    - if: build_platform != target_platform
+      then:
+        - libffi
     - if: target_platform == "linux-aarch64"
       then: sysroot_${{ build_platform }} >=2.28
     - if: linux
@@ -120,14 +123,13 @@ requirements:
         - m2-m4
         - m2-make
     - gmp
-    - libiconv
-    - libffi
     - python 3.12.*
     - sphinx
     - zstd
   host:
     - ${{ compiler('c') }}
     - gmp
+    - libiconv
     - libffi
     - if: unix
       then:
