@@ -24,14 +24,14 @@ run_and_log() {
     # After 3 cycles (30 seconds), show log tail and reset counter
     if [ $tail_counter -ge 11 ]; then
       echo "."
-      tail -20 "${SRC_DIR}/_logs/${_log_index}_${_logname}.log"
+      tail -10 "${SRC_DIR}/_logs/${_log_index}_${_logname}.log"
       tail_counter=0
     fi
   done
   wait $cmd_pid
   local exit_code=$?
 
-  echo "|";echo "|";echo "|";echo "|"
+  echo ".";echo "|";echo "|";echo "|";echo "|"
   printf "[--- %s ---]" "${cmd[*]}"; echo " "
   tail -50 "${SRC_DIR}/_logs/${_log_index}_${_logname}.log"
   echo "[---------------------------------------]"
@@ -56,23 +56,28 @@ export CXX=${CXX}
 export M4=${BUILD_PREFIX}/bin/m4
 export PYTHON=${BUILD_PREFIX}/bin/python
 
-if [[ $(uname -a) == *"debian-ser6"* ]] && [[ "${_debug}" == "1"]]; then
+set -x
+if [[ "$(uname -a)" == *"7edb8fcc253e"* ]] && [[ "${_debug}" == "1" ]]; then
   # Setting for local run
   export CPU_COUNT=12
   echo "*** Setting CPU COUNT to 12 ***"
 fi
+set +x
 
 # Set up binary directory
 mkdir -p binary _logs
 
 # Install bootstrap GHC - Set conda platform moniker
 pushd bootstrap-ghc
-  CC="${CC_FOR_BUILD}" \
-  CXX="${CXX_FOR_BUILD}" \
-  LDFLAGS="${LDFLAGS//$PREFIX/$BUILD_PREFIX}" \
   if [[ "${target_platform}" == "win-64" ]] && [[ "${_debug}" == "1" ]]; then
+    CC="${CC_FOR_BUILD}" \
+    CXX="${CXX_FOR_BUILD}" \
+    LDFLAGS="${LDFLAGS//$PREFIX/$BUILD_PREFIX}" \
     ./configure --prefix="${SRC_DIR}"/binary
   else
+    CC="${CC_FOR_BUILD}" \
+    CXX="${CXX_FOR_BUILD}" \
+    LDFLAGS="${LDFLAGS//$PREFIX/$BUILD_PREFIX}" \
     run_and_log "bs-configure" ./configure --prefix="${SRC_DIR}"/binary
   fi
   run_and_log "bs-make-install" make install
