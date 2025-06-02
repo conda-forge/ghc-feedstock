@@ -56,14 +56,6 @@ export CXX=${CXX}
 export M4=${BUILD_PREFIX}/bin/m4
 export PYTHON=${BUILD_PREFIX}/bin/python
 
-set -x
-if [[ "$(uname -a)" == *"7edb8fcc253e"* ]] && [[ "${_debug}" == "1" ]]; then
-  # Setting for local run
-  export CPU_COUNT=12
-  echo "*** Setting CPU COUNT to 12 ***"
-fi
-set +x
-
 # Set up binary directory
 mkdir -p binary _logs
 
@@ -92,7 +84,6 @@ pushd bootstrap-ghc
         patchelf --add-rpath "$current_rpath" "$lib"
       fi
       patchelf --replace-needed libtinfo.so.6 "$BUILD_PREFIX"/lib/libtinfo.so.6 "$lib"
-      readelf -d "$lib"
     done
   fi
 popd
@@ -147,9 +138,11 @@ CONFIGURE_ARGS=(
 # osx-arm64 in later stages ends-up doing:
 # checking for aarch64-apple-darwin20.0.0-gcc... $BUILD_PREFIX/bin/x86_64-apple-darwin13.4.0-clang
 # Maybe a cache setting?
-CC="${CC}" \
-CXX="${CXX}" \
-LDFLAGS="${LDFLAGS}" \
+export CC="${CC}"
+export CXX="${CXX}"
+export LDFLAGS="${LDFLAGS}"
+export LD_LIBRARY_PATH=${PREFIX}/lib${LD_LIBRARY_PATH:+:}${LD_LIBRARY_PATH:-}
+
 run_and_log "ghc-configure" ./configure "${CONFIGURE_ARGS[@]}"
 
 # Build and install using hadrian
