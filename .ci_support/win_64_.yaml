@@ -20,8 +20,6 @@ libffi:
 - '3.4'
 libiconv:
 - '1'
-ncurses:
-- '6'
 target_platform:
 - win-64
 zstd:
