@@ -65,12 +65,12 @@ pushd bootstrap-ghc
     CC="${CC_FOR_BUILD}" \
     CXX="${CXX_FOR_BUILD}" \
     LDFLAGS="${LDFLAGS//$PREFIX/$BUILD_PREFIX}" \
-    ./configure --prefix="${SRC_DIR}"/binary
+    bash configure --prefix="${SRC_DIR}"/binary
   else
     CC="${CC_FOR_BUILD}" \
     CXX="${CXX_FOR_BUILD}" \
     LDFLAGS="${LDFLAGS//$PREFIX/$BUILD_PREFIX}" \
-    run_and_log "bs-configure" ./configure --prefix="${SRC_DIR}"/binary
+    run_and_log "bs-configure" bash configure --prefix="${SRC_DIR}"/binary
   fi
   run_and_log "bs-make-install" make install
 
@@ -114,7 +114,7 @@ case "$target_platform" in
   linux-64)      GHC_TARGET=x86_64-conda-linux-gnu ;;
   linux-aarch64) GHC_TARGET=aarch64-conda-linux-gnu ;;
   osx-64)        GHC_TARGET=x86_64-apple-darwin13.4.0 ;;
-  osx-arm64)     GHC_TARGET=aarch64-apple-darwin20.0.0 ;;
+  osx-arm64)     GHC_TARGET=arm64-apple-darwin20.0.0 ;;
 esac
 
 # Configure and build GHC
@@ -123,6 +123,8 @@ CONFIGURE_ARGS=(
   --build="${GHC_BUILD}"
   --host="${GHC_HOST}"
   --target="${GHC_TARGET}"
+  --enable-ghc-toolchain
+  --enable-strict-ghc-toolchain
   --disable-numa
   --with-system-libffi=yes
   --with-curses-includes="${PREFIX}"/include
@@ -136,14 +138,14 @@ CONFIGURE_ARGS=(
 )
 
 # osx-arm64 in later stages ends-up doing:
-# checking for aarch64-apple-darwin20.0.0-gcc... $BUILD_PREFIX/bin/x86_64-apple-darwin13.4.0-clang
+# checking for arm64-apple-darwin20.0.0-gcc... $BUILD_PREFIX/bin/x86_64-apple-darwin13.4.0-clang
 # Maybe a cache setting?
 export CC="${CC}"
 export CXX="${CXX}"
 export LDFLAGS="${LDFLAGS}"
 export LD_LIBRARY_PATH=${PREFIX}/lib${LD_LIBRARY_PATH:+:}${LD_LIBRARY_PATH:-}
 
-run_and_log "ghc-configure" ./configure "${CONFIGURE_ARGS[@]}"
+run_and_log "ghc-configure" bash configure "${CONFIGURE_ARGS[@]}"
 
 # Build and install using hadrian
 if [[ "${target_platform}" == "osx-arm64" ]] && [[ "${_debug}" == "1" ]]; then
