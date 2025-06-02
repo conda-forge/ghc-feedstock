@@ -122,7 +122,6 @@ requirements:
     - gmp
     - libiconv
     - libffi
-    - libllvm19
     - python 3.12.*
     - sphinx
     - zstd
