@@ -95,7 +95,7 @@ pushd bootstrap-ghc
     run_and_log "bs-make-install" make install
   fi
 
-  if [[ "${build_platform}" == "linux-64" ]]; then
+  if [[ -n "${build_platform:-}" ]] && [[ "${build_platform}" == "linux-64" ]]; then
     # Find bootstrap HShaskeline and HSterminfo
     find "${SRC_DIR}/binary" -type f -name "*HShaskeline*.so" -o -name "*HSterminfo*.so" | while read lib; do
       # Check if this library has the RPATH we want to change
@@ -138,7 +138,6 @@ case "${target_platform}" in
     _hadrian_build=("${SRC_DIR}"/hadrian/build.bat "-j")
     ;;
 esac
-run_and_log "build_toolchain" "${SRC_DIR}"/bootstrap-ghc/bin/ghc-toolchain-bin -t "${GHC_BUILD_STAGE1//13.4.0//}" -o "${SRC_DIR}"/hadrian/cfg/"${GHC_BUILD_STAGE1}".host.target.ghc-toolchain
 
 # Set target-specific values
 case "$target_platform" in
@@ -148,7 +147,6 @@ case "$target_platform" in
   osx-arm64)     GHC_TARGET=arm64-apple-darwin20.0.0 ;;
   default)       GHC_TARGET=x86_64-w64-mingw32 ;;
 esac
-run_and_log "target_toolchain" "${SRC_DIR}"/bootstrap-ghc/bin/ghc-toolchain-bin -t "${GHC_TARGET//20.0.0//}" -o "${SRC_DIR}"/hadrian/cfg/"${GHC_TARGET}".target.ghc-toolchain
 
 # Configure and build GHC
 SYSTEM_CONFIG=(
@@ -193,8 +191,6 @@ fi
 # )
 # run_and_log "ghc-configure" bash configure "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}"
 if [[ -e "hadrian/cfg/default.target.ghc-toolchain" ]]; then
-  diff "${SRC_DIR}"/hadrian/cfg/default.target "${SRC_DIR}"/hadrian/cfg/default.target.ghc-toolchain
-  exit 1
   cp "${SRC_DIR}"/hadrian/cfg/default.target.ghc-toolchain "${SRC_DIR}"/hadrian/cfg/default.target
 fi
 run_and_log "stage2_exe" "${_hadrian_build[@]}" stage2:exe:ghc-bin --flavour=release --freeze1 --docs=none --progress-info=none
