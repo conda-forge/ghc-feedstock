@@ -1,5 +1,5 @@
 c_compiler:
-- gcc
+- clang
 c_compiler_version:
 - '13'
 c_stdlib:
@@ -13,7 +13,7 @@ channel_sources:
 channel_targets:
 - conda-forge main
 cxx_compiler:
-- gxx
+- clangxx
 cxx_compiler_version:
 - '13'
 docker_image:
