@@ -81,6 +81,10 @@ mkdir -p binary _logs
 # Install bootstrap GHC - Set conda platform moniker
 pushd bootstrap-ghc
   if [[ "${target_platform}" == "win-64" ]] && [[ "${_debug}" == "1" ]]; then
+    ls configure
+    type configure
+    ls /bin/sh
+    sed -i 's@#!/bin/sh@### #!/bin/sh/' configure
     CC="${CC_FOR_BUILD}" \
     CXX="${CXX_FOR_BUILD}" \
     LDFLAGS="${LDFLAGS//$PREFIX/$BUILD_PREFIX}" \
@@ -91,7 +95,11 @@ pushd bootstrap-ghc
     LDFLAGS="${LDFLAGS//$PREFIX/$BUILD_PREFIX}" \
     run_and_log "bs-configure" bash configure --prefix="${SRC_DIR}"/binary --enable-ghc-toolchain
   fi
-  cp default.target.ghc-toolchain default.target
+
+  # if [[ -e "default.target.ghc-toolchain" ]]; then
+  #   cp default.target.ghc-toolchain default.target
+  # fi
+
   run_and_log "bs-make-install" make install
 
   if [[ "${build_platform}" == "linux-64" ]]; then
@@ -122,10 +130,17 @@ case "${target_platform}" in
   linux-*)
     GHC_BUILD=x86_64-unknown-linux
     GHC_HOST=x86_64-unknown-linux
+    HADRIAN_BUILD=hadrian/build
     ;;
   osx-*)
     GHC_BUILD=x86_64-apple-darwin
     GHC_HOST=x86_64-apple-darwin
+    HADRIAN_BUILD=hadrian/build
+    ;;
+  default)
+    GHC_BUILD=x86_64-w64-mingw32
+    GHC_HOST=x86_64-w64-mingw32
+    HADRIAN_BUILD=hadrian/build.bat
     ;;
 esac
 
@@ -142,7 +157,7 @@ CONFIGURE_ARGS=(
   --prefix="${PREFIX}"
   --build="${GHC_BUILD}"
   --host="${GHC_HOST}"
-  --target="${GHC_TARGET}"
+  --target="${GHC_TARGET:-${GHC_HOST}}"
   --disable-numa
   --with-system-libffi=yes
   --with-curses-includes="${PREFIX}"/include
@@ -165,7 +180,9 @@ export LD_LIBRARY_PATH=${PREFIX}/lib${LD_LIBRARY_PATH:+:}${LD_LIBRARY_PATH:-}
 
 run_and_log "ghc-configure" bash configure "${CONFIGURE_ARGS[@]}"
 # Prefer the ghc-toolchain configuration
-cp hadrian/cfg/default.target.ghc-toolchain hadrian/cfg/default.target
+if [[ -e "hadrian/cfg/default.target.ghc-toolchain" ]]; then
+  cp hadrian/cfg/default.target.ghc-toolchain hadrian/cfg/default.target
+fi
 
 # Build and install using hadrian
 if [[ "${target_platform}" == "osx-arm64" ]] && [[ "${_debug}" == "1" ]]; then
@@ -175,14 +192,14 @@ else
 fi
 
 # Debugging:
-if ([[ "${target_platform}" == "osx-64" ]] || [[ "${target_platform}" == "linux-64" ]]) && [[ "${_debug}" == "1" ]]; then
-  hadrian/build stage1:lib:ghc -j"${CPU_COUNT}" --flavour=release --docs=none --progress-info=none
-else
-  run_and_log "stage1_lib" hadrian/build stage1:lib:ghc -j"${CPU_COUNT}" --flavour=release --docs=none --progress-info=none
-fi
+# if ([[ "${target_platform}" == "osx-64" ]] || [[ "${target_platform}" == "linux-64" ]]) && [[ "${_debug}" == "1" ]]; then
+#   hadrian/build stage1:lib:ghc -j"${CPU_COUNT}" --flavour=release --docs=none --progress-info=none
+# else
+#   run_and_log "stage1_lib" hadrian/build stage1:lib:ghc -j"${CPU_COUNT}" --flavour=release --docs=none --progress-info=none
+# fi
 
 run_and_log "stage2_exe" hadrian/build stage2:exe:ghc-bin -j"${CPU_COUNT}" --flavour=release --freeze1 --docs=none --progress-info=none
-run_and_log "stage2_lib" hadrian/build stage2:lib:ghc -j"${CPU_COUNT}" --flavour=release --freeze1 --docs=none --progress-info=none
+# run_and_log "stage2_lib" hadrian/build stage2:lib:ghc -j"${CPU_COUNT}" --flavour=release --freeze1 --docs=none --progress-info=none
 run_and_log "build_all"  hadrian/build -j"${CPU_COUNT}" --flavour=release --freeze1 --freeze2 --docs=no-sphinx-pdfs --progress-info=none
 
 if [[ -n "${CROSSCOMPILING_EMULATOR:-}" ]]; then
