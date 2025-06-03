@@ -10,41 +10,60 @@ run_and_log() {
   shift
   local cmd=("$@")
 
+  # Create log directory if it doesn't exist
+  mkdir -p "${SRC_DIR}/_logs"
+
   echo "Running: ${cmd[*]}"
-  "${cmd[@]}" > "${SRC_DIR}/_logs/${_log_index}_${_logname}.log" 2>&1 &
+  local exit_status_file=$(mktemp)
+  # Run the command in a subshell to prevent set -e from terminating
+  (
+    # Temporarily disable errexit in this subshell
+    set +e
+    "${cmd[@]}" > "${SRC_DIR}/_logs/${_log_index}_${_logname}.log" 2>&1
+    echo $? > "$exit_status_file"
+  ) &
   local cmd_pid=$!
-  # Counter to track when to display tail output
   local tail_counter=0
+
   # Periodically flush and show progress
   while kill -0 $cmd_pid 2>/dev/null; do
     sync
     echo -n "."
-    sleep 10
+    sleep 5
     let "tail_counter += 1"
-    # After 3 cycles (30 seconds), show log tail and reset counter
-    if [ $tail_counter -ge 11 ]; then
+
+    if [ $tail_counter -ge 22 ]; then
       echo "."
-      tail -10 "${SRC_DIR}/_logs/${_log_index}_${_logname}.log"
+      tail -5 "${SRC_DIR}/_logs/${_log_index}_${_logname}.log"
       tail_counter=0
     fi
   done
-  wait $cmd_pid
-  local exit_code=$?
+
+  wait $cmd_pid || true  # Use || true to prevent set -e from triggering
+  local exit_code=$(cat "$exit_status_file")
+  rm "$exit_status_file"
 
   echo ".";echo "|";echo "|";echo "|";echo "|"
-  printf "[--- %s ---]" "${cmd[*]}"; echo " "
-  tail -50 "${SRC_DIR}/_logs/${_log_index}_${_logname}.log"
-  echo "[---------------------------------------]"
+  echo "─────────────────────────────────────────"
+  printf "Command: %s\n" "${cmd[*]}"
+  echo "Exit code: $exit_code"
+  echo "─────────────────────────────────────────"
+
+  # Show more context on failure
+  if [[ $exit_code -ne 0 ]]; then
+    echo "COMMAND FAILED - Last 50 lines of log:"
+    tail -50 "${SRC_DIR}/_logs/${_log_index}_${_logname}.log"
+  else
+    echo "COMMAND SUCCEEDED - Last 20 lines of log:"
+    tail -20 "${SRC_DIR}/_logs/${_log_index}_${_logname}.log"
+  fi
+
+  echo "─────────────────────────────────────────"
+  echo "Full log: ${SRC_DIR}/_logs/${_log_index}_${_logname}.log"
   echo "|";echo "|";echo "|";echo "|"
 
   let "_log_index += 1"
-
-  if [[ $exit_code -ne 0 ]]; then
-    echo "Command failed with exit code $exit_code"
-    return $exit_code
-  fi
-
-  return 0
+  return $exit_code
 }
 
 unset host_alias
@@ -65,13 +84,14 @@ pushd bootstrap-ghc
     CC="${CC_FOR_BUILD}" \
     CXX="${CXX_FOR_BUILD}" \
     LDFLAGS="${LDFLAGS//$PREFIX/$BUILD_PREFIX}" \
-    bash configure --prefix="${SRC_DIR}"/binary
+    bash configure --prefix="${SRC_DIR}"/binary --enable-ghc-toolchain
   else
     CC="${CC_FOR_BUILD}" \
     CXX="${CXX_FOR_BUILD}" \
     LDFLAGS="${LDFLAGS//$PREFIX/$BUILD_PREFIX}" \
-    run_and_log "bs-configure" bash configure --prefix="${SRC_DIR}"/binary
+    run_and_log "bs-configure" bash configure --prefix="${SRC_DIR}"/binary --enable-ghc-toolchain
   fi
+  cp default.target.ghc-toolchain default.target
   run_and_log "bs-make-install" make install
 
   if [[ "${build_platform}" == "linux-64" ]]; then
@@ -123,8 +143,6 @@ CONFIGURE_ARGS=(
   --build="${GHC_BUILD}"
   --host="${GHC_HOST}"
   --target="${GHC_TARGET}"
-  --enable-ghc-toolchain
-  --enable-strict-ghc-toolchain
   --disable-numa
   --with-system-libffi=yes
   --with-curses-includes="${PREFIX}"/include
@@ -146,6 +164,8 @@ export LDFLAGS="${LDFLAGS}"
 export LD_LIBRARY_PATH=${PREFIX}/lib${LD_LIBRARY_PATH:+:}${LD_LIBRARY_PATH:-}
 
 run_and_log "ghc-configure" bash configure "${CONFIGURE_ARGS[@]}"
+# Prefer the ghc-toolchain configuration
+cp hadrian/cfg/default.target.ghc-toolchain hadrian/cfg/default.target
 
 # Build and install using hadrian
 if [[ "${target_platform}" == "osx-arm64" ]] && [[ "${_debug}" == "1" ]]; then
