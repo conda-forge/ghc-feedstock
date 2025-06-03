@@ -13,7 +13,9 @@ run_and_log() {
   # Create log directory if it doesn't exist
   mkdir -p "${SRC_DIR}/_logs"
 
+  echo " ";echo "|";echo "|";echo "|";echo "|"
   echo "Running: ${cmd[*]}"
+  local start_time=$(date +%s)
   local exit_status_file=$(mktemp)
   # Run the command in a subshell to prevent set -e from terminating
   (
@@ -40,12 +42,14 @@ run_and_log() {
   done
 
   wait $cmd_pid || true  # Use || true to prevent set -e from triggering
+  local end_time=$(date +%s)
+  local duration=$((end_time - start_time))
   local exit_code=$(cat "$exit_status_file")
   rm "$exit_status_file"
 
-  echo ".";echo "|";echo "|";echo "|";echo "|"
+  echo "."
   echo "─────────────────────────────────────────"
-  printf "Command: %s\n" "${cmd[*]}"
+  printf "Command: %s\n" "${cmd[*]} in ${duration}s"
   echo "Exit code: $exit_code"
   echo "─────────────────────────────────────────"
 
@@ -66,12 +70,8 @@ run_and_log() {
   return $exit_code
 }
 
-unset host_alias
-
 # Set environment variables
 export MergeObjsCmd=${LD_GOLD:-${LD}}
-export CC=${CC}
-export CXX=${CXX}
 export M4=${BUILD_PREFIX}/bin/m4
 export PYTHON=${BUILD_PREFIX}/bin/python
 
@@ -81,24 +81,23 @@ mkdir -p binary _logs
 # Install bootstrap GHC - Set conda platform moniker
 pushd bootstrap-ghc
   if [[ "${target_platform}" == "win-64" ]] && [[ "${_debug}" == "1" ]]; then
-    ls configure
-    type configure
+    echo "$PWD"
+    dir
+    ls
     ls /bin/sh
     sed -i 's@#!/bin/sh@### #!/bin/sh/' configure
     CC="${CC_FOR_BUILD}" \
     CXX="${CXX_FOR_BUILD}" \
+    CPP="${CPP_FOR_BUILD:-${CPP}}" \
     LDFLAGS="${LDFLAGS//$PREFIX/$BUILD_PREFIX}" \
-    bash configure --prefix="${SRC_DIR}"/binary --enable-ghc-toolchain
+    bash configure --prefix="${SRC_DIR}"/binary
   else
     CC="${CC_FOR_BUILD}" \
     CXX="${CXX_FOR_BUILD}" \
+    CPP="${CPP_FOR_BUILD:-${CPP}}" \
     LDFLAGS="${LDFLAGS//$PREFIX/$BUILD_PREFIX}" \
-    run_and_log "bs-configure" bash configure --prefix="${SRC_DIR}"/binary --enable-ghc-toolchain
+    run_and_log "bs-configure" bash configure --prefix="${SRC_DIR}"/binary
   fi
-
-  # if [[ -e "default.target.ghc-toolchain" ]]; then
-  #   cp default.target.ghc-toolchain default.target
-  # fi
 
   run_and_log "bs-make-install" make install
 
@@ -121,28 +120,31 @@ export PATH=$PWD/binary/bin:$PATH
 
 # Install cabal-install
 mkdir -p binary/bin
-cp bootstrap-cabal/cabal binary/bin/
+cp bootstrap-cabal/cabal* binary/bin/
 
 # Update cabal package database
 run_and_log "cabal-update" cabal v2-update
 
+# --- Start conda build with bootstrapping tools ---
+
 case "${target_platform}" in
   linux-*)
-    GHC_BUILD=x86_64-unknown-linux
-    GHC_HOST=x86_64-unknown-linux
-    HADRIAN_BUILD=hadrian/build
+    GHC_BUILD_STAGE0=x86_64-unknown-linux
+    GHC_BUILD_STAGE1=x86_64-conda-linux-gnu
+    _hadrian_build=("${SRC_DIR}"/hadrian/build "-j${CPU_COUNT}")
     ;;
   osx-*)
-    GHC_BUILD=x86_64-apple-darwin
-    GHC_HOST=x86_64-apple-darwin
-    HADRIAN_BUILD=hadrian/build
+    GHC_BUILD_STAGE0=x86_64-apple-darwin
+    GHC_BUILD_STAGE1=x86_64-apple-darwin13.4.0
+    _hadrian_build=("${SRC_DIR}"/hadrian/build "-j${CPU_COUNT}")
     ;;
   default)
-    GHC_BUILD=x86_64-w64-mingw32
-    GHC_HOST=x86_64-w64-mingw32
-    HADRIAN_BUILD=hadrian/build.bat
+    GHC_BUILD_STAGE0=x86_64-w64-mingw32
+    GHC_BUILD_STAGE1=x86_64-w64-mingw32
+    _hadrian_build=("${SRC_DIR}"/hadrian/build.bat "-j")
     ;;
 esac
+"${SRC_DIR}"/bootstrap-ghc/bin/ghc-toolchain-bin -t "${GHC_BUILD_STAGE1}" -o "${SRC_DIR}"/hadrian/cfg/"${GHC_BUILD_STAGE1}".host.target.ghc-toolchain
 
 # Set target-specific values
 case "$target_platform" in
@@ -150,14 +152,19 @@ case "$target_platform" in
   linux-aarch64) GHC_TARGET=aarch64-conda-linux-gnu ;;
   osx-64)        GHC_TARGET=x86_64-apple-darwin13.4.0 ;;
   osx-arm64)     GHC_TARGET=arm64-apple-darwin20.0.0 ;;
+  default)       GHC_TARGET=x86_64-w64-mingw32 ;;
 esac
+"${SRC_DIR}"/bootstrap-ghc/bin/ghc-toolchain-bin -t "${GHC_TARGET}" -o "${SRC_DIR}"/hadrian/cfg/"${GHC_TARGET}".target.ghc-toolchain
 
 # Configure and build GHC
+SYSTEM_CONFIG=(
+  --build="${GHC_BUILD_STAGE0}"
+  --host="${GHC_BUILD_STAGE0}"
+  --target="${GHC_TARGET:-${GHC_BUILD_STAGE0}}"
+)
+
 CONFIGURE_ARGS=(
   --prefix="${PREFIX}"
-  --build="${GHC_BUILD}"
-  --host="${GHC_HOST}"
-  --target="${GHC_TARGET:-${GHC_HOST}}"
   --disable-numa
   --with-system-libffi=yes
   --with-curses-includes="${PREFIX}"/include
@@ -169,43 +176,50 @@ CONFIGURE_ARGS=(
   --with-iconv-includes="${PREFIX}"/include
   --with-iconv-libraries="${PREFIX}"/lib
 )
+run_and_log "ghc-configure" bash configure "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}"
 
-# osx-arm64 in later stages ends-up doing:
-# checking for arm64-apple-darwin20.0.0-gcc... $BUILD_PREFIX/bin/x86_64-apple-darwin13.4.0-clang
-# Maybe a cache setting?
-export CC="${CC}"
-export CXX="${CXX}"
-export LDFLAGS="${LDFLAGS}"
-export LD_LIBRARY_PATH=${PREFIX}/lib${LD_LIBRARY_PATH:+:}${LD_LIBRARY_PATH:-}
-
-run_and_log "ghc-configure" bash configure "${CONFIGURE_ARGS[@]}"
 # Prefer the ghc-toolchain configuration
 if [[ -e "hadrian/cfg/default.target.ghc-toolchain" ]]; then
-  cp hadrian/cfg/default.target.ghc-toolchain hadrian/cfg/default.target
+  cp "${SRC_DIR}"/hadrian/cfg/default.target.ghc-toolchain "${SRC_DIR}"/hadrian/cfg/default.target
 fi
 
 # Build and install using hadrian
 if [[ "${target_platform}" == "osx-arm64" ]] && [[ "${_debug}" == "1" ]]; then
-  hadrian/build stage1:exe:ghc-bin -j"${CPU_COUNT}" --flavour=release --docs=none --progress-info=none
+  "${_hadrian_build[@]}" stage1:exe:ghc-bin --flavour=release --docs=none --progress-info=none
 else
-  run_and_log "stage1_exe" hadrian/build stage1:exe:ghc-bin -j"${CPU_COUNT}" --flavour=release --docs=none --progress-info=none
+  run_and_log "stage1_exe" "${_hadrian_build[@]}" stage1:exe:ghc-bin --flavour=release --docs=none --progress-info=none
 fi
+
+# Re-built stage1 with conda host convention
+SYSTEM_CONFIG=(
+  GHC="${SRC_DIR}"/_build/stage0/bin/"${GHC_BUILD_STAGE1}"-ghc
+  --build="${GHC_BUILD_STAGE1}"
+  --host="${GHC_BUILD_STAGE1}"
+  --target="${GHC_TARGET:-${GHC_BUILD_STAGE1}}"
+)
+run_and_log "ghc-configure" bash configure "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}"
+if [[ -e "hadrian/cfg/default.target.ghc-toolchain" ]]; then
+  cp "${SRC_DIR}"/hadrian/cfg/default.target.ghc-toolchain "${SRC_DIR}"/hadrian/cfg/default.target
+fi
+run_and_log "stage2_exe" "${_hadrian_build[@]}" stage2:exe:ghc-bin -j"${CPU_COUNT}" --flavour=release --freeze1 --docs=none --progress-info=none
+
+# exit 1
 
 # Debugging:
 # if ([[ "${target_platform}" == "osx-64" ]] || [[ "${target_platform}" == "linux-64" ]]) && [[ "${_debug}" == "1" ]]; then
-#   hadrian/build stage1:lib:ghc -j"${CPU_COUNT}" --flavour=release --docs=none --progress-info=none
+#   "${_hadrian_build[@]}" stage1:lib:ghc -j"${CPU_COUNT}" --flavour=release --docs=none --progress-info=none
 # else
-#   run_and_log "stage1_lib" hadrian/build stage1:lib:ghc -j"${CPU_COUNT}" --flavour=release --docs=none --progress-info=none
+#   run_and_log "stage1_lib" "${_hadrian_build[@]}" stage1:lib:ghc -j"${CPU_COUNT}" --flavour=release --docs=none --progress-info=none
 # fi
 
-run_and_log "stage2_exe" hadrian/build stage2:exe:ghc-bin -j"${CPU_COUNT}" --flavour=release --freeze1 --docs=none --progress-info=none
-# run_and_log "stage2_lib" hadrian/build stage2:lib:ghc -j"${CPU_COUNT}" --flavour=release --freeze1 --docs=none --progress-info=none
-run_and_log "build_all"  hadrian/build -j"${CPU_COUNT}" --flavour=release --freeze1 --freeze2 --docs=no-sphinx-pdfs --progress-info=none
+run_and_log "stage2_exe" "${_hadrian_build[@]}" stage2:exe:ghc-bin -j"${CPU_COUNT}" --flavour=release --freeze1 --docs=none --progress-info=none
+# run_and_log "stage2_lib" "${_hadrian_build[@]}" stage2:lib:ghc -j"${CPU_COUNT}" --flavour=release --freeze1 --docs=none --progress-info=none
+run_and_log "build_all"  "${_hadrian_build[@]}" -j"${CPU_COUNT}" --flavour=release --freeze1 --freeze2 --docs=no-sphinx-pdfs --progress-info=none
 
 if [[ -n "${CROSSCOMPILING_EMULATOR:-}" ]]; then
-  run_and_log "install" hadrian/build install -j"${CPU_COUNT}" --prefix="${PREFIX}" --flavour=release --freeze1 --freeze2 --docs=no-sphinx-pdfs
+  CC="${CC_FOR_BUILD}" run_and_log "install_xcompiled" "${_hadrian_build[@]}" install -j"${CPU_COUNT}" --prefix="${PREFIX}" --flavour=release --freeze1 --freeze2 --docs=no-sphinx-pdfs
 else
-  CC="${CC_FOR_BUILD}" run_and_log "install_xcompiled" hadrian/build install -j"${CPU_COUNT}" --prefix="${PREFIX}" --flavour=release --freeze1 --freeze2 --docs=no-sphinx-pdfs
+  run_and_log "install" "${_hadrian_build[@]}" install -j"${CPU_COUNT}" --prefix="${PREFIX}" --flavour=release --freeze1 --freeze2 --docs=no-sphinx-pdfs
 fi
 
 # Create bash completion
@@ -218,9 +232,9 @@ rm -f "${PREFIX}"/lib/ghc-"${PKG_VERSION}"/lib/package.conf.d/package.cache.lock
 
 # Run post-install
 if [[ -n "${CROSSCOMPILING_EMULATOR:-}" ]]; then
-  "${CROSSCOMPILING_EMULATOR}" "${PREFIX}"/bin/ghc-pkg recache
-  # run_and_log "recache_xcompiled" "${CROSSCOMPILING_EMULATOR}" "${PREFIX}"/bin/ghc-pkg recache
-else
   "${PREFIX}"/bin/ghc-pkg recache
   # run_and_log "recache" "${PREFIX}"/bin/ghc-pkg recache
+else
+  "${CROSSCOMPILING_EMULATOR}" "${PREFIX}"/bin/ghc-pkg recache
+  # run_and_log "recache_xcompiled" "${CROSSCOMPILING_EMULATOR}" "${PREFIX}"/bin/ghc-pkg recache
 fi
