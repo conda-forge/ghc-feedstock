@@ -75,22 +75,16 @@ export MergeObjsCmd=${LD_GOLD:-${LD}}
 export M4=${BUILD_PREFIX}/bin/m4
 export PYTHON=${BUILD_PREFIX}/bin/python
 
+unset build_alias
+unset host_alias
+
 # Set up binary directory
 mkdir -p binary _logs
 
 # Install bootstrap GHC - Set conda platform moniker
 pushd bootstrap-ghc
-  if [[ "${target_platform}" == "win-64" ]] && [[ "${_debug}" == "1" ]]; then
-    echo "$PWD"
-    dir
-    ls
-    ls /bin/sh
-    sed -i 's@#!/bin/sh@### #!/bin/sh/' configure
-    CC="${CC_FOR_BUILD}" \
-    CXX="${CXX_FOR_BUILD}" \
-    CPP="${CPP_FOR_BUILD:-${CPP}}" \
-    LDFLAGS="${LDFLAGS//$PREFIX/$BUILD_PREFIX}" \
-    bash configure --prefix="${SRC_DIR}"/binary
+  if [[ "${target_platform}" == "win-64" ]]; then
+    echo "No configure for this platform"
   else
     CC="${CC_FOR_BUILD}" \
     CXX="${CXX_FOR_BUILD}" \
@@ -98,7 +92,6 @@ pushd bootstrap-ghc
     LDFLAGS="${LDFLAGS//$PREFIX/$BUILD_PREFIX}" \
     run_and_log "bs-configure" bash configure --prefix="${SRC_DIR}"/binary
   fi
-
   run_and_log "bs-make-install" make install
 
   if [[ "${build_platform}" == "linux-64" ]]; then
@@ -144,7 +137,7 @@ case "${target_platform}" in
     _hadrian_build=("${SRC_DIR}"/hadrian/build.bat "-j")
     ;;
 esac
-"${SRC_DIR}"/bootstrap-ghc/bin/ghc-toolchain-bin -t "${GHC_BUILD_STAGE1}" -o "${SRC_DIR}"/hadrian/cfg/"${GHC_BUILD_STAGE1}".host.target.ghc-toolchain
+run_and_log "build_toolchain" "${SRC_DIR}"/bootstrap-ghc/bin/ghc-toolchain-bin -t "${GHC_BUILD_STAGE1}" -o "${SRC_DIR}"/hadrian/cfg/"${GHC_BUILD_STAGE1}".host.target.ghc-toolchain
 
 # Set target-specific values
 case "$target_platform" in
@@ -154,7 +147,7 @@ case "$target_platform" in
   osx-arm64)     GHC_TARGET=arm64-apple-darwin20.0.0 ;;
   default)       GHC_TARGET=x86_64-w64-mingw32 ;;
 esac
-"${SRC_DIR}"/bootstrap-ghc/bin/ghc-toolchain-bin -t "${GHC_TARGET}" -o "${SRC_DIR}"/hadrian/cfg/"${GHC_TARGET}".target.ghc-toolchain
+run_and_log "target_toolchain" "${SRC_DIR}"/bootstrap-ghc/bin/ghc-toolchain-bin -t "${GHC_TARGET}" -o "${SRC_DIR}"/hadrian/cfg/"${GHC_TARGET}".target.ghc-toolchain
 
 # Configure and build GHC
 SYSTEM_CONFIG=(
@@ -191,13 +184,13 @@ else
 fi
 
 # Re-built stage1 with conda host convention
-SYSTEM_CONFIG=(
-  GHC="${SRC_DIR}"/_build/stage0/bin/"${GHC_BUILD_STAGE1}"-ghc
-  --build="${GHC_BUILD_STAGE1}"
-  --host="${GHC_BUILD_STAGE1}"
-  --target="${GHC_TARGET:-${GHC_BUILD_STAGE1}}"
-)
-run_and_log "ghc-configure" bash configure "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}"
+# SYSTEM_CONFIG=(
+#   # GHC="${SRC_DIR}"/_build/stage0/bin/"${GHC_BUILD_STAGE1}"-ghc
+#   --build="${GHC_BUILD_STAGE0}"
+#   --host="${GHC_BUILD_STAGE0}"
+#   --target="${GHC_TARGET:-${GHC_BUILD_STAGE1}}"
+# )
+# run_and_log "ghc-configure" bash configure "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}"
 if [[ -e "hadrian/cfg/default.target.ghc-toolchain" ]]; then
   cp "${SRC_DIR}"/hadrian/cfg/default.target.ghc-toolchain "${SRC_DIR}"/hadrian/cfg/default.target
 fi
