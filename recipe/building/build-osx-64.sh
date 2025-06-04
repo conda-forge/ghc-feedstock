@@ -4,19 +4,6 @@ set -eu
 _log_index=0
 _debug=1
 
-source "${RECIPE_DIR}"/building/common.sh
-
-# Set environment variables
-export MergeObjsCmd=${LD_GOLD:-${LD}}
-export M4=${BUILD_PREFIX}/bin/m4
-export PYTHON=${BUILD_PREFIX}/bin/python
-
-unset build_alias
-unset host_alias
-
-# Set up binary directory
-mkdir -p binary _logs
-
 # Install bootstrap GHC - Set conda platform moniker
 pushd bootstrap-ghc
   CC="${CC_FOR_BUILD}" \
@@ -26,13 +13,6 @@ pushd bootstrap-ghc
   run_and_log "bs-configure" bash configure --prefix="${SRC_DIR}"/binary
   run_and_log "bs-make-install" make install
 popd
-
-# Add binary GHC to PATH
-export PATH=$PWD/binary/bin:$PATH
-
-# Install cabal-install
-mkdir -p binary/bin
-cp bootstrap-cabal/cabal* binary/bin/
 
 # Update cabal package database
 run_and_log "cabal-update" cabal v2-update
@@ -66,12 +46,7 @@ run_and_log "build_all"  "${_hadrian_build[@]}" --flavour=release --freeze1 --fr
 run_and_log "install" "${_hadrian_build[@]}" install --prefix="${PREFIX}" --flavour=release --freeze1 --freeze2 --docs=no-sphinx-pdfs
 
 # Create bash completion
-mkdir -p "${PREFIX}"/etc/bash_completion.d
 cp utils/completion/ghc.bash "${PREFIX}"/etc/bash_completion.d/ghc
-
-# Clean up package cache
-rm -f "${PREFIX}"/lib/ghc-"${PKG_VERSION}"/lib/package.conf.d/package.cache
-rm -f "${PREFIX}"/lib/ghc-"${PKG_VERSION}"/lib/package.conf.d/package.cache.lock
 
 # Run post-install
 run_and_log "recache" "${PREFIX}"/bin/ghc-pkg recache
