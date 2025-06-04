@@ -8,14 +8,15 @@ source "${RECIPE_DIR}"/building/common.sh
 
 # Install bootstrap GHC - Set conda platform moniker
 pushd "${SRC_DIR}"/bootstrap-ghc
-  CC="${CC_FOR_BUILD}" \
-  CXX="${CXX_FOR_BUILD}" \
-  LDFLAGS="${LDFLAGS//$PREFIX/$BUILD_PREFIX}" \
+  # CC="${CC_FOR_BUILD}" \
+  # CXX="${CXX_FOR_BUILD}" \
+  # LDFLAGS="${LDFLAGS//$PREFIX/$BUILD_PREFIX}" \
   run_and_log "bs-configure" bash configure \
     --prefix="${SRC_DIR}"/binary \
     --host="x86_64-conda-linux-gnu" \
-    --enable-ghc-toolchain=yes \
-    --disable-ld-override
+    --enable-ghc-toolchain=yes
+  cp default.host.target.ghc-toolchain default.host.target
+  cp default.target.ghc-toolchain default.target
   run_and_log "bs-make-install" make install
 
   # Update rpath of bootstrap HShaskeline and HSterminfo
@@ -53,7 +54,6 @@ CONFIGURE_ARGS=(
   --prefix="${PREFIX}"
   --enable-ghc-toolchain=yes  # Necessary to avoid linker unable to load -lgmp
   --disable-numa
-  --enable-ld-override
   --with-system-libffi=yes
   --with-curses-includes="${PREFIX}"/include
   --with-curses-libraries="${PREFIX}"/lib
@@ -64,7 +64,8 @@ CONFIGURE_ARGS=(
   --with-iconv-includes="${PREFIX}"/include
   --with-iconv-libraries="${PREFIX}"/lib
 )
-LD=ld run_and_log "ghc-configure" bash configure "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}"
+mkdir -p bin && cp bootstrap-ghc/bin/ghc-toolchain-bin bin/ghc-toolchain-bin
+GHC="binary/bin/ghc -v2" run_and_log "ghc-configure" bash configure "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}"
 
 # Prefer the ghc-toolchain configuration
 if [[ -e "hadrian/cfg/default.target.ghc-toolchain" ]]; then

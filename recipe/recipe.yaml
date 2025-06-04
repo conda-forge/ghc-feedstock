@@ -1,5 +1,6 @@
 context:
   version: "9.12.2"
+  cabal_version: "3.14.2.0"
 
 package:
   name: ghc
@@ -12,56 +13,36 @@ source:
       - patch-rpath-macos.patch
 
   # Bootstrap GHC compilers
-  - if: target_platform == "osx-arm64"
+  - if: osx
     then:
-      url: https://downloads.haskell.org/~ghc/9.10.1/ghc-9.10.1-x86_64-apple-darwin.tar.xz
-      sha256: 8cf22188930e10d7ac5270d425e21a3dab606af73a655493639345200c650be9
+      url: https://downloads.haskell.org/~ghc/${{ version }}/ghc-${{ version }}-x86_64-apple-darwin.tar.xz
+      sha256: e7a40e39059dd3619d7884b7382f357e79a0f4e430181b805bdd57b3be9a7300
       target_directory: bootstrap-ghc
-  - if: target_platform == "osx-64"
-    then:
-      url: https://downloads.haskell.org/~ghc/9.10.1/ghc-9.10.1-x86_64-apple-darwin.tar.xz
-      sha256: 8cf22188930e10d7ac5270d425e21a3dab606af73a655493639345200c650be9
-      target_directory: bootstrap-ghc
-  - if: target_platform == "linux-64"
+  - if: linux
     then:
       url: https://downloads.haskell.org/~ghc/${{ version }}/ghc-${{ version }}-x86_64-ubuntu20_04-linux.tar.xz
       sha256: 0cffff0a74131465bb5d1447400ea46080a10e3cd46d6c9559aa6f2a6a7537ac
       target_directory: bootstrap-ghc
-  - if: target_platform == "linux-aarch64"
+  - if: not unix
     then:
-      - url: https://downloads.haskell.org/~ghc/9.10.1/ghc-9.10.1-x86_64-ubuntu20_04-linux.tar.xz
-        sha256: ae3be406fdb73bd2b0c22baada77a8ff2f8cde6220dd591dc24541cfe9d895eb
-        target_directory: bootstrap-ghc
-  - if: target_platform == "win-64"
-    then:
-      url: https://downloads.haskell.org/~ghc/9.10.1/ghc-9.10.1-x86_64-unknown-mingw32.tar.gz
-      sha256: 2e7d766deaaaef95ddc563aebc5f6cbeb286c51a3c124ab31a89a250f88711f9
+      url: https://downloads.haskell.org/~ghc/${{ version }}/ghc-${{ version }}-x86_64-unknown-mingw32.tar.gz
+      sha256: 76847b0125547e975791fdbb9b9c963961aa81d833299d75a37ca48338fcc232
       target_directory: bootstrap-ghc
 
   # Cabal install
-  - if: target_platform == "osx-arm64"
+  - if: osx
     then:
-      url: https://downloads.haskell.org/~cabal/cabal-install-3.14.1.1/cabal-install-3.14.1.1-x86_64-darwin.tar.xz
+      url: https://downloads.haskell.org/~cabal/cabal-install-${{ cabal_version }}/cabal-install-${{ cabal_version }}-x86_64-darwin.tar.xz
       sha256: 3690d8f7aa368141574f9eaf8e75bc26932ed7b422f5ade107d6972b3b72532f
       target_directory: bootstrap-cabal
-  - if: target_platform == "osx-64"
+  - if: linux
     then:
-      url: https://downloads.haskell.org/~cabal/cabal-install-3.14.1.1/cabal-install-3.14.1.1-x86_64-darwin.tar.xz
-      sha256: 3690d8f7aa368141574f9eaf8e75bc26932ed7b422f5ade107d6972b3b72532f
+      url: https://downloads.haskell.org/~cabal/cabal-install-${{ cabal_version }}/cabal-install-${{ cabal_version }}-x86_64-linux-ubuntu20_04.tar.xz
+      sha256: 974a0c29cae721a150d5aa079a65f2e1c0843d1352ffe6aedd7594b176c3e1e6
       target_directory: bootstrap-cabal
-  - if: target_platform == "linux-64"
+  - if: not unix
     then:
-      url: https://downloads.haskell.org/~cabal/cabal-install-3.14.1.1/cabal-install-3.14.1.1-x86_64-linux-ubuntu20_04.tar.xz
-      sha256: 91d2b65907e95462396fa96892ebbd903861fc07b5cb74993c612e33d4c0cc65
-      target_directory: bootstrap-cabal
-  - if: target_platform == "linux-aarch64"
-    then:
-      url: https://downloads.haskell.org/~cabal/cabal-install-3.14.1.1/cabal-install-3.14.1.1-x86_64-linux-ubuntu20_04.tar.xz
-      sha256: 91d2b65907e95462396fa96892ebbd903861fc07b5cb74993c612e33d4c0cc65
-      target_directory: bootstrap-cabal
-  - if: target_platform == "win-64"
-    then:
-      url: https://downloads.haskell.org/~cabal/cabal-install-3.14.1.1/cabal-install-3.14.1.1-x86_64-windows.zip
+      url: https://downloads.haskell.org/~cabal/cabal-install-${{ cabal_version }}/cabal-install-${{ cabal_version }}-x86_64-windows.zip
       sha256: e313d60f849d4d7838406c154d60fdef8bfb7214848ac614ebafff19972c194e
       target_directory: bootstrap-cabal
 
