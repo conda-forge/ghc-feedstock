@@ -12,7 +12,9 @@ pushd bootstrap-ghc
   CXX="${CXX_FOR_BUILD}" \
   CPP="${CPP_FOR_BUILD:-${CPP}}" \
   LDFLAGS="${LDFLAGS//$PREFIX/$BUILD_PREFIX}" \
-  run_and_log "bs-configure" bash configure --prefix="${SRC_DIR}"/binary
+  run_and_log "bs-configure" bash configure \
+    --prefix="${SRC_DIR}"/binary \
+    --host="x86_64-apple-darwin13.4.0"
   run_and_log "bs-make-install" make install
 popd
 
@@ -21,9 +23,9 @@ run_and_log "cabal-update" cabal v2-update
 
 # Configure and build GHC
 SYSTEM_CONFIG=(
-  --build="x86_64-apple-darwin"
+  # --build="x86_64-apple-darwin"
   --host="x86_64-apple-darwin"
-  --target="x86_64-apple-darwin13.4.0"
+  # --target="x86_64-apple-darwin13.4.0"
 )
 
 CONFIGURE_ARGS=(

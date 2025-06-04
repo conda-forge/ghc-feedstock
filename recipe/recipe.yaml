@@ -12,15 +12,10 @@ source:
       - patch-rpath-macos.patch
 
   # Bootstrap GHC compilers
-  - if: target_platform == "osx-arm64"
+  - if: osx
     then:
-      url: https://downloads.haskell.org/~ghc/9.10.1/ghc-9.10.1-x86_64-apple-darwin.tar.xz
-      sha256: 8cf22188930e10d7ac5270d425e21a3dab606af73a655493639345200c650be9
-      target_directory: bootstrap-ghc
-  - if: target_platform == "osx-64"
-    then:
-      url: https://downloads.haskell.org/~ghc/9.10.1/ghc-9.10.1-x86_64-apple-darwin.tar.xz
-      sha256: 8cf22188930e10d7ac5270d425e21a3dab606af73a655493639345200c650be9
+      url: https://downloads.haskell.org/~ghc/${{ version }}/ghc-${{ version }}-x86_64-apple-darwin.tar.xz
+      sha256: e7a40e39059dd3619d7884b7382f357e79a0f4e430181b805bdd57b3be9a7300
       target_directory: bootstrap-ghc
   - if: target_platform == "linux-64"
     then:
