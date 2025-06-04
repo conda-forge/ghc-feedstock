@@ -24,11 +24,11 @@ popd
 run_and_log "cabal-update" cabal v2-update
 
 # Configure and build GHC
-SYSTEM_CONFIG=(
-  # --build="x86_64-apple-darwin"
-  # --host="x86_64-apple-darwin"
-  # --target="x86_64-apple-darwin13.4.0"
-)
+# SYSTEM_CONFIG=(
+#   # --build="x86_64-apple-darwin"
+#   # --host="x86_64-apple-darwin"
+#   # --target="x86_64-apple-darwin13.4.0"
+# )
 
 CONFIGURE_ARGS=(
   --prefix="${PREFIX}"
@@ -44,7 +44,7 @@ CONFIGURE_ARGS=(
   --with-iconv-libraries="${PREFIX}"/lib
 )
 
-run_and_log "ghc-configure" bash configure "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}"
+run_and_log "ghc-configure" bash configure "${CONFIGURE_ARGS[@]}"
 _hadrian_build=("${SRC_DIR}"/hadrian/build "-j${CPU_COUNT}")
 run_and_log "stage1_exe" "${_hadrian_build[@]}" stage1:exe:ghc-bin --flavour=release --docs=none --progress-info=none
 run_and_log "stage2_exe" "${_hadrian_build[@]}" stage2:exe:ghc-bin --flavour=release --freeze1 --docs=none --progress-info=none
