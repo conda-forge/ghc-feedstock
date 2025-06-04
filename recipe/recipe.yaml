@@ -103,6 +103,7 @@ requirements:
         - m2-m4
         - m2-make
     - gmp
+    - llvm-tools <=19
     - python 3.12.*
     - sphinx
     - zstd

@@ -89,7 +89,6 @@ pushd bootstrap-ghc
   else
     CC="${CC_FOR_BUILD}" \
     CXX="${CXX_FOR_BUILD}" \
-    CPP="${CPP_FOR_BUILD:-${CPP}}" \
     LDFLAGS="${LDFLAGS//$PREFIX/$BUILD_PREFIX}" \
     run_and_log "bs-configure" bash configure --prefix="${SRC_DIR}"/binary
     run_and_log "bs-make-install" make install
@@ -168,7 +167,7 @@ CONFIGURE_ARGS=(
   --with-iconv-includes="${PREFIX}"/include
   --with-iconv-libraries="${PREFIX}"/lib
 )
-run_and_log "ghc-configure" bash configure "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}"
+LDFLAGS="${LDFLAGS//$PREFIX/$BUILD_PREFIX}" run_and_log "ghc-configure" bash configure "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}"
 
 # Prefer the ghc-toolchain configuration
 if [[ -e "hadrian/cfg/default.target.ghc-toolchain" ]]; then
