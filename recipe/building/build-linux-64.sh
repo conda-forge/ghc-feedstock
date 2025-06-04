@@ -65,6 +65,7 @@ CONFIGURE_ARGS=(
   --with-iconv-libraries="${PREFIX}"/lib
 )
 mkdir -p bin && cp bootstrap-ghc/bin/ghc-toolchain-bin bin/ghc-toolchain-bin
+autoreconf -fiv
 GHC="binary/bin/ghc -v2" run_and_log "ghc-configure" bash configure "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}"
 
 # Prefer the ghc-toolchain configuration
