@@ -24,8 +24,8 @@ source:
       target_directory: bootstrap-ghc
   - if: target_platform == "linux-64"
     then:
-      url: https://downloads.haskell.org/~ghc/9.10.1/ghc-9.10.1-x86_64-ubuntu20_04-linux.tar.xz
-      sha256: ae3be406fdb73bd2b0c22baada77a8ff2f8cde6220dd591dc24541cfe9d895eb
+      url: https://downloads.haskell.org/~ghc/${{ version }}/ghc-${{ version }}-x86_64-ubuntu20_04-linux.tar.xz
+      sha256: 0cffff0a74131465bb5d1447400ea46080a10e3cd46d6c9559aa6f2a6a7537ac
       target_directory: bootstrap-ghc
   - if: target_platform == "linux-aarch64"
     then:

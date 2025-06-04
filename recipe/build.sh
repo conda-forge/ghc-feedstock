@@ -1,8 +1,6 @@
 #!/usr/bin/env bash
 set -eu
 
-source "${RECIPE_DIR}"/building/common.sh
-
 # Set up binary directory
 mkdir -p binary/bin _logs
 

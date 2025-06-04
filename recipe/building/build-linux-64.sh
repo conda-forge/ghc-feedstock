@@ -7,77 +7,64 @@ _debug=1
 source "${RECIPE_DIR}"/building/common.sh
 
 # Install bootstrap GHC - Set conda platform moniker
-pushd bootstrap-ghc
+pushd "${SRC_DIR}"/bootstrap-ghc
   CC="${CC_FOR_BUILD}" \
   CXX="${CXX_FOR_BUILD}" \
   LDFLAGS="${LDFLAGS//$PREFIX/$BUILD_PREFIX}" \
-  run_and_log "bs-configure" bash configure --prefix="${SRC_DIR}"/binary
+  run_and_log "bs-configure" bash configure \
+    --prefix="${SRC_DIR}"/binary \
+    --host="x86_64-conda-linux-gnu" \
+    --enable-ghc-toolchain=yes \
+    --disable-ld-override
   run_and_log "bs-make-install" make install
 
   # Update rpath of bootstrap HShaskeline and HSterminfo
-  find "${SRC_DIR}/binary" -type f -name "*HShaskeline*.so" -o -name "*HSterminfo*.so" | while read lib; do
-    current_rpath=$(patchelf --print-rpath "$lib" 2>/dev/null)
+  find "${SRC_DIR}/binary/lib" -type f \( -name "*HShaskeline*.so" -o -name "*HSterminfo*.so" -o -name "ghc-${PKG_VERSION}" \) | while read lib; do
+    echo "Updating rpath of $lib"
+    current_rpath=$(patchelf --print-rpath "$lib")
     patchelf --set-rpath "$BUILD_PREFIX/lib" "$lib"
     if [[ -n "$current_rpath" ]]; then
       patchelf --add-rpath "$current_rpath" "$lib"
     fi
     patchelf --replace-needed libtinfo.so.6 "$BUILD_PREFIX"/lib/libtinfo.so.6 "$lib"
   done
+
+  run_and_log "bs-ghc-toolchain" ./bin/ghc-toolchain-bin \
+    -t x86_64-conda-linux-gnu \
+    -T x86_64-conda-linux-gnu- \
+    --ld-opt="-L$BUILD_PREFIX/lib" \
+    -o "${SRC_DIR}"/hadrian/cfg/x86_64-conda-linux-gnu.target
+  cp "${SRC_DIR}"/hadrian/cfg/x86_64-conda-linux-gnu.target "${SRC_DIR}"/hadrian/cfg/x86_64-unknow-linux.host.target
 popd
 
 # Update cabal package database
 run_and_log "cabal-update" cabal v2-update
 
-# --- Start conda build with bootstrapping tools ---
-
-case "${target_platform}" in
-  linux-*)
-    GHC_BUILD_STAGE0=x86_64-unknown-linux
-    GHC_BUILD_STAGE1=x86_64-conda-linux-gnu
-    _hadrian_build=("${SRC_DIR}"/hadrian/build "-j${CPU_COUNT}")
-    ;;
-  osx-*)
-    GHC_BUILD_STAGE0=x86_64-apple-darwin
-    GHC_BUILD_STAGE1=x86_64-apple-darwin
-    _hadrian_build=("${SRC_DIR}"/hadrian/build "-j${CPU_COUNT}")
-    ;;
-  default)
-    GHC_BUILD_STAGE0=x86_64-w64-mingw32
-    GHC_BUILD_STAGE1=x86_64-w64-mingw32
-    _hadrian_build=("${SRC_DIR}"/hadrian/build.bat "-j")
-    ;;
-esac
-
-# Set target-specific values
-case "$target_platform" in
-  linux-64)      GHC_TARGET=x86_64-conda-linux-gnu ;;
-  linux-aarch64) GHC_TARGET=aarch64-conda-linux-gnu ;;
-  osx-64)        GHC_TARGET=x86_64-apple-darwin13.4.0 ;;
-  osx-arm64)     GHC_TARGET=arm64-apple-darwin20.0.0 ;;
-  default)       GHC_TARGET=x86_64-w64-mingw32 ;;
-esac
+_hadrian_build=("${SRC_DIR}"/hadrian/build "-j${CPU_COUNT}")
 
 # Configure and build GHC
 SYSTEM_CONFIG=(
-  --build="${GHC_BUILD_STAGE0}"
-  --host="${GHC_BUILD_STAGE0}"
-  --target="${GHC_TARGET:-${GHC_BUILD_STAGE0}}"
+  --build="x86_64-unknown-linux"
+  --host="x86_64-unknown-linux"
+  --target="x86_64-conda-linux-gnu"
 )
 
 CONFIGURE_ARGS=(
   --prefix="${PREFIX}"
+  --enable-ghc-toolchain=yes  # Necessary to avoid linker unable to load -lgmp
   --disable-numa
+  --enable-ld-override
   --with-system-libffi=yes
   --with-curses-includes="${PREFIX}"/include
   --with-curses-libraries="${PREFIX}"/lib
   --with-ffi-includes="${PREFIX}"/include
   --with-ffi-libraries="${PREFIX}"/lib
   --with-gmp-includes="${PREFIX}"/include
-  --with-gmp-libraries="${BUILD_PREFIX}"/lib
+  --with-gmp-libraries="${PREFIX}"/lib
   --with-iconv-includes="${PREFIX}"/include
   --with-iconv-libraries="${PREFIX}"/lib
 )
-LDFLAGS="${LDFLAGS//$PREFIX/$BUILD_PREFIX}" run_and_log "ghc-configure" bash configure "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}"
+LD=ld run_and_log "ghc-configure" bash configure "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}"
 
 # Prefer the ghc-toolchain configuration
 if [[ -e "hadrian/cfg/default.target.ghc-toolchain" ]]; then
