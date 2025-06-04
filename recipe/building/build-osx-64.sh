@@ -4,6 +4,8 @@ set -eu
 _log_index=0
 _debug=1
 
+source "${RECIPE_DIR}"/building/common.sh
+
 # Install bootstrap GHC - Set conda platform moniker
 pushd bootstrap-ghc
   CC="${CC_FOR_BUILD}" \
