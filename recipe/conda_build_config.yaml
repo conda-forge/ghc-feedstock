@@ -6,8 +6,12 @@ c_stdlib_version:          # [not osx]
 
 c_compiler:
   - clang
+c_compiler_version:
+  - 19
 cxx_compiler:
   - clangxx
+cxx_compiler_version:
+  - 19
 
 # c_compiler:                # [not unix]
 #   - gcc                    # [not unix]
