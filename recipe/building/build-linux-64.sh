@@ -52,7 +52,7 @@ SYSTEM_CONFIG=(
 
 CONFIGURE_ARGS=(
   --prefix="${PREFIX}"
-  --enable-ghc-toolchain=yes  # Necessary to avoid linker unable to load -lgmp
+  --enable-ghc-toolchain
   --disable-numa
   --with-system-libffi=yes
   --with-curses-includes="${PREFIX}"/include
@@ -64,9 +64,8 @@ CONFIGURE_ARGS=(
   --with-iconv-includes="${PREFIX}"/include
   --with-iconv-libraries="${PREFIX}"/lib
 )
-mkdir -p bin && cp bootstrap-ghc/bin/ghc-toolchain-bin bin/ghc-toolchain-bin
-autoreconf -fiv
-GHC="binary/bin/ghc -v2" run_and_log "ghc-configure" bash configure "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}"
+cp ${RECIPE_DIR}/building/configure.sh configure
+run_and_log "ghc-configure" bash configure "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}"
 
 # Prefer the ghc-toolchain configuration
 if [[ -e "hadrian/cfg/default.target.ghc-toolchain" ]]; then
