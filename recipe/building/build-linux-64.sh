@@ -6,17 +6,6 @@ _debug=1
 
 source "${RECIPE_DIR}"/building/common.sh
 
-# Set environment variables
-export MergeObjsCmd=${LD_GOLD:-${LD}}
-export M4=${BUILD_PREFIX}/bin/m4
-export PYTHON=${BUILD_PREFIX}/bin/python
-
-unset build_alias
-unset host_alias
-
-# Set up binary directory
-mkdir -p binary _logs
-
 # Install bootstrap GHC - Set conda platform moniker
 pushd bootstrap-ghc
   CC="${CC_FOR_BUILD}" \
@@ -35,13 +24,6 @@ pushd bootstrap-ghc
     patchelf --replace-needed libtinfo.so.6 "$BUILD_PREFIX"/lib/libtinfo.so.6 "$lib"
   done
 popd
-
-# Add binary GHC to PATH
-export PATH=$PWD/binary/bin:$PATH
-
-# Install cabal-install
-mkdir -p binary/bin
-cp bootstrap-cabal/cabal* binary/bin/
 
 # Update cabal package database
 run_and_log "cabal-update" cabal v2-update
@@ -91,7 +73,7 @@ CONFIGURE_ARGS=(
   --with-ffi-includes="${PREFIX}"/include
   --with-ffi-libraries="${PREFIX}"/lib
   --with-gmp-includes="${PREFIX}"/include
-  --with-gmp-libraries="${PREFIX}"/lib
+  --with-gmp-libraries="${BUILD_PREFIX}"/lib
   --with-iconv-includes="${PREFIX}"/include
   --with-iconv-libraries="${PREFIX}"/lib
 )
