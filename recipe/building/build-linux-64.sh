@@ -12,7 +12,7 @@ pushd "${SRC_DIR}"/bootstrap-ghc
   run_and_log "bs-make-install" make install
 
   # CLANG: workaround to GHC not adding gmp to its needed library paths
-  perl -pi -e 's/(link flags", "--target=x86_64-unknown-linux)/$1 -Wl,-L$ENV{PREFIX}\/lib/' "${SRC_DIR}/binary/lib/ghc-${BOOT_VERSION}/lib/settings"
+  perl -pi -e 's/(link flags", "(--target=x86_64-unknown-linux|-Wl,--no-as-needed))/$1 -Wl,-L$ENV{BUILD_PREFIX}\/lib/' "${SRC_DIR}/binary/lib/ghc-${BOOT_VERSION}/lib/settings"
 
   # Update rpath of bootstrap HShaskeline and HSterminfo
   find "${SRC_DIR}/binary/lib" -type f \( -name "*HShaskeline*.so" -o -name "*HSterminfo*.so" -o -name "ghc-${BOOT_VERSION}" \) | while read -r lib; do
