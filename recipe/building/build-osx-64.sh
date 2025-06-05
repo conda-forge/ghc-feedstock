@@ -10,7 +10,6 @@ pushd bootstrap-ghc
   run_and_log "bs-configure" bash configure \
     --prefix="${SRC_DIR}"/binary \
     --enable-ghc-toolchain
-  cp default.host.target.ghc-toolchain default.host.target
   cp default.target.ghc-toolchain default.target
   run_and_log "bs-make-install" make install
 popd
@@ -19,15 +18,15 @@ popd
 run_and_log "cabal-update" cabal v2-update --allow-newer --minimize-conflict-set
 
 # Configure and build GHC
-# SYSTEM_CONFIG=(
-#   --build="x86_64-apple-darwin"
-#   --host="x86_64-apple-darwin"
-#   --target="x86_64-apple-darwin13.4.0"
-# )
+SYSTEM_CONFIG=(
+  --build="x86_64-apple-darwin13.4.0"
+  --host="x86_64-apple-darwin13.4.0"
+)
 
 CONFIGURE_ARGS=(
   --prefix="${PREFIX}"
   --disable-numa
+  --enable-ignore-build-platform-mismatch=yes
   --with-system-libffi=yes
   --with-curses-includes="${PREFIX}"/include
   --with-curses-libraries="${PREFIX}"/lib
@@ -39,11 +38,8 @@ CONFIGURE_ARGS=(
   --with-iconv-libraries="${PREFIX}"/lib
 )
 
-run_and_log "ghc-configure" bash configure "${CONFIGURE_ARGS[@]}"
+run_and_log "ghc-configure" bash configure "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}"
 _hadrian_build=("${SRC_DIR}"/hadrian/build "-j${CPU_COUNT}")
-# run_and_log "stage1_exe" "${_hadrian_build[@]}" stage1:exe:ghc-bin --flavour=release --docs=none --progress-info=none
-# run_and_log "stage2_exe" "${_hadrian_build[@]}" stage2:exe:ghc-bin --flavour=release --freeze1 --docs=none --progress-info=none
-# run_and_log "build_all"  "${_hadrian_build[@]}" --flavour=release --freeze1 --freeze2 --docs=no-sphinx-pdfs --progress-info=none
 run_and_log "install" "${_hadrian_build[@]}" install --prefix="${PREFIX}" --flavour=release --docs=no-sphinx-pdfs
 
 # Create bash completion
@@ -51,3 +47,4 @@ cp utils/completion/ghc.bash "${PREFIX}"/etc/bash_completion.d/ghc
 
 # Run post-install
 run_and_log "recache" "${PREFIX}"/bin/ghc-pkg recache
+cat "${PREFIX}"/lib/ghc-"${PKG_VERSION}"/lib/settings

@@ -22,12 +22,12 @@ source:
   - if: linux
     then:
       url: https://downloads.haskell.org/~ghc/${{ boot_version }}/ghc-${{ boot_version }}-x86_64-ubuntu20_04-linux.tar.xz
-      sha256: d88379492ce2a5c14c0db1f2d7fc980b40cb44e4b7026e347b72efe2224600ec
+      sha256: ae3be406fdb73bd2b0c22baada77a8ff2f8cde6220dd591dc24541cfe9d895eb
       target_directory: bootstrap-ghc
   - if: not unix
     then:
       url: https://downloads.haskell.org/~ghc/${{ boot_version }}/ghc-${{ boot_version }}-x86_64-unknown-mingw32.tar.gz
-      sha256: 7ae312922d2f54ab0885adedf39795b917f05b3d70571c1f3a4615c609201217
+      sha256: 76847b0125547e975791fdbb9b9c963961aa81d833299d75a37ca48338fcc232
       target_directory: bootstrap-ghc
 
   # Cabal install
@@ -50,6 +50,9 @@ source:
 build:
   number: 0
   skip: not (osx and x86_64)
+  script:
+    env:
+      BOOT_VERSION: ${{ boot_version }}
 
 requirements:
   build:
@@ -66,7 +69,9 @@ requirements:
       then: sysroot_${{ build_platform }} >=2.28
 
     - if: linux
-      then: patchelf
+      then:
+        - patchelf
+        - perl
 
     - if: unix
       then:
@@ -90,7 +95,6 @@ requirements:
     - sphinx
     - zstd
   host:
-    # - ${{ compiler('c') }}
     - gmp
     - libiconv
     - libffi
@@ -104,7 +108,6 @@ requirements:
     - if: unix
       then:
         - ncurses
-
 
 tests:
   - package_contents:
@@ -127,6 +130,22 @@ tests:
 
         - share/doc/ghc-${{ version }}/html/**
         - share/man/man1/ghc.1
+
+  - script: |
+      ghc --version
+      ghc-pkg --version
+      ghci --version
+      haddock --version
+      hp2ps --version
+      hpc --version
+      hsc2hs --version
+      runghc --version
+      runhaskell --version
+
+  - script: |
+      echo 'main = putStrLn "Hello conda-forge"' > hello.hs
+      ghc hello.hs
+      ./hello
 
   - script:
       interpreter: python
@@ -162,22 +181,6 @@ tests:
         all_files=[f'{b}' for b in binaries] + [f'{b}-ghc-${{ version }}' for b in binaries]
         missing=[f for f in all_files if not pathlib.Path(os.environ['CONDA_PREFIX']).joinpath('lib', 'ghc-${{ version }}', 'bin', f).exists()]
         exit(1) if missing else exit(0)
-
-  - script: |
-      ghc --version
-      ghc-pkg --version
-      ghci --version
-      haddock --version
-      hp2ps --version
-      hpc --version
-      hsc2hs --version
-      runghc --version
-      runhaskell --version
-
-  - script: |
-      echo 'main = putStrLn "Hello conda-forge"' > hello.hs
-      ghc hello.hs
-      ./hello
 
 about:
   homepage: https://haskell.org/ghc/
