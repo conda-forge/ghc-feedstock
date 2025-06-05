@@ -1,6 +1,6 @@
 context:
   version: "9.12.2"
-  boot_version: "9.12.1"
+  boot_version: "9.10.1"
   cabal_version: "3.14.2.0"
 
 package:
@@ -22,7 +22,7 @@ source:
   - if: linux
     then:
       url: https://downloads.haskell.org/~ghc/${{ boot_version }}/ghc-${{ boot_version }}-x86_64-ubuntu20_04-linux.tar.xz
-      sha256: d88379492ce2a5c14c0db1f2d7fc980b40cb44e4b7026e347b72efe2224600ec
+      sha256: ae3be406fdb73bd2b0c22baada77a8ff2f8cde6220dd591dc24541cfe9d895eb
       target_directory: bootstrap-ghc
   - if: not unix
     then:
@@ -50,6 +50,9 @@ source:
 build:
   number: 0
   skip: not (linux and x86_64)
+  script:
+    env:
+      BOOT_VERSION: ${{ boot_version }}
 
 requirements:
   build:
@@ -66,7 +69,9 @@ requirements:
       then: sysroot_${{ build_platform }} >=2.28
 
     - if: linux
-      then: patchelf
+      then:
+        - patchelf
+        - perl
 
     - if: unix
       then:
@@ -90,7 +95,6 @@ requirements:
     - sphinx
     - zstd
   host:
-    # - ${{ compiler('c') }}
     - gmp
     - libiconv
     - libffi
