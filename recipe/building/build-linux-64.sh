@@ -40,13 +40,16 @@ _hadrian_build=("${SRC_DIR}"/hadrian/build "-j${CPU_COUNT}")
 
 # Configure and build GHC
 SYSTEM_CONFIG=(
-  --build="x86_64-unknown-linux"
-  --host="x86_64-unknown-linux"
-  --target="x86_64-conda-linux-gnu"
+  # --build="x86_64-unknown-linux"
+  # --host="x86_64-unknown-linux"
+  # --target="x86_64-conda-linux-gnu"
+  --build="x86_64-conda-linux-gnu"
+  --host="x86_64-conda-linux-gnu"
 )
 
 CONFIGURE_ARGS=(
   --prefix="${PREFIX}"
+  --ignore-build-platform-mismatch
   --enable-ghc-toolchain
   --disable-numa
   --with-system-libffi=yes
@@ -60,20 +63,15 @@ CONFIGURE_ARGS=(
   --with-iconv-includes="${PREFIX}"/include
   --with-iconv-libraries="${PREFIX}"/lib
 )
-cp ${RECIPE_DIR}/building/configure.sh configure
-run_and_log "ghc-configure" bash configure "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}"
+cp "${RECIPE_DIR}"/building/configure.sh configure
+(cd "${PREFIX}"/lib; tar cf libgmp.* | (cd "${SRC_DIR}"/binary/lib/ghc-"${PKG_VERSION}"/lib/x86_64-linux-ghc-9.12.1-7f78/text-2.1.2-3e68 | tar xf -))
+CONF_CC_OPTS_STAGE0="-Wl,-L${PREFIX}/lib" run_and_log "ghc-configure" bash configure "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}"
 
 # Prefer the ghc-toolchain configuration
 if [[ -e "hadrian/cfg/default.target.ghc-toolchain" ]]; then
   cp "${SRC_DIR}"/hadrian/cfg/default.target.ghc-toolchain "${SRC_DIR}"/hadrian/cfg/default.target
 fi
-
-# Build and install using hadrian
-if [[ "${target_platform}" == "osx-arm64" ]] && [[ "${_debug}" == "1" ]]; then
-  "${_hadrian_build[@]}" stage1:exe:ghc-bin --flavour=release --docs=none --progress-info=none
-else
-  run_and_log "stage1_exe" "${_hadrian_build[@]}" stage1:exe:ghc-bin --flavour=release --docs=none --progress-info=none
-fi
+run_and_log "stage1_exe" "${_hadrian_build[@]}" stage1:exe:ghc-bin --flavour=release --docs=none --progress-info=none
 
 # Re-built stage1 with conda host convention
 # SYSTEM_CONFIG=(
@@ -88,12 +86,7 @@ if [[ -e "hadrian/cfg/default.target.ghc-toolchain" ]]; then
 fi
 run_and_log "stage2_exe" "${_hadrian_build[@]}" stage2:exe:ghc-bin --flavour=release --freeze1 --docs=none --progress-info=none
 run_and_log "build_all"  "${_hadrian_build[@]}" --flavour=release --freeze1 --freeze2 --docs=no-sphinx-pdfs --progress-info=none
-
-if [[ -n "${CROSSCOMPILING_EMULATOR:-}" ]]; then
-  CC="${CC_FOR_BUILD}" run_and_log "install_xcompiled" "${_hadrian_build[@]}" install --prefix="${PREFIX}" --flavour=release --freeze1 --freeze2 --docs=no-sphinx-pdfs
-else
-  run_and_log "install" "${_hadrian_build[@]}" install --prefix="${PREFIX}" --flavour=release --freeze1 --freeze2 --docs=no-sphinx-pdfs
-fi
+run_and_log "install" "${_hadrian_build[@]}" install --prefix="${PREFIX}" --flavour=release --freeze1 --freeze2 --docs=no-sphinx-pdfs
 
 # Create bash completion
 mkdir -p "${PREFIX}"/etc/bash_completion.d
@@ -104,10 +97,4 @@ rm -f "${PREFIX}"/lib/ghc-"${PKG_VERSION}"/lib/package.conf.d/package.cache
 rm -f "${PREFIX}"/lib/ghc-"${PKG_VERSION}"/lib/package.conf.d/package.cache.lock
 
 # Run post-install
-if [[ -n "${CROSSCOMPILING_EMULATOR:-}" ]]; then
-  "${PREFIX}"/bin/ghc-pkg recache
-  # run_and_log "recache" "${PREFIX}"/bin/ghc-pkg recache
-else
-  "${CROSSCOMPILING_EMULATOR}" "${PREFIX}"/bin/ghc-pkg recache
-  # run_and_log "recache_xcompiled" "${CROSSCOMPILING_EMULATOR}" "${PREFIX}"/bin/ghc-pkg recache
-fi
+run_and_log "recache" "${PREFIX}"/bin/ghc-pkg recache
