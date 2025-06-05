@@ -1,6 +1,6 @@
 context:
   version: "9.12.2"
-  boot_version: "9.12.1"
+  boot_version: "9.10.1"
   cabal_version: "3.14.2.0"
 
 package:
@@ -17,7 +17,7 @@ source:
   - if: osx
     then:
       url: https://downloads.haskell.org/~ghc/${{ boot_version }}/ghc-${{ boot_version }}-x86_64-apple-darwin.tar.xz
-      sha256: e6eb460ce2ddd87691c06a0a128adb45b70f339b999dcf845bc1b146f13879f1
+      sha256: 8cf22188930e10d7ac5270d425e21a3dab606af73a655493639345200c650be9
       target_directory: bootstrap-ghc
   - if: linux
     then:

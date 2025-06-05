@@ -66,6 +66,8 @@ SYSTEM_CONFIG=(
 
 CONFIGURE_ARGS=(
   --prefix="${PREFIX}"
+  --ignore-build-platform-mismatch
+  --enable-ghc-toolchain
   --disable-numa
   --with-system-libffi=yes
   --with-curses-includes="${PREFIX}"/include
@@ -73,7 +75,7 @@ CONFIGURE_ARGS=(
   --with-ffi-includes="${PREFIX}"/include
   --with-ffi-libraries="${PREFIX}"/lib
   --with-gmp-includes="${PREFIX}"/include
-  --with-gmp-libraries="${BUILD_PREFIX}"/lib
+  --with-gmp-libraries="${PREFIX}"/lib
   --with-iconv-includes="${PREFIX}"/include
   --with-iconv-libraries="${PREFIX}"/lib
 )
