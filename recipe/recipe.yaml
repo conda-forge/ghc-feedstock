@@ -133,14 +133,6 @@ tests:
 
   - script: |
       ghc --version
-      ghc-pkg --version
-      ghci --version
-      haddock --version
-      hp2ps --version
-      hpc --version
-      hsc2hs --version
-      runghc --version
-      runhaskell --version
 
   - script: |
       echo 'main = putStrLn "Hello conda-forge"' > hello.hs
