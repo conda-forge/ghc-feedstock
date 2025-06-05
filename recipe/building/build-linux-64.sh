@@ -8,13 +8,8 @@ source "${RECIPE_DIR}"/building/common.sh
 
 # Install bootstrap GHC - Set conda platform moniker
 pushd "${SRC_DIR}"/bootstrap-ghc
-  # CC="${CC_FOR_BUILD}" \
-  # CXX="${CXX_FOR_BUILD}" \
-  # LDFLAGS="${LDFLAGS//$PREFIX/$BUILD_PREFIX}" \
   run_and_log "bs-configure" bash configure \
-    --prefix="${SRC_DIR}"/binary \
-    --host="x86_64-conda-linux-gnu" \
-    --enable-ghc-toolchain=yes
+    --prefix="${SRC_DIR}"/binary
   cp default.host.target.ghc-toolchain default.host.target
   cp default.target.ghc-toolchain default.target
   run_and_log "bs-make-install" make install
@@ -30,16 +25,16 @@ pushd "${SRC_DIR}"/bootstrap-ghc
     patchelf --replace-needed libtinfo.so.6 "$BUILD_PREFIX"/lib/libtinfo.so.6 "$lib"
   done
 
-  run_and_log "bs-ghc-toolchain" ./bin/ghc-toolchain-bin \
-    -t x86_64-conda-linux-gnu \
-    -T x86_64-conda-linux-gnu- \
-    --ld-opt="-L$BUILD_PREFIX/lib" \
-    -o "${SRC_DIR}"/hadrian/cfg/x86_64-conda-linux-gnu.target
-  cp "${SRC_DIR}"/hadrian/cfg/x86_64-conda-linux-gnu.target "${SRC_DIR}"/hadrian/cfg/x86_64-unknow-linux.host.target
+  # run_and_log "bs-ghc-toolchain" ./bin/ghc-toolchain-bin \
+  #   -t x86_64-conda-linux-gnu \
+  #   -T x86_64-conda-linux-gnu- \
+  #   --ld-opt="-L$BUILD_PREFIX/lib" \
+  #   -o "${SRC_DIR}"/hadrian/cfg/x86_64-conda-linux-gnu.target
+  # cp "${SRC_DIR}"/hadrian/cfg/x86_64-conda-linux-gnu.target "${SRC_DIR}"/hadrian/cfg/x86_64-unknow-linux.host.target
 popd
 
 # Update cabal package database
-run_and_log "cabal-update" cabal v2-update
+run_and_log "cabal-update" cabal v2-update --allow-newer --minimize-conflict-set
 
 _hadrian_build=("${SRC_DIR}"/hadrian/build "-j${CPU_COUNT}")
 
@@ -55,6 +50,7 @@ CONFIGURE_ARGS=(
   --enable-ghc-toolchain
   --disable-numa
   --with-system-libffi=yes
+  --with-intree-gmp=no
   --with-curses-includes="${PREFIX}"/include
   --with-curses-libraries="${PREFIX}"/lib
   --with-ffi-includes="${PREFIX}"/include

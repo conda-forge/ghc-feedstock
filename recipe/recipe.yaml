@@ -1,5 +1,6 @@
 context:
   version: "9.12.2"
+  boot_version: "9.12.1"
   cabal_version: "3.14.2.0"
 
 package:
@@ -15,17 +16,17 @@ source:
   # Bootstrap GHC compilers
   - if: osx
     then:
-      url: https://downloads.haskell.org/~ghc/${{ version }}/ghc-${{ version }}-x86_64-apple-darwin.tar.xz
+      url: https://downloads.haskell.org/~ghc/${{ boot_version }}/ghc-${{ boot_version }}-x86_64-apple-darwin.tar.xz
       sha256: e7a40e39059dd3619d7884b7382f357e79a0f4e430181b805bdd57b3be9a7300
       target_directory: bootstrap-ghc
   - if: linux
     then:
-      url: https://downloads.haskell.org/~ghc/${{ version }}/ghc-${{ version }}-x86_64-ubuntu20_04-linux.tar.xz
-      sha256: 0cffff0a74131465bb5d1447400ea46080a10e3cd46d6c9559aa6f2a6a7537ac
+      url: https://downloads.haskell.org/~ghc/${{ boot_version }}/ghc-${{ boot_version }}-x86_64-ubuntu20_04-linux.tar.xz
+      sha256: d88379492ce2a5c14c0db1f2d7fc980b40cb44e4b7026e347b72efe2224600ec
       target_directory: bootstrap-ghc
   - if: not unix
     then:
-      url: https://downloads.haskell.org/~ghc/${{ version }}/ghc-${{ version }}-x86_64-unknown-mingw32.tar.gz
+      url: https://downloads.haskell.org/~ghc/${{ boot_version }}/ghc-${{ boot_version }}-x86_64-unknown-mingw32.tar.gz
       sha256: 76847b0125547e975791fdbb9b9c963961aa81d833299d75a37ca48338fcc232
       target_directory: bootstrap-ghc
 
