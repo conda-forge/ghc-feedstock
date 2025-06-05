@@ -18,7 +18,12 @@ unset host_alias
 # Install cabal-install
 cp bootstrap-cabal/cabal* binary/bin/
 
+# Clean up package cache
 "${RECIPE_DIR}"/building/build-"${target_platform}.sh"
+
+# Clean up package cache
+find "${PREFIX}"/lib/ghc-"${PKG_VERSION}" -name '*_p.a' -delete
+find "${PREFIX}"/lib/ghc-"${PKG_VERSION}" -name '*.p_o' -delete
 
 # Clean up package cache
 rm -f "${PREFIX}"/lib/ghc-"${PKG_VERSION}"/lib/package.conf.d/package.cache
