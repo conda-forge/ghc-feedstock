@@ -91,7 +91,7 @@ requirements:
         - m2-make
     - gmp
     - llvm-tools <=19
-    - python
+    - python 3.12.*
     - sphinx
     - zstd
   host:
