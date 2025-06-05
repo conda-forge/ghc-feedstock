@@ -61,20 +61,10 @@ if [[ -e "${SRC_DIR}"/hadrian/cfg/default.target.ghc-toolchain ]]; then
   cp "${SRC_DIR}"/hadrian/cfg/default.target.ghc-toolchain "${SRC_DIR}"/hadrian/cfg/default.target
 fi
 run_and_log "stage1_exe" "${_hadrian_build[@]}" stage1:exe:ghc-bin --flavour=release --docs=none --progress-info=none
-# run_and_log "stage2_exe" "${_hadrian_build[@]}" stage2:exe:ghc-bin --flavour=release --freeze1 --docs=none --progress-info=none
+run_and_log "stage1_lib" "${_hadrian_build[@]}" stage1:lib:ghc-bin --flavour=release --docs=none --progress-info=none
+run_and_log "stage2_exe" "${_hadrian_build[@]}" stage2:exe:ghc-bin --flavour=release --freeze1 --docs=none --progress-info=none
 # run_and_log "build_all"  "${_hadrian_build[@]}" --flavour=release --freeze1 --freeze2 --docs=no-sphinx-pdfs --progress-info=none
 # run_and_log "install" "${_hadrian_build[@]}" install --prefix="${PREFIX}" --flavour=release --freeze1 --freeze2 --docs=no-sphinx-pdfs
 
 # One go when ready
 # run_and_log "install" "${_hadrian_build[@]}" install --prefix="${PREFIX}" --flavour=release --docs=no-sphinx-pdfs
-
-# Create bash completion
-mkdir -p "${PREFIX}"/etc/bash_completion.d
-cp utils/completion/ghc.bash "${PREFIX}"/etc/bash_completion.d/ghc
-
-# Clean up package cache
-rm -f "${PREFIX}"/lib/ghc-"${PKG_VERSION}"/lib/package.conf.d/package.cache
-rm -f "${PREFIX}"/lib/ghc-"${PKG_VERSION}"/lib/package.conf.d/package.cache.lock
-
-# Run post-install
-run_and_log "recache" "${PREFIX}"/bin/ghc-pkg recache

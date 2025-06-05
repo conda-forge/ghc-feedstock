@@ -41,10 +41,4 @@ CONFIGURE_ARGS=(
 run_and_log "ghc-configure" bash configure "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}"
 _hadrian_build=("${SRC_DIR}"/hadrian/build "-j${CPU_COUNT}")
 run_and_log "install" "${_hadrian_build[@]}" install --prefix="${PREFIX}" --flavour=release --docs=no-sphinx-pdfs
-
-# Create bash completion
-cp utils/completion/ghc.bash "${PREFIX}"/etc/bash_completion.d/ghc
-
-# Run post-install
-run_and_log "recache" "${PREFIX}"/bin/ghc-pkg recache
 cat "${PREFIX}"/lib/ghc-"${PKG_VERSION}"/lib/settings
