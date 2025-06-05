@@ -27,7 +27,6 @@ run_and_log "cabal-update" cabal v2-update --allow-newer --minimize-conflict-set
 
 CONFIGURE_ARGS=(
   --prefix="${PREFIX}"
-  --ignore-build-platform-mismatch
   --disable-numa
   --with-system-libffi=yes
   --with-curses-includes="${PREFIX}"/include
