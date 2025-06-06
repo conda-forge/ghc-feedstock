@@ -42,18 +42,18 @@ CONFIGURE_ARGS=(
 
 # This will not generate ghc-toolchain-bin or the .ghc-toolchain (possibly due to x-platform)
 run_and_log "ghc-configure" bash configure "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}"
-# Attempt to brute-force it
-"${SRC_DIR}"/binary/lib/ghc-"${BOOT_VERSION}"/bin/ghc-toolchain-bin \
-  -t "arm64-apple-darwin" \
-  -T "arm64-apple-darwin20.0.0-" \
-  --llvm-triple="aarch64-apple-darwin" \
-  --disable-locally-executable \
-  -o "${SRC_DIR}"/hadrian/cfg/default.target.ghc-toolchain
-
-diff "${SRC_DIR}"/hadrian/cfg/default.target.ghc-toolchain "${SRC_DIR}"/hadrian/cfg/default.target || true
-cp "${SRC_DIR}"/hadrian/cfg/default.target "${SRC_DIR}"/hadrian/cfg/default.target.bak
-cp "${SRC_DIR}"/hadrian/cfg/default.target.ghc-toolchain "${SRC_DIR}"/hadrian/cfg/default.target
-perl -pi -e 's/\$BUILD_PREFIX/$ENV{BUILD_PREFIX}/g' "${SRC_DIR}"/hadrian/cfg/default.target
+# # Attempt to brute-force it
+# "${SRC_DIR}"/binary/lib/ghc-"${BOOT_VERSION}"/bin/ghc-toolchain-bin \
+#   -t "arm64-apple-darwin" \
+#   -T "arm64-apple-darwin20.0.0-" \
+#   --llvm-triple="aarch64-apple-darwin" \
+#   --disable-locally-executable \
+#   -o "${SRC_DIR}"/hadrian/cfg/default.target.ghc-toolchain
+#
+# diff "${SRC_DIR}"/hadrian/cfg/default.target.ghc-toolchain "${SRC_DIR}"/hadrian/cfg/default.target || true
+# cp "${SRC_DIR}"/hadrian/cfg/default.target "${SRC_DIR}"/hadrian/cfg/default.target.bak
+# cp "${SRC_DIR}"/hadrian/cfg/default.target.ghc-toolchain "${SRC_DIR}"/hadrian/cfg/default.target
+# perl -pi -e 's/\$BUILD_PREFIX/$ENV{BUILD_PREFIX}/g' "${SRC_DIR}"/hadrian/cfg/default.target
 
 _hadrian_build=("${SRC_DIR}"/hadrian/build "-j${CPU_COUNT}")
 run_and_log "stage1_exe" "${_hadrian_build[@]}" stage1:exe:ghc-bin -VV --flavour=release --docs=none --progress-info=none
