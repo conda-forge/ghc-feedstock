@@ -40,7 +40,7 @@ _hadrian_build=("${SRC_DIR}"/hadrian/build "-j${CPU_COUNT}")
 SYSTEM_CONFIG=(
   --build="x86_64-conda-linux-gnu"
   --host="x86_64-conda-linux-gnu"
-  --target="aarch64-conda-linux-gnu"
+  --target="x86_64-conda-linux-gnu"
 )
 
 CONFIGURE_ARGS=(
@@ -58,10 +58,10 @@ CONFIGURE_ARGS=(
   --with-iconv-includes="${PREFIX}"/include
   --with-iconv-libraries="${PREFIX}"/lib
 )
-run_and_log "ghc-configure" bash configure "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}"
-
-# Regenerate toolchain
-
+CC="${BUILD_PREFIX}"/bin/x86_64-conda-linux-gnu-clang \
+CXX="${BUILD_PREFIX}"/bin/x86_64-conda-linux-gnu-clang++ \
+LD="${BUILD_PREFIX}"/bin/x86_64-conda-linux-gnu-ld \
+run_and_log "ghc-configure" bash configure "${CONFIGURE_ARGS[@]}"
 
 # Prefer the ghc-toolchain configuration
 if [[ -e "${SRC_DIR}"/hadrian/cfg/default.target.ghc-toolchain ]]; then
@@ -69,12 +69,28 @@ if [[ -e "${SRC_DIR}"/hadrian/cfg/default.target.ghc-toolchain ]]; then
   # cp "${SRC_DIR}"/hadrian/cfg/default.target.ghc-toolchain "${SRC_DIR}"/hadrian/cfg/default.target
   perl -pi -e 's/(cppProgram = Program { prgPath =  ".+?clang)/$1-cpp/' "${SRC_DIR}/hadrian/cfg/default.target.ghc-toolchain"
 fi
-run_and_log "stage1_exe" "${_hadrian_build[@]}" stage1:exe:ghc-bin --cabal-verbosity=verbose --flavour=release --docs=none --progress-info=none
+run_and_log "stage1_exe" "${_hadrian_build[@]}" stage1:exe:ghc-bin --flavour=release --docs=none --progress-info=none
 # Correct GHC settings (odd)
 perl -pi -e 's/(LLVM llvm-as command", ").+?"/$1llvm-as"/' "${SRC_DIR}/_build/stage0/lib/settings"
 # Not needed: perl -pi -e 's/(CPP command", ".+?-clang)/$1-cpp/' "${SRC_DIR}/_build/stage0/lib/settings"
 
-GHC=${SRC_DIR}/_build/stage0/bin/ghc run_and_log "stage1_lib" "${_hadrian_build[@]}" stage1:lib:ghc -VV --flavour=release --freeze1 --docs=none --progress-info=unicorn
+SYSTEM_CONFIG=(
+  --build="x86_64-conda-linux-gnu"
+  --host="x86_64-conda-linux-gnu"
+  --target="aarch64-conda-linux-gnu"
+)
+
+GHC="${SRC_DIR}"/_build/stage0/bin/ghc run_and_log "ghc-configure" bash configure "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}"
+
+# Prefer the ghc-toolchain configuration
+if [[ -e "${SRC_DIR}"/hadrian/cfg/default.target.ghc-toolchain ]]; then
+  mv "${SRC_DIR}"/hadrian/cfg/default.target "${SRC_DIR}"/hadrian/cfg/default.target.bak
+  # cp "${SRC_DIR}"/hadrian/cfg/default.target.ghc-toolchain "${SRC_DIR}"/hadrian/cfg/default.target
+  perl -pi -e 's/(cppProgram = Program { prgPath =  ".+?clang)/$1-cpp/' "${SRC_DIR}/hadrian/cfg/default.target.ghc-toolchain"
+fi
+run_and_log "stage1_exe" "${_hadrian_build[@]}" stage1:exe:ghc-bin --flavour=release --docs=none --progress-info=none
+
+run_and_log "stage1_lib" "${_hadrian_build[@]}" stage1:lib:ghc -VV --flavour=release --freeze1 --docs=none --progress-info=unicorn
 run_and_log "stage2_exe" "${_hadrian_build[@]}" stage2:exe:ghc-bin --flavour=release --freeze1 --docs=none --progress-info=none
 # run_and_log "build_all"  "${_hadrian_build[@]}" --flavour=release --freeze1 --freeze2 --docs=no-sphinx-pdfs --progress-info=none
 # run_and_log "install" "${_hadrian_build[@]}" install --prefix="${PREFIX}" --flavour=release --freeze1 --freeze2 --docs=no-sphinx-pdfs
