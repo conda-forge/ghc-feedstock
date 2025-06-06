@@ -7,10 +7,6 @@ source "${RECIPE_DIR}"/building/common.sh
 
 # Install bootstrap GHC - Set conda platform moniker
 pushd bootstrap-ghc
-  # CC="${CC_FOR_BUILD}" \
-  # CXX="${CXX_FOR_BUILD}" \
-  # CPP="${CPP_FOR_BUILD:-${CPP}}" \
-  # LDFLAGS="${LDFLAGS//$PREFIX/$BUILD_PREFIX}" \
   run_and_log "bs-configure" bash configure \
     --prefix="${SRC_DIR}"/binary \
     --host="x86_64-apple-darwin"
@@ -44,9 +40,17 @@ CONFIGURE_ARGS=(
   --with-iconv-libraries="${PREFIX}"/lib
 )
 
+# This will not generate ghc-toolchain-bin or the .ghc-toolchain (possibly due to x-platform)
 run_and_log "ghc-configure" bash configure "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}"
+# Attempt to brute-force it
+"${SRC_DIR}"/binary/lib/ghc-"${BOOT_VERSION}"/bin/ghc-toolchain-bin \
+  -t "aarch64-conda-linux-gnu" \
+  -T "aarch64-conda-linux-gnu-" \
+  -o "${SRC_DIR}"/hadrian/cfg/default.target.ghc-toolchain
+
 find . -name "ghc-toolchain-bin"
 find . -name "*.ghc-toolchain"
+diff default.target.ghc-toolchain default.target.ghc-toolchain
 
 _hadrian_build=("${SRC_DIR}"/hadrian/build "-j${CPU_COUNT}")
 run_and_log "stage1_exe" "${_hadrian_build[@]}" stage1:exe:ghc-bin --flavour=release --docs=none --progress-info=none
