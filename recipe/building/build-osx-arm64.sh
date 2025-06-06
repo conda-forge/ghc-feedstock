@@ -53,6 +53,7 @@ run_and_log "ghc-configure" bash configure "${SYSTEM_CONFIG[@]}" "${CONFIGURE_AR
 diff "${SRC_DIR}"/hadrian/cfg/default.target.ghc-toolchain "${SRC_DIR}"/hadrian/cfg/default.target || true
 cp "${SRC_DIR}"/hadrian/cfg/default.target "${SRC_DIR}"/hadrian/cfg/default.target.bak
 cp "${SRC_DIR}"/hadrian/cfg/default.target.ghc-toolchain "${SRC_DIR}"/hadrian/cfg/default.target
+perl -pi -e 's/\$BUILD_PREFIX/$ENV{BUILD_PREFIX}/g' "${SRC_DIR}"/hadrian/cfg/default.target
 
 _hadrian_build=("${SRC_DIR}"/hadrian/build "-j${CPU_COUNT}")
 run_and_log "stage1_exe" "${_hadrian_build[@]}" stage1:exe:ghc-bin -VV --flavour=release --docs=none --progress-info=none
