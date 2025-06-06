@@ -7,26 +7,32 @@ source "${RECIPE_DIR}"/building/common.sh
 
 # Install bootstrap GHC - Set conda platform moniker
 pushd bootstrap-ghc
+  # CC="${CC_FOR_BUILD}" \
+  # CXX="${CXX_FOR_BUILD}" \
+  # CPP="${CPP_FOR_BUILD:-${CPP}}" \
+  # LDFLAGS="${LDFLAGS//$PREFIX/$BUILD_PREFIX}" \
   run_and_log "bs-configure" bash configure \
     --prefix="${SRC_DIR}"/binary \
-    --enable-ghc-toolchain
+    --host="x86_64-apple-darwin"
   cp default.target.ghc-toolchain default.target
   run_and_log "bs-make-install" make install
 popd
 
 # Update cabal package database
-run_and_log "cabal-update" cabal v2-update --allow-newer --minimize-conflict-set
+run_and_log "cabal-update" cabal v2-update cabal v2-update --allow-newer --minimize-conflict-set
 
 # Configure and build GHC
 SYSTEM_CONFIG=(
   --build="x86_64-apple-darwin13.4.0"
   --host="x86_64-apple-darwin13.4.0"
+  --target="arm64-apple-darwin20.0.0"
 )
 
 CONFIGURE_ARGS=(
   --prefix="${PREFIX}"
   --disable-numa
   --enable-ignore-build-platform-mismatch=yes
+  --enable-ghc-toolchain=yes
   --with-system-libffi=yes
   --with-curses-includes="${PREFIX}"/include
   --with-curses-libraries="${PREFIX}"/lib
@@ -39,6 +45,10 @@ CONFIGURE_ARGS=(
 )
 
 run_and_log "ghc-configure" bash configure "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}"
+cat "${SRC_DIR}"/hadrian/cfg/default.target.ghc-toolchain
+
 _hadrian_build=("${SRC_DIR}"/hadrian/build "-j${CPU_COUNT}")
-run_and_log "install" "${_hadrian_build[@]}" install --prefix="${PREFIX}" --flavour=release --docs=no-sphinx-pdfs
-cat "${PREFIX}"/lib/ghc-"${PKG_VERSION}"/lib/settings
+run_and_log "stage1_exe" "${_hadrian_build[@]}" stage1:exe:ghc-bin --flavour=release --docs=none --progress-info=none
+run_and_log "stage2_exe" "${_hadrian_build[@]}" stage2:exe:ghc-bin --flavour=release --freeze1 --docs=none --progress-info=none
+run_and_log "build_all"  "${_hadrian_build[@]}" --flavour=release --freeze1 --freeze2 --docs=no-sphinx-pdfs --progress-info=none
+CC="${CC_FOR_BUILD}" run_and_log "install_xcompiled" "${_hadrian_build[@]}" install --prefix="${PREFIX}" --flavour=release --freeze1 --freeze2 --docs=no-sphinx-pdfs

@@ -62,7 +62,7 @@ if [[ -e "${SRC_DIR}"/hadrian/cfg/default.target.ghc-toolchain ]]; then
   cp "${SRC_DIR}"/hadrian/cfg/default.target.ghc-toolchain "${SRC_DIR}"/hadrian/cfg/default.target
 fi
 run_and_log "stage1_exe" "${_hadrian_build[@]}" stage1:exe:ghc-bin --flavour=release --docs=none --progress-info=none
-perl -pi -e 's/flags", "/flags", "-v/' "${SRC_DIR}/_build/stage0/lib/ghc-${BOOT_VERSION}/lib/settings"
+perl -pi -e 's/flags", "/flags", "-v/' "${SRC_DIR}/_build/stage0/lib/settings"
 
 run_and_log "stage1_lib" "${_hadrian_build[@]}" stage1:lib:ghc --verbose --flavour=release --freeze1 --docs=none --progress-info=none
 run_and_log "stage2_exe" "${_hadrian_build[@]}" stage2:exe:ghc-bin --flavour=release --freeze1 --docs=none --progress-info=none

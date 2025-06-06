@@ -18,7 +18,6 @@ unset host_alias
 # Install cabal-install
 cp bootstrap-cabal/cabal* binary/bin/
 
-# Clean up package cache
 "${RECIPE_DIR}"/building/build-"${target_platform}.sh"
 
 # Create bash completion

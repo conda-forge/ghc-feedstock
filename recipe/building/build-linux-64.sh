@@ -64,14 +64,3 @@ run_and_log "install" "${_hadrian_build[@]}" install --prefix="${PREFIX}" --flav
 
 # One go when ready
 # run_and_log "install" "${_hadrian_build[@]}" install --prefix="${PREFIX}" --flavour=release --docs=no-sphinx-pdfs
-
-# Create bash completion
-mkdir -p "${PREFIX}"/etc/bash_completion.d
-cp utils/completion/ghc.bash "${PREFIX}"/etc/bash_completion.d/ghc
-
-# Clean up package cache
-rm -f "${PREFIX}"/lib/ghc-"${PKG_VERSION}"/lib/package.conf.d/package.cache
-rm -f "${PREFIX}"/lib/ghc-"${PKG_VERSION}"/lib/package.conf.d/package.cache.lock
-
-# Run post-install
-run_and_log "recache" "${PREFIX}"/bin/ghc-pkg recache
