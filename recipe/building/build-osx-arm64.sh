@@ -44,7 +44,7 @@ CONFIGURE_ARGS=(
 run_and_log "ghc-configure" bash configure "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}"
 # Attempt to brute-force it
 "${SRC_DIR}"/binary/lib/ghc-"${BOOT_VERSION}"/bin/ghc-toolchain-bin \
-  -t "arm64-apple-darwin20.0.0" \
+  -t "arm64-apple-darwin" \
   -T "arm64-apple-darwin20.0.0-" \
   -o "${SRC_DIR}"/hadrian/cfg/default.target.ghc-toolchain
 
