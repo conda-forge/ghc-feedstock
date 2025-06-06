@@ -34,10 +34,17 @@ Current build status
         <table>
           <thead><tr><th>Variant</th><th>Status</th></tr></thead>
           <tbody><tr>
-              <td>osx_64</td>
+              <td>osx_64_c_stdlib_version10.13</td>
               <td>
                 <a href="https://dev.azure.com/conda-forge/feedstock-builds/_build/latest?definitionId=2401&branchName=main">
-                  <img src="https://dev.azure.com/conda-forge/feedstock-builds/_apis/build/status/ghc-feedstock?branchName=main&jobName=osx&configuration=osx%20osx_64_" alt="variant">
+                  <img src="https://dev.azure.com/conda-forge/feedstock-builds/_apis/build/status/ghc-feedstock?branchName=main&jobName=osx&configuration=osx%20osx_64_c_stdlib_version10.13" alt="variant">
+                </a>
+              </td>
+            </tr><tr>
+              <td>osx_64_c_stdlib_version11.0</td>
+              <td>
+                <a href="https://dev.azure.com/conda-forge/feedstock-builds/_build/latest?definitionId=2401&branchName=main">
+                  <img src="https://dev.azure.com/conda-forge/feedstock-builds/_apis/build/status/ghc-feedstock?branchName=main&jobName=osx&configuration=osx%20osx_64_c_stdlib_version11.0" alt="variant">
                 </a>
               </td>
             </tr>

@@ -8,8 +8,11 @@ jobs:
     vmImage: macOS-13
   strategy:
     matrix:
-      osx_64_:
-        CONFIG: osx_64_
+      osx_64_c_stdlib_version10.13:
+        CONFIG: osx_64_c_stdlib_version10.13
+        UPLOAD_PACKAGES: 'True'
+      osx_64_c_stdlib_version11.0:
+        CONFIG: osx_64_c_stdlib_version11.0
         UPLOAD_PACKAGES: 'True'
   timeoutInMinutes: 360
   variables: {}
