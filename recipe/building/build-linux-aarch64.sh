@@ -49,18 +49,21 @@ CONFIGURE_ARGS=(
   --enable-ghc-toolchain=yes
   --disable-numa
   --with-system-libffi=yes
-  --with-curses-includes="${PREFIX}"/include
-  --with-curses-libraries="${PREFIX}"/lib
-  --with-ffi-includes="${PREFIX}"/include
-  --with-ffi-libraries="${PREFIX}"/lib
-  --with-gmp-includes="${PREFIX}"/include
-  --with-gmp-libraries="${PREFIX}"/lib
-  --with-iconv-includes="${PREFIX}"/include
-  --with-iconv-libraries="${PREFIX}"/lib
+  --with-curses-includes="${BUILD_PREFIX}"/include
+  --with-curses-libraries="${BUILD_PREFIX}"/lib
+  # --with-ffi-includes="${BUILD_PREFIX}"/include
+  # --with-ffi-libraries="${BUILD_PREFIX}"/lib
+  # --with-gmp-includes="${BUILD_PREFIX}"/include
+  # --with-gmp-libraries="${BUILD_PREFIX}"/lib
+  # --with-iconv-includes="${BUILD_PREFIX}"/include
+  # --with-iconv-libraries="${BUILD_PREFIX}"/lib
 )
+AR="${BUILD_PREFIX}"/bin/x86_64-conda-linux-gnu-ar \
 CC="${BUILD_PREFIX}"/bin/x86_64-conda-linux-gnu-clang \
 CXX="${BUILD_PREFIX}"/bin/x86_64-conda-linux-gnu-clang++ \
 LD="${BUILD_PREFIX}"/bin/x86_64-conda-linux-gnu-ld \
+RANLIB="${BUILD_PREFIX}"/bin/x86_64-conda-linux-gnu-ranlib \
+LDFLAGS="${LDFLAGS//$PREFIX/$BUILD_PREFIX/}" \
 run_and_log "ghc-configure" bash configure "${CONFIGURE_ARGS[@]}"
 
 # Prefer the ghc-toolchain configuration
