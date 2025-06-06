@@ -19,7 +19,7 @@ pushd bootstrap-ghc
 popd
 
 # Update cabal package database
-run_and_log "cabal-update" cabal v2-update cabal v2-update --allow-newer --minimize-conflict-set
+run_and_log "cabal-update" cabal v2-update --allow-newer --minimize-conflict-set
 
 # Configure and build GHC
 SYSTEM_CONFIG=(
