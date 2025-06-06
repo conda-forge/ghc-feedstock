@@ -13,6 +13,10 @@ pushd "${SRC_DIR}"/bootstrap-ghc
   cp default.target.ghc-toolchain default.target
   run_and_log "bs-make-install" make install
 
+  # Correct GHC settings (odd)
+  perl -pi -e 's/(LLVM llvm-as command", ").+?"/$1llvm-as"/' "${SRC_DIR}/binary/lib/ghc-${BOOT_VERSION}/lib/settings"
+  perl -pi -e 's/(CPP command", ".+?-clang)/$1-cpp/' "${SRC_DIR}/binary/lib/ghc-${BOOT_VERSION}/lib/settings"
+
   # CLANG: workaround to GHC not adding gmp to its needed library paths
   perl -pi -e 's/(link flags", "(--target=x86_64-unknown-linux|-Wl,--no-as-needed))/$1 -Wl,-L$ENV{BUILD_PREFIX}\/lib/' "${SRC_DIR}/binary/lib/ghc-${BOOT_VERSION}/lib/settings"
 
@@ -58,11 +62,14 @@ run_and_log "ghc-configure" bash configure "${SYSTEM_CONFIG[@]}" "${CONFIGURE_AR
 
 # Prefer the ghc-toolchain configuration
 if [[ -e "${SRC_DIR}"/hadrian/cfg/default.target.ghc-toolchain ]]; then
-  cp "${SRC_DIR}"/hadrian/cfg/default.target "${SRC_DIR}"/hadrian/cfg/default.target.bak
-  cp "${SRC_DIR}"/hadrian/cfg/default.target.ghc-toolchain "${SRC_DIR}"/hadrian/cfg/default.target
+  mv "${SRC_DIR}"/hadrian/cfg/default.target "${SRC_DIR}"/hadrian/cfg/default.target.bak
+  # cp "${SRC_DIR}"/hadrian/cfg/default.target.ghc-toolchain "${SRC_DIR}"/hadrian/cfg/default.target
+  perl -pi -e 's/(cppProgram = Program { prgPath =  ".+?clang)/$1-cpp/' "${SRC_DIR}/hadrian/cfg/default.target.ghc-toolchain"
 fi
 run_and_log "stage1_exe" "${_hadrian_build[@]}" stage1:exe:ghc-bin --flavour=release --docs=none --progress-info=none
-perl -pi -e 's/LLVM llvm-as command", "aarch64-conda-linux-gnu-clang"/LLVM llvm-as command", "llvm-as"/' "${SRC_DIR}/_build/stage0/lib/settings"
+# Correct GHC settings (odd)
+perl -pi -e 's/(LLVM llvm-as command", ").+?"/$1llvm-as"/' "${SRC_DIR}/_build/stage0/lib/settings"
+perl -pi -e 's/(CPP command", ".+?-clang)/$1-cpp/' "${SRC_DIR}/_build/stage0/lib/settings"
 
 run_and_log "stage1_lib" "${_hadrian_build[@]}" stage1:lib:ghc --verbose --flavour=release --freeze1 --docs=none --progress-info=none
 run_and_log "stage2_exe" "${_hadrian_build[@]}" stage2:exe:ghc-bin --flavour=release --freeze1 --docs=none --progress-info=normal
