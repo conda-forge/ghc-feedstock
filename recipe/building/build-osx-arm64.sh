@@ -45,7 +45,8 @@ CONFIGURE_ARGS=(
 )
 
 run_and_log "ghc-configure" bash configure "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}"
-ls "${SRC_DIR}"/hadrian/cfg
+find . -name "ghc-toolchain-bin"
+find . -name "*.ghc-toolchain"
 
 _hadrian_build=("${SRC_DIR}"/hadrian/build "-j${CPU_COUNT}")
 run_and_log "stage1_exe" "${_hadrian_build[@]}" stage1:exe:ghc-bin --flavour=release --docs=none --progress-info=none
