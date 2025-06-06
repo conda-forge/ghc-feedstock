@@ -7,6 +7,8 @@ source "${RECIPE_DIR}"/building/common.sh
 
 # Install bootstrap GHC - Set conda platform moniker
 pushd "${SRC_DIR}"/bootstrap-ghc
+  CC=${CC_FOR_BUILD} \
+  CXX=${CXX_FOR_BUILD} \
   run_and_log "bs-configure" bash configure --prefix="${SRC_DIR}"/binary
   cp default.target.ghc-toolchain default.target
   run_and_log "bs-make-install" make install
@@ -34,6 +36,7 @@ _hadrian_build=("${SRC_DIR}"/hadrian/build "-j${CPU_COUNT}")
 SYSTEM_CONFIG=(
   --build="x86_64-conda-linux-gnu"
   --host="x86_64-conda-linux-gnu"
+  --target="aarch64-conda-linux-gnu"
 )
 
 CONFIGURE_ARGS=(
@@ -58,9 +61,10 @@ if [[ -e "${SRC_DIR}"/hadrian/cfg/default.target.ghc-toolchain ]]; then
   cp "${SRC_DIR}"/hadrian/cfg/default.target.ghc-toolchain "${SRC_DIR}"/hadrian/cfg/default.target
 fi
 run_and_log "stage1_exe" "${_hadrian_build[@]}" stage1:exe:ghc-bin --flavour=release --docs=none --progress-info=none
+run_and_log "stage1_lib" "${_hadrian_build[@]}" stage1:lib:ghc-bin --flavour=release --docs=none --progress-info=none
 run_and_log "stage2_exe" "${_hadrian_build[@]}" stage2:exe:ghc-bin --flavour=release --freeze1 --docs=none --progress-info=none
-run_and_log "build_all"  "${_hadrian_build[@]}" --flavour=release --freeze1 --freeze2 --docs=no-sphinx-pdfs --progress-info=none
-run_and_log "install" "${_hadrian_build[@]}" install --prefix="${PREFIX}" --flavour=release --freeze1 --freeze2 --docs=no-sphinx-pdfs
+# run_and_log "build_all"  "${_hadrian_build[@]}" --flavour=release --freeze1 --freeze2 --docs=no-sphinx-pdfs --progress-info=none
+# run_and_log "install" "${_hadrian_build[@]}" install --prefix="${PREFIX}" --flavour=release --freeze1 --freeze2 --docs=no-sphinx-pdfs
 
 # One go when ready
 # run_and_log "install" "${_hadrian_build[@]}" install --prefix="${PREFIX}" --flavour=release --docs=no-sphinx-pdfs
