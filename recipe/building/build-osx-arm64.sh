@@ -32,6 +32,7 @@ CONFIGURE_ARGS=(
   --prefix="${PREFIX}"
   --disable-numa
   --enable-ignore-build-platform-mismatch=yes
+  --enable-ghc-toolchain=yes
   --with-system-libffi=yes
   --with-curses-includes="${PREFIX}"/include
   --with-curses-libraries="${PREFIX}"/lib
@@ -44,6 +45,8 @@ CONFIGURE_ARGS=(
 )
 
 run_and_log "ghc-configure" bash configure "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}"
+cat "${SRC_DIR}"/hadrian/cfg/default.target.ghc-toolchain
+
 _hadrian_build=("${SRC_DIR}"/hadrian/build "-j${CPU_COUNT}")
 run_and_log "stage1_exe" "${_hadrian_build[@]}" stage1:exe:ghc-bin --flavour=release --docs=none --progress-info=none
 run_and_log "stage2_exe" "${_hadrian_build[@]}" stage2:exe:ghc-bin --flavour=release --freeze1 --docs=none --progress-info=none
