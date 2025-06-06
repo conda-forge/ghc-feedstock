@@ -15,7 +15,7 @@ pushd "${SRC_DIR}"/bootstrap-ghc
 
   # Correct GHC settings (odd)
   perl -pi -e 's/(LLVM llvm-as command", ").+?"/$1llvm-as"/' "${SRC_DIR}/binary/lib/ghc-${BOOT_VERSION}/lib/settings"
-  perl -pi -e 's/(CPP command", ".+?-clang)/$1-cpp/' "${SRC_DIR}/binary/lib/ghc-${BOOT_VERSION}/lib/settings"
+  # Not needed: perl -pi -e 's/(CPP command", ".+?-clang)/$1-cpp/' "${SRC_DIR}/binary/lib/ghc-${BOOT_VERSION}/lib/settings"
 
   # CLANG: workaround to GHC not adding gmp to its needed library paths
   perl -pi -e 's/(link flags", "(--target=x86_64-unknown-linux|-Wl,--no-as-needed))/$1 -Wl,-L$ENV{BUILD_PREFIX}\/lib/' "${SRC_DIR}/binary/lib/ghc-${BOOT_VERSION}/lib/settings"
@@ -72,7 +72,7 @@ fi
 run_and_log "stage1_exe" "${_hadrian_build[@]}" stage1:exe:ghc-bin --flavour=release --docs=none --progress-info=none
 # Correct GHC settings (odd)
 perl -pi -e 's/(LLVM llvm-as command", ").+?"/$1llvm-as"/' "${SRC_DIR}/_build/stage0/lib/settings"
-perl -pi -e 's/(CPP command", ".+?-clang)/$1-cpp/' "${SRC_DIR}/_build/stage0/lib/settings"
+# Not needed: perl -pi -e 's/(CPP command", ".+?-clang)/$1-cpp/' "${SRC_DIR}/_build/stage0/lib/settings"
 
 run_and_log "stage1_lib" "${_hadrian_build[@]}" stage1:lib:ghc -VV --flavour=release --freeze1 --docs=none --progress-info=unicorn
 run_and_log "stage2_exe" "${_hadrian_build[@]}" stage2:exe:ghc-bin --flavour=release --freeze1 --docs=none --progress-info=none
