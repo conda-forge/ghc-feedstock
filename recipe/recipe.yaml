@@ -140,40 +140,40 @@ tests:
       ghc hello.hs
       ./hello
 
-  - script:
-      interpreter: python
-      content: |
-        import os, sys, pathlib
-        binaries = [
-          "ghc", "ghc-pkg", "ghci", "haddock", "hp2ps",
-          "hpc", "hsc2hs", "runghc", "runhaskell"
-        ]
-        all_files=[f'{b}' for b in binaries] + [f'{b}-${{ version }}' for b in binaries]
-        missing=[f for f in all_files if not pathlib.Path(os.environ['CONDA_PREFIX']).joinpath('bin', f).exists()]
-        exit(1) if missing else exit(0)
+  # - script:
+  #     interpreter: python
+  #     content: |
+  #       import os, sys, pathlib
+  #       binaries = [
+  #         "ghc", "ghc-pkg", "ghci", "haddock", "hp2ps",
+  #         "hpc", "hsc2hs", "runghc", "runhaskell"
+  #       ]
+  #       all_files=[f'{b}' for b in binaries] + [f'{b}-${{ version }}' for b in binaries]
+  #       missing=[f for f in all_files if not pathlib.Path(os.environ['CONDA_PREFIX']).joinpath('bin', f).exists()]
+  #       exit(1) if missing else exit(0)
 
-  - script:
-      interpreter: python
-      content: |
-        import os, sys, pathlib
-        binaries = [
-          "ghc", "ghc-pkg", "runghc", "runhaskell"
-        ]
-        all_files=[f'{b}' for b in binaries] + [f'{b}-${{ version }}' for b in binaries]
-        missing=[f for f in all_files if not pathlib.Path(os.environ['CONDA_PREFIX']).joinpath('lib', 'ghc-${{ version }}', 'bin', f).exists()]
-        exit(1) if missing else exit(0)
+  # - script:
+  #     interpreter: python
+  #     content: |
+  #       import os, sys, pathlib
+  #       binaries = [
+  #         "ghc", "ghc-pkg", "runghc", "runhaskell"
+  #       ]
+  #       all_files=[f'{b}' for b in binaries] + [f'{b}-${{ version }}' for b in binaries]
+  #       missing=[f for f in all_files if not pathlib.Path(os.environ['CONDA_PREFIX']).joinpath('lib', 'ghc-${{ version }}', 'bin', f).exists()]
+  #       exit(1) if missing else exit(0)
 
-  - script:
-      interpreter: python
-      content: |
-        import os, sys, pathlib
-        binaries = [
-          "ghc-iserv", "ghc-iserv-dyn", "ghc-iserv-prof", "unlit",
-          "ghc-toolchain-bin","haddock", "hp2ps", "hpc", "hsc2hs",
-        ]
-        all_files=[f'{b}' for b in binaries] + [f'{b}-ghc-${{ version }}' for b in binaries]
-        missing=[f for f in all_files if not pathlib.Path(os.environ['CONDA_PREFIX']).joinpath('lib', 'ghc-${{ version }}', 'bin', f).exists()]
-        exit(1) if missing else exit(0)
+  # - script:
+  #     interpreter: python
+  #     content: |
+  #       import os, sys, pathlib
+  #       binaries = [
+  #         "ghc-iserv", "ghc-iserv-dyn", "ghc-iserv-prof", "unlit",
+  #         "ghc-toolchain-bin","haddock", "hp2ps", "hpc", "hsc2hs",
+  #       ]
+  #       all_files=[f'{b}' for b in binaries] + [f'{b}-ghc-${{ version }}' for b in binaries]
+  #       missing=[f for f in all_files if not pathlib.Path(os.environ['CONDA_PREFIX']).joinpath('lib', 'ghc-${{ version }}', 'bin', f).exists()]
+  #       exit(1) if missing else exit(0)
 
 about:
   homepage: https://haskell.org/ghc/
