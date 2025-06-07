@@ -54,17 +54,17 @@ CONFIGURE_ARGS=(
 # run_and_log "ghc-configure" bash configure "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}"
 run_and_log "ghc-configure" bash configure "${CONFIGURE_ARGS[@]}"
 
-# Prefer the ghc-toolchain configuration
-# if [[ -e "${SRC_DIR}"/hadrian/cfg/default.target.ghc-toolchain ]]; then
-#   cp "${SRC_DIR}"/hadrian/cfg/default.target.ghc-toolchain "${SRC_DIR}"/hadrian/cfg/default.target
-# fi
 run_and_log "stage1_exe" "${_hadrian_build[@]}" stage1:exe:ghc-bin --flavour=release --docs=none --progress-info=none
-# cp ${RECIPE_DIR}/building/configure.sh rts/configure
-# rts/configure --help
-run_and_log "stage1_lib" "${_hadrian_build[@]}" stage1:lib:ghc -VV --flavour=release --freeze1 --docs=none --progress-info=unicorn
+run_and_log "stage1_lib" "${_hadrian_build[@]}" stage1:lib:ghc -VV --flavour=release --freeze1 --docs=none --progress-info=none
 run_and_log "stage2_exe" "${_hadrian_build[@]}" stage2:exe:ghc-bin --flavour=release --freeze1 --docs=none --progress-info=none
-patchelf --add-rpath "$PREFIX}/lib" _build/stage1/bin/haddock
+run_and_log "stage2_lib" "${_hadrian_build[@]}" stage2:lib:ghc -VV --flavour=release --freeze1 --freeze2 --docs=none --progress-info=none
+
 run_and_log "build_all"  "${_hadrian_build[@]}" --flavour=release --freeze1 --freeze2 --docs=no-sphinx-pdfs --progress-info=none
+
+for bin in _build/stage1/bin/*; do
+  patchelf --add-rpath "${PREFIX}/lib" "$bin"
+done
+
 run_and_log "install" "${_hadrian_build[@]}" install --prefix="${PREFIX}" --flavour=release --freeze1 --freeze2 --docs=no-sphinx-pdfs
 
 # One go when ready
