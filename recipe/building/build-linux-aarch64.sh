@@ -11,6 +11,7 @@ pushd "${SRC_DIR}"/bootstrap-ghc
 
   MergeCmdObj=${MergeCmdObj:-${CONDA_TOOLCHAIN_BUILD}-ld} \
   AR=${CONDA_TOOLCHAIN_BUILD}-ar \
+  AS=${CONDA_TOOLCHAIN_BUILD}-as \
   CC=${CC_FOR_BUILD} \
   CXX=${CXX_FOR_BUILD} \
   NM=${CONDA_TOOLCHAIN_BUILD}-nm \
@@ -22,7 +23,6 @@ pushd "${SRC_DIR}"/bootstrap-ghc
   # Correct GHC settings (odd)
   perl -pi -e 's/(LLVM llvm-as command", ").+?"/$1llvm-as"/' "${SRC_DIR}/binary/lib/ghc-${BOOT_VERSION}/lib/settings"
   perl -pi -e 's/aarch64/x86_64/' "${SRC_DIR}/binary/lib/ghc-${BOOT_VERSION}/lib/settings"
-  # Not needed: perl -pi -e 's/(CPP command", ".+?-clang)/$1-cpp/' "${SRC_DIR}/binary/lib/ghc-${BOOT_VERSION}/lib/settings"
 
   # CLANG: workaround to GHC not adding gmp to its needed library paths
   perl -pi -e 's/(link flags", "(--target=x86_64-unknown-linux|-Wl,--no-as-needed))/$1 -Wl,-L$ENV{BUILD_PREFIX}\/lib/' "${SRC_DIR}/binary/lib/ghc-${BOOT_VERSION}/lib/settings"
@@ -54,10 +54,18 @@ CONFIGURE_ARGS=(
   --enable-ignore-build-platform-mismatch=yes
   --disable-numa
   --with-system-libffi=yes
-  --with-curses-includes="${BUILD_PREFIX}"/include
-  --with-curses-libraries="${BUILD_PREFIX}"/lib
+  --with-curses-includes="${PREFIX}"/include
+  --with-curses-libraries="${PREFIX}"/lib
+  --with-ffi-includes="${PREFIX}"/include
+  --with-ffi-libraries="${PREFIX}"/lib
+  --with-gmp-includes="${PREFIX}"/include
+  --with-gmp-libraries="${PREFIX}"/lib
+  --with-iconv-includes="${PREFIX}"/include
+  --with-iconv-libraries="${PREFIX}"/lib
 )
+cp "${RECIPE_DIR}"/building/configure.sh configure
 run_and_log "ghc-configure" bash configure "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}"
+# run_and_log "ghc-configure" bash configure "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}"
 
 run_and_log "stage1_exe" "${_hadrian_build[@]}" stage1:exe:ghc-bin --flavour=release --docs=none --progress-info=none
 # Correct GHC settings (odd)
