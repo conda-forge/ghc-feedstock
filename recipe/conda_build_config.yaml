@@ -1,23 +1,16 @@
 c_stdlib:                  # [not unix]
   - m2w64-sysroot          # [not unix]
-c_stdlib_version:          # [not osx]
+c_stdlib_version:
+  - "10.13"                # [osx and x86_64]
+  - "11.0"                 # [osx and arm64]
   - "2.28"                 # [linux]
   - "12"                   # [not unix]
 
 c_compiler:
   - clang
 c_compiler_version:
-  - 19
+  - 18
 cxx_compiler:
   - clangxx
 cxx_compiler_version:
-  - 19
-
-# c_compiler:                # [not unix]
-#   - gcc                    # [not unix]
-# c_compiler_version:        # [not unix]
-#   - 13                     # [not unix]
-# cxx_compiler:              # [not unix]
-#   - gxx                    # [not unix]
-# cxx_compiler_version:      # [not unix]
-#   - 13                     # [not unix]
+  - 18
