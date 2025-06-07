@@ -10,7 +10,7 @@ pushd "${SRC_DIR}"/bootstrap-ghc
   CC=${CC_FOR_BUILD} \
   CXX=${CXX_FOR_BUILD} \
   run_and_log "bs-configure" bash configure --prefix="${SRC_DIR}"/binary
-  cp default.target.ghc-toolchain default.target
+  # cp default.target.ghc-toolchain default.target
   run_and_log "bs-make-install" make install
 
   # Correct GHC settings (odd)
