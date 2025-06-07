@@ -12,16 +12,24 @@ pushd bootstrap-ghc
     --host="x86_64-apple-darwin"
   cp default.target.ghc-toolchain default.target
   run_and_log "bs-make-install" make install
+
+  cat "${SRC_DIR}"/binary/lib/ghc-"${BOOT_VERSION}"/lib/settings
+  perl -pi -e 's/arm64-apple-darwin20.0.0/x86_64-apple-darwin13.4.9/g' "${SRC_DIR}"/binary/lib/ghc-"${BOOT_VERSION}"/lib/settings
 popd
 
 # Update cabal package database
 run_and_log "cabal-update" cabal v2-update --allow-newer --minimize-conflict-set
 
 # Configure and build GHC
+#SYSTEM_CONFIG=(
+#  --build="x86_64-apple-darwin13.4.0"
+#  --host="x86_64-apple-darwin13.4.0"
+#  --target="arm64-apple-darwin20.0.0"
+#)
 SYSTEM_CONFIG=(
-  --build="x86_64-apple-darwin13.4.0"
-  --host="x86_64-apple-darwin13.4.0"
-  --target="arm64-apple-darwin20.0.0"
+  --build="x86_64-apple-darwin"
+  --host="x86_64-apple-darwin"
+  --target="arm64-apple-darwin"
 )
 
 CONFIGURE_ARGS=(
@@ -32,16 +40,18 @@ CONFIGURE_ARGS=(
   --with-system-libffi=yes
   --with-curses-includes="${PREFIX}"/include
   --with-curses-libraries="${PREFIX}"/lib
-  --with-ffi-includes="${PREFIX}"/include
-  --with-ffi-libraries="${PREFIX}"/lib
-  --with-gmp-includes="${PREFIX}"/include
-  --with-gmp-libraries="${PREFIX}"/lib
-  --with-iconv-includes="${PREFIX}"/include
-  --with-iconv-libraries="${PREFIX}"/lib
+  # --with-ffi-includes="${PREFIX}"/include
+  # --with-ffi-libraries="${PREFIX}"/lib
+  # --with-gmp-includes="${PREFIX}"/include
+  # --with-gmp-libraries="${PREFIX}"/lib
+  # --with-iconv-includes="${PREFIX}"/include
+  # --with-iconv-libraries="${PREFIX}"/lib
 )
 
 # This will not generate ghc-toolchain-bin or the .ghc-toolchain (possibly due to x-platform)
 run_and_log "ghc-configure" bash configure "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}"
+
+cat "${SRC_DIR}"/hadrian/cfg/default.target
 # # Attempt to brute-force it
 # "${SRC_DIR}"/binary/lib/ghc-"${BOOT_VERSION}"/bin/ghc-toolchain-bin \
 #   -t "arm64-apple-darwin" \
@@ -54,8 +64,6 @@ run_and_log "ghc-configure" bash configure "${SYSTEM_CONFIG[@]}" "${CONFIGURE_AR
 # cp "${SRC_DIR}"/hadrian/cfg/default.target "${SRC_DIR}"/hadrian/cfg/default.target.bak
 # cp "${SRC_DIR}"/hadrian/cfg/default.target.ghc-toolchain "${SRC_DIR}"/hadrian/cfg/default.target
 # perl -pi -e 's/\$BUILD_PREFIX/$ENV{BUILD_PREFIX}/g' "${SRC_DIR}"/hadrian/cfg/default.target
-
-cat "${SRC_DIR}"/binary/lib/ghc-"${BOOT_VERSION}"/lib/settings
 
 _hadrian_build=("${SRC_DIR}"/hadrian/build "-j${CPU_COUNT}")
 # run_and_log "stage1_exe" "${_hadrian_build[@]}" stage1:exe:ghc-bin -VV --flavour=release --docs=none --progress-info=none
