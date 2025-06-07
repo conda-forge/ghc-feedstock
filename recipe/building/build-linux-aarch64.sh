@@ -7,14 +7,21 @@ source "${RECIPE_DIR}"/building/common.sh
 
 # Install bootstrap GHC - Set conda platform moniker
 pushd "${SRC_DIR}"/bootstrap-ghc
+  MergeCmdObj=$(find "${BUILD_PREFIX}" -type f -name "${CONDA_TOOLCHAIN_BUILD}"-ld.gold | head -n 1)
+
+  MergeCmdObj=${MergeCmdObj:-${CONDA_TOOLCHAIN_BUILD}-ld} \
+  AR=${CONDA_TOOLCHAIN_BUILD}-ar \
   CC=${CC_FOR_BUILD} \
   CXX=${CXX_FOR_BUILD} \
+  NM=${CONDA_TOOLCHAIN_BUILD}-nm \
+  RANLIB=${CONDA_TOOLCHAIN_BUILD}-ranlib \
   run_and_log "bs-configure" bash configure --prefix="${SRC_DIR}"/binary
-  # cp default.target.ghc-toolchain default.target
+
   run_and_log "bs-make-install" make install
 
   # Correct GHC settings (odd)
   perl -pi -e 's/(LLVM llvm-as command", ").+?"/$1llvm-as"/' "${SRC_DIR}/binary/lib/ghc-${BOOT_VERSION}/lib/settings"
+  perl -pi -e 's/aarch64/x86_64/' "${SRC_DIR}/binary/lib/ghc-${BOOT_VERSION}/lib/settings"
   # Not needed: perl -pi -e 's/(CPP command", ".+?-clang)/$1-cpp/' "${SRC_DIR}/binary/lib/ghc-${BOOT_VERSION}/lib/settings"
 
   # CLANG: workaround to GHC not adding gmp to its needed library paths
