@@ -8,7 +8,7 @@ source "${RECIPE_DIR}"/building/common.sh
 # Install bootstrap GHC - Set conda platform moniker
 pushd "${SRC_DIR}"/bootstrap-ghc
   run_and_log "bs-configure" bash configure --prefix="${SRC_DIR}"/binary
-  cp default.target.ghc-toolchain default.target
+  # cp default.target.ghc-toolchain default.target
   run_and_log "bs-make-install" make install
 
   # CLANG: workaround to GHC not adding gmp to its needed library paths
@@ -39,25 +39,23 @@ SYSTEM_CONFIG=(
 CONFIGURE_ARGS=(
   --prefix="${PREFIX}"
   --enable-ignore-build-platform-mismatch=yes
-  --enable-ghc-toolchain=yes
+  # --enable-ghc-toolchain=yes
   --disable-numa
   --with-system-libffi=yes
   --with-curses-includes="${PREFIX}"/include
   --with-curses-libraries="${PREFIX}"/lib
-  --with-ffi-includes="${PREFIX}"/include
-  --with-ffi-libraries="${PREFIX}"/lib
-  --with-gmp-includes="${PREFIX}"/include
-  --with-gmp-libraries="${PREFIX}"/lib
-  --with-iconv-includes="${PREFIX}"/include
-  --with-iconv-libraries="${PREFIX}"/lib
 )
-run_and_log "ghc-configure" bash configure "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}"
+# run_and_log "ghc-configure" bash configure "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}"
+run_and_log "ghc-configure" bash configure "${CONFIGURE_ARGS[@]}"
 
 # Prefer the ghc-toolchain configuration
-if [[ -e "${SRC_DIR}"/hadrian/cfg/default.target.ghc-toolchain ]]; then
-  cp "${SRC_DIR}"/hadrian/cfg/default.target.ghc-toolchain "${SRC_DIR}"/hadrian/cfg/default.target
-fi
+# if [[ -e "${SRC_DIR}"/hadrian/cfg/default.target.ghc-toolchain ]]; then
+#   cp "${SRC_DIR}"/hadrian/cfg/default.target.ghc-toolchain "${SRC_DIR}"/hadrian/cfg/default.target
+# fi
 run_and_log "stage1_exe" "${_hadrian_build[@]}" stage1:exe:ghc-bin --flavour=release --docs=none --progress-info=none
+cp ${RECIPE_DIR}/building/configure.sh rts/configure
+rts/configure --help
+run_and_log "stage1_lib" "${_hadrian_build[@]}" stage1:lib:ghc -VV --flavour=release --freeze1 --docs=none --progress-info=unicorn
 run_and_log "stage2_exe" "${_hadrian_build[@]}" stage2:exe:ghc-bin --flavour=release --freeze1 --docs=none --progress-info=none
 run_and_log "build_all"  "${_hadrian_build[@]}" --flavour=release --freeze1 --freeze2 --docs=no-sphinx-pdfs --progress-info=none
 run_and_log "install" "${_hadrian_build[@]}" install --prefix="${PREFIX}" --flavour=release --freeze1 --freeze2 --docs=no-sphinx-pdfs
