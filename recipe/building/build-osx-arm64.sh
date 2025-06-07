@@ -14,7 +14,7 @@ pushd bootstrap-ghc
   run_and_log "bs-make-install" make install
 
   cat "${SRC_DIR}"/binary/lib/ghc-"${BOOT_VERSION}"/lib/settings
-  perl -pi -e 's/arm64-apple-darwin20.0.0/x86_64-apple-darwin13.4.9/g' "${SRC_DIR}"/binary/lib/ghc-"${BOOT_VERSION}"/lib/settings
+  perl -pi -e 's/arm64-apple-darwin20.0.0/x86_64-apple-darwin13.4.0/g' "${SRC_DIR}"/binary/lib/ghc-"${BOOT_VERSION}"/lib/settings
 popd
 
 # Update cabal package database
