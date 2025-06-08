@@ -63,7 +63,7 @@ requirements:
     - if: build_platform != target_platform
       then:
         - gmp
-        - libffi
+        # - libffi
 
     - if: target_platform == "linux-aarch64"
       then: sysroot_${{ build_platform }} >=2.28

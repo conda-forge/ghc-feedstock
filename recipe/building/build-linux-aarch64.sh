@@ -21,7 +21,7 @@ pushd "${SRC_DIR}"/bootstrap-ghc
   run_and_log "bs-make-install" make install
 
   # Correct GHC settings (odd)
-  perl -pi -e 's/(LLVM llvm-as command", ").+?"/$1llvm-as"/' "${SRC_DIR}/binary/lib/ghc-${BOOT_VERSION}/lib/settings"
+  perl -pi -e 's/(LLVM llvm-as command", ").+?"/$1"/' "${SRC_DIR}/binary/lib/ghc-${BOOT_VERSION}/lib/settings"
   perl -pi -e 's/aarch64/x86_64/' "${SRC_DIR}/binary/lib/ghc-${BOOT_VERSION}/lib/settings"
 
   # CLANG: workaround to GHC not adding gmp to its needed library paths
