@@ -58,11 +58,9 @@ run_and_log "stage1_exe" "${_hadrian_build[@]}" stage1:exe:ghc-bin --flavour=rel
 run_and_log "stage1_lib" "${_hadrian_build[@]}" stage1:lib:ghc -VV --flavour=release --freeze1 --docs=none --progress-info=none
 run_and_log "stage2_exe" "${_hadrian_build[@]}" stage2:exe:ghc-bin --flavour=release --freeze1 --docs=none --progress-info=none
 
-for bin in _build/stage1/bin/*; do
-  patchelf --add-rpath "${PREFIX}/lib" "$bin"
-done
-
-run_and_log "stage2_lib" "${_hadrian_build[@]}" stage2:lib:ghc -VV --flavour=release --freeze1 --freeze2 --docs=none --progress-info=none
+# GHC build ghc-pkg with '-fno-use-rpaths' but it requires libiconv.so.2
+# _build/stage1/bin/ghc-pkg: error while loading shared libraries: libiconv.so.2
+LD_PRELOAD=${PREFIX}/lib/libiconv.so.2 run_and_log "stage2_lib" "${_hadrian_build[@]}" stage2:lib:ghc -VV --flavour=release --freeze1 --freeze2 --docs=none --progress-info=none
 
 run_and_log "build_all"  "${_hadrian_build[@]}" --flavour=release --freeze1 --freeze2 --docs=no-sphinx-pdfs --progress-info=none
 
