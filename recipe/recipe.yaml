@@ -102,9 +102,12 @@ requirements:
       then:
         - ncurses
   run:
-    - c-compiler
+    - ${{ compiler('c') }}
+    - ${{ compiler('cxx') }}
+    # - c-compiler
     - gmp
     - libffi
+    - llvm-tools ${{ c_compiler_version }}.*
     - if: unix
       then:
         - ncurses
