@@ -8,14 +8,14 @@ source "${RECIPE_DIR}"/building/common.sh
 # Install bootstrap GHC - Set conda platform moniker
 pushd "${SRC_DIR}"/bootstrap-ghc
   run_and_log "bs-configure" bash configure --prefix="${SRC_DIR}"/binary
-  perl -pi -e 's#($ENV{BUILD_PREFIX}|$ENV{PREFIX})/bin/##g' default.target
+  perl -pi -e 's#($ENV{BUILD_PREFIX}|$ENV{PREFIX})/bin/##' default.target
   # cp default.target.ghc-toolchain default.target
   run_and_log "bs-make-install" make install
 
   # CLANG: workaround to GHC not adding gmp to its needed library paths
   perl -pi -e 's#(link flags", "(--target=x86_64-unknown-linux|-Wl,--no-as-needed))#$1 -Wl,-L$ENV{BUILD_PREFIX}/lib#' "${SRC_DIR}"/binary/lib/ghc-"${BOOT_VERSION}"/lib/settings
   grep 'link flags' "${SRC_DIR}"/binary/lib/ghc-"${BOOT_VERSION}"/lib/settings
-  perl -pi -e 's#($ENV{BUILD_PREFIX}|$ENV{PREFIX})/bin/##g' "${SRC_DIR}"/binary/lib/ghc-"${BOOT_VERSION}"/lib/settings
+  perl -pi -e 's#($ENV{BUILD_PREFIX}|$ENV{PREFIX})/bin/##' "${SRC_DIR}"/binary/lib/ghc-"${BOOT_VERSION}"/lib/settings
 
   # Update rpath of bootstrap HShaskeline and HSterminfo
   find "${SRC_DIR}/binary/lib" -type f \( -name "*HShaskeline*.so" -o -name "*HSterminfo*.so" -o -name "ghc-${BOOT_VERSION}" \) | while read -r lib; do
@@ -55,14 +55,14 @@ CONFIGURE_ARGS=(
   --with-iconv-libraries="${PREFIX}"/lib
 )
 run_and_log "ghc-configure" bash configure "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}"
-perl -pi -e 's#($ENV{BUILD_PREFIX}|$ENV{PREFIX})/bin/##' default.target
+perl -pi -e 's#($ENV{BUILD_PREFIX}|$ENV{PREFIX})/bin/##' "${SRC_DIR}"/hadrian/cfg/default.target
 
 run_and_log "stage1_exe" "${_hadrian_build[@]}" stage1:exe:ghc-bin --flavour=release --docs=none --progress-info=none
-perl -pi -e 's#($ENV{BUILD_PREFIX}|$ENV{PREFIX})/bin/##' _build/stage0/lib/settings
+perl -pi -e 's#($ENV{BUILD_PREFIX}|$ENV{PREFIX})/bin/##' "${SRC_DIR}"/_build/stage0/lib/settings
 
 run_and_log "stage1_lib" "${_hadrian_build[@]}" stage1:lib:ghc --flavour=release --freeze1 --docs=none --progress-info=none
 run_and_log "stage2_exe" "${_hadrian_build[@]}" stage2:exe:ghc-bin --flavour=release --freeze1 --docs=none --progress-info=none
-perl -pi -e 's#($ENV{BUILD_PREFIX}|$ENV{PREFIX})/bin/##' _build/stage1/lib/settings
+perl -pi -e 's#($ENV{BUILD_PREFIX}|$ENV{PREFIX})/bin/##' "${SRC_DIR}"/_build/stage1/lib/settings
 
 # GHC build ghc-pkg with '-fno-use-rpaths' but it requires libiconv.so.2
 # _build/stage1/bin/ghc-pkg: error while loading shared libraries: libiconv.so.2
@@ -70,9 +70,9 @@ export LD_PRELOAD="${PREFIX}/lib/libiconv.so.2 ${PREFIX}/lib/libgmp.so.10 ${PREF
 run_and_log "stage2_lib" "${_hadrian_build[@]}" stage2:lib:ghc --flavour=release --freeze1 --freeze2 --docs=none --progress-info=none
 
 run_and_log "build_all"  "${_hadrian_build[@]}" --flavour=release --freeze1 --freeze2 --docs=no-sphinx-pdfs --progress-info=none
-perl -pi -e 's#($ENV{BUILD_PREFIX}|$ENV{PREFIX})/bin/##' _build/stage2/lib/settings
+perl -pi -e 's#($ENV{BUILD_PREFIX}|$ENV{PREFIX})/bin/##' "${SRC_DIR}"/_build/stage2/lib/settings
 run_and_log "install" "${_hadrian_build[@]}" install --prefix="${PREFIX}" --flavour=release --freeze1 --freeze2 --docs=no-sphinx-pdfs
-perl -pi -e 's#($ENV{BUILD_PREFIX}|$ENV{PREFIX})/bin/##' ${PREFIX}/lib/ghc-${PKG_VERSION}/settings
+perl -pi -e 's#($ENV{BUILD_PREFIX}|$ENV{PREFIX})/bin/##' "${PREFIX}"/lib/ghc-"${PKG_VERSION}"/settings
 
 # One go when ready
 # run_and_log "install" "${_hadrian_build[@]}" install --prefix="${PREFIX}" --flavour=release --docs=no-sphinx-pdfs
