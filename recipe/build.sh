@@ -12,8 +12,8 @@ export M4=${BUILD_PREFIX}/bin/m4
 export PYTHON=${BUILD_PREFIX}/bin/python
 export PATH=$PWD/binary/bin:$PATH
 
-unset build_alias
-unset host_alias
+# unset build_alias
+# unset host_alias
 
 # Install cabal-install
 cp bootstrap-cabal/cabal* binary/bin/

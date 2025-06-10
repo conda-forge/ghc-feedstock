@@ -90,7 +90,7 @@ requirements:
         - m2-m4
         - m2-make
     - gmp
-    - llvm-tools <=19
+    - llvm-tools ${{ c_compiler_version }}.*
     - python 3.12.*
     - sphinx
     - zstd
@@ -102,9 +102,12 @@ requirements:
       then:
         - ncurses
   run:
-    - c-compiler
+    - ${{ compiler('c') }}
+    - ${{ compiler('cxx') }}
+    # - c-compiler
     - gmp
     - libffi
+    - llvm-tools ${{ c_compiler_version }}.*
     - if: unix
       then:
         - ncurses

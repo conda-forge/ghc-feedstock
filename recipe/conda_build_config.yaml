@@ -14,12 +14,3 @@ cxx_compiler:
   - clangxx
 cxx_compiler_version:
   - 18
-
-# c_compiler:                # [not unix]
-#   - gcc                    # [not unix]
-# c_compiler_version:        # [not unix]
-#   - 13                     # [not unix]
-# cxx_compiler:              # [not unix]
-#   - gxx                    # [not unix]
-# cxx_compiler_version:      # [not unix]
-#   - 13                     # [not unix]
