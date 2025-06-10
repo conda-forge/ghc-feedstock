@@ -6,11 +6,11 @@ c_stdlib_version:
   - "2.28"                 # [linux]
   - "12"                   # [not unix]
 
-c_compiler:
-  - clang
-c_compiler_version:
-  - 18
-cxx_compiler:
-  - clangxx
-cxx_compiler_version:
-  - 18
+c_compiler:                # [not linux]
+  - clang                  # [not linux]
+c_compiler_version:        # [not linux]
+  - 18                     # [not linux]
+cxx_compiler:              # [not linux]
+  - clangxx                # [not linux]
+cxx_compiler_version:      # [not linux]
+  - 18                     # [not linux]
