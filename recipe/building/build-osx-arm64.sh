@@ -14,6 +14,8 @@ pushd bootstrap-ghc
   CXX=${CXX_FOR_BUILD} \
   NM=${CONDA_TOOLCHAIN_BUILD}-nm \
   RANLIB=${CONDA_TOOLCHAIN_BUILD}-ranlib \
+  LDFLAGS=${LDFLAGS//$PREFIX/$BUILD_PREFIX/} \
+  LDFLAGS_LD=${LDFLAGS_LD//$PREFIX/$BUILD_PREFIX/} \
   run_and_log "bs-configure" bash configure --prefix="${SRC_DIR}"/binary
   perl -pi -e 's#($ENV{BUILD_PREFIX}|$ENV{PREFIX})/bin/##' default.target
   run_and_log "bs-make-install" make install
@@ -48,8 +50,8 @@ CONFIGURE_ARGS=(
   --with-system-libffi=yes
   --with-curses-includes="${BUILD_PREFIX}"/include
   --with-curses-libraries="${BUILD_PREFIX}"/lib
-  --with-ffi-includes="${PREFIX}"/include
-  --with-ffi-libraries="${PREFIX}"/lib
+  --with-ffi-includes="${BUILD_PREFIX}"/include
+  --with-ffi-libraries="${BUILD_PREFIX}"/lib
   --with-gmp-includes="${BUILD_PREFIX}"/include
   --with-gmp-libraries="${BUILD_PREFIX}"/lib
   --with-iconv-includes="${BUILD_PREFIX}"/include
@@ -57,6 +59,15 @@ CONFIGURE_ARGS=(
 )
 
 # This will not generate ghc-toolchain-bin or the .ghc-toolchain (possibly due to x-platform)
+MergeCmdObj=${MergeCmdObj:-${CONDA_TOOLCHAIN_BUILD}-ld} \
+AR=${CONDA_TOOLCHAIN_BUILD}-ar \
+AS=${CONDA_TOOLCHAIN_BUILD}-as \
+CC=${CC_FOR_BUILD} \
+CXX=${CXX_FOR_BUILD} \
+NM=${CONDA_TOOLCHAIN_BUILD}-nm \
+RANLIB=${CONDA_TOOLCHAIN_BUILD}-ranlib \
+LDFLAGS=${LDFLAGS//$PREFIX/$BUILD_PREFIX/} \
+LDFLAGS_LD=${LDFLAGS_LD//$PREFIX/$BUILD_PREFIX/} \
 run_and_log "ghc-configure" bash configure "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}"
 perl -pi -e 's#($ENV{BUILD_PREFIX}|$ENV{PREFIX})/bin/##' "${SRC_DIR}"/hadrian/cfg/default.target
 perl -pi -e 's#"--target=[\w-]+"#"--target=aarch64-apple-darwin"#'  "${SRC_DIR}"/hadrian/cfg/default.target
