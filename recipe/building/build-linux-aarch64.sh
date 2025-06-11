@@ -112,7 +112,16 @@ run_and_log "build_all"  "${_hadrian_build[@]}" --flavour=release --freeze1 --fr
 run_and_log "install" "${_hadrian_build[@]}" install -VV --prefix="${PREFIX}" --flavour=release --freeze1 --freeze2 --docs=none --progress-info=unicorn
 
 # Create links of aarch64-conda-linux-gnu-xxx to xxx
-for bin in "${PREFIX}"/bin/aarch64-conda-linux-gnu-*; do
-  ln -s "${bin}" "${bin//aarch64-conda-linux-gnu-/}"
-done
-ln -s "${PREFIX}"/lib/aarch64-conda-linux-gnu-ghc-"${PKG_VERSION}" "${PREFIX}"/lib/ghc-"${PKG_VERSION}"
+pushd "${PREFIX}"/bin
+  for bin in aarch64-conda-linux-gnu-*; do
+    ln -s "${bin}" "${bin#aarch64-conda-linux-gnu-}"
+  done
+popd
+
+pushd "${PREFIX}"/lib
+  ln -s aarch64-conda-linux-gnu-ghc-"${PKG_VERSION}" ghc-"${PKG_VERSION}"
+popd
+
+pushd "${PREFIX}"/share/doc
+  ln -s aarch64-conda-linux-gnu-ghc-"${PKG_VERSION}" ghc-"${PKG_VERSION}"
+popd
