@@ -119,7 +119,7 @@ tests:
         - etc/conda/activate.d/ghc_activate.sh
 
         # - lib/ghc-${{ version }}/lib/html/**
-        - lib/ghc-${{ version }}/lib/latex/haddock.sty
+        # - lib/ghc-${{ version }}/lib/latex/haddock.sty
         - lib/ghc-${{ version }}/lib/llvm-passes
         - lib/ghc-${{ version }}/lib/llvm-targets
         - lib/ghc-${{ version }}/lib/package.conf.d/**
