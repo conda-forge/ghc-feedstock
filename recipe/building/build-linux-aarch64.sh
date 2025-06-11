@@ -123,8 +123,6 @@ pushd "${PREFIX}"/lib
     mv aarch64-conda-linux-gnu-ghc-"${PKG_VERSION}" ghc-"${PKG_VERSION}"
     ln -s ghc-"${PKG_VERSION}" aarch64-conda-linux-gnu-ghc-"${PKG_VERSION}"
   fi
-  ls ghc-"${PKG_VERSION}"
-  cat ghc-"${PKG_VERSION}"/settings
 popd
 
 pushd "${PREFIX}"/share/doc/aarch64-linux-ghc-"${PKG_VERSION}"-inplace
