@@ -119,9 +119,16 @@ pushd "${PREFIX}"/bin
 popd
 
 pushd "${PREFIX}"/lib
-  ln -s aarch64-conda-linux-gnu-ghc-"${PKG_VERSION}" ghc-"${PKG_VERSION}"
+  if [[ -d aarch64-conda-linux-gnu-ghc-"${PKG_VERSION}" ]]; then
+    mv aarch64-conda-linux-gnu-ghc-"${PKG_VERSION}" ghc-"${PKG_VERSION}"
+    ln -s ghc-"${PKG_VERSION}" aarch64-conda-linux-gnu-ghc-"${PKG_VERSION}"
+  fi
+  ls ghc-"${PKG_VERSION}"
+  cat ghc-"${PKG_VERSION}"/settings
 popd
 
-pushd "${PREFIX}"/share/doc
-  ln -s aarch64-conda-linux-gnu-ghc-"${PKG_VERSION}" ghc-"${PKG_VERSION}"
+pushd "${PREFIX}"/share/doc/aarch64-linux-ghc-"${PKG_VERSION}"-inplace
+  for file in */LICENSE; do
+    cp "${file///-}" "${SRC_DIR}"/license_files
+  done
 popd
