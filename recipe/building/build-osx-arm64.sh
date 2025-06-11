@@ -16,9 +16,14 @@ pushd bootstrap-ghc
   RANLIB=${CONDA_TOOLCHAIN_BUILD}-ranlib \
   LDFLAGS=${LDFLAGS//$PREFIX/$BUILD_PREFIX/} \
   LDFLAGS_LD=${LDFLAGS_LD//$PREFIX/$BUILD_PREFIX/} \
-  run_and_log "bs-configure" bash configure --prefix="${SRC_DIR}"/binary
+  run_and_log "bs-configure" bash configure \
+    --prefix="${SRC_DIR}"/binary \
+    --build="x86_64-apple-darwin" \
+    --host="x86_64-apple-darwin"
   perl -pi -e 's#($ENV{BUILD_PREFIX}|$ENV{PREFIX})/bin/##' default.target
   run_and_log "bs-make-install" make install
+
+  ls "${SRC_DIR}"/binary/ghc-"${BOOT_VERSION}"/lib/
 
   # Correct GHC settings (odd)
   perl -pi -e 's/(LLVM llvm-as command", ").+?"/$1llvm-as"/' "${SRC_DIR}/binary/lib/ghc-${BOOT_VERSION}/lib/settings"
