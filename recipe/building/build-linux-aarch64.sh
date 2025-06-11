@@ -115,8 +115,4 @@ run_and_log "install" "${_hadrian_build[@]}" install -VV --prefix="${PREFIX}" --
 for bin in "${PREFIX}"/bin/aarch64-conda-linux-gnu-*; do
   ln -s "${bin}" "${bin//aarch64-conda-linux-gnu-/}"
 done
-
-# perl -pi -e 's#($ENV{BUILD_PREFIX}|$ENV{PREFIX})/bin/##' "${PREFIX}"/lib/ghc-"${PKG_VERSION}"/lib/settings
-
-# One go when ready
-# run_and_log "install" "${_hadrian_build[@]}" install --prefix="${PREFIX}" --flavour=release --docs=no-sphinx-pdfs
+ln -s "${PREFIX}"/lib/aarch64-conda-linux-gnu-ghc-"${PKG_VERSION}" "${PREFIX}"/lib/ghc-"${PKG_VERSION}"
