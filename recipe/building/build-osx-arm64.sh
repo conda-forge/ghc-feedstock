@@ -22,8 +22,8 @@ pushd bootstrap-ghc
   HOST=x86_64-apple-darwin \
   bash configure \
     --prefix="${SRC_DIR}"/binary \
-    --build=x86_64-apple-darwin \
-    --host=x86_64-apple-darwin
+    --build=x86_64-apple-darwin13.4.0 \
+    --host=x86_64-apple-darwin13.4.0
   perl -pi -e 's#($ENV{BUILD_PREFIX}|$ENV{PREFIX})/bin/##' default.target
   run_and_log "bs-make-install" make install
 
