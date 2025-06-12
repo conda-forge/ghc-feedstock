@@ -122,7 +122,7 @@ pushd rts
   cabal configure --prefix="${PREFIX}" || true
   echo ":"; echo ":"; echo ":";
   cp "${RECIPE_DIR}"/building/configure.sh ./configure
-  ./configure --prefix="${PREFIX}"
+  ./configure --prefix="${PREFIX}" || { cat config.log; exit 1; }
   echo ":"; echo ":"; echo ":";
 popd
 

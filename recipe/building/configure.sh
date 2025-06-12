@@ -15,6 +15,8 @@
 ## M4sh Initialization. ##
 ## -------------------- ##
 
+set -x
+
 # Be more Bourne compatible
 DUALCASE=1; export DUALCASE # for MKS sh
 as_nop=:
