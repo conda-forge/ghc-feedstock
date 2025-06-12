@@ -7,6 +7,7 @@ source "${RECIPE_DIR}"/building/common.sh
 
 # Install bootstrap GHC - Set conda platform moniker
 pushd bootstrap-ghc
+  touch default.target.ghc-toolchain
   MergeCmdObj=${MergeCmdObj:-${CONDA_TOOLCHAIN_BUILD}-ld} \
   AR=${CONDA_TOOLCHAIN_BUILD}-ar \
   AS=${CONDA_TOOLCHAIN_BUILD}-as \
@@ -23,7 +24,11 @@ pushd bootstrap-ghc
   bash configure \
     --prefix="${SRC_DIR}"/binary \
     --build=x86_64-apple-darwin13.4.0 \
-    --host=x86_64-apple-darwin13.4.0
+    --host=x86_64-apple-darwin13.4.0 \
+    --target=x86_64-apple-darwin13.4.0
+  cat config.log
+  (grep osx ./* mk/* >/dev/tty)>&/dev/null
+
   perl -pi -e 's#($ENV{BUILD_PREFIX}|$ENV{PREFIX})/bin/##' default.target
   run_and_log "bs-make-install" make install
 
