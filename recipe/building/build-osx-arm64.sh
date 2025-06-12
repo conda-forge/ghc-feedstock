@@ -16,8 +16,9 @@ pushd bootstrap-ghc
   RANLIB=${CONDA_TOOLCHAIN_BUILD}-ranlib \
   LDFLAGS=${LDFLAGS//$PREFIX/$BUILD_PREFIX/} \
   LDFLAGS_LD=${LDFLAGS_LD//$PREFIX/$BUILD_PREFIX/} \
-  bash configure \
-    --prefix="${SRC_DIR}"/binary
+  BUILD=x86_64-apple-darwin \
+  HOST=x86_64-apple-darwin \
+  bash configure --prefix="${SRC_DIR}"/binary
   perl -pi -e 's#($ENV{BUILD_PREFIX}|$ENV{PREFIX})/bin/##' default.target
   run_and_log "bs-make-install" make install
 
