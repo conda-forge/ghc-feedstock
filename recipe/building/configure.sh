@@ -4058,7 +4058,7 @@ case "$build_cpu" in
       osx)
         BuildOS="darwin"
         ;;
-      freebsd|dragonfly|hpux|linuxaout|kfreebsdgnu|freebsd2|darwin|osx|nextstep2|nextstep3|sunos4|ultrix|haiku)
+      freebsd|dragonfly|hpux|linuxaout|kfreebsdgnu|freebsd2|darwin|nextstep2|nextstep3|sunos4|ultrix|haiku)
         BuildOS="$build_os"
         ;;
       msys)
@@ -4606,7 +4606,10 @@ case "$host_cpu" in
         HostOS="mingw32"
         ;;
       # As far as I'm aware, none of these have relevant variants
-      freebsd|dragonfly|hpux|linuxaout|kfreebsdgnu|freebsd2|darwin|osx|nextstep2|nextstep3|sunos4|ultrix|haiku)
+      osx)
+        HostOS="darwin"
+        ;;
+      freebsd|dragonfly|hpux|linuxaout|kfreebsdgnu|freebsd2|darwin|nextstep2|nextstep3|sunos4|ultrix|haiku)
         HostOS="$host_os"
         ;;
       msys)
