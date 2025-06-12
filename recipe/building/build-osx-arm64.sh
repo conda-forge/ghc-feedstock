@@ -5,6 +5,11 @@ _log_index=0
 
 source "${RECIPE_DIR}"/building/common.sh
 
+export build_alias=x86_64-apple-darwin
+export host_alias=x86_64-apple-darwin
+export BUILD=x86_64-apple-darwin
+export HOST=x86_64-apple-darwin
+
 # Install bootstrap GHC - Set conda platform moniker
 pushd bootstrap-ghc
   touch default.target.ghc-toolchain
@@ -17,22 +22,18 @@ pushd bootstrap-ghc
   RANLIB=${CONDA_TOOLCHAIN_BUILD}-ranlib \
   LDFLAGS=${LDFLAGS//$PREFIX/$BUILD_PREFIX/} \
   LDFLAGS_LD=${LDFLAGS_LD//$PREFIX/$BUILD_PREFIX/} \
-  build_alias=x86_64-apple-darwin \
-  host_alias=x86_64-apple-darwin \
-  BUILD=x86_64-apple-darwin \
-  HOST=x86_64-apple-darwin \
   bash configure \
     --prefix="${SRC_DIR}"/binary \
     --build=x86_64-apple-darwin13.4.0 \
     --host=x86_64-apple-darwin13.4.0 \
     --target=x86_64-apple-darwin13.4.0
 
-  echo "|"; echo "|"; echo "|";
-  cat config.log
-  echo "|"; echo "|"; echo "|";
-  (grep osx ./* mk/* >/dev/tty)>&/dev/null || true
-  echo "|"; echo "|"; echo "|";
-  cat default.target
+  # echo "|"; echo "|"; echo "|";
+  # cat config.log
+  # echo "|"; echo "|"; echo "|";
+  # (grep osx ./* mk/* >/dev/tty)>&/dev/null || true
+  # echo "|"; echo "|"; echo "|";
+  # cat default.target
   perl -pi -e 's#($ENV{BUILD_PREFIX}|$ENV{PREFIX})/bin/##' default.target
   run_and_log "bs-make-install" make install
 
@@ -50,15 +51,10 @@ popd
 run_and_log "cabal-update" cabal v2-update
 
 # Configure and build GHC
-#SYSTEM_CONFIG=(
-#  --build="x86_64-apple-darwin13.4.0"
-#  --host="x86_64-apple-darwin13.4.0"
-#  --target="arm64-apple-darwin20.0.0"
-#)
 SYSTEM_CONFIG=(
-  --build="x86_64-apple-darwin"
-  --host="x86_64-apple-darwin"
-  --target="arm64-apple-darwin"
+  --build="x86_64-apple-darwin13.4.0"
+  --host="x86_64-apple-darwin13.4.0"
+  --target="arm64-apple-darwin20.0.0"
 )
 
 CONFIGURE_ARGS=(
@@ -122,9 +118,12 @@ perl -pi -e 's#"--target=[\w-]+"#"--target=x86_64-apple-darwin"#'  "${SRC_DIR}"/
 perl -pi -e 's/aarch64/x86_64/;s/ArchAArch64/ArchX86_64/' "${SRC_DIR}"/hadrian/cfg/default.host.target
 
 pushd rts
+  echo ":"; echo ":"; echo ":";
   cabal configure --prefix="${PREFIX}" || true
+  echo ":"; echo ":"; echo ":";
   cp "${RECIPE_DIR}"/building/configure.sh ./configure
   ./configure --prefix="${PREFIX}"
+  echo ":"; echo ":"; echo ":";
 popd
 
 export DYLD_INSERT_LIBRARIES="${BUILD_PREFIX}/lib/libiconv.dylib:${BUILD_PREFIX}/lib/libffi.dylib${DYLD_INSERT_LIBRARIES:+:}${DYLD_INSERT_LIBRARIES:-}"

@@ -15,8 +15,6 @@
 ## M4sh Initialization. ##
 ## -------------------- ##
 
-set -x
-
 # Be more Bourne compatible
 DUALCASE=1; export DUALCASE # for MKS sh
 as_nop=:
@@ -4055,7 +4053,10 @@ case "$build_cpu" in
         BuildOS="mingw32"
         ;;
       # As far as I'm aware, none of these have relevant variants
-      freebsd|dragonfly|hpux|linuxaout|kfreebsdgnu|freebsd2|darwin|nextstep2|nextstep3|sunos4|ultrix|haiku)
+      osx)
+        BuildOS="darwin"
+        ;;
+      freebsd|dragonfly|hpux|linuxaout|kfreebsdgnu|freebsd2|darwin|osx|nextstep2|nextstep3|sunos4|ultrix|haiku)
         BuildOS="$build_os"
         ;;
       msys)
@@ -4406,7 +4407,7 @@ printf "%s\n" "$as_me: WARNING: Unknown vendor $1" >&2;}
         linux|linux-android)
             test -z "$2" || eval "$2=OSLinux"
             ;;
-        darwin|ios|watchos|tvos)
+        darwin|osx|ios|watchos|tvos)
             test -z "$2" || eval "$2=OSDarwin"
             ;;
         solaris2)
@@ -4603,7 +4604,7 @@ case "$host_cpu" in
         HostOS="mingw32"
         ;;
       # As far as I'm aware, none of these have relevant variants
-      freebsd|dragonfly|hpux|linuxaout|kfreebsdgnu|freebsd2|darwin|nextstep2|nextstep3|sunos4|ultrix|haiku)
+      freebsd|dragonfly|hpux|linuxaout|kfreebsdgnu|freebsd2|darwin|osx|nextstep2|nextstep3|sunos4|ultrix|haiku)
         HostOS="$host_os"
         ;;
       msys)
@@ -8272,7 +8273,7 @@ case ${HostOS} in
     linux|linux-android|freebsd|dragonfly|netbsd|openbsd|kfreebsdgnu|gnu|solaris2)
         RtsLinkerUseMmap=1
         ;;
-    darwin|ios|watchos|tvos)
+    darwin|osx|ios|watchos|tvos)
         RtsLinkerUseMmap=1
         ;;
     *)
