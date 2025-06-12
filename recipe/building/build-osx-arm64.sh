@@ -26,9 +26,13 @@ pushd bootstrap-ghc
     --build=x86_64-apple-darwin13.4.0 \
     --host=x86_64-apple-darwin13.4.0 \
     --target=x86_64-apple-darwin13.4.0
-  cat config.log
-  (grep osx ./* mk/* >/dev/tty)>&/dev/null
 
+  echo "|"; echo "|"; echo "|";
+  cat config.log
+  echo "|"; echo "|"; echo "|";
+  (grep osx ./* mk/* >/dev/tty)>&/dev/null || true
+  echo "|"; echo "|"; echo "|";
+  cat default.target
   perl -pi -e 's#($ENV{BUILD_PREFIX}|$ENV{PREFIX})/bin/##' default.target
   run_and_log "bs-make-install" make install
 
