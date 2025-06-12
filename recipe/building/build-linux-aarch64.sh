@@ -130,3 +130,4 @@ pushd "${PREFIX}"/share/doc/aarch64-linux-ghc-"${PKG_VERSION}"-inplace
     cp "${file///-}" "${SRC_DIR}"/license_files
   done
 popd
+perl -pi -e 's#($ENV{BUILD_PREFIX}|$ENV{PREFIX})/bin/##' "${PREFIX}"/lib/ghc-"${PKG_VERSION}"/lib/settings
