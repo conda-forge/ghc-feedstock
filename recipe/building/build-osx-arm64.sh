@@ -120,7 +120,7 @@ perl -pi -e 's/aarch64/x86_64/;s/ArchAArch64/ArchX86_64/' "${SRC_DIR}"/hadrian/c
 pushd rts
   echo ":"; echo ":"; echo ":";
   cp "${RECIPE_DIR}"/building/configure.sh ./configure
-  ./configure --prefix="${PREFIX}" || { cat config.log; exit 0; }
+  ./configure --prefix="${PREFIX}" || { cat config.log;}
   echo ":"; echo ":"; echo ":";
 popd
 
