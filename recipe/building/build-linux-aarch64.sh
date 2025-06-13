@@ -131,3 +131,13 @@ pushd "${PREFIX}"/share/doc/aarch64-linux-ghc-"${PKG_VERSION}"-inplace
   done
 popd
 perl -pi -e 's#($ENV{BUILD_PREFIX}|$ENV{PREFIX})/bin/##g' "${PREFIX}"/lib/ghc-"${PKG_VERSION}"/lib/settings
+
+cat "${PREFIX}"/lib/ghc-"${PKG_VERSION}"/lib/settings
+
+# Find all the .so libs with the '-ghc9.12.2' extension and link them to non--ghc9.12.2
+find "${PREFIX}/lib" -name "*-ghc${PKG_VERSION}.so" | while read -r lib; do
+  base_lib="${lib%-ghc$PKG_VERSION.so}.so"
+  if [[ ! -e "$base_lib" ]]; then
+    ln -s "$(basename "$lib")" "$base_lib"
+  fi
+done
