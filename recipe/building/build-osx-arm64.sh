@@ -13,6 +13,7 @@ export HOST=x86_64-apple-darwin
 # Install bootstrap GHC - Set conda platform moniker
 pushd bootstrap-ghc
   touch default.target.ghc-toolchain
+  uname -a
   MergeCmdObj=${MergeCmdObj:-${CONDA_TOOLCHAIN_BUILD}-ld} \
   AR=${CONDA_TOOLCHAIN_BUILD}-ar \
   AS=${CONDA_TOOLCHAIN_BUILD}-as \
@@ -117,17 +118,22 @@ perl -pi -e 's#"--target=[\w-]+"#"--target=aarch64-apple-darwin"#'  "${SRC_DIR}"
 perl -pi -e 's#"--target=[\w-]+"#"--target=x86_64-apple-darwin"#'  "${SRC_DIR}"/hadrian/cfg/default.host.target
 perl -pi -e 's/aarch64/x86_64/;s/ArchAArch64/ArchX86_64/' "${SRC_DIR}"/hadrian/cfg/default.host.target
 
-pushd rts
-  echo ":"; echo ":"; echo ":";
+pushd "${SRC_DIR}"/rts
   cp "${RECIPE_DIR}"/building/configure.sh ./configure
   ./configure --prefix="${PREFIX}" || { cat config.log;}
-  echo ":"; echo ":"; echo ":";
 popd
 
 export DYLD_INSERT_LIBRARIES="${BUILD_PREFIX}/lib/libiconv.dylib:${BUILD_PREFIX}/lib/libffi.dylib${DYLD_INSERT_LIBRARIES:+:}${DYLD_INSERT_LIBRARIES:-}"
-"${_hadrian_build[@]}" stage1:lib:ghc -VV --flavour=release --docs=none --progress-info=unicorn
+"${_hadrian_build[@]}" stage1:lib:ghc --flavour=release --docs=none --progress-info=none
 
 # run_and_log "stage1_lib" "${_hadrian_build[@]}" stage1:lib:ghc -VV --flavour=release --docs=none --progress-info=unicorn
 run_and_log "stage2_exe" "${_hadrian_build[@]}" stage2:exe:ghc-bin --flavour=release --freeze1 --docs=none --progress-info=none
 run_and_log "build_all"  "${_hadrian_build[@]}" --flavour=release --freeze1 --freeze2 --docs=no-sphinx-pdfs --progress-info=none
-run_and_log "install" "${_hadrian_build[@]}" install --prefix="${PREFIX}" --flavour=release --freeze1 --freeze2 --docs=none
+
+pushd "${SRC_DIR}"/distrib
+  autoupdate
+  mkdir -p "${SRC_DIR}"/_build/bindist/ghc-9.12.2-arm64-apple-darwin20.0.0/
+  mv configure "${SRC_DIR}"/_build/bindist/ghc-9.12.2-arm64-apple-darwin20.0.0/
+popd
+
+run_and_log "install" "${_hadrian_build[@]}" install -VV --prefix="${PREFIX}" --flavour=release --freeze1 --freeze2 --docs=unicorn
