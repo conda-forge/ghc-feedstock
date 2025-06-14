@@ -136,12 +136,13 @@ export DYLD_INSERT_LIBRARIES="${BUILD_PREFIX}/lib/libiconv.dylib:${BUILD_PREFIX}
 
 # run_and_log "stage1_lib" "${_hadrian_build[@]}" stage1:lib:ghc -VV --flavour=release --docs=none --progress-info=unicorn
 run_and_log "stage2_exe" "${_hadrian_build[@]}" stage2:exe:ghc-bin --flavour=release --freeze1 --docs=none --progress-info=none
-run_and_log "build_all"  "${_hadrian_build[@]}" --flavour=release --freeze1 --freeze2 --docs=no-sphinx-pdfs --progress-info=none
+run_and_log "build_all" "${_hadrian_build[@]}" --flavour=release --freeze1 --freeze2 --docs=no-sphinx-pdfs --progress-info=none
 
-"${_hadrian_build[@]}" install --prefix="${PREFIX}" --flavour=release --freeze1 --freeze2 --docs=none --progress-info=none || true
+run_and_log "install" "${_hadrian_build[@]}" install --prefix="${PREFIX}" --flavour=release --freeze1 --freeze2 --docs=none --progress-info=none || true
 
-pushd "${SRC_DIR}"/_build/bindist/ghc-"${PKG_VERSION}"-"${host_alias}"
-  sh configure --prefix="${PREFIX}" --host="${build_alias}" --target="${host_alias}"
-popd
-
-"${_hadrian_build[@]}" install -VV --prefix="${PREFIX}" --flavour=release --freeze1 --freeze2 --docs=none --progress-info=unicorn
+# Unclear if we need this
+# pushd "${SRC_DIR}"/_build/bindist/ghc-"${PKG_VERSION}"-"${host_alias}"
+#   sh configure --prefix="${PREFIX}" --host="${build_alias}" --target="${host_alias}"
+# popd
+#
+# "${_hadrian_build[@]}" install -VV --prefix="${PREFIX}" --flavour=release --freeze1 --freeze2 --docs=none --progress-info=unicorn

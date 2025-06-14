@@ -25,12 +25,13 @@ mkdir -p "${PREFIX}"/etc/bash_completion.d
 cp utils/completion/ghc.bash "${PREFIX}"/etc/bash_completion.d/ghc
 
 # Clean up package cache
-find "${PREFIX}"/lib/ghc-"${PKG_VERSION}" -name '*_p.a' -delete
-find "${PREFIX}"/lib/ghc-"${PKG_VERSION}" -name '*.p_o' -delete
+find "${PREFIX}"/lib/*ghc-"${PKG_VERSION}" -name '*inplace.a' -delete
+find "${PREFIX}"/lib/*ghc-"${PKG_VERSION}" -name '*_p.a' -delete
+find "${PREFIX}"/lib/*ghc-"${PKG_VERSION}" -name '*.p_o' -delete
 
 # Clean up package cache
-rm -f "${PREFIX}"/lib/ghc-"${PKG_VERSION}"/lib/package.conf.d/package.cache
-rm -f "${PREFIX}"/lib/ghc-"${PKG_VERSION}"/lib/package.conf.d/package.cache.lock
+rm -f "${PREFIX}"/lib/*ghc-"${PKG_VERSION}"/lib/package.conf.d/package.cache
+rm -f "${PREFIX}"/lib/*ghc-"${PKG_VERSION}"/lib/package.conf.d/package.cache.lock
 
 mkdir -p "${PREFIX}/etc/conda/activate.d"
 cp "${RECIPE_DIR}/activate.sh" "${PREFIX}/etc/conda/activate.d/${PKG_NAME}_activate.sh"

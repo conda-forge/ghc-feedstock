@@ -118,8 +118,8 @@ tests:
         - etc/bash_completion.d/ghc
         - etc/conda/activate.d/ghc_activate.sh
 
-        - lib/ghc-${{ version }}/lib/html/**
-        - lib/ghc-${{ version }}/lib/latex/haddock.sty
+        # - lib/ghc-${{ version }}/lib/html/**
+        # - lib/ghc-${{ version }}/lib/latex/haddock.sty
         - lib/ghc-${{ version }}/lib/llvm-passes
         - lib/ghc-${{ version }}/lib/llvm-targets
         - lib/ghc-${{ version }}/lib/package.conf.d/**
@@ -132,8 +132,8 @@ tests:
         - lib/ghc-${{ version }}/lib/settings
         - lib/ghc-${{ version }}/lib/template-hsc.h
 
-        - share/doc/ghc-${{ version }}/html/**
-        - share/man/man1/ghc.1
+        # - share/doc/ghc-${{ version }}/html/**
+        # - share/man/man1/ghc.1
 
   - script: |
       ghc --version
@@ -181,7 +181,9 @@ tests:
 about:
   homepage: https://haskell.org/ghc/
   license: BSD-3-Clause
-  license_file: LICENSE
+  license_file:
+    - LICENSE
+    - license_files
   summary: Glorious Glasgow Haskell Compilation System
   description: |
     GHC is a state-of-the-art, open source, compiler and interactive environment 
