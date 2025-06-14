@@ -5,10 +5,13 @@ _log_index=0
 
 source "${RECIPE_DIR}"/building/common.sh
 
+_build_alias=${build_alias}
+_host_alias=${host_alias}
+
 export build_alias=x86_64-apple-darwin
 export host_alias=x86_64-apple-darwin
-export BUILD=x86_64-apple-darwin
-export HOST=x86_64-apple-darwin
+export BUILD=${build_alias}
+export HOST=${host_alias}
 
 # Install bootstrap GHC - Set conda platform moniker
 pushd bootstrap-ghc
@@ -74,6 +77,11 @@ CONFIGURE_ARGS=(
   --with-iconv-libraries="${BUILD_PREFIX}"/lib
 )
 
+export build_alias=${_build_alias}
+export host_alias=${_host_alias}
+export BUILD=${build_alias}
+export HOST=${host_alias}
+
 # This will not generate ghc-toolchain-bin or the .ghc-toolchain (possibly due to x-platform)
 MergeCmdObj=${MergeCmdObj:-${CONDA_TOOLCHAIN_BUILD}-ld} \
 AR=${CONDA_TOOLCHAIN_BUILD}-ar \
@@ -129,5 +137,11 @@ export DYLD_INSERT_LIBRARIES="${BUILD_PREFIX}/lib/libiconv.dylib:${BUILD_PREFIX}
 # run_and_log "stage1_lib" "${_hadrian_build[@]}" stage1:lib:ghc -VV --flavour=release --docs=none --progress-info=unicorn
 run_and_log "stage2_exe" "${_hadrian_build[@]}" stage2:exe:ghc-bin --flavour=release --freeze1 --docs=none --progress-info=none
 run_and_log "build_all"  "${_hadrian_build[@]}" --flavour=release --freeze1 --freeze2 --docs=no-sphinx-pdfs --progress-info=none
+
+"${_hadrian_build[@]}" install --prefix="${PREFIX}" --flavour=release --freeze1 --freeze2 --docs=none --progress-info=none || true
+
+pushd "${SRC_DIR}"/_build/bindist/ghc-"${PKG_VERSION}"-"${host_alias}"
+  sh configure --prefix="${PREFIX}" --host="${build_alias}" --target="${host_alias}"
+popd
 
 "${_hadrian_build[@]}" install -VV --prefix="${PREFIX}" --flavour=release --freeze1 --freeze2 --docs=none --progress-info=unicorn
