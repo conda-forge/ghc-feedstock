@@ -136,4 +136,4 @@ run_and_log "build_all"  "${_hadrian_build[@]}" --flavour=release --freeze1 --fr
 #   mv configure "${SRC_DIR}"/_build/bindist/ghc-9.12.2-arm64-apple-darwin20.0.0/
 # popd
 
-run_and_log "install" "${_hadrian_build[@]}" install -VV --prefix="${PREFIX}" --flavour=release --freeze1 --freeze2 --docs=unicorn
+run_and_log "install" "${_hadrian_build[@]}" install -VV --prefix="${PREFIX}" --flavour=release --freeze1 --freeze2 --docs=none --progress-info=unicorn
