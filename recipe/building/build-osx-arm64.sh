@@ -32,17 +32,8 @@ pushd bootstrap-ghc
     --host=x86_64-apple-darwin13.4.0 \
     --target=x86_64-apple-darwin13.4.0
 
-  # echo "|"; echo "|"; echo "|";
-  # cat config.log
-  # echo "|"; echo "|"; echo "|";
-  # (grep osx ./* mk/* >/dev/tty)>&/dev/null || true
-  # echo "|"; echo "|"; echo "|";
-  # cat default.target
   perl -pi -e 's#($ENV{BUILD_PREFIX}|$ENV{PREFIX})/bin/##' default.target
   run_and_log "bs-make-install" make install
-
-  ls "${SRC_DIR}"/binary/lib
-  ls "${SRC_DIR}"/binary/lib/*ghc-"${BOOT_VERSION}"/lib/
 
   # Correct GHC settings (odd)
   perl -pi -e 's/(LLVM llvm-as command", ").+?"/$1llvm-as"/' "${SRC_DIR}/binary/lib/ghc-${BOOT_VERSION}/lib/settings"
