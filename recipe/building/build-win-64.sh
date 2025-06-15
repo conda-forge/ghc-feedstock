@@ -6,11 +6,6 @@ _log_index=0
 source "${RECIPE_DIR}"/building/common.sh
 
 export MSYSTEM=MINGW64
-export PATH=$PWD/binary/bin:$PATH
-
-# Install cabal-install
-mkdir -p binary/bin
-cp bootstrap-cabal/cabal* binary/bin/
 
 # Update cabal package database
 run_and_log "cabal-update" cabal v2-update
