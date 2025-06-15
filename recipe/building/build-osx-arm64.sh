@@ -140,9 +140,35 @@ run_and_log "build_all" "${_hadrian_build[@]}" --flavour=release --freeze1 --fre
 
 run_and_log "install" "${_hadrian_build[@]}" install --prefix="${PREFIX}" --flavour=release --freeze1 --freeze2 --docs=none --progress-info=none || true
 
-# Unclear if we need this
-# pushd "${SRC_DIR}"/_build/bindist/ghc-"${PKG_VERSION}"-"${host_alias}"
-#   sh configure --prefix="${PREFIX}" --host="${build_alias}" --target="${host_alias}"
-# popd
-#
-# "${_hadrian_build[@]}" install -VV --prefix="${PREFIX}" --flavour=release --freeze1 --freeze2 --docs=none --progress-info=unicorn
+# Create links of aarch64-conda-linux-gnu-xxx to xxx
+pushd "${PREFIX}"/bin
+  for bin in arm64-apple-darwin20.0.0-*; do
+    ln -s "${bin}" "${bin#arm64-apple-darwin20.0.0-}"
+  done
+popd
+
+pushd "${PREFIX}"/lib
+  if [[ -d arm64-apple-darwin20.0.0-ghc-"${PKG_VERSION}" ]]; then
+    mv arm64-apple-darwin20.0.0-ghc-"${PKG_VERSION}" ghc-"${PKG_VERSION}"
+    ln -s ghc-"${PKG_VERSION}" arm64-apple-darwin20.0.0-ghc-"${PKG_VERSION}"
+  fi
+popd
+
+pushd "${PREFIX}"/share/doc/aarch64-linux-ghc-"${PKG_VERSION}"-inplace
+  for file in */LICENSE; do
+    cp "${file///-}" "${SRC_DIR}"/license_files
+  done
+popd
+perl -pi -e 's#($ENV{BUILD_PREFIX}|$ENV{PREFIX})/bin/##g' "${PREFIX}"/lib/ghc-"${PKG_VERSION}"/lib/settings
+# _lib_path='$PREFIX/lib/ghc-"'${PKG_VERSION}'"/lib/aarch64-linux-ghc-"'${PKG_VERSION}'"-inplace/lib'
+# perl -pi -e "s#(link flags\", \"--target=aarch64-conda-linux)#\$1  -Wl,-L${_lib_path} -Wl,rpath=${_lib_path} -Wl,rpath-link=${_lib_path}#g" "${PREFIX}"/lib/ghc-"${PKG_VERSION}"/lib/settings
+
+cat "${PREFIX}"/lib/ghc-"${PKG_VERSION}"/lib/settings
+
+# # Find all the .so libs with the '-ghc9.12.2' extension and link them to non--ghc9.12.2
+# find "${PREFIX}/lib" -name "*-ghc${PKG_VERSION}.so" | while read -r lib; do
+#   base_lib="${lib%-ghc$PKG_VERSION.so}.so"
+#   if [[ ! -e "$base_lib" ]]; then
+#     ln -s "$(basename "$lib")" "$base_lib"
+#   fi
+# done
