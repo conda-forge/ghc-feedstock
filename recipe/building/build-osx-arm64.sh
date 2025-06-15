@@ -154,7 +154,7 @@ pushd "${PREFIX}"/lib
   fi
 popd
 
-pushd "${PREFIX}"/share/doc/aarch64-linux-ghc-"${PKG_VERSION}"-inplace
+pushd "${PREFIX}"/share/doc/aarch64-osx-ghc-"${PKG_VERSION}"-inplace
   for file in */LICENSE; do
     cp "${file///-}" "${SRC_DIR}"/license_files
   done
