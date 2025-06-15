@@ -27,7 +27,7 @@ source:
   - if: not unix
     then:
       url: https://downloads.haskell.org/~ghc/${{ boot_version }}/ghc-${{ boot_version }}-x86_64-unknown-mingw32.tar.gz
-      sha256: 76847b0125547e975791fdbb9b9c963961aa81d833299d75a37ca48338fcc232
+      sha256: 2e7d766deaaaef95ddc563aebc5f6cbeb286c51a3c124ab31a89a250f88711f9
       target_directory: bootstrap-ghc
 
   # Cabal install
@@ -44,7 +44,7 @@ source:
   - if: not unix
     then:
       url: https://downloads.haskell.org/~cabal/cabal-install-${{ cabal_version }}/cabal-install-${{ cabal_version }}-x86_64-windows.zip
-      sha256: e313d60f849d4d7838406c154d60fdef8bfb7214848ac614ebafff19972c194e
+      sha256: 7b97779519f7c4e86d7a87ff2ec57777c17ca69389b968f363fbfbdbf4ae8536
       target_directory: bootstrap-cabal
 
 build:
