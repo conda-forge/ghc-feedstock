@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+set -eu
+
+_log_index=0
+
+source "${RECIPE_DIR}"/building/common.sh
+
+export MSYSTEM=MINGW64
+export PATH=$PWD/binary/bin:$PATH
+
+# Install cabal-install
+mkdir -p binary/bin
+cp bootstrap-cabal/cabal* binary/bin/
+
+# Update cabal package database
+run_and_log "cabal-update" cabal v2-update
+
+_hadrian_build=("${SRC_DIR}"/hadrian/build.bat "-j")
+
+# Configure and build GHC
+SYSTEM_CONFIG=(
+  --build="x86_64-w64-mingw32"
+  --host="x86_64-w64-mingw32"
+)
+
+CONFIGURE_ARGS=(
+  --prefix="${PREFIX}"
+  --disable-numa
+  --enable-ignore-build-platform-mismatch=yes
+  --with-system-libffi=yes
+  --with-curses-includes="${PREFIX}"/include
+  --with-curses-libraries="${PREFIX}"/lib
+  --with-ffi-includes="${PREFIX}"/include
+  --with-ffi-libraries="${PREFIX}"/lib
+  --with-gmp-includes="${PREFIX}"/include
+  --with-gmp-libraries="${PREFIX}"/lib
+  --with-iconv-includes="${PREFIX}"/include
+  --with-iconv-libraries="${PREFIX}"/lib
+)
+run_and_log "ghc-configure" bash configure "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}"
+run_and_log "install" "${_hadrian_build[@]}" install --prefix="${PREFIX}" --flavour=release --freeze1 --freeze2 --docs=no-sphinx-pdfs
