@@ -1,5 +1,5 @@
---- configure.orig
-+++ configure
+--- a/configure
++++ b/configure
 @@ -8231,3 +8231,3 @@
      # Clang version preserves whitespace lines, but emcc removes.
 -    if test "$(cat ./conftest.pp.js | tr -d '\n')" = "// 1" ; then
