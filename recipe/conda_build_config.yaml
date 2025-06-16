@@ -11,10 +11,10 @@ c_compiler:
   - gcc                    # [not unix]
 c_compiler_version:
   - 18                     # [unix]
-  - 14                     # [not unix]
+  - 15                     # [not unix]
 cxx_compiler:
   - clangxx                # [unix]
   - gxx                    # [not unix]
 cxx_compiler_version:
   - 18                     # [unix]
-  - 14                     # [not unix]
+  - 15                     # [not unix]
