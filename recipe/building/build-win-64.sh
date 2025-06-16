@@ -23,6 +23,7 @@ CONFIGURE_ARGS=(
   --prefix="${PREFIX}"
   --disable-numa
   --enable-ignore-build-platform-mismatch=yes
+  --enable-tarballs-autodownload
   --with-system-libffi=yes
   --with-curses-includes="${PREFIX}"/include
   --with-curses-libraries="${PREFIX}"/lib
