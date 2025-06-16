@@ -1,0 +1,7 @@
+--- configure.orig
++++ configure
+@@ -8231,3 +8231,3 @@
+     # Clang version preserves whitespace lines, but emcc removes.
+-    if test "$(cat ./conftest.pp.js | tr -d '\n')" = "// 1" ; then
++    if test "$(cat ./conftest.pp.js | tr -d '\r\n')" = "// 1" ; then
+       { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
