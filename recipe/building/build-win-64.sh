@@ -9,7 +9,7 @@ export PYTHON=python
 export MSYSTEM=MINGW64
 
 pushd "${SRC_DIR}"/bootstrap-ghc
-  run_and_log "bs-configure" ./configure --prefix="${SRC_DIR}"/binary
+  run_and_log "bs-configure" bash configure --prefix="${SRC_DIR}"/binary
   run_and_log "bs-make-install" make install
 popd
 
