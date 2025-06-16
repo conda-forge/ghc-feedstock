@@ -7,7 +7,7 @@ source "${RECIPE_DIR}"/building/common.sh
 
 # Install bootstrap GHC - Set conda platform moniker
 pushd "${SRC_DIR}"/bootstrap-ghc
-  run_and_log "bs-configure" ./configure --prefix="${SRC_DIR}"/binary
+  run_and_log "bs-configure" bash configure --prefix="${SRC_DIR}"/binary
   perl -pi -e 's#($ENV{BUILD_PREFIX}|$ENV{PREFIX})/bin/##' default.target
   run_and_log "bs-make-install" make install
 
