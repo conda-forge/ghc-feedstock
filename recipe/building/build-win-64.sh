@@ -8,7 +8,10 @@ source "${RECIPE_DIR}"/building/common.sh
 export PYTHON=python
 export MSYSTEM=MINGW64
 
-ls -lrt bootstrap-ghc/*
+pushd "${SRC_DIR}"/bootstrap-ghc
+  run_and_log "bs-configure" bash configure --prefix="${SRC_DIR}"/binary
+  run_and_log "bs-make-install" make install
+popd
 
 # Update cabal package database
 run_and_log "cabal-update" cabal v2-update
