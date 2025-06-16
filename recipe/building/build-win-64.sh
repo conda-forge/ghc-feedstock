@@ -24,6 +24,7 @@ CONFIGURE_ARGS=(
   --disable-numa
   --enable-distro-toolchain
   --enable-ignore-build-platform-mismatch=yes
+  --with-cpp="$CPP"
   --with-system-libffi=yes
   --with-curses-includes="${PREFIX}"/include
   --with-curses-libraries="${PREFIX}"/lib
