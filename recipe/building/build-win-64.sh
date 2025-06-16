@@ -5,7 +5,7 @@ _log_index=0
 
 source "${RECIPE_DIR}"/building/common.sh
 
-export PYTHON=${BUILD_PREFIX}/Scripts/python.exe
+export PYTHON=python
 export MSYSTEM=MINGW64
 
 # Update cabal package database
