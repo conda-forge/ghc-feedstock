@@ -47,11 +47,11 @@ run_and_log "ghc-configure" bash configure "${SYSTEM_CONFIG[@]}" "${CONFIGURE_AR
 #   --allow-newer=base \
 #   ghc-platform
 #  --prefix="${SRC_DIR}"/bootstrap-ghc \
-pushd hadrian
-  stack setup
-  stack build
-  stack exec hadrian -- --directory ".." -j --flavour=quickest
-popd
+# pushd hadrian
+#   stack setup
+#   stack build
+#   stack exec hadrian -- --directory ".." -j --flavour=quickest
+# popd
 
 run_and_log "stage1_exe" "${_hadrian_build[@]}" stage1:exe:ghc-bin -VV \
   --flavour=quickest \
