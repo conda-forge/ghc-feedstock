@@ -10,8 +10,12 @@ export MSYSTEM=MINGW64
 export MSYS2_ARG_CONV_EXCL="*"
 export PATH="${SRC_DIR}"/bootstrap-ghc/bin:"${SRC_DIR}"/bootstrap-cabal${PATH:+:}${PATH:-}
 
+export GHC="${SRC_DIR}"/bootstrap-ghc/bin/ghc.exe
+export CABAL="${SRC_DIR}"/bootstrap-cabal/bin/cabal.exe
+
 # Update cabal package database
-run_and_log "cabal-update" cabal v2-update
+# run_and_log "cabal-update" cabal v2-update
+cabal v2-update
 
 _hadrian_build=("${SRC_DIR}"/hadrian/build.bat "-j")
 
