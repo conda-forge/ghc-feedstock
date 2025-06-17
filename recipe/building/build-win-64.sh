@@ -47,10 +47,15 @@ run_and_log "ghc-configure" bash configure "${SYSTEM_CONFIG[@]}" "${CONFIGURE_AR
 #   --allow-newer=base \
 #   ghc-platform
 #  --prefix="${SRC_DIR}"/bootstrap-ghc \
-run_and_log "stage1_exe" "${_hadrian_build[@]}" stage1:exe:ghc-bin -VV \
-  --flavour=release \
-  --docs=none \
-  --progress-info=unicorn || true
-type "${SRC_DIR}/_logs/${_log_index}_stage1_exe.log"
+pushd hadrian
+  stack setup
+  stack build
+  stack exec hadrian -- --directory ".." -j --flavour=quickest
+popd
 
-run_and_log "install" "${_hadrian_build[@]}" install --prefix="${PREFIX}" --flavour=release --docs=none
+run_and_log "stage1_exe" "${_hadrian_build[@]}" stage1:exe:ghc-bin -VV \
+  --flavour=quickest \
+  --docs=none \
+  --progress-info=unicorn
+
+run_and_log "install" "${_hadrian_build[@]}" install --prefix="${PREFIX}" --flavour=release --freeze1 --docs=none

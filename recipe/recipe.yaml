@@ -94,6 +94,7 @@ requirements:
         - m2-grep
         - m2-m4
         - m2-make
+        - stack
     - gmp
     - llvm-tools ${{ c_compiler_version }}.*
     - python 3.12.*

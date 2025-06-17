@@ -7,3 +7,10 @@
 +     manual:             False
 +     default:            False
       description:        Enables the hadrian selftest rules which require
+--- a/hadrian/cabal.project
++++ b/hadrian/cabal.project
+@@ -10,3 +10,3 @@
+ -- ghc-9.10 has template-haskell-2.22.0.0
+-allow-newer: unordered-containers:template-haskell
++allow-newer: unordered-containers:template-haskell unordered-containers:base hashable:base
+
