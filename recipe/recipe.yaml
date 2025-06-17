@@ -30,8 +30,10 @@ source:
       target_directory: bootstrap-ghc
   - if: not unix
     then:
-      url: https://downloads.haskell.org/~ghc/${{ boot_version }}/ghc-${{ boot_version }}-x86_64-unknown-mingw32.tar.gz
-      sha256: 2e7d766deaaaef95ddc563aebc5f6cbeb286c51a3c124ab31a89a250f88711f9
+      url: https://downloads.haskell.org/~ghc/9.12.2/ghc-9.12.2-x86_64-unknown-mingw32.tar.gz
+      sha256: 76847b0125547e975791fdbb9b9c963961aa81d833299d75a37ca48338fcc232
+      # url: https://downloads.haskell.org/~ghc/${{ boot_version }}/ghc-${{ boot_version }}-x86_64-unknown-mingw32.tar.gz
+      # sha256: 2e7d766deaaaef95ddc563aebc5f6cbeb286c51a3c124ab31a89a250f88711f9
       target_directory: bootstrap-ghc
 
   # Cabal install
