@@ -15,6 +15,7 @@ source:
       - if: not unix
         then:
           - patch-configure-non-unix.patch
+          - patch-remove-selftest-non-unix.patch
 
   # Bootstrap GHC compilers
   - if: osx
@@ -29,10 +30,8 @@ source:
       target_directory: bootstrap-ghc
   - if: not unix
     then:
-      url: https://downloads.haskell.org/~ghc/9.8.4/ghc-9.8.4-x86_64-unknown-mingw32.zip
-      sha256: beba2cba533789c984d8017c0c0154a7b84f8dac6347ad01f24a334830b33b31
-      # url: https://downloads.haskell.org/~ghc/${{ boot_version }}/ghc-${{ boot_version }}-x86_64-unknown-mingw32.tar.gz
-      # sha256: 2e7d766deaaaef95ddc563aebc5f6cbeb286c51a3c124ab31a89a250f88711f9
+      url: https://downloads.haskell.org/~ghc/${{ boot_version }}/ghc-${{ boot_version }}-x86_64-unknown-mingw32.tar.gz
+      sha256: 2e7d766deaaaef95ddc563aebc5f6cbeb286c51a3c124ab31a89a250f88711f9
       target_directory: bootstrap-ghc
 
   # Cabal install

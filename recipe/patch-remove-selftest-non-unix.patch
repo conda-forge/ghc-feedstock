@@ -1,0 +1,9 @@
+--- a/hadrian/hadrian.cabal
++++ b/hadrian/hadrian.cabal
+@@ -28,4 +28,4 @@
+ flag selftest
+-     manual:             True
+-     default:            True
++     manual:             False
++     default:            False
+      description:        Enables the hadrian selftest rules which require
