@@ -29,7 +29,7 @@ source:
       target_directory: bootstrap-ghc
   - if: not unix
     then:
-      url: https://downloads.haskell.org/~ghc/${{ boot_version }}/ghc-${{ boot_version }}-x86_64-unknown-mingw32-int_nativecu.tar.gz
+      url: https://downloads.haskell.org/~ghc/${{ boot_version }}/ghc-${{ boot_version }}-x86_64-unknown-mingw32-int_native.tar.gz
       # sha256: 2e7d766deaaaef95ddc563aebc5f6cbeb286c51a3c124ab31a89a250f88711f9
       sha256: 44307f5cf64145a75e323fc72c4b428882400b60afb560a9021c7f735d963a47
       target_directory: bootstrap-ghc
