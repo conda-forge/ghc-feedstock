@@ -12,5 +12,5 @@
 @@ -10,3 +10,3 @@
  -- ghc-9.10 has template-haskell-2.22.0.0
 -allow-newer: unordered-containers:template-haskell
-+allow-newer: unordered-containers:template-haskell unordered-containers:base hashable:base
++allow-newer: unordered-containers:template-haskell,unordered-containers:base,hashable:base
 
