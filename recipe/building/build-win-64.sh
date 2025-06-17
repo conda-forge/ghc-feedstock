@@ -42,10 +42,11 @@ CONFIGURE_ARGS=(
   --with-iconv-libraries="${PREFIX}"/lib
 )
 run_and_log "ghc-configure" bash configure "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}"
-cabal install -j \
-  --minimize-conflict-set \
-  --allow-newer=base \
-  ghc-platform
+# cabal install -j \
+#   --minimize-conflict-set \
+#   --allow-newer=base \
+#   ghc-platform
 #  --prefix="${SRC_DIR}"/bootstrap-ghc \
-run_and_log "stage1_exe" "${_hadrian_build[@]}" stage1:exe:ghc-bin -VV --flavour=release --docs=none --progress-info=unicorn
+"${_hadrian_build[@]}" stage1:exe:ghc-bin -VV --flavour=release --docs=none --progress-info=unicorn
+
 run_and_log "install" "${_hadrian_build[@]}" install --prefix="${PREFIX}" --flavour=release --docs=none
