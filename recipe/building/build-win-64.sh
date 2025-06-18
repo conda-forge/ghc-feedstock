@@ -18,9 +18,11 @@ export CABAL="${SRC_DIR}"/bootstrap-cabal/cabal.exe
 mkdir -p "${SRC_DIR}/hadrian/cfg"
 touch "${SRC_DIR}/hadrian/cfg/default.target.ghc-toolchain"
 
+# Remove this annoying mingw
+rm -rf "${SRC_DIR}"/bootstrap-ghc/mingw
+
 # Update cabal package database
-# run_and_log "cabal-update" cabal v2-update
-cabal v2-update
+run_and_log "cabal-update" cabal v2-update
 
 _hadrian_build=("${SRC_DIR}"/hadrian/build.bat)
 
