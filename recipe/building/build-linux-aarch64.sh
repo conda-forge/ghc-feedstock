@@ -133,7 +133,7 @@ popd
 perl -pi -e 's#($ENV{BUILD_PREFIX}|$ENV{PREFIX})/bin/##g' "${PREFIX}"/lib/ghc-"${PKG_VERSION}"/lib/settings
 _lib_path='\$CONDA_PREFIX/lib/ghc-'"${PKG_VERSION}"'/lib/aarch64-linux-ghc-'"${PKG_VERSION}"'-inplace'
 perl -pi -e "s#(link flags\", \"--target=aarch64-conda-linux)#\$1 -L${_lib_path} -Wl,-rpath=${_lib_path} -Wl,-rpath-link=${_lib_path}#g" "${PREFIX}"/lib/ghc-"${PKG_VERSION}"/lib/settings
-perl -pi -e "s#(C compiler flags\", \"--target=aarch64-conda-linux)#\$1 -L${_lib_path} -Wl,-rpath=${_lib_path} -Wl,-rpath-link=${_lib_path}#g" "${PREFIX}"/lib/ghc-"${PKG_VERSION}"/lib/settings
+perl -pi -e "s#(compiler flags\", \"--target=aarch64-conda-linux)#\$1 -L${_lib_path} -Wl,-rpath=${_lib_path} -Wl,-rpath-link=${_lib_path}#g" "${PREFIX}"/lib/ghc-"${PKG_VERSION}"/lib/settings
 
 cat "${PREFIX}"/lib/ghc-"${PKG_VERSION}"/lib/settings
 
