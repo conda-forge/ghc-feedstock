@@ -8,10 +8,15 @@ source "${RECIPE_DIR}"/building/common.sh
 export PYTHON=python
 export MSYSTEM=MINGW64
 export MSYS2_ARG_CONV_EXCL="*"
-export PATH="${SRC_DIR}"/bootstrap-ghc/bin:"${SRC_DIR}"/bootstrap-cabal${PATH:+:}${PATH:-}
+export PATH="${SRC_DIR}"/bootstrap-ghc/bin:"${SRC_DIR}"/bootstrap-cabal/bin${PATH:+:}${PATH:-}
 
+export TMP="$(cygpath -w "$TEMP")"
+export TMPDIR="$(cygpath -w "$TEMP")"
 export GHC="${SRC_DIR}"/bootstrap-ghc/bin/ghc.exe
 export CABAL="${SRC_DIR}"/bootstrap-cabal/bin/cabal.exe
+
+mkdir -p "${SRC_DIR}/hadrian/cfg"
+touch "${SRC_DIR}/hadrian/cfg/default.target.ghc-toolchain"
 
 # Update cabal package database
 # run_and_log "cabal-update" cabal v2-update
