@@ -50,6 +50,7 @@ bash configure "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}"
 
 pushd libraries/directory
   bash configure "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}"
+  cabal build --verbose=3
 popd
 "${_hadrian_build[@]}" stage1:exe:ghc-bin -VV \
   --flavour=quickest \
