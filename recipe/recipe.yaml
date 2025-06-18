@@ -139,6 +139,7 @@ tests:
       ghc --version
 
   - script: |
+      ls $CONDA_PREFIX/lib/ghc-9.12.2/lib/aarch64-linux-ghc-9.12.2-inplace/
       echo 'main = putStrLn "Hello conda-forge"' > hello.hs
       ghc hello.hs
       ./hello
