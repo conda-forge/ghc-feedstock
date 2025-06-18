@@ -17,3 +17,4 @@
 +-- Work around exception handling deprecation
 +package ghc-internal
 +  ghc-options: -Wwarn=deprecations
+
