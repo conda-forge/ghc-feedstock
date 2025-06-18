@@ -8,15 +8,12 @@ source "${RECIPE_DIR}"/building/common.sh
 export PYTHON=python
 export MSYSTEM=MINGW64
 export MSYS2_ARG_CONV_EXCL="*"
-export PATH="$(cygpath -w "$SRC_DIR")"/bootstrap-ghc/bin:"$(cygpath -w "$SRC_DIR")"/bootstrap-cabal:"$(cygpath -w "$SRC_DIR")"/bootstrap-cabal/bin${PATH:+:}${PATH:-}
+export PATH="$SRC_DIR"/bootstrap-ghc/bin:"$SRC_DIR"/bootstrap-cabal${PATH:+:}${PATH:-}
 
 export TMP="$(cygpath -w "$TEMP")"
 export TMPDIR="$(cygpath -w "$TEMP")"
 export GHC="$(cygpath -w "$SRC_DIR")"/bootstrap-ghc/bin/ghc.exe
-export CABAL="${SRC_DIR}"/bootstrap-cabal/bin/cabal.exe
-ls bootstrap-cabal/*
-cp "$(cygpath -w "$SRC_DIR")"/bootstrap-cabal/cabal.exe "${SRC_DIR}"/bootstrap-cabal/cabal
-cp "$(cygpath -w "$SRC_DIR")"/bootstrap-cabal/bin/cabal.exe "${SRC_DIR}"/bootstrap-cabal/bin/cabal
+export CABAL="${SRC_DIR}"/bootstrap-cabal/cabal.exe
 
 mkdir -p "${SRC_DIR}/hadrian/cfg"
 touch "${SRC_DIR}/hadrian/cfg/default.target.ghc-toolchain"
