@@ -22,7 +22,7 @@ touch "${SRC_DIR}/hadrian/cfg/default.target.ghc-toolchain"
 # run_and_log "cabal-update" cabal v2-update
 cabal v2-update
 
-_hadrian_build=("${SRC_DIR}"/hadrian/build.bat "-j")
+_hadrian_build=("${SRC_DIR}"/hadrian/build.bat)
 
 # Configure and build GHC
 SYSTEM_CONFIG=(

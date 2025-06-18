@@ -88,7 +88,6 @@ requirements:
         - ncurses
         - sed
       else:
-        # - hexdump
         - m2-autoconf
         - m2-automake-wrapper
         - m2-bash
@@ -96,7 +95,6 @@ requirements:
         - m2-grep
         - m2-m4
         - m2-make
-        - stack
     - gmp
     - llvm-tools ${{ c_compiler_version }}.*
     - python 3.12.*
@@ -112,7 +110,6 @@ requirements:
   run:
     - ${{ compiler('c') }}
     - ${{ compiler('cxx') }}
-    # - c-compiler
     - gmp
     - libffi
     - llvm-tools ${{ c_compiler_version }}.*
