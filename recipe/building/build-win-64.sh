@@ -48,6 +48,9 @@ CONFIGURE_ARGS=(
 # run_and_log "ghc-configure" bash configure "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}"
 bash configure "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}"
 
+pushd libraries/directory
+  bash configure "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}"
+popd
 "${_hadrian_build[@]}" stage1:exe:ghc-bin -VV \
   --flavour=quickest \
   --docs=none \
