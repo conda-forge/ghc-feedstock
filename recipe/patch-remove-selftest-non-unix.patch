@@ -9,8 +9,11 @@
       description:        Enables the hadrian selftest rules which require
 --- a/hadrian/cabal.project
 +++ b/hadrian/cabal.project
-@@ -10,3 +10,3 @@
+@@ -10,3 +10,7 @@
  -- ghc-9.10 has template-haskell-2.22.0.0
 -allow-newer: unordered-containers:template-haskell
-+allow-newer: unordered-containers:template-haskell,hashable:base,cryptohash-sha256:base
-
++allow-newer: unordered-containers:template-haskell,hashable:base,cryptohash-sha256:base,directory:base
++
++-- Work around exception handling deprecation
++package ghc-internal
++  ghc-options: -Wwarn=deprecations
