@@ -21,7 +21,7 @@ touch "${SRC_DIR}/hadrian/cfg/default.target.ghc-toolchain"
 # Remove this annoying mingw
 #rm -rf "${SRC_DIR}"/bootstrap-ghc/mingw/clan*
 #cp "${BUILD_PREFIX}"/bin/*clang* "${SRC_DIR}"/bootstrap-ghc/mingw/
-perl -i -pe 's#\$topdir/../mingw//bin/(llvm-)?#x86_64-w64-mingw32-#g' "${SRC_DIR}"/bootstrap-ghc/lib/lib/settings
+perl -i -pe 's#\$topdir/../mingw//bin/(llvm-)?##g' "${SRC_DIR}"/bootstrap-ghc/lib/lib/settings
 perl -i -pe 's#-I\$topdir/../mingw//include##g' "${SRC_DIR}"/bootstrap-ghc/lib/lib/settings
 perl -i -pe 's#-L\$topdir/../mingw//lib -L\$topdir/../mingw//x86_64-w64-mingw32/lib##g' "${SRC_DIR}"/bootstrap-ghc/lib/lib/settings
 
@@ -55,6 +55,7 @@ CONFIGURE_ARGS=(
 )
 # run_and_log "ghc-configure" bash configure "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}"
 CC=clang \
+MergeObjsArgs="" \
 bash configure "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}"
 
 pushd libraries/directory
