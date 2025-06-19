@@ -8,13 +8,13 @@ c_stdlib_version:
 
 c_compiler:
   - clang                  # [unix]
-  - gcc                    # [not unix]
+  - clang                    # [not unix]
 c_compiler_version:
   - 18                     # [unix]
-  - 15                     # [not unix]
+  - 18                     # [not unix]
 cxx_compiler:
   - clangxx                # [unix]
-  - gxx                    # [not unix]
+  - clangxx                    # [not unix]
 cxx_compiler_version:
   - 18                     # [unix]
-  - 15                     # [not unix]
+  - 18                     # [not unix]
