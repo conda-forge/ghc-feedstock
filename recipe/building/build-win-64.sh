@@ -57,7 +57,7 @@ CONFIGURE_ARGS=(
 # run_and_log "ghc-configure" bash configure "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}"
 CC=clang \
 MergeObjsArgs="" \
-bash configure "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}"
+bash configure "${CONFIGURE_ARGS[@]}"
 
 pushd libraries/directory
   CC=clang \
