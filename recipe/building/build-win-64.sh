@@ -14,6 +14,8 @@ export TMP="$(cygpath -w "$TEMP")"
 export TMPDIR="$(cygpath -w "$TEMP")"
 export GHC="$(cygpath -w "$SRC_DIR")"/bootstrap-ghc/bin/ghc.exe
 export CABAL="${SRC_DIR}"/bootstrap-cabal/cabal.exe
+export LIBRARY_PATH="${BUILD_PREFIX}/Library/lib${LIBRARY_PATH:+:}${LIBRARY_PATH:-}"
+export LIB="${BUILD_PREFIX}/Library/lib;${PREFIX}/Library/lib${LIB:+;}${LIB:-}"
 
 mkdir -p "${SRC_DIR}/hadrian/cfg"
 touch "${SRC_DIR}/hadrian/cfg/default.target.ghc-toolchain"
