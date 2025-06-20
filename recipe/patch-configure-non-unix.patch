@@ -1,6 +1,11 @@
 --- a/configure
 +++ b/configure
-@@ -8231,3 +8231,3 @@
+@@ -4860,3 +4860,4 @@
+ { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking whether the C compiler works" >&5
+ printf %s "checking whether the C compiler works... " >&6; }
++ac_link='$CC $CFLAGS $CPPFLAGS $LDFLAGS conftest.$ac_ext $LIBS >&5'
+ ac_link_default=`printf "%s\n" "$ac_link" | sed 's/ -o *conftest[^ ]*//'`
+@@ -8231,3 +8232,3 @@
      # Clang version preserves whitespace lines, but emcc removes.
 -    if test "$(cat ./conftest.pp.js | tr -d '\n')" = "// 1" ; then
 +    if test "$(cat ./conftest.pp.js | tr -d '\r\n')" = "// 1" ; then
