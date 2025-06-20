@@ -140,6 +140,7 @@ tests:
 
   - script: |
       ls $CONDA_PREFIX/lib/ghc-9.12.2/lib/aarch64-linux-ghc-9.12.2-inplace/libHSbase-4.21.0.0-inplace.so
+      cat $CONDA_PREFIX/lib/ghc-9.12.2/lib/settings
       export LD_LIBRARY_PATH=$CONDA_PREFIX/lib/ghc-9.12.2/lib/aarch64-linux-ghc-9.12.2-inplace
       echo 'main = putStrLn "Hello conda-forge"' > hello.hs
       ghc --help || true
