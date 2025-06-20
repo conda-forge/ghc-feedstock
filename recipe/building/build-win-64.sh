@@ -35,8 +35,8 @@ _hadrian_build=("${SRC_DIR}"/hadrian/build.bat)
 # Configure and build GHC
 SYSTEM_CONFIG=(
   --build="x86_64-w64-mingw32"
-  --host="x86_64-w64-mingw32"
-  --target="x86_64-w64-mingw32"
+  # --host="x86_64-w64-mingw32"
+  # --target="x86_64-w64-mingw32"
 )
 
 CONFIGURE_ARGS=(
