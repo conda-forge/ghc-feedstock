@@ -3,7 +3,7 @@ c_compiler:
 c_compiler_version:
 - '18'
 c_stdlib:
-- m2w64-sysroot
+- vs
 c_stdlib_version:
 - '12'
 channel_sources:
