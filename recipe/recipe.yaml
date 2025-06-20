@@ -88,6 +88,7 @@ requirements:
         - ncurses
         - sed
       else:
+        - binutils
         - m2-autoconf
         - m2-automake-wrapper
         - m2-bash
