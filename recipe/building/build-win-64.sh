@@ -15,7 +15,18 @@ export TMPDIR="$(cygpath -w "$TEMP")"
 export GHC="$(cygpath -w "$SRC_DIR")"/bootstrap-ghc/bin/ghc.exe
 export CABAL="${SRC_DIR}"/bootstrap-cabal/cabal.exe
 export LIBRARY_PATH="${BUILD_PREFIX}/Library/lib${LIBRARY_PATH:+:}${LIBRARY_PATH:-}"
-export LIB="${BUILD_PREFIX}/Library/lib;${PREFIX}/Library/lib;C:/Program Files (x86)/Windows Kits/10/Lib/10.0.26100.0/um/x64;C:/Program Files/Microsoft Visual Studio/2022/Enterprise/VC/Tools/MSVC/14.38.33130/lib/x64${LIB:+;}${LIB:-}"
+
+# Find the latest MSVC version directory dynamically
+MSVC_VERSION_DIR=$(ls -d "C:/Program Files/Microsoft Visual Studio/2022/Enterprise/VC/Tools/MSVC/"*/ 2>/dev/null | sort -V | tail -1 | sed 's/\/$//')
+
+# Use the discovered path or fall back to a default if not found
+if [ -z "$MSVC_VERSION_DIR" ]; then
+    echo "Warning: Could not find MSVC tools directory, using fallback path"
+    MSVC_VERSION_DIR="C:/Program Files/Microsoft Visual Studio/2022/Enterprise/VC/Tools/MSVC/14.38.33130"
+fi
+
+# Export LIB with the dynamic path
+export LIB="${BUILD_PREFIX}/Library/lib;${PREFIX}/Library/lib;C:/Program Files (x86)/Windows Kits/10/Lib/10.0.26100.0/um/x64;${MSVC_VERSION_DIR}/lib/x64${LIB:+;}${LIB:-}"
 
 mkdir -p "${SRC_DIR}/hadrian/cfg"
 touch "${SRC_DIR}/hadrian/cfg/default.target.ghc-toolchain"
