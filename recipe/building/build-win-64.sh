@@ -79,6 +79,11 @@ bash configure "${CONFIGURE_ARGS[@]}" || cat config.log
 
 pushd libraries/directory
   CC=clang \
+  CFLAGS="${CFLAGS//-nostdlib/}" \
+  CXXFLAGS="${CXXFLAGS//-nostdlib/} -stdlib=libstdc++" \
+  LDFLAGS="${LDFLAGS//-nostdlib/} -Wl,-defaultlib:msvcrt -Wl,-defaultlib:oldnames" \
+  MergeObjsCmd="x86_64-w64-mingw32-ld.exe" \
+  MergeObjsArgs="" \
   bash configure "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}"
   cabal build --verbose=3
 popd
