@@ -5,6 +5,11 @@
  printf %s "checking whether the C compiler works... " >&6; }
 +ac_link='$CC $CFLAGS $CPPFLAGS $LDFLAGS conftest.$ac_ext $LIBS >&5'
  ac_link_default=`printf "%s\n" "$ac_link" | sed 's/ -o *conftest[^ ]*//'`
+@@ -7154,3 +7155,3 @@
+ printf "%s\n" "$ac_try_echo"; } >&5
+-  (eval "$ac_link") 2>&5
++  (eval "$ac_link -o conftest.exe") 2>&5
+   ac_status=$?
 @@ -8231,3 +8232,3 @@
      # Clang version preserves whitespace lines, but emcc removes.
 -    if test "$(cat ./conftest.pp.js | tr -d '\n')" = "// 1" ; then
