@@ -58,7 +58,8 @@ CONFIGURE_ARGS=(
 )
 # run_and_log "ghc-configure" bash configure "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}"
 CC=clang \
-CFLAGS="${CFLAGS//-nostdlib//}" \
+CFLAGS="${CFLAGS//-nostdlib/}" \
+CPPFLAGS="${CPPFLAGS//-nostdlib/}" \
 MergeObjsArgs="" \
 bash configure "${CONFIGURE_ARGS[@]}" || cat config.log
 
