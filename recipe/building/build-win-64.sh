@@ -71,7 +71,7 @@ CONFIGURE_ARGS=(
 # run_and_log "ghc-configure" bash configure "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}"
 CC=clang \
 CFLAGS="${CFLAGS//-nostdlib/}" \
-CXXFLAGS="${CXXFLAGS//-nostdlib/} -stdlib=libstdc++" \
+CXXFLAGS="${CXXFLAGS//-nostdlib/} -stdlib=libc++" \
 LDFLAGS="${LDFLAGS//-nostdlib/} -Wl,-defaultlib:msvcrt -Wl,-defaultlib:oldnames" \
 MergeObjsCmd="x86_64-w64-mingw32-ld.exe" \
 MergeObjsArgs="" \
@@ -80,7 +80,7 @@ bash configure "${CONFIGURE_ARGS[@]}" || cat config.log
 pushd libraries/directory
   CC=clang \
   CFLAGS="${CFLAGS//-nostdlib/}" \
-  CXXFLAGS="${CXXFLAGS//-nostdlib/} -stdlib=libstdc++" \
+  CXXFLAGS="${CXXFLAGS//-nostdlib/} -stdlib=libc++" \
   LDFLAGS="${LDFLAGS//-nostdlib/} -Wl,-defaultlib:msvcrt -Wl,-defaultlib:oldnames" \
   MergeObjsCmd="x86_64-w64-mingw32-ld.exe" \
   MergeObjsArgs="" \
