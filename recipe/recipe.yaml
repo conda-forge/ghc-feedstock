@@ -89,7 +89,6 @@ requirements:
         - sed
       else:
         - binutils
-        - libcxx
         - m2-autoconf
         - m2-automake-wrapper
         - m2-bash

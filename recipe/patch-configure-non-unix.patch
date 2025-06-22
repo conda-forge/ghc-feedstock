@@ -15,3 +15,15 @@
 -    if test "$(cat ./conftest.pp.js | tr -d '\n')" = "// 1" ; then
 +    if test "$(cat ./conftest.pp.js | tr -d '\r\n')" = "// 1" ; then
        { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+@@ -13212,2 +13213,3 @@
+ libstdc++
++#elif defined(_MSC_VER) || defined(_MSVC_STL_VERSION)
++msvc
+ #else
+@@ -13231,2 +13234,6 @@
+ printf "%s\n" "libstdc++" >&6; }
++        elif grep "msvc" actest.out >/dev/null; then
++            CXX_STD_LIB_FLAVOUR="msvc"
++            { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: msvc" >&5
++printf "%s\n" "msvc" >&6; }
+         else
