@@ -18,5 +18,5 @@
 @@ -13222,3 +13223,3 @@
          fi
 -
-+cat actest.out
++cat actest.out >&5
                  if grep "libc++" actest.out >/dev/null; then
