@@ -76,7 +76,7 @@ CXXFLAGS="${CXXFLAGS//-nostdlib/} -stdlib=libc++" \
 LDFLAGS="${LDFLAGS//-nostdlib/} -Wl,-defaultlib:msvcrt -Wl,-defaultlib:oldnames" \
 MergeObjsCmd="x86_64-w64-mingw32-ld.exe" \
 MergeObjsArgs="" \
-bash configure "${CONFIGURE_ARGS[@]}" || { cat config.log ; exit 1 }
+bash configure "${CONFIGURE_ARGS[@]}" || ( cat config.log ; exit 1 )
 
 pushd libraries/directory
   CC=clang \
