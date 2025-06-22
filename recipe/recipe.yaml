@@ -89,7 +89,7 @@ requirements:
         - sed
       else:
         - binutils
-        - libcxx ${{ cxx_compiler_version }}.*
+        - libcxx
         - m2-autoconf
         - m2-automake-wrapper
         - m2-bash
