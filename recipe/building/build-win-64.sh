@@ -69,9 +69,11 @@ CONFIGURE_ARGS=(
   --with-iconv-libraries="${PREFIX}"/lib
 )
 # run_and_log "ghc-configure" bash configure "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}"
+AR_STAGE0=llvm-ar \
 CC=clang \
+CC_STAGE0=clang \
 CFLAGS="${CFLAGS//-nostdlib/}" \
-CC=clang++ \
+CXX=clang++ \
 CXXFLAGS="${CXXFLAGS//-nostdlib/} -stdlib=libc++" \
 LDFLAGS="${LDFLAGS//-nostdlib/} -Wl,-defaultlib:msvcrt -Wl,-defaultlib:oldnames" \
 MergeObjsCmd="x86_64-w64-mingw32-ld.exe" \
