@@ -56,7 +56,7 @@ SYSTEM_CONFIG=(
 CONFIGURE_ARGS=(
   --prefix="${PREFIX}"
   --disable-numa
-  --enable-distro-toolchain
+  # --enable-distro-toolchain
   --enable-ignore-build-platform-mismatch=yes
   --with-system-libffi=yes
   --with-curses-includes="${PREFIX}"/include
