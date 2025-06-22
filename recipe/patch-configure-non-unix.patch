@@ -15,3 +15,8 @@
 -    if test "$(cat ./conftest.pp.js | tr -d '\n')" = "// 1" ; then
 +    if test "$(cat ./conftest.pp.js | tr -d '\r\n')" = "// 1" ; then
        { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+@@ -13222,3 +13223,3 @@
+         fi
+-
++cat actest.out
+                 if grep "libc++" actest.out >/dev/null; then
