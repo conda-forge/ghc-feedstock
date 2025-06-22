@@ -21,8 +21,8 @@ MSVC_VERSION_DIR=$(ls -d "C:/Program Files/Microsoft Visual Studio/2022/Enterpri
 
 # Use the discovered path or fall back to a default if not found
 if [ -z "$MSVC_VERSION_DIR" ]; then
-    echo "Warning: Could not find MSVC tools directory, using fallback path"
-    MSVC_VERSION_DIR="C:/Program Files/Microsoft Visual Studio/2022/Enterprise/VC/Tools/MSVC/14.38.33130"
+  echo "Warning: Could not find MSVC tools directory, using fallback path"
+  MSVC_VERSION_DIR="C:/Program Files/Microsoft Visual Studio/2022/Enterprise/VC/Tools/MSVC/14.38.33130"
 fi
 
 # Export LIB with the dynamic path
@@ -71,7 +71,8 @@ CONFIGURE_ARGS=(
 # run_and_log "ghc-configure" bash configure "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}"
 CC=clang \
 CFLAGS="${CFLAGS//-nostdlib/}" \
-CXXFLAGS="${CXXFLAGS//-nostdlib/} -stdlib=c++" \
+CC=clang++ \
+CXXFLAGS="${CXXFLAGS//-nostdlib/} -stdlib=libc++" \
 LDFLAGS="${LDFLAGS//-nostdlib/} -Wl,-defaultlib:msvcrt -Wl,-defaultlib:oldnames" \
 MergeObjsCmd="x86_64-w64-mingw32-ld.exe" \
 MergeObjsArgs="" \
@@ -80,7 +81,7 @@ bash configure "${CONFIGURE_ARGS[@]}" || cat config.log
 pushd libraries/directory
   CC=clang \
   CFLAGS="${CFLAGS//-nostdlib/}" \
-  CXXFLAGS="${CXXFLAGS//-nostdlib/} -stdlib=c++" \
+  CXXFLAGS="${CXXFLAGS//-nostdlib/} -stdlib=libc++" \
   LDFLAGS="${LDFLAGS//-nostdlib/} -Wl,-defaultlib:msvcrt -Wl,-defaultlib:oldnames" \
   MergeObjsCmd="x86_64-w64-mingw32-ld.exe" \
   MergeObjsArgs="" \
