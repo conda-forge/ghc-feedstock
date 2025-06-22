@@ -56,7 +56,7 @@ SYSTEM_CONFIG=(
 CONFIGURE_ARGS=(
   --prefix="${PREFIX}"
   --disable-numa
-  # --enable-distro-toolchain
+  --enable-distro-toolchain
   --enable-ignore-build-platform-mismatch=yes
   --with-system-libffi=yes
   --with-curses-includes="${PREFIX}"/include
@@ -76,7 +76,7 @@ CXXFLAGS="${CXXFLAGS//-nostdlib/} -stdlib=libc++" \
 LDFLAGS="${LDFLAGS//-nostdlib/} -Wl,-defaultlib:msvcrt -Wl,-defaultlib:oldnames" \
 MergeObjsCmd="x86_64-w64-mingw32-ld.exe" \
 MergeObjsArgs="" \
-bash configure "${CONFIGURE_ARGS[@]}" || cat config.log
+bash configure "${CONFIGURE_ARGS[@]}" || { cat config.log ; exit 1 }
 
 pushd libraries/directory
   CC=clang \
