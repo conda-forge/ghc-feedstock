@@ -96,6 +96,8 @@ pushd libraries/directory
   MergeObjsArgs="" \
   run_and_log "directory-autoreconf" bash autoreconf -fi
 
+  cabal configure -w "$(cygpath -w "$SRC_DIR")"/bootstrap-ghc/bin/ghc.exe --help
+
   AR_STAGE0=llvm-ar \
   CC=clang \
   CC_STAGE0=clang \
@@ -105,7 +107,7 @@ pushd libraries/directory
   LDFLAGS="${LDFLAGS//-nostdlib/} -Wl,-defaultlib:msvcrt -Wl,-defaultlib:oldnames" \
   MergeObjsCmd="x86_64-w64-mingw32-ld.exe" \
   MergeObjsArgs="" \
-  cabal configure --verbose=3
+  cabal configure -w "$(cygpath -w "$SRC_DIR")"/bootstrap-ghc/bin/ghc.exe --verbose=3
 popd
 "${_hadrian_build[@]}" stage1:exe:ghc-bin -VV \
   --flavour=quickest \
