@@ -12,10 +12,10 @@ c_compiler:
   - clang                    # [not unix]
 c_compiler_version:
   - 18                     # [unix]
-  - 18                     # [not unix]
+  - 19                     # [not unix]
 cxx_compiler:
   - clangxx                # [unix]
   - clangxx                    # [not unix]
 cxx_compiler_version:
   - 18                     # [unix]
-  - 18                     # [not unix]
+  - 19                     # [not unix]
