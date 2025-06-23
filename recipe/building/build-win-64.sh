@@ -90,7 +90,7 @@ pushd libraries/directory
   LDFLAGS="${LDFLAGS//-nostdlib/} -Wl,-defaultlib:msvcrt -Wl,-defaultlib:oldnames" \
   MergeObjsCmd="x86_64-w64-mingw32-ld.exe" \
   MergeObjsArgs="" \
-  run_and_log "directory-configure" bash configure "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}"
+  run_and_log "directory-autoreconf" bash autoreconf -fi
 
   AR_STAGE0=llvm-ar \
   CC=clang \
@@ -101,7 +101,7 @@ pushd libraries/directory
   LDFLAGS="${LDFLAGS//-nostdlib/} -Wl,-defaultlib:msvcrt -Wl,-defaultlib:oldnames" \
   MergeObjsCmd="x86_64-w64-mingw32-ld.exe" \
   MergeObjsArgs="" \
-  cabal build --verbose=3
+  cabal configure --verbose=3
 popd
 "${_hadrian_build[@]}" stage1:exe:ghc-bin -VV \
   --flavour=quickest \
