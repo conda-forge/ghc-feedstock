@@ -81,6 +81,8 @@ MergeObjsArgs="" \
 run_and_log "ghc-configure" bash configure "${CONFIGURE_ARGS[@]}" || ( cat config.log ; exit 1 )
 
 pushd libraries/directory
+  mkdir -p "${BUILD_PREFIX}"/bin
+  ln -s "${BUILD_PREFIX}"/Library/usr/bin/m4.exe "${BUILD_PREFIX}"/bin
   find "${PREFIX}" "${BUILD_PREFIX}" -name m4.exe
 
   AR_STAGE0=llvm-ar \
