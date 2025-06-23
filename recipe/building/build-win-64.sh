@@ -81,6 +81,8 @@ MergeObjsArgs="" \
 run_and_log "ghc-configure" bash configure "${CONFIGURE_ARGS[@]}" || ( cat config.log ; exit 1 )
 
 pushd libraries/directory
+  find "${PREFIX}" "${BUILD_PREFIX}" -name m4.exe
+
   AR_STAGE0=llvm-ar \
   CC=clang \
   CC_STAGE0=clang \
