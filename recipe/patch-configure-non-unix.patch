@@ -27,3 +27,7 @@
 +            { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: msvc" >&5
 +printf "%s\n" "msvc" >&6; }
          else
+@@ -13245,2 +13252,3 @@
+         if ! "$CXX" -c actest.cpp; then
++            "$CXX" -c actest.cpp  >&5
+             as_fn_error $? "Failed to compile test object" "$LINENO" 5
