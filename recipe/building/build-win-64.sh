@@ -115,7 +115,7 @@ pushd libraries/directory
   # LDFLAGS="${LDFLAGS//-nostdlib/} -Wl,-defaultlib:msvcrt -Wl,-defaultlib:oldnames" \
   # MergeObjsCmd="x86_64-w64-mingw32-ld.exe" \
   # MergeObjsArgs="" \
-  cabal build \
+  cabal configure \
     --verbose=3 \
     --with-compiler="${SRC_DIR}"/bootstrap-ghc/bin/ghc.exe \
     --with-gcc="${BUILD_PREFIX}"Library/bin/clang.exe \
