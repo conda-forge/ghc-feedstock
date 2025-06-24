@@ -83,7 +83,6 @@ run_and_log "ghc-configure" bash configure "${CONFIGURE_ARGS[@]}" || ( cat confi
 pushd libraries/directory
   mkdir -p "${BUILD_PREFIX}"/bin
   ln -s "${BUILD_PREFIX}"/Library/usr/bin/m4.exe "${BUILD_PREFIX}"/bin
-  find "${PREFIX}" "${BUILD_PREFIX}" -name m4.exe
 
   AR_STAGE0=llvm-ar \
   CC=clang \
@@ -105,11 +104,23 @@ pushd libraries/directory
   LDFLAGS="${LDFLAGS//-nostdlib/} -Wl,-defaultlib:msvcrt -Wl,-defaultlib:oldnames" \
   MergeObjsCmd="x86_64-w64-mingw32-ld.exe" \
   MergeObjsArgs="" \
+  run_and_log "directory-configure" bash configure
+
+  AR_STAGE0=llvm-ar \
+  CC=clang \
+  CC_STAGE0=clang \
+  CFLAGS="${CFLAGS//-nostdlib/}" \
+  CXX=clang++ \
+  CXXFLAGS="${CXXFLAGS//-nostdlib/}" \
+  LDFLAGS="${LDFLAGS//-nostdlib/} -Wl,-defaultlib:msvcrt -Wl,-defaultlib:oldnames" \
+  MergeObjsCmd="x86_64-w64-mingw32-ld.exe" \
+  MergeObjsArgs="" \
   cabal configure \
     --verbose=3 \
     --with-compiler="${SRC_DIR}"/bootstrap-ghc/bin/ghc.exe \
     --with-gcc="${BUILD_PREFIX}"/bin/clang.exe
 popd
+
 "${_hadrian_build[@]}" stage1:exe:ghc-bin -VV \
   --flavour=quickest \
   --docs=none \
