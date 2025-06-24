@@ -39,6 +39,8 @@ perl -i -pe 's#\$topdir/../mingw//bin/(llvm-)?##g' "${SRC_DIR}"/bootstrap-ghc/li
 perl -i -pe 's#-I\$topdir/../mingw//include##g' "${SRC_DIR}"/bootstrap-ghc/lib/lib/settings
 perl -i -pe 's#-L\$topdir/../mingw//lib -L\$topdir/../mingw//x86_64-w64-mingw32/lib##g' "${SRC_DIR}"/bootstrap-ghc/lib/lib/settings
 
+mkdir -p "${BUILD_PREFIX}"/bin
+ln -s "${BUILD_PREFIX}"/Library/usr/bin/m4.exe "${BUILD_PREFIX}"/bin
 cat "${SRC_DIR}"/bootstrap-ghc/lib/lib/settings
 
 # Update cabal package database
@@ -81,9 +83,6 @@ MergeObjsArgs="" \
 run_and_log "ghc-configure" bash configure "${CONFIGURE_ARGS[@]}" || ( cat config.log ; exit 1 )
 
 pushd libraries/directory
-  mkdir -p "${BUILD_PREFIX}"/bin
-  ln -s "${BUILD_PREFIX}"/Library/usr/bin/m4.exe "${BUILD_PREFIX}"/bin
-
   # AR_STAGE0=llvm-ar \
   # CC=clang \
   # CC_STAGE0=clang \
@@ -115,12 +114,17 @@ pushd libraries/directory
   # LDFLAGS="${LDFLAGS//-nostdlib/} -Wl,-defaultlib:msvcrt -Wl,-defaultlib:oldnames" \
   # MergeObjsCmd="x86_64-w64-mingw32-ld.exe" \
   # MergeObjsArgs="" \
-  cabal configure \
-    --verbose=3 \
-    --with-compiler="${SRC_DIR}"/bootstrap-ghc/bin/ghc.exe \
-    --with-gcc="${BUILD_PREFIX}"Library/bin/clang.exe \
-    --with-ar="${BUILD_PREFIX}"Library/bin/llvm-ar.exe
+
+  # cabal configure \
+  #   --verbose=3 \
+  #   --with-compiler="${SRC_DIR}"/bootstrap-ghc/bin/ghc.exe \
+  #   --with-gcc="${BUILD_PREFIX}"Library/bin/clang.exe \
+  #   --with-ar="${BUILD_PREFIX}"Library/bin/llvm-ar.exe
 popd
+
+cat << EOF > hadrian/hadrian.settings
+stage1.*.cabal.configure.opts += --with-compiler="${SRC_DIR}"/bootstrap-ghc/bin/ghc.exe --with-gcc="${BUILD_PREFIX}"Library/bin/clang.exe --with-ar="${BUILD_PREFIX}"Library/bin/llvm-ar.exe
+EOF
 
 "${_hadrian_build[@]}" stage1:exe:ghc-bin -VV \
   --flavour=quickest \
