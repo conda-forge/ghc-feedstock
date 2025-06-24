@@ -98,6 +98,7 @@ requirements:
         - m2-make
     - gmp
     - llvm-tools ${{ c_compiler_version }}.*
+    - pkg-config
     - python 3.12.*
     - sphinx
     - zstd
