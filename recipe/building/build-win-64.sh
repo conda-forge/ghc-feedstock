@@ -119,7 +119,7 @@ pushd libraries/directory
     --verbose=3 \
     --with-compiler="${SRC_DIR}"/bootstrap-ghc/bin/ghc.exe \
     --with-gcc="${BUILD_PREFIX}"Library/bin/clang.exe \
-    --with-llvm-ar="${BUILD_PREFIX}"Library/bin/llvm-ar.exe
+    --with-ar="${BUILD_PREFIX}"Library/bin/llvm-ar.exe
 popd
 
 "${_hadrian_build[@]}" stage1:exe:ghc-bin -VV \
