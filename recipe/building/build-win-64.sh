@@ -115,11 +115,10 @@ pushd libraries/directory
   # MergeObjsCmd="x86_64-w64-mingw32-ld.exe" \
   # MergeObjsArgs="" \
 
-  # cabal configure \
-  #   --verbose=3 \
-  #   --with-compiler="${SRC_DIR}"/bootstrap-ghc/bin/ghc.exe \
-  #   --with-gcc="${BUILD_PREFIX}"Library/bin/clang.exe \
-  #   --with-ar="${BUILD_PREFIX}"Library/bin/llvm-ar.exe
+  cabal configure \
+    --verbose=3 \
+    --with-compiler="${SRC_DIR}"/bootstrap-ghc/bin/ghc.exe \
+    --with-gcc="${BUILD_PREFIX}"Library/bin/clang.exe
 popd
 
 cat << EOF > hadrian/hadrian.settings
