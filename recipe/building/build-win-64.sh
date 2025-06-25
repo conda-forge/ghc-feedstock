@@ -123,7 +123,7 @@ pushd libraries/directory
 popd
 
 cat << EOF > hadrian/hadrian.settings
-stage1.*.cabal.configure.opts += --with-compiler="${SRC_DIR}"/bootstrap-ghc/bin/ghc.exe --with-gcc="${BUILD_PREFIX}"Library/bin/clang.exe --with-ar="${BUILD_PREFIX}"Library/bin/llvm-ar.exe
+stage1.*.cabal.configure.opts += --verbose=3 --with-compiler="${SRC_DIR}"/bootstrap-ghc/bin/ghc.exe --with-gcc="${BUILD_PREFIX}"Library/bin/clang.exe
 EOF
 
 "${_hadrian_build[@]}" stage1:exe:ghc-bin -VV \
