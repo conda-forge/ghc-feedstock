@@ -122,6 +122,9 @@ pushd "${PREFIX}"/lib
   if [[ -d aarch64-conda-linux-gnu-ghc-"${PKG_VERSION}" ]]; then
     mv aarch64-conda-linux-gnu-ghc-"${PKG_VERSION}" ghc-"${PKG_VERSION}"
     ln -sf ghc-"${PKG_VERSION}" aarch64-conda-linux-gnu-ghc-"${PKG_VERSION}"
+    pushd aarch64-conda-linux-gnu-ghc-"${PKG_VERSION}"/lib
+      ln -sf aarch64-linux-ghc-"${PKG_VERSION}"-inplace ghc-"${PKG_VERSION}"
+    popd
   fi
 popd
 
