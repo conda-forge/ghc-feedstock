@@ -118,7 +118,7 @@ pushd libraries/directory
   cabal configure \
     --verbose=3 \
     --with-compiler="${SRC_DIR}"/bootstrap-ghc/bin/ghc.exe \
-    --with-gcc="${BUILD_PREFIX}"Library/bin/clang.exe
+    --with-gcc="${BUILD_PREFIX}"Library/bin/clang.exe || { cat config.log ; exit 1 ; }
 popd
 
 cat << EOF > hadrian/hadrian.settings
