@@ -105,19 +105,18 @@ pushd libraries/directory
   # MergeObjsArgs="" \
   # run_and_log "directory-configure" bash configure
 
-  AR_STAGE0=llvm-ar \
-  CC=clang \
-  CC_STAGE0=clang \
-  CFLAGS="${CFLAGS//-nostdlib/}" \
-  CXX=clang++ \
-  CXXFLAGS="${CXXFLAGS//-nostdlib/}" \
-  LDFLAGS="${LDFLAGS//-nostdlib/} -Wl,-defaultlib:msvcrt -Wl,-defaultlib:oldnames" \
-  MergeObjsCmd="x86_64-w64-mingw32-ld.exe" \
-  MergeObjsArgs="" \
-  cabal configure \
-    --verbose=3 \
+  # AR_STAGE0=llvm-ar \
+  # CC=clang \
+  # CC_STAGE0=clang \
+  # CFLAGS="${CFLAGS//-nostdlib/}" \
+  # CXX=clang++ \
+  # CXXFLAGS="${CXXFLAGS//-nostdlib/}" \
+  # LDFLAGS="${LDFLAGS//-nostdlib/} -Wl,-defaultlib:msvcrt -Wl,-defaultlib:oldnames" \
+  # MergeObjsCmd="x86_64-w64-mingw32-ld.exe" \
+  # MergeObjsArgs="" \
+  (set +e && cabal configure \
     --with-compiler="${SRC_DIR}"/bootstrap-ghc/bin/ghc.exe \
-    --with-gcc="${BUILD_PREFIX}"Library/bin/clang.exe || ( cat config.log ; exit 1 ; )
+    --with-gcc="${BUILD_PREFIX}"Library/bin/clang.exe) || ( cat config.log ; exit 1 ; )
 popd
 
 cat << EOF > hadrian/hadrian.settings
