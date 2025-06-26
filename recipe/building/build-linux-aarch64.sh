@@ -119,7 +119,7 @@ pushd "${PREFIX}"/bin
 popd
 
 if [[ -d "${PREFIX}"/lib/aarch64-conda-linux-gnu-ghc-"${PKG_VERSION}" ]]; then
-  # $CONDA_PREFIX/lib/aarch64-conda-linux-gnu-ghc-9.12.2 -> $CONDA_PREFIX/lib/ghc-9.12.2
+  # $PREFIX/lib/aarch64-conda-linux-gnu-ghc-9.12.2 -> $PREFIX/lib/ghc-9.12.2
   mv "${PREFIX}"/lib/aarch64-conda-linux-gnu-ghc-"${PKG_VERSION}" "${PREFIX}"/lib/ghc-"${PKG_VERSION}"
   ln -sf "${PREFIX}"/lib/ghc-"${PKG_VERSION}" "${PREFIX}"/lib/aarch64-conda-linux-gnu-ghc-"${PKG_VERSION}"
 fi
@@ -132,8 +132,8 @@ popd
 
 perl -pi -e 's#($ENV{BUILD_PREFIX}|$ENV{PREFIX})/bin/##g' "${PREFIX}"/lib/ghc-"${PKG_VERSION}"/lib/settings
 _lib_path='lib/ghc-'"${PKG_VERSION}"'/lib/aarch64-linux-ghc-'"${PKG_VERSION}"'-inplace'
-perl -pi -e "s#(link flags\", \"--target=aarch64-conda-linux)#\$1 -L\\\$CONDA_PREFIX/${_lib_path} -Wl,-rpath=\\\$CONDA_PREFIX/${_lib_path} -Wl,-rpath-link=\\\$CONDA_PREFIX/${_lib_path}#g" "${PREFIX}"/lib/ghc-"${PKG_VERSION}"/lib/settings
-perl -pi -e "s#(compiler flags\", \"--target=aarch64-conda-linux)#\$1 -L\\\$CONDA_PREFIX/${_lib_path} -Wl,-rpath=\\\$CONDA_PREFIX/${_lib_path} -Wl,-rpath-link=\\\$CONDA_PREFIX/${_lib_path}#g" "${PREFIX}"/lib/ghc-"${PKG_VERSION}"/lib/settings
+perl -pi -e "s#(link flags\", \"--target=aarch64-conda-linux)#\$1 -L\$PREFIX/${_lib_path} -Wl,-rpath=\$PREFIX/${_lib_path} -Wl,-rpath-link=\$PREFIX/${_lib_path}#g" "${PREFIX}"/lib/ghc-"${PKG_VERSION}"/lib/settings
+perl -pi -e "s#(compiler flags\", \"--target=aarch64-conda-linux)#\$1 -L\$PREFIX/${_lib_path} -Wl,-rpath=\$PREFIX/${_lib_path} -Wl,-rpath-link=\$PREFIX/${_lib_path}#g" "${PREFIX}"/lib/ghc-"${PKG_VERSION}"/lib/settings
 
 cat "${PREFIX}"/lib/ghc-"${PKG_VERSION}"/lib/settings
 
