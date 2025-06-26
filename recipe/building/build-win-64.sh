@@ -94,16 +94,16 @@ pushd libraries/directory
   # MergeObjsArgs="" \
   # run_and_log "directory-autoreconf" bash autoreconf -fi
 
-  # AR_STAGE0=llvm-ar \
-  # CC=clang \
-  # CC_STAGE0=clang \
-  # CFLAGS="${CFLAGS//-nostdlib/}" \
-  # CXX=clang++ \
-  # CXXFLAGS="${CXXFLAGS//-nostdlib/}" \
-  # LDFLAGS="${LDFLAGS//-nostdlib/} -Wl,-defaultlib:msvcrt -Wl,-defaultlib:oldnames" \
-  # MergeObjsCmd="x86_64-w64-mingw32-ld.exe" \
-  # MergeObjsArgs="" \
-  # run_and_log "directory-configure" bash configure
+  AR_STAGE0=llvm-ar \
+  CC=clang \
+  CC_STAGE0=clang \
+  CFLAGS="${CFLAGS//-nostdlib/}" \
+  CXX=clang++ \
+  CXXFLAGS="${CXXFLAGS//-nostdlib/}" \
+  LDFLAGS="${LDFLAGS//-nostdlib/} -Wl,-defaultlib:msvcrt -Wl,-defaultlib:oldnames" \
+  MergeObjsCmd="x86_64-w64-mingw32-ld.exe" \
+  MergeObjsArgs="" \
+  run_and_log "directory-configure" bash configure || ( cat config.log ; exit 1 ; )
 
   # AR_STAGE0=llvm-ar \
   # CC=clang \
