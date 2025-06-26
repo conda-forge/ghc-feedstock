@@ -116,7 +116,7 @@ pushd libraries/directory
   # MergeObjsArgs="" \
   (set +e && cabal configure \
     --with-compiler="${SRC_DIR}"/bootstrap-ghc/bin/ghc.exe \
-    --with-gcc="${BUILD_PREFIX}"Library/bin/clang.exe) || ( cat config.log ; exit 1 ; )
+    --with-gcc="${BUILD_PREFIX}"/Library/bin/clang.exe) || ( cat config.log ; exit 1 ; )
 popd
 
 cat << EOF > hadrian/hadrian.settings
