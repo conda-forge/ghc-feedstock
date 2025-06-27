@@ -122,6 +122,11 @@ if [[ -d "${PREFIX}"/lib/aarch64-conda-linux-gnu-ghc-"${PKG_VERSION}" ]]; then
   # $PREFIX/lib/aarch64-conda-linux-gnu-ghc-9.12.2 -> $PREFIX/lib/ghc-9.12.2
   mv "${PREFIX}"/lib/aarch64-conda-linux-gnu-ghc-"${PKG_VERSION}" "${PREFIX}"/lib/ghc-"${PKG_VERSION}"
   ln -sf "${PREFIX}"/lib/ghc-"${PKG_VERSION}" "${PREFIX}"/lib/aarch64-conda-linux-gnu-ghc-"${PKG_VERSION}"
+
+  # This is an odd path
+  mkdir -p "${PREFIX}"/lib/aarch64-conda-linux-gnu-ghc-"${PKG_VERSION}"/lib/ghc-"${PKG_VERSION}"/lib
+  ln -s "${PREFIX}"/lib/aarch64-conda-linux-gnu-ghc-"${PKG_VERSION}"/lib/aarch64-linux-ghc-"${PKG_VERSION}"-inplace \
+        "${PREFIX}"/lib/aarch64-conda-linux-gnu-ghc-"${PKG_VERSION}"/lib/ghc-"${PKG_VERSION}"/lib/aarch64-linux-ghc-"${PKG_VERSION}"-inplace
 fi
 
 pushd "${PREFIX}"/share/doc/aarch64-linux-ghc-"${PKG_VERSION}"-inplace
