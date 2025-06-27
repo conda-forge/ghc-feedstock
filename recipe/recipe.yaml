@@ -104,7 +104,7 @@ requirements:
   run:
     - ${{ compiler('c') }}
     - ${{ compiler('cxx') }}
-    # - c-compiler
+    - ${{ stdlib('c') }}
     - gmp
     - libffi
     - llvm-tools ${{ c_compiler_version }}.*
