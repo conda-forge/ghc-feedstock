@@ -114,9 +114,10 @@ pushd "${SRC_DIR}"/libraries/directory
   # LDFLAGS="${LDFLAGS//-nostdlib/} -Wl,-defaultlib:msvcrt -Wl,-defaultlib:oldnames" \
   # MergeObjsCmd="x86_64-w64-mingw32-ld.exe" \
   # MergeObjsArgs="" \
-  (set +e && cabal configure \
+  cabal configure \
     --with-compiler="${SRC_DIR}"/bootstrap-ghc/bin/ghc.exe \
-    --with-gcc="${BUILD_PREFIX}"/Library/bin/clang.exe) || ( cat "${SRC_DIR}"/libraries/directory/config.log ; exit 1 ; )
+    --with-gcc="${BUILD_PREFIX}"/Library/bin/clang.exe || true
+    ( cat "${SRC_DIR}"/libraries/directory/config.log ; exit 1 ; )
 popd
 
 cat << EOF > hadrian/hadrian.settings
