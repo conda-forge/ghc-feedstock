@@ -87,44 +87,6 @@ MergeObjsCmd="x86_64-w64-mingw32-ld.exe" \
 MergeObjsArgs="" \
 run_and_log "ghc-configure" bash configure "${CONFIGURE_ARGS[@]}" || ( cat config.log ; exit 1 )
 
-pushd "${SRC_DIR}"/libraries/directory
-  # AR_STAGE0=llvm-ar \
-  # CC=clang \
-  # CC_STAGE0=clang \
-  # CFLAGS="${CFLAGS//-nostdlib/}" \
-  # CXX=clang++ \
-  # CXXFLAGS="${CXXFLAGS//-nostdlib/}" \
-  # LDFLAGS="${LDFLAGS//-nostdlib/} -Wl,-defaultlib:msvcrt -Wl,-defaultlib:oldnames" \
-  # MergeObjsCmd="x86_64-w64-mingw32-ld.exe" \
-  # MergeObjsArgs="" \
-  # run_and_log "directory-autoreconf" bash autoreconf -fi
-
-  # AR_STAGE0=llvm-ar \
-  # CC=clang \
-  # CC_STAGE0=clang \
-  # CFLAGS="${CFLAGS//-nostdlib/}" \
-  # CXX=clang++ \
-  # CXXFLAGS="${CXXFLAGS//-nostdlib/}" \
-  # LDFLAGS="${LDFLAGS//-nostdlib/} -Wl,-defaultlib:msvcrt -Wl,-defaultlib:oldnames" \
-  # MergeObjsCmd="x86_64-w64-mingw32-ld.exe" \
-  # MergeObjsArgs="" \
-  # run_and_log "directory-configure" bash configure || ( cat "${SRC_DIR}"/libraries/directory/config.log ; exit 1 ; )
-
-  # AR_STAGE0=llvm-ar \
-  # CC=clang \
-  # CC_STAGE0=clang \
-  # CFLAGS="${CFLAGS//-nostdlib/}" \
-  # CXX=clang++ \
-  # CXXFLAGS="${CXXFLAGS//-nostdlib/}" \
-  # LDFLAGS="${LDFLAGS//-nostdlib/} -Wl,-defaultlib:msvcrt -Wl,-defaultlib:oldnames" \
-  # MergeObjsCmd="x86_64-w64-mingw32-ld.exe" \
-  # MergeObjsArgs="" \
-  cabal configure \
-    --with-compiler="${SRC_DIR}"/bootstrap-ghc/bin/ghc.exe \
-    --with-gcc="${BUILD_PREFIX}"/Library/bin/clang.exe || true
-    ( cat "${SRC_DIR}"/libraries/directory/config.log ; exit 1 ; )
-popd
-
 cat << EOF > hadrian/hadrian.settings
 stage1.*.cabal.configure.opts += --verbose=3 --with-compiler="${SRC_DIR}"/bootstrap-ghc/bin/ghc.exe --with-gcc="${BUILD_PREFIX}"Library/bin/clang.exe
 EOF
