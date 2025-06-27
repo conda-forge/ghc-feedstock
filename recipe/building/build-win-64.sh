@@ -94,6 +94,6 @@ EOF
 run_and_log "stage1_exe" bash "${_hadrian_build[@]}" stage1:exe:ghc-bin -VV \
   --flavour=quickest \
   --docs=none \
-  --progress-info=unicorn || ( cat "${SRC_DIR}/libraries/directory/config.log ; exit 1 )
+  --progress-info=unicorn || ( cat "${SRC_DIR}"/libraries/directory/config.log ; exit 1 )
 
 run_and_log "install" "${_hadrian_build[@]}" install --prefix="${PREFIX}" --flavour=release --freeze1 --docs=none
