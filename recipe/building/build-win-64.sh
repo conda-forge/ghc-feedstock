@@ -10,9 +10,14 @@ export MSYSTEM=MINGW64
 export MSYS2_ARG_CONV_EXCL="*"
 export PATH="$SRC_DIR"/bootstrap-ghc/bin:"$SRC_DIR"/bootstrap-cabal${PATH:+:}${PATH:-}
 
-export TMP="$(cygpath -w "$TEMP")"
-export TMPDIR="$(cygpath -w "$TEMP")"
-export GHC="$(cygpath -w "$SRC_DIR")"/bootstrap-ghc/bin/ghc.exe
+export BUILD_PREFIX="$(cygpath -w "${BUILD_PREFIX}")"
+export PREFIX="$(cygpath -w "${PREFIX}")"
+export SRC_DIR="$(cygpath -w "${SRC_DIR}")"
+
+export TMP="$(cygpath -w "${TEMP}")"
+export TMPDIR="$(cygpath -w "${TEMP}")"
+export GHC="${SRC_DIR}"/bootstrap-ghc/bin/ghc.exe
+
 export CABAL="${SRC_DIR}"/bootstrap-cabal/cabal.exe
 export LIBRARY_PATH="${BUILD_PREFIX}/Library/lib${LIBRARY_PATH:+:}${LIBRARY_PATH:-}"
 
