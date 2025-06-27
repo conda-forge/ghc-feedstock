@@ -75,7 +75,7 @@ CONFIGURE_ARGS=(
   --with-iconv-includes="${PREFIX}"/include
   --with-iconv-libraries="${PREFIX}"/lib
 )
-# run_and_log "ghc-configure" bash configure "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}"
+
 AR_STAGE0=llvm-ar \
 CC=clang \
 CC_STAGE0=clang \
@@ -91,9 +91,29 @@ cat << EOF > hadrian/hadrian.settings
 stage1.*.cabal.configure.opts += --verbose=3 --with-compiler="${SRC_DIR}"/bootstrap-ghc/bin/ghc.exe --with-gcc="${BUILD_PREFIX}"Library/bin/clang.exe
 EOF
 
-run_and_log "stage1_exe" bash "${_hadrian_build[@]}" stage1:exe:ghc-bin -VV \
+run_and_log "stage1_exe-1" bash "${_hadrian_build[@]}" stage1:exe:ghc-bin -VV \
   --flavour=quickest \
   --docs=none \
-  --progress-info=unicorn || ( cat "${SRC_DIR}"/libraries/directory/config.log ; exit 1 )
+  --progress-info=unicorn || true
+
+pushd "${SRC_DIR}"/libraries/directory
+  AR_STAGE0=llvm-ar \
+  CC=clang \
+  CC_STAGE0=clang \
+  CFLAGS="${CFLAGS//-nostdlib/}" \
+  CXX=clang++ \
+  CXXFLAGS="${CXXFLAGS//-nostdlib/}" \
+  LDFLAGS="${LDFLAGS//-nostdlib/} -Wl,-defaultlib:msvcrt -Wl,-defaultlib:oldnames" \
+  MergeObjsCmd="x86_64-w64-mingw32-ld.exe" \
+  MergeObjsArgs="" \
+  run_and_log "directory-configure" bash configure "${CONFIGURE_ARGS[@]}"
+
+  cabal install
+popd
+
+run_and_log "stage1_exe-2" bash "${_hadrian_build[@]}" stage1:exe:ghc-bin -VV \
+  --flavour=quickest \
+  --docs=none \
+  --progress-info=unicorn
 
 run_and_log "install" "${_hadrian_build[@]}" install --prefix="${PREFIX}" --flavour=release --freeze1 --docs=none
