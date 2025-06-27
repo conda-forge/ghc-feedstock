@@ -51,7 +51,7 @@ cat "${SRC_DIR}"/bootstrap-ghc/lib/lib/settings
 # Update cabal package database
 run_and_log "cabal-update" cabal v2-update
 
-_hadrian_build=("${SRC_DIR}"/hadrian/build.bat)
+_hadrian_build=("${SRC_DIR}"/hadrian/build)
 
 # Configure and build GHC
 SYSTEM_CONFIG=(
@@ -107,8 +107,6 @@ pushd "${SRC_DIR}"/libraries/directory
   MergeObjsCmd="x86_64-w64-mingw32-ld.exe" \
   MergeObjsArgs="" \
   run_and_log "directory-configure" bash configure "${CONFIGURE_ARGS[@]}"
-
-  cabal configure
 popd
 
 run_and_log "stage1_exe-2" bash "${_hadrian_build[@]}" stage1:exe:ghc-bin -VV \
