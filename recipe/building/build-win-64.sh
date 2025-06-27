@@ -108,7 +108,7 @@ pushd "${SRC_DIR}"/libraries/directory
   MergeObjsArgs="" \
   run_and_log "directory-configure" bash configure "${CONFIGURE_ARGS[@]}"
 
-  cabal install
+  cabal configure
 popd
 
 run_and_log "stage1_exe-2" bash "${_hadrian_build[@]}" stage1:exe:ghc-bin -VV \
