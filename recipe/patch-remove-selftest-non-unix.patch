@@ -12,7 +12,7 @@
 @@ -10,3 +10,7 @@
  -- ghc-9.10 has template-haskell-2.22.0.0
 -allow-newer: unordered-containers:template-haskell
-+allow-newer: unordered-containers:template-haskell,hashable:base,cryptohash-sha256:base,directory:base,directory:time,directory:unix,directory:Win32
++allow-newer: unordered-containers:template-haskell,splitmix:base,hashable:base,cryptohash-sha256:base,directory:base,directory:time,directory:unix,directory:Win32
 +
 +-- Work around exception handling deprecation
 +package ghc-internal
