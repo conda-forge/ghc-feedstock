@@ -18,12 +18,6 @@ export SRC_DIR="$(cygpath -w "${SRC_DIR}")"
 export TMP="$(cygpath -w "${TEMP}")"
 export TMPDIR="$(cygpath -w "${TEMP}")"
 
-# Define the wrapper script for MSVC
-cat > "${CLANG_WRAPPER}" << EOF
-@echo off
-"%CC%" %* -Wl,-libpath:"%BUILD_PREFIX%/Library/lib/ghc-libs" -Wl,-defaultlib:msvcrt -Wl,-defaultlib:oldnames -Wl,-defaultlib:libvcruntime -Wl,-defaultlib:libucrt
-EOF
-
 # Create .lib versions of required libraries
 mkdir -p "${BUILD_PREFIX}/Library/lib/ghc-libs"
 for lib in mingw32 mingwex m pthread clang_rt.builtins; do
@@ -37,6 +31,12 @@ for lib in mingw32 mingwex m pthread clang_rt.builtins; do
     echo "Warning: Could not find lib${lib}.a"
   fi
 done
+
+# Define the wrapper script for MSVC
+cat > "${CLANG_WRAPPER}" << EOF
+@echo off
+"%CC%" %* -Wl,-libpath:"%BUILD_PREFIX%/Library/lib/ghc-libs" -Wl,-defaultlib:msvcrt -Wl,-defaultlib:oldnames -Wl,-defaultlib:libvcruntime -Wl,-defaultlib:libucrt
+EOF
 
 # Make sure we use conda-forge clang (ghc bootstrap has a clang.exe)
 CLANG=$(find "${BUILD_PREFIX}" -name clang.exe | head -1)
