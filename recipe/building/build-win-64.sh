@@ -33,6 +33,7 @@ for lib in mingw32 mingwex m pthread clang_rt.builtins; do
 done
 
 # Define the wrapper script for MSVC
+export CLANG_WRAPPER="${BUILD_PREFIX}/bin/clang-mingw-wrapper.bat"
 cat > "${CLANG_WRAPPER}" << EOF
 @echo off
 "%CC%" %* -Wl,-libpath:"%BUILD_PREFIX%/Library/lib/ghc-libs" -Wl,-defaultlib:msvcrt -Wl,-defaultlib:oldnames -Wl,-defaultlib:libvcruntime -Wl,-defaultlib:libucrt
@@ -44,7 +45,6 @@ CLANGXX=$(find "${BUILD_PREFIX}" -name clang++.exe | head -1)
 
 export CABAL="${SRC_DIR}"/bootstrap-cabal/cabal.exe
 export CC="${CLANG}"
-export CLANG_WRAPPER="${BUILD_PREFIX}/bin/clang-mingw-wrapper.bat"
 export CXX="${CLANGXX}"
 export GHC="${SRC_DIR}"/bootstrap-ghc/bin/ghc.exe
 
