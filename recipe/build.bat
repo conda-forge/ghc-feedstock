@@ -1,3 +1,6 @@
+@echo off
+setlocal enabledelayedexpansion
+
 echo source D:/Miniforge/etc/profile.d/conda.sh       > conda_build.sh
 echo conda activate "${PREFIX}"                       >> conda_build.sh
 echo conda activate --stack "${BUILD_PREFIX}"         >> conda_build.sh
