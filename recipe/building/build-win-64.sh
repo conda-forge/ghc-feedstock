@@ -6,14 +6,12 @@ _log_index=0
 source "${RECIPE_DIR}"/building/common.sh
 
 export PYTHON=python
-export MSYSTEM=MINGW64
-export MSYS2_ARG_CONV_EXCL="*"
 export PATH="${SRC_DIR}/bootstrap-ghc/bin:${SRC_DIR}/bootstrap-cabal${PATH:+:}${PATH:-}"
 export LIBRARY_PATH="${BUILD_PREFIX}/Library/lib${LIBRARY_PATH:+:}${LIBRARY_PATH:-}"
 
-export BUILD_PREFIX="$(cygpath -w "${BUILD_PREFIX}")"
-export PREFIX="$(cygpath -w "${PREFIX}")"
-export SRC_DIR="$(cygpath -w "${SRC_DIR}")"
+export BUILD_PREFIX="${_BUILD_PREFIX}"
+export PREFIX="${_PREFIX}"
+export SRC_DIR="${_SRC_DIR}"
 
 export TMP="$(cygpath -w "${TEMP}")"
 export TMPDIR="$(cygpath -w "${TEMP}")"
