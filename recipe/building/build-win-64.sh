@@ -10,9 +10,9 @@ export MSYSTEM=MINGW64
 export MSYS2_ARG_CONV_EXCL="*"
 export PATH="$SRC_DIR"/bootstrap-ghc/bin:"$SRC_DIR"/bootstrap-cabal${PATH:+:}${PATH:-}
 
-export BUILD_PREFIX="$(cygpath -w "${BUILD_PREFIX}")"
-export PREFIX="$(cygpath -w "${PREFIX}")"
-export SRC_DIR="$(cygpath -w "${SRC_DIR}")"
+# export BUILD_PREFIX="$(cygpath -w "${BUILD_PREFIX}")"
+# export PREFIX="$(cygpath -w "${PREFIX}")"
+# export SRC_DIR="$(cygpath -w "${SRC_DIR}")"
 
 export TMP="$(cygpath -w "${TEMP}")"
 export TMPDIR="$(cygpath -w "${TEMP}")"
@@ -46,7 +46,6 @@ perl -i -pe 's#-L\$topdir/../mingw//lib -L\$topdir/../mingw//x86_64-w64-mingw32/
 
 mkdir -p "${BUILD_PREFIX}"/bin
 ln -s "${BUILD_PREFIX}"/Library/usr/bin/m4.exe "${BUILD_PREFIX}"/bin
-cat "${SRC_DIR}"/bootstrap-ghc/lib/lib/settings
 
 # Update cabal package database
 run_and_log "cabal-update" cabal v2-update
@@ -77,47 +76,30 @@ CONFIGURE_ARGS=(
 )
 
 AR_STAGE0=llvm-ar \
-CC=clang \
-CC_STAGE0=clang \
+CABAL="${SRC_DIR}"/bootstrap-cabal/cabal.exe \
+CC="${BUILD_PREFIX}"/Library/bin/clang.exe \
+CC_STAGE0="${BUILD_PREFIX}"/Library/bin/clang.exe \
 CFLAGS="${CFLAGS//-nostdlib/}" \
-CXX=clang++ \
+CXX="${BUILD_PREFIX}"/Library/bin/clang++.exe \
 CXXFLAGS="${CXXFLAGS//-nostdlib/}" \
-LDFLAGS="${LDFLAGS//-nostdlib/} -Wl,-defaultlib:msvcrt -Wl,-defaultlib:oldnames" \
+GHC="${SRC_DIR}"/bootstrap-ghc/bin/ghc.exe \
+LDFLAGS="${LDFLAGS//-nostdlib/} -Wl,-defaultlib:msvcrt -Wl,-defaultlib:oldnames -Wl,-defaultlib:libvcruntime -Wl,-defaultlib:libucrt" \
 MergeObjsCmd="x86_64-w64-mingw32-ld.exe" \
 MergeObjsArgs="" \
 run_and_log "ghc-configure" bash configure "${CONFIGURE_ARGS[@]}" || ( cat config.log ; exit 1 )
 
 cat << EOF > hadrian/hadrian.settings
-stage1.*.cabal.configure.opts += --verbose=3 --with-compiler="${SRC_DIR}"/bootstrap-ghc/bin/ghc.exe --with-gcc="${BUILD_PREFIX}"Library/bin/clang.exe
+stage1.*.cabal.configure.opts += --verbose=3 --with-compiler="${SRC_DIR}"/bootstrap-ghc/bin/ghc.exe --with-gcc="${BUILD_PREFIX}"/Library/bin/clang.exe
 EOF
 
-find "${BUILD_PREFIX}" -name "clang_rt.*"
 RUNTIME_LIB=$(find "${BUILD_PREFIX}" -name "clang_rt.builtins*.lib" -o -name "clang_rt.builtins*.a" | grep -i x86_64 | head -1)
 mkdir -p "${BUILD_PREFIX}"/Library/lib/clang/19/lib/x86_64-unknown-windows-gnu/
 cp "$RUNTIME_LIB" "${BUILD_PREFIX}/Library/lib/clang/19/lib/x86_64-unknown-windows-gnu/libclang_rt.builtins.a"
 
-export CABFLAGS="--with-gcc=${BUILD_PREFIX}/Library/bin/clang.exe"
-run_and_log "stage1_exe-1" bash "${_hadrian_build[@]}" stage1:exe:ghc-bin -VV \
+export CABFLAGS="--with-compiler="${SRC_DIR}"/bootstrap-ghc/bin/ghc.exe --with-gcc=${BUILD_PREFIX}/Library/bin/clang.exe"
+run_and_log "stage1_exe-1" "${_hadrian_build[@]}" stage1:exe:ghc-bin -VV \
   --flavour=quickest \
   --docs=none \
   --progress-info=unicorn || true
-
-# pushd "${SRC_DIR}"/libraries/directory
-#   AR_STAGE0=llvm-ar \
-#   CC=clang \
-#   CC_STAGE0=clang \
-#   CFLAGS="${CFLAGS//-nostdlib/}" \
-#   CXX=clang++ \
-#   CXXFLAGS="${CXXFLAGS//-nostdlib/}" \
-#   LDFLAGS="${LDFLAGS//-nostdlib/} -Wl,-defaultlib:msvcrt -Wl,-defaultlib:oldnames" \
-#   MergeObjsCmd="x86_64-w64-mingw32-ld.exe" \
-#   MergeObjsArgs="" \
-#   run_and_log "directory-configure" bash configure "${CONFIGURE_ARGS[@]}"
-# popd
-#
-# run_and_log "stage1_exe-2" bash "${_hadrian_build[@]}" stage1:exe:ghc-bin -VV \
-#   --flavour=quickest \
-#   --docs=none \
-#   --progress-info=unicorn
 
 run_and_log "install" "${_hadrian_build[@]}" install --prefix="${PREFIX}" --flavour=release --freeze1 --docs=none
