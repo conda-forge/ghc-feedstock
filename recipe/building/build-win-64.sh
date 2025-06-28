@@ -33,7 +33,7 @@ for lib in mingw32 mingwex m pthread clang_rt.builtins; do
 done
 
 # Define the wrapper script for MSVC
-export CLANG_WRAPPER="${BUILD_PREFIX}/bin/clang-mingw-wrapper.bat"
+export CLANG_WRAPPER="${BUILD_PREFIX}/Library/bin/clang-mingw-wrapper.bat"
 cat > "${CLANG_WRAPPER}" << EOF
 @echo off
 "%CC%" %* -Wl,-libpath:"%BUILD_PREFIX%/Library/lib/ghc-libs" -Wl,-defaultlib:msvcrt -Wl,-defaultlib:oldnames -Wl,-defaultlib:libvcruntime -Wl,-defaultlib:libucrt
