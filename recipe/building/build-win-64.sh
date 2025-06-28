@@ -51,7 +51,7 @@ cat "${SRC_DIR}"/bootstrap-ghc/lib/lib/settings
 # Update cabal package database
 run_and_log "cabal-update" cabal v2-update
 
-_hadrian_build=("${SRC_DIR}"/hadrian/build)
+_hadrian_build=("${SRC_DIR}"/hadrian/build.bat)
 
 # Configure and build GHC
 SYSTEM_CONFIG=(
@@ -91,6 +91,7 @@ cat << EOF > hadrian/hadrian.settings
 stage1.*.cabal.configure.opts += --verbose=3 --with-compiler="${SRC_DIR}"/bootstrap-ghc/bin/ghc.exe --with-gcc="${BUILD_PREFIX}"Library/bin/clang.exe
 EOF
 
+export CABFLAGS="--with-gcc="${BUILD_PREFIX}"Library/bin/clang.exe"
 run_and_log "stage1_exe-1" bash "${_hadrian_build[@]}" stage1:exe:ghc-bin -VV \
   --flavour=quickest \
   --docs=none \
