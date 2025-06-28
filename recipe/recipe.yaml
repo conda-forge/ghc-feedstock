@@ -146,12 +146,10 @@ tests:
       ls -l $PREFIX/lib/aarch64-conda-linux-gnu-ghc-9.12.2/lib/../lib/aarch64-linux-ghc-9.12.2-inplace/libHSbase-4.21.0.0-inplace*.so || true
       echo 'main = putStrLn "Hello conda-forge"' > hello.hs
       ghc -v hello.hs
-      readelf -d ./hello
       ./hello || true
       find $CONDA_PREFIX -name libHSbase-4.21.0.0-inplace-ghc9.12.2.so || true
       LD_PRELOAD=$CONDA_PREFIX/lib/ghc-9.12.2/lib/aarch64-linux-ghc-9.12.2-inplace/libHSbase-4.21.0.0-inplace.so ./hello || true
-    requirements:
-      - patchelf
+      readelf -d ./hello
 
   # - script:
   #     interpreter: python
