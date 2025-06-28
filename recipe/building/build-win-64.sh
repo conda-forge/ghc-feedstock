@@ -8,7 +8,7 @@ source "${RECIPE_DIR}"/building/common.sh
 export PYTHON=python
 export MSYSTEM=MINGW64
 export MSYS2_ARG_CONV_EXCL="*"
-export PATH="$SRC_DIR"/bootstrap-ghc/bin:"$SRC_DIR"/bootstrap-cabal${PATH:+:}${PATH:-}
+export PATH="${SRC_DIR}/bootstrap-ghc/bin:${SRC_DIR}/bootstrap-cabal${PATH:+:}${PATH:-}"
 export LIBRARY_PATH="${BUILD_PREFIX}/Library/lib${LIBRARY_PATH:+:}${LIBRARY_PATH:-}"
 
 export BUILD_PREFIX="$(cygpath -w "${BUILD_PREFIX}")"
@@ -18,16 +18,6 @@ export SRC_DIR="$(cygpath -w "${SRC_DIR}")"
 export TMP="$(cygpath -w "${TEMP}")"
 export TMPDIR="$(cygpath -w "${TEMP}")"
 
-# Make sure we use conda-forge clang (ghc bootstrap has a clang.exe)
-CLANG=$(find "${BUILD_PREFIX}" -name clang.exe | head -1)
-CLANGXX=$(find "${BUILD_PREFIX}" -name clang++.exe | head -1)
-
-export CABAL="${SRC_DIR}"/bootstrap-cabal/cabal.exe
-export CC="${CLANG}"
-export CLANG_WRAPPER="${BUILD_PREFIX}/bin/clang-mingw-wrapper.bat"
-export CXX="${CLANGXX}"
-export GHC="${SRC_DIR}"/bootstrap-ghc/bin/ghc.exe
-
 # Define the wrapper script for MSVC
 cat > "${CLANG_WRAPPER}" << EOF
 @echo off
@@ -35,6 +25,7 @@ cat > "${CLANG_WRAPPER}" << EOF
 EOF
 
 # Create .lib versions of required libraries
+mkdir -p "${BUILD_PREFIX}/Library/lib/ghc-libs"
 for lib in mingw32 mingwex m pthread clang_rt.builtins; do
   # Find the corresponding .a file
   LIB_A=$(find "${BUILD_PREFIX}" -name "lib${lib}.a" | head -1)
@@ -46,6 +37,16 @@ for lib in mingw32 mingwex m pthread clang_rt.builtins; do
     echo "Warning: Could not find lib${lib}.a"
   fi
 done
+
+# Make sure we use conda-forge clang (ghc bootstrap has a clang.exe)
+CLANG=$(find "${BUILD_PREFIX}" -name clang.exe | head -1)
+CLANGXX=$(find "${BUILD_PREFIX}" -name clang++.exe | head -1)
+
+export CABAL="${SRC_DIR}"/bootstrap-cabal/cabal.exe
+export CC="${CLANG}"
+export CLANG_WRAPPER="${BUILD_PREFIX}/bin/clang-mingw-wrapper.bat"
+export CXX="${CLANGXX}"
+export GHC="${SRC_DIR}"/bootstrap-ghc/bin/ghc.exe
 
 # Find the latest MSVC version directory dynamically
 MSVC_VERSION_DIR=$(ls -d "C:/Program Files/Microsoft Visual Studio/2022/Enterprise/VC/Tools/MSVC/"*/ 2>/dev/null | sort -V | tail -1 | sed 's/\/$//')
