@@ -9,6 +9,7 @@ export PYTHON=python
 export MSYSTEM=MINGW64
 export MSYS2_ARG_CONV_EXCL="*"
 export PATH="$SRC_DIR"/bootstrap-ghc/bin:"$SRC_DIR"/bootstrap-cabal${PATH:+:}${PATH:-}
+export LIBRARY_PATH="${BUILD_PREFIX}/Library/lib${LIBRARY_PATH:+:}${LIBRARY_PATH:-}"
 
 export BUILD_PREFIX="$(cygpath -w "${BUILD_PREFIX}")"
 export PREFIX="$(cygpath -w "${PREFIX}")"
@@ -16,10 +17,35 @@ export SRC_DIR="$(cygpath -w "${SRC_DIR}")"
 
 export TMP="$(cygpath -w "${TEMP}")"
 export TMPDIR="$(cygpath -w "${TEMP}")"
-export GHC="${SRC_DIR}"/bootstrap-ghc/bin/ghc.exe
+
+# Make sure we use conda-forge clang (ghc bootstrap has a clang.exe)
+CLANG=$(find "${BUILD_PREFIX}" -name clang.exe | head -1)
+CLANGXX=$(find "${BUILD_PREFIX}" -name clang++.exe | head -1)
 
 export CABAL="${SRC_DIR}"/bootstrap-cabal/cabal.exe
-export LIBRARY_PATH="${BUILD_PREFIX}/Library/lib${LIBRARY_PATH:+:}${LIBRARY_PATH:-}"
+export CC="${CLANG}"
+export CLANG_WRAPPER="${BUILD_PREFIX}/bin/clang-mingw-wrapper.bat"
+export CXX="${CLANGXX}"
+export GHC="${SRC_DIR}"/bootstrap-ghc/bin/ghc.exe
+
+# Define the wrapper script for MSVC
+cat > "${CLANG_WRAPPER}" << EOF
+@echo off
+"%CC%" %* -Wl,-libpath:"%BUILD_PREFIX%/Library/lib/ghc-libs" -Wl,-defaultlib:msvcrt -Wl,-defaultlib:oldnames -Wl,-defaultlib:libvcruntime -Wl,-defaultlib:libucrt
+EOF
+
+# Create .lib versions of required libraries
+for lib in mingw32 mingwex m pthread clang_rt.builtins; do
+  # Find the corresponding .a file
+  LIB_A=$(find "${BUILD_PREFIX}" -name "lib${lib}.a" | head -1)
+
+  if [ -n "$LIB_A" ]; then
+    # Create a .lib symlink
+    cp "$LIB_A" "${BUILD_PREFIX}/Library/lib/ghc-libs/${lib}.lib"
+  else
+    echo "Warning: Could not find lib${lib}.a"
+  fi
+done
 
 # Find the latest MSVC version directory dynamically
 MSVC_VERSION_DIR=$(ls -d "C:/Program Files/Microsoft Visual Studio/2022/Enterprise/VC/Tools/MSVC/"*/ 2>/dev/null | sort -V | tail -1 | sed 's/\/$//')
@@ -34,8 +60,7 @@ fi
 export LIB="${BUILD_PREFIX}/Library/lib;${PREFIX}/Library/lib;C:/Program Files (x86)/Windows Kits/10/Lib/10.0.26100.0/um/x64;${MSVC_VERSION_DIR}/lib/x64${LIB:+;}${LIB:-}"
 export INCLUDE="C:/Program Files (x86)/Windows Kits/10/Include/10.0.26100.0/ucrt;C:/Program Files (x86)/Windows Kits/10/Include/10.0.26100.0/um;C:/Program Files (x86)/Windows Kits/10/Include/10.0.26100.0/shared;${MSVC_VERSION_DIR}/include${INCLUDE:+;}${INCLUDE:-}"
 
-mkdir -p "${SRC_DIR}/hadrian/cfg"
-touch "${SRC_DIR}/hadrian/cfg/default.target.ghc-toolchain"
+mkdir -p "${SRC_DIR}/hadrian/cfg" && touch "${SRC_DIR}/hadrian/cfg/default.target.ghc-toolchain"
 
 # Remove this annoying mingw
 #rm -rf "${SRC_DIR}"/bootstrap-ghc/mingw/clan*
@@ -44,8 +69,7 @@ perl -i -pe 's#\$topdir/../mingw//bin/(llvm-)?##g' "${SRC_DIR}"/bootstrap-ghc/li
 perl -i -pe 's#-I\$topdir/../mingw//include##g' "${SRC_DIR}"/bootstrap-ghc/lib/lib/settings
 perl -i -pe 's#-L\$topdir/../mingw//lib -L\$topdir/../mingw//x86_64-w64-mingw32/lib##g' "${SRC_DIR}"/bootstrap-ghc/lib/lib/settings
 
-mkdir -p "${BUILD_PREFIX}"/bin
-ln -s "${BUILD_PREFIX}"/Library/usr/bin/m4.exe "${BUILD_PREFIX}"/bin
+mkdir -p "${BUILD_PREFIX}"/bin && ln -s "${BUILD_PREFIX}"/Library/usr/bin/m4.exe "${BUILD_PREFIX}"/bin
 
 # Update cabal package database
 run_and_log "cabal-update" cabal v2-update
@@ -76,41 +100,20 @@ CONFIGURE_ARGS=(
 )
 
 AR_STAGE0=llvm-ar \
-CABAL="${SRC_DIR}"/bootstrap-cabal/cabal.exe \
-CC="${BUILD_PREFIX}"/Library/bin/clang.exe \
-CC_STAGE0="${BUILD_PREFIX}"/Library/bin/clang.exe \
+CC_STAGE0=${CC} \
 CFLAGS="${CFLAGS//-nostdlib/}" \
-CXX="${BUILD_PREFIX}"/Library/bin/clang++.exe \
 CXXFLAGS="${CXXFLAGS//-nostdlib/}" \
-GHC="${SRC_DIR}"/bootstrap-ghc/bin/ghc.exe \
 LDFLAGS="${LDFLAGS//-nostdlib/} -Wl,-defaultlib:msvcrt -Wl,-defaultlib:oldnames -Wl,-defaultlib:libvcruntime -Wl,-defaultlib:libucrt" \
 MergeObjsCmd="x86_64-w64-mingw32-ld.exe" \
 MergeObjsArgs="" \
 run_and_log "ghc-configure" bash configure "${CONFIGURE_ARGS[@]}" || ( cat config.log ; exit 1 )
 
-# Create .lib versions of required libraries
-for lib in mingw32 mingwex m pthread clang_rt.builtins; do
-  # Find the corresponding .a file
-  LIB_A=$(find "${BUILD_PREFIX}" -name "lib${lib}.a" | head -1)
-
-  if [ -n "$LIB_A" ]; then
-    # Create a .lib symlink
-    cp "$LIB_A" "${BUILD_PREFIX}/Library/lib/ghc-libs/${lib}.lib"
-  else
-    echo "Warning: Could not find lib${lib}.a"
-  fi
-done
-
-cat > "${BUILD_PREFIX}/bin/clang-mingw-wrapper.bat" << EOF
-@echo off
-"%BUILD_PREFIX%/Library/bin/clang.exe" %* -Wl,-libpath:"%BUILD_PREFIX%/Library/lib/ghc-libs" -Wl,-defaultlib:msvcrt -Wl,-defaultlib:oldnames -Wl,-defaultlib:libvcruntime -Wl,-defaultlib:libucrt
-EOF
-
+# Cabal configure seems to default to the wrong clang
 cat > hadrian/hadrian.settings << EOF
-stage1.*.cabal.configure.opts += --verbose=3 --with-compiler="${SRC_DIR}"/bootstrap-ghc/bin/ghc.exe --with-gcc="${BUILD_PREFIX}"/bin/clang-mingw-wrapper.bat
+stage1.*.cabal.configure.opts += --verbose=3 --with-compiler="${GHC}" --with-gcc="${CLANG_WRAPPER}"
 EOF
 
-export CABFLAGS="--with-compiler=${SRC_DIR}/bootstrap-ghc/bin/ghc.exe --with-gcc=${BUILD_PREFIX}/bin/clang-mingw-wrapper.bat"
+export CABFLAGS="--with-compiler=${GHC} --with-gcc=${CLANG_WRAPPER}"
 run_and_log "stage1_exe-1" "${_hadrian_build[@]}" stage1:exe:ghc-bin -VV \
   --flavour=quickest \
   --docs=none \
