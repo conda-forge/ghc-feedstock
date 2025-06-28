@@ -92,11 +92,13 @@ cat << EOF > hadrian/hadrian.settings
 stage1.*.cabal.configure.opts += --verbose=3 --with-compiler="${SRC_DIR}"/bootstrap-ghc/bin/ghc.exe --with-gcc="${BUILD_PREFIX}"/Library/bin/clang.exe
 EOF
 
+find "${BUILD_PREFIX}" -name "*mingw32.*" -o -name "*mingwex.*"
+
 RUNTIME_LIB=$(find "${BUILD_PREFIX}" -name "clang_rt.builtins*.lib" -o -name "clang_rt.builtins*.a" | grep -i x86_64 | head -1)
 mkdir -p "${BUILD_PREFIX}"/Library/lib/clang/19/lib/x86_64-unknown-windows-gnu/
 cp "$RUNTIME_LIB" "${BUILD_PREFIX}/Library/lib/clang/19/lib/x86_64-unknown-windows-gnu/libclang_rt.builtins.a"
 
-export CABFLAGS="--with-compiler="${SRC_DIR}"/bootstrap-ghc/bin/ghc.exe --with-gcc=${BUILD_PREFIX}/Library/bin/clang.exe"
+export CABFLAGS="--with-compiler=${SRC_DIR}/bootstrap-ghc/bin/ghc.exe --with-gcc=${BUILD_PREFIX}/Library/bin/clang.exe"
 run_and_log "stage1_exe-1" "${_hadrian_build[@]}" stage1:exe:ghc-bin -VV \
   --flavour=quickest \
   --docs=none \
