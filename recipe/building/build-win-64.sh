@@ -10,9 +10,9 @@ export MSYSTEM=MINGW64
 export MSYS2_ARG_CONV_EXCL="*"
 export PATH="$SRC_DIR"/bootstrap-ghc/bin:"$SRC_DIR"/bootstrap-cabal${PATH:+:}${PATH:-}
 
-# export BUILD_PREFIX="$(cygpath -w "${BUILD_PREFIX}")"
-# export PREFIX="$(cygpath -w "${PREFIX}")"
-# export SRC_DIR="$(cygpath -w "${SRC_DIR}")"
+export BUILD_PREFIX="$(cygpath -w "${BUILD_PREFIX}")"
+export PREFIX="$(cygpath -w "${PREFIX}")"
+export SRC_DIR="$(cygpath -w "${SRC_DIR}")"
 
 export TMP="$(cygpath -w "${TEMP}")"
 export TMPDIR="$(cygpath -w "${TEMP}")"
@@ -88,17 +88,29 @@ MergeObjsCmd="x86_64-w64-mingw32-ld.exe" \
 MergeObjsArgs="" \
 run_and_log "ghc-configure" bash configure "${CONFIGURE_ARGS[@]}" || ( cat config.log ; exit 1 )
 
-cat << EOF > hadrian/hadrian.settings
-stage1.*.cabal.configure.opts += --verbose=3 --with-compiler="${SRC_DIR}"/bootstrap-ghc/bin/ghc.exe --with-gcc="${BUILD_PREFIX}"/Library/bin/clang.exe
+# Create .lib versions of required libraries
+for lib in mingw32 mingwex m pthread clang_rt.builtins; do
+  # Find the corresponding .a file
+  LIB_A=$(find "${BUILD_PREFIX}" -name "lib${lib}.a" | head -1)
+
+  if [ -n "$LIB_A" ]; then
+    # Create a .lib symlink
+    cp "$LIB_A" "${BUILD_PREFIX}/Library/lib/ghc-libs/${lib}.lib"
+  else
+    echo "Warning: Could not find lib${lib}.a"
+  fi
+done
+
+cat > "${BUILD_PREFIX}/bin/clang-mingw-wrapper.bat" << EOF
+@echo off
+"%BUILD_PREFIX%/Library/bin/clang.exe" %* -Wl,-libpath:"%BUILD_PREFIX%/Library/lib/ghc-libs" -Wl,-defaultlib:msvcrt -Wl,-defaultlib:oldnames -Wl,-defaultlib:libvcruntime -Wl,-defaultlib:libucrt
 EOF
 
-find "${BUILD_PREFIX}" -name "*mingw32.*" -o -name "*mingwex.*"
+cat > hadrian/hadrian.settings << EOF
+stage1.*.cabal.configure.opts += --verbose=3 --with-compiler="${SRC_DIR}"/bootstrap-ghc/bin/ghc.exe --with-gcc="${BUILD_PREFIX}"/bin/clang-mingw-wrapper.bat
+EOF
 
-RUNTIME_LIB=$(find "${BUILD_PREFIX}" -name "clang_rt.builtins*.lib" -o -name "clang_rt.builtins*.a" | grep -i x86_64 | head -1)
-mkdir -p "${BUILD_PREFIX}"/Library/lib/clang/19/lib/x86_64-unknown-windows-gnu/
-cp "$RUNTIME_LIB" "${BUILD_PREFIX}/Library/lib/clang/19/lib/x86_64-unknown-windows-gnu/libclang_rt.builtins.a"
-
-export CABFLAGS="--with-compiler=${SRC_DIR}/bootstrap-ghc/bin/ghc.exe --with-gcc=${BUILD_PREFIX}/Library/bin/clang.exe"
+export CABFLAGS="--with-compiler=${SRC_DIR}/bootstrap-ghc/bin/ghc.exe --with-gcc=${BUILD_PREFIX}/bin/clang-mingw-wrapper.bat"
 run_and_log "stage1_exe-1" "${_hadrian_build[@]}" stage1:exe:ghc-bin -VV \
   --flavour=quickest \
   --docs=none \
