@@ -26,7 +26,9 @@ export TMPDIR="$(cygpath -w "${TEMP}")"
 #   fi
 # done
 
-LIBCLANG_DIR=$(dirname "$(find "${_BUILD_PREFIX}" -name libclang_rt.builtins.a | head -1)")
+LIBCLANG_RT=$(find "${_BUILD_PREFIX}" -name libclang_rt.builtins.a | head -1)
+echo "${LIBCLANG_RT}"
+LIBCLANG_DIR=$(dirname "${LIBCLANG_RT}")
 if [ "$(basename "${LIBCLANG_DIR}")" != "x86_64-w64-windows-gnu" ]; then
   mkdir -p "$(dirname "${LIBCLANG_DIR}")/x86_64-w64-windows-gnu"
   cp "${LIBCLANG_DIR}/libclang_rt.builtins.a" "$(dirname "${LIBCLANG_DIR}")/x86_64-w64-windows-gnu/"
