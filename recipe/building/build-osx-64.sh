@@ -7,10 +7,7 @@ source "${RECIPE_DIR}"/building/common.sh
 
 # Install bootstrap GHC - Set conda platform moniker
 pushd bootstrap-ghc
-  run_and_log "bs-configure" bash configure \
-    --prefix="${SRC_DIR}"/binary \
-    --enable-ghc-toolchain
-  cp default.target.ghc-toolchain default.target
+  run_and_log "bs-configure" bash configure --prefix="${SRC_DIR}"/binary
   run_and_log "bs-make-install" make install
 popd
 
@@ -41,4 +38,9 @@ CONFIGURE_ARGS=(
 run_and_log "ghc-configure" bash configure "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}"
 _hadrian_build=("${SRC_DIR}"/hadrian/build "-j${CPU_COUNT}")
 run_and_log "install" "${_hadrian_build[@]}" install --prefix="${PREFIX}" --flavour=release --docs=no-sphinx-pdfs
-cat "${PREFIX}"/lib/ghc-"${PKG_VERSION}"/lib/settings
+
+pushd "${PREFIX}"/share/doc/x86_64-osx-ghc-"${PKG_VERSION}"-inplace
+  for file in */LICENSE; do
+    cp "${file///-}" "${SRC_DIR}"/license_files
+  done
+popd
