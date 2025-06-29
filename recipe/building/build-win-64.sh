@@ -49,7 +49,7 @@ for %%a in (%*) do (
   )
 )
 
-set "libpath_arg=-Wl,-libpath:%BUILD_PREFIX%\Library\lib\ghc-libs"
+set "libpath_arg=-Wl,-L%BUILD_PREFIX%\Library\lib\ghc-libs"
 
 "%BUILD_PREFIX%\Library\bin\clang.exe" !args! --target=x86_64-w64-mingw32 -fuse-ld=lld -rtlib=compiler-rt !libpath_arg!
 EOF
