@@ -49,9 +49,7 @@ for %%a in (%*) do (
   )
 )
 
-set "libpath_arg=-Wl,-L%BUILD_PREFIX%\Library\lib\ghc-libs"
-
-"%BUILD_PREFIX%\Library\bin\clang.exe" !args! --target=x86_64-w64-mingw32 -fuse-ld=lld -rtlib=compiler-rt !libpath_arg!
+"%BUILD_PREFIX%\Library\bin\clang.exe" !args! --target=x86_64-w64-mingw32 -fuse-ld=lld -rtlib=compiler-rt -L"%BUILD_PREFIX%\Library\lib\ghc-libs"
 EOF
 
 # Make sure we use conda-forge clang (ghc bootstrap has a clang.exe)
