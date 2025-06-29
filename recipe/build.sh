@@ -45,7 +45,7 @@ find "${PREFIX}/lib" -name "*-ghc${PKG_VERSION}.{dylib,so}" | while read -r lib;
 done
 
 # Add package licenses
-arch="${target_platform%-*}"
+arch="${target_platform#*-}"
 arch="${arch//arm64/aarch64}"
 pushd "${PREFIX}"/share/doc/${arch}-${target_platform%%-*}-ghc-"${PKG_VERSION}"-inplace
   for file in */LICENSE; do
