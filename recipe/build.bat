@@ -10,9 +10,11 @@ type "%RECIPE_DIR%\build.sh"                          >> conda_build.sh
 set _PREFIX=%PREFIX:\=/%
 set _BUILD_PREFIX=%BUILD_PREFIX:\=/%
 set _SRC_DIR=%SRC_DIR:\=/%
+
 set _PREFIX=%_PREFIX:C:=/c/%
 set _BUILD_PREFIX=%_BUILD_PREFIX:C:=/c/%
 set _SRC_DIR=%_SRC_DIR:C:=/c/%
+
 set _PREFIX=%_PREFIX:D:=/d/%
 set _BUILD_PREFIX=%_BUILD_PREFIX:D:=/d/%
 set _SRC_DIR=%_SRC_DIR:D:=/d/%
