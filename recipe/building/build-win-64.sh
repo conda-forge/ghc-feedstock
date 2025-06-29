@@ -26,12 +26,18 @@ export TMPDIR="$(cygpath -w "${TEMP}")"
 #   fi
 # done
 
-LIBCLANG_RT=$(find "${_BUILD_PREFIX}" -name "*clang_rt.builtins*{.lib,.a}" | head -1)
-echo "${LIBCLANG_RT}"
-LIBCLANG_DIR=$(dirname "${LIBCLANG_RT}")
+find "${_BUILD_PREFIX}" -name "*clang_rt.builtins*{.lib,.a}"
+LIBCLANG_RT_PATH=$(find "${_BUILD_PREFIX}" -name "*clang_rt.builtins*{.lib,.a}" | head -1)
+if [[ ! -n "${LIBCLANG_RT_PATH}" ]]; then
+  echo "Warning: Could not find libclang_rt.builtins"
+  exit 1
+fi
+echo "${LIBCLANG_RT_PATH}"
+LIBCLANG_DIR=$(dirname "${LIBCLANG_RT_PATH}")
+LIBCLANG_RT=$(basename "${LIBCLANG_RT_PATH}")
 if [ "$(basename "${LIBCLANG_DIR}")" != "x86_64-w64-windows-gnu" ]; then
   mkdir -p "$(dirname "${LIBCLANG_DIR}")/x86_64-w64-windows-gnu"
-  cp "${LIBCLANG_DIR}/libclang_rt.builtins.a" "$(dirname "${LIBCLANG_DIR}")/x86_64-w64-windows-gnu/"
+  cp "${LIBCLANG_DIR}/${LIBCLANG_RT}" "$(dirname "${LIBCLANG_DIR}")/x86_64-w64-windows-gnu/"
 fi
 
 # Define the wrapper script for MSVC
