@@ -70,10 +70,3 @@ run_and_log "stage2_lib" "${_hadrian_build[@]}" stage2:lib:ghc --flavour=release
 run_and_log "build_all"  "${_hadrian_build[@]}" --flavour=release --freeze1 --freeze2 --docs=no-sphinx-pdfs --progress-info=none
 # perl -pi -e 's#($ENV{BUILD_PREFIX}|$ENV{PREFIX})/bin/##' "${SRC_DIR}"/_build/stage2/lib/settings
 run_and_log "install" "${_hadrian_build[@]}" install --prefix="${PREFIX}" --flavour=release --freeze1 --freeze2 --docs=no-sphinx-pdfs
-perl -pi -e 's#($ENV{BUILD_PREFIX}|$ENV{PREFIX})/bin/##' "${PREFIX}"/lib/ghc-"${PKG_VERSION}"/lib/settings
-
-pushd "${PREFIX}"/share/doc/x86_64-linux-ghc-"${PKG_VERSION}"-inplace
-  for file in */LICENSE; do
-    cp "${file///-}" "${SRC_DIR}"/license_files
-  done
-popd

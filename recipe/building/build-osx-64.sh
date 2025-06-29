@@ -38,9 +38,3 @@ CONFIGURE_ARGS=(
 run_and_log "ghc-configure" bash configure "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}"
 _hadrian_build=("${SRC_DIR}"/hadrian/build "-j${CPU_COUNT}")
 run_and_log "install" "${_hadrian_build[@]}" install --prefix="${PREFIX}" --flavour=release --docs=no-sphinx-pdfs
-
-pushd "${PREFIX}"/share/doc/x86_64-osx-ghc-"${PKG_VERSION}"-inplace
-  for file in */LICENSE; do
-    cp "${file///-}" "${SRC_DIR}"/license_files
-  done
-popd

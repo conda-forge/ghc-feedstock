@@ -138,6 +138,11 @@ tests:
   - script: |
       ghc --version
 
+  - script:
+      - if: unix
+        then: cat ${CONDA_PREFIX}/lib/ghc-${{ version }}/lib/settings
+        else: type %CONDA_PREFIX%\\Library\\lib\\ghc-${{ version }}\\lib\\settings
+
   - script: |
       echo 'main = putStrLn "Hello conda-forge"' > hello.hs
       ghc -v hello.hs
