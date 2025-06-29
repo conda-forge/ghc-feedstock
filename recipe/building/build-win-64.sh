@@ -26,9 +26,9 @@ export TMPDIR="$(cygpath -w "${TEMP}")"
 #   fi
 # done
 
-find "${_BUILD_PREFIX}" -name "*clang_rt.builtins*{.lib,.a}"
-LIBCLANG_RT_PATH=$(find "${_BUILD_PREFIX}" -name "*clang_rt.builtins*{.lib,.a}" | head -1)
-if [[ ! -n "${LIBCLANG_RT_PATH}" ]]; then
+find "${_BUILD_PREFIX}" -name "*clang_rt.builtins*"
+LIBCLANG_RT_PATH=$(find "${_BUILD_PREFIX}" -name "*clang_rt.builtins*" | head -1)
+if [[ -z "${LIBCLANG_RT_PATH}" ]]; then
   echo "Warning: Could not find libclang_rt.builtins"
   exit 1
 fi
