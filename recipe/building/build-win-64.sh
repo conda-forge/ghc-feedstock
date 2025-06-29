@@ -9,10 +9,6 @@ export PYTHON=python
 export PATH="${_SRC_DIR}/bootstrap-ghc/bin:${_SRC_DIR}/bootstrap-cabal${PATH:+:}${PATH:-}"
 export LIBRARY_PATH="${_BUILD_PREFIX}/Library/lib${LIBRARY_PATH:+:}${LIBRARY_PATH:-}"
 
-# export BUILD_PREFIX="${_BUILD_PREFIX}"
-# export PREFIX="${_PREFIX}"
-# export SRC_DIR="${_SRC_DIR}"
-
 export TMP="$(cygpath -w "${TEMP}")"
 export TMPDIR="$(cygpath -w "${TEMP}")"
 
@@ -34,7 +30,7 @@ done
 CLANG_WRAPPER="${BUILD_PREFIX}\\Library\\bin\\clang-mingw-wrapper.bat"
 cat > "${_BUILD_PREFIX}/Library/bin/clang-mingw-wrapper.bat" << EOF
 @echo off
-"%BUILD_PREFIX%\Library\bin\clang.exe" %* -Wl,-libpath:"%BUILD_PREFIX%\Library\lib\ghc-libs" -Wl,-defaultlib:msvcrt -Wl,-defaultlib:oldnames -Wl,-defaultlib:libvcruntime -Wl,-defaultlib:libucrt
+"%BUILD_PREFIX%\Library\bin\clang.exe" %* --target=x86_64-w64-mingw32 -fuse-ld=lld -rtlib=compiler-rt -Wl,-libpath:"%BUILD_PREFIX%\Library\lib\ghc-libs"
 EOF
 
 # Make sure we use conda-forge clang (ghc bootstrap has a clang.exe)
@@ -102,7 +98,7 @@ AR_STAGE0=llvm-ar \
 CC_STAGE0=${CC} \
 CFLAGS="${CFLAGS//-nostdlib/}" \
 CXXFLAGS="${CXXFLAGS//-nostdlib/}" \
-LDFLAGS="${LDFLAGS//-nostdlib/} -Wl,-defaultlib:msvcrt -Wl,-defaultlib:oldnames -Wl,-defaultlib:libvcruntime -Wl,-defaultlib:libucrt" \
+LDFLAGS="${LDFLAGS//-nostdlib/}" \
 MergeObjsCmd="x86_64-w64-mingw32-ld.exe" \
 MergeObjsArgs="" \
 run_and_log "ghc-configure" bash configure "${CONFIGURE_ARGS[@]}" || ( cat config.log ; exit 1 )
