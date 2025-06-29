@@ -12,19 +12,25 @@ export LIBRARY_PATH="${_BUILD_PREFIX}/Library/lib${LIBRARY_PATH:+:}${LIBRARY_PAT
 export TMP="$(cygpath -w "${TEMP}")"
 export TMPDIR="$(cygpath -w "${TEMP}")"
 
-# Create .lib versions of required libraries
-mkdir -p "${_BUILD_PREFIX}/Library/lib/ghc-libs"
-for lib in mingw32 mingwex m pthread clang_rt.builtins; do
-  # Find the corresponding .a file
-  LIB_A=$(find "${_BUILD_PREFIX}" -name "lib${lib}.a" | head -1)
+# # Create .lib versions of required libraries
+# mkdir -p "${_BUILD_PREFIX}/Library/lib/ghc-libs"
+# for lib in mingw32 mingwex m pthread clang_rt.builtins; do
+#   # Find the corresponding .a file
+#   LIB_A=$(find "${_BUILD_PREFIX}" -name "lib${lib}.a" | head -1)
+#
+#   if [ -n "$LIB_A" ]; then
+#     # Create a .lib symlink
+#     cp "$LIB_A" "${_BUILD_PREFIX}/Library/lib/ghc-libs/${lib}.lib"
+#   else
+#     echo "Warning: Could not find lib${lib}.a"
+#   fi
+# done
 
-  if [ -n "$LIB_A" ]; then
-    # Create a .lib symlink
-    cp "$LIB_A" "${_BUILD_PREFIX}/Library/lib/ghc-libs/${lib}.lib"
-  else
-    echo "Warning: Could not find lib${lib}.a"
-  fi
-done
+LIBCLANG_DIR=$(dirname "$(find "${_BUILD_PREFIX}" -name libclang_rt.builtins.a | head -1)")
+if [ "$(basename "${LIBCLANG_DIR}")" != "x86_64-w64-windows-gnu" ]; then
+  mkdir -p "$(dirname "${LIBCLANG_DIR}")/x86_64-w64-windows-gnu"
+  cp "${LIBCLANG_DIR}/libclang_rt.builtins.a" "$(dirname "${LIBCLANG_DIR}")/x86_64-w64-windows-gnu/"
+fi
 
 # Define the wrapper script for MSVC
 CLANG_WRAPPER="${BUILD_PREFIX}\\Library\\bin\\clang-mingw-wrapper.bat"
