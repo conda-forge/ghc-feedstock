@@ -29,8 +29,27 @@ done
 # Define the wrapper script for MSVC
 CLANG_WRAPPER="${BUILD_PREFIX}\\Library\\bin\\clang-mingw-wrapper.bat"
 cat > "${_BUILD_PREFIX}/Library/bin/clang-mingw-wrapper.bat" << EOF
-@echo off
-"%BUILD_PREFIX%\Library\bin\clang.exe" %* --target=x86_64-w64-mingw32 -fuse-ld=lld -rtlib=compiler-rt -Wl,-libpath:"%BUILD_PREFIX%\Library\lib\ghc-libs"
+setlocal enabledelayedexpansion
+
+set "args="
+set "skip_next=0"
+
+REM Process arguments and filter out problematic paths
+for %%a in (%*) do (
+  if "!skip_next!"=="1" (
+    set "skip_next=0"
+  ) else if "%%a"=="-I%SRC_DIR%\bootstrap-ghc\lib/../mingw//include" (
+    REM Skip this include path
+  ) else if "%%a"=="-L%SRC_DIR%\bootstrap-ghc\lib/../mingw//lib" (
+    REM Skip this library path
+  ) else if "%%a"=="-L%SRC_DIR%\bootstrap-ghc\lib/../mingw//x86_64-w64-mingw32/lib" (
+    REM Skip this library path
+  ) else (
+    set "args=!args! %%a"
+  )
+)
+
+"%BUILD_PREFIX%\Library\bin\clang.exe" !args! --target=x86_64-w64-mingw32 -fuse-ld=lld -rtlib=compiler-rt
 EOF
 
 # Make sure we use conda-forge clang (ghc bootstrap has a clang.exe)
