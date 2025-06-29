@@ -6,45 +6,45 @@ _log_index=0
 source "${RECIPE_DIR}"/building/common.sh
 
 export PYTHON=python
-export PATH="${SRC_DIR}/bootstrap-ghc/bin:${SRC_DIR}/bootstrap-cabal${PATH:+:}${PATH:-}"
-export LIBRARY_PATH="${BUILD_PREFIX}/Library/lib${LIBRARY_PATH:+:}${LIBRARY_PATH:-}"
+export PATH="${_SRC_DIR}/bootstrap-ghc/bin:${_SRC_DIR}/bootstrap-cabal${PATH:+:}${PATH:-}"
+export LIBRARY_PATH="${_BUILD_PREFIX}/Library/lib${LIBRARY_PATH:+:}${LIBRARY_PATH:-}"
 
-export BUILD_PREFIX="${_BUILD_PREFIX}"
-export PREFIX="${_PREFIX}"
-export SRC_DIR="${_SRC_DIR}"
+# export BUILD_PREFIX="${_BUILD_PREFIX}"
+# export PREFIX="${_PREFIX}"
+# export SRC_DIR="${_SRC_DIR}"
 
 export TMP="$(cygpath -w "${TEMP}")"
 export TMPDIR="$(cygpath -w "${TEMP}")"
 
 # Create .lib versions of required libraries
-mkdir -p "${BUILD_PREFIX}/Library/lib/ghc-libs"
+mkdir -p "${_BUILD_PREFIX}/Library/lib/ghc-libs"
 for lib in mingw32 mingwex m pthread clang_rt.builtins; do
   # Find the corresponding .a file
-  LIB_A=$(find "${BUILD_PREFIX}" -name "lib${lib}.a" | head -1)
+  LIB_A=$(find "${_BUILD_PREFIX}" -name "lib${lib}.a" | head -1)
 
   if [ -n "$LIB_A" ]; then
     # Create a .lib symlink
-    cp "$LIB_A" "${BUILD_PREFIX}/Library/lib/ghc-libs/${lib}.lib"
+    cp "$LIB_A" "${_BUILD_PREFIX}/Library/lib/ghc-libs/${lib}.lib"
   else
     echo "Warning: Could not find lib${lib}.a"
   fi
 done
 
 # Define the wrapper script for MSVC
-export CLANG_WRAPPER="${BUILD_PREFIX}/Library/bin/clang-mingw-wrapper.bat"
-cat > "${CLANG_WRAPPER}" << EOF
+CLANG_WRAPPER="${BUILD_PREFIX}\\Library\\bin\\clang-mingw-wrapper.bat"
+cat > "${_BUILD_PREFIX}/Library/bin/clang-mingw-wrapper.bat" << EOF
 @echo off
-"%CC%" %* -Wl,-libpath:"%BUILD_PREFIX%/Library/lib/ghc-libs" -Wl,-defaultlib:msvcrt -Wl,-defaultlib:oldnames -Wl,-defaultlib:libvcruntime -Wl,-defaultlib:libucrt
+"%BUILD_PREFIX%\Library\bin\clang.exe" %* -Wl,-libpath:"%BUILD_PREFIX%\Library\lib\ghc-libs" -Wl,-defaultlib:msvcrt -Wl,-defaultlib:oldnames -Wl,-defaultlib:libvcruntime -Wl,-defaultlib:libucrt
 EOF
 
 # Make sure we use conda-forge clang (ghc bootstrap has a clang.exe)
-CLANG=$(find "${BUILD_PREFIX}" -name clang.exe | head -1)
-CLANGXX=$(find "${BUILD_PREFIX}" -name clang++.exe | head -1)
+CLANG=$(find "${_BUILD_PREFIX}" -name clang.exe | head -1)
+CLANGXX=$(find "${_BUILD_PREFIX}" -name clang++.exe | head -1)
 
-export CABAL="${SRC_DIR}"/bootstrap-cabal/cabal.exe
+export CABAL="${_SRC_DIR}"/bootstrap-cabal/cabal.exe
 export CC="${CLANG}"
 export CXX="${CLANGXX}"
-export GHC="${SRC_DIR}"/bootstrap-ghc/bin/ghc.exe
+export GHC="${_SRC_DIR}"/bootstrap-ghc/bin/ghc.exe
 
 # Find the latest MSVC version directory dynamically
 MSVC_VERSION_DIR=$(ls -d "C:/Program Files/Microsoft Visual Studio/2022/Enterprise/VC/Tools/MSVC/"*/ 2>/dev/null | sort -V | tail -1 | sed 's/\/$//')
@@ -59,21 +59,21 @@ fi
 export LIB="${BUILD_PREFIX}/Library/lib;${PREFIX}/Library/lib;C:/Program Files (x86)/Windows Kits/10/Lib/10.0.26100.0/um/x64;${MSVC_VERSION_DIR}/lib/x64${LIB:+;}${LIB:-}"
 export INCLUDE="C:/Program Files (x86)/Windows Kits/10/Include/10.0.26100.0/ucrt;C:/Program Files (x86)/Windows Kits/10/Include/10.0.26100.0/um;C:/Program Files (x86)/Windows Kits/10/Include/10.0.26100.0/shared;${MSVC_VERSION_DIR}/include${INCLUDE:+;}${INCLUDE:-}"
 
-mkdir -p "${SRC_DIR}/hadrian/cfg" && touch "${SRC_DIR}/hadrian/cfg/default.target.ghc-toolchain"
+mkdir -p "${_SRC_DIR}/hadrian/cfg" && touch "${_SRC_DIR}/hadrian/cfg/default.target.ghc-toolchain"
 
 # Remove this annoying mingw
-#rm -rf "${SRC_DIR}"/bootstrap-ghc/mingw/clan*
-#cp "${BUILD_PREFIX}"/bin/*clang* "${SRC_DIR}"/bootstrap-ghc/mingw/
-perl -i -pe 's#\$topdir/../mingw//bin/(llvm-)?##g' "${SRC_DIR}"/bootstrap-ghc/lib/lib/settings
-perl -i -pe 's#-I\$topdir/../mingw//include##g' "${SRC_DIR}"/bootstrap-ghc/lib/lib/settings
-perl -i -pe 's#-L\$topdir/../mingw//lib -L\$topdir/../mingw//x86_64-w64-mingw32/lib##g' "${SRC_DIR}"/bootstrap-ghc/lib/lib/settings
+#rm -rf "${_SRC_DIR}"/bootstrap-ghc/mingw/clan*
+#cp "${_BUILD_PREFIX}"/bin/*clang* "${_SRC_DIR}"/bootstrap-ghc/mingw/
+perl -i -pe 's#\$topdir/../mingw//bin/(llvm-)?##g' "${_SRC_DIR}"/bootstrap-ghc/lib/lib/settings
+perl -i -pe 's#-I\$topdir/../mingw//include##g' "${_SRC_DIR}"/bootstrap-ghc/lib/lib/settings
+perl -i -pe 's#-L\$topdir/../mingw//lib -L\$topdir/../mingw//x86_64-w64-mingw32/lib##g' "${_SRC_DIR}"/bootstrap-ghc/lib/lib/settings
 
-mkdir -p "${BUILD_PREFIX}"/bin && ln -s "${BUILD_PREFIX}"/Library/usr/bin/m4.exe "${BUILD_PREFIX}"/bin
+mkdir -p "${_BUILD_PREFIX}"/bin && ln -s "${_BUILD_PREFIX}"/Library/usr/bin/m4.exe "${_BUILD_PREFIX}"/bin
 
 # Update cabal package database
 run_and_log "cabal-update" cabal v2-update
 
-_hadrian_build=("${SRC_DIR}"/hadrian/build.bat)
+_hadrian_build=("${_SRC_DIR}"/hadrian/build.bat)
 
 # Configure and build GHC
 SYSTEM_CONFIG=(
@@ -83,19 +83,19 @@ SYSTEM_CONFIG=(
 )
 
 CONFIGURE_ARGS=(
-  --prefix="${PREFIX}"
+  --prefix="${_PREFIX}"
   --disable-numa
   --enable-distro-toolchain
   --enable-ignore-build-platform-mismatch=yes
   --with-system-libffi=yes
-  --with-curses-includes="${PREFIX}"/include
-  --with-curses-libraries="${PREFIX}"/lib
-  --with-ffi-includes="${PREFIX}"/include
-  --with-ffi-libraries="${PREFIX}"/lib
-  --with-gmp-includes="${PREFIX}"/include
-  --with-gmp-libraries="${PREFIX}"/lib
-  --with-iconv-includes="${PREFIX}"/include
-  --with-iconv-libraries="${PREFIX}"/lib
+  --with-curses-includes="${_PREFIX}"/include
+  --with-curses-libraries="${_PREFIX}"/lib
+  --with-ffi-includes="${_PREFIX}"/include
+  --with-ffi-libraries="${_PREFIX}"/lib
+  --with-gmp-includes="${_PREFIX}"/include
+  --with-gmp-libraries="${_PREFIX}"/lib
+  --with-iconv-includes="${_PREFIX}"/include
+  --with-iconv-libraries="${_PREFIX}"/lib
 )
 
 AR_STAGE0=llvm-ar \
@@ -118,4 +118,4 @@ run_and_log "stage1_exe-1" "${_hadrian_build[@]}" stage1:exe:ghc-bin -VV \
   --docs=none \
   --progress-info=unicorn || true
 
-run_and_log "install" "${_hadrian_build[@]}" install --prefix="${PREFIX}" --flavour=release --freeze1 --docs=none
+run_and_log "install" "${_hadrian_build[@]}" install --prefix="${_PREFIX}" --flavour=release --freeze1 --docs=none
