@@ -57,7 +57,7 @@ for %%a in (%*) do (
   )
 )
 
-"%BUILD_PREFIX%\Library\bin\clang.exe" !args! --target=x86_64-w64-mingw32 -fuse-ld=lld -rtlib=compiler-rt -Wl,-defaultlib:%BUILD_PREFIX%\lib\clang\19\lib\windows\clang_rt.builtins-x86_64.lib"
+"%BUILD_PREFIX%\Library\bin\clang.exe" !args! --target=x86_64-w64-mingw32 -fuse-ld=lld -rtlib=compiler-rt -Wl,-defaultlib:%BUILD_PREFIX%\lib\clang\19\lib\windows\clang_rt.builtins-x86_64.lib
 EOF
 
 # Make sure we use conda-forge clang (ghc bootstrap has a clang.exe)
