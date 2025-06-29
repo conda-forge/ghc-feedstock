@@ -26,19 +26,19 @@ export TMPDIR="$(cygpath -w "${TEMP}")"
 #   fi
 # done
 
-find "${_BUILD_PREFIX}" -name "*clang_rt.builtins*"
 LIBCLANG_RT_PATH=$(find "${_BUILD_PREFIX}" -name "*clang_rt.builtins*" | head -1)
 if [[ -z "${LIBCLANG_RT_PATH}" ]]; then
   echo "Warning: Could not find libclang_rt.builtins"
   exit 1
 fi
-echo "${LIBCLANG_RT_PATH}"
+
 LIBCLANG_DIR=$(dirname "${LIBCLANG_RT_PATH}")
 LIBCLANG_RT=$(basename "${LIBCLANG_RT_PATH}")
 if [ "$(basename "${LIBCLANG_DIR}")" != "x86_64-w64-windows-gnu" ]; then
   mkdir -p "$(dirname "${LIBCLANG_DIR}")/x86_64-w64-windows-gnu"
   cp "${LIBCLANG_DIR}/${LIBCLANG_RT}" "$(dirname "${LIBCLANG_DIR}")/x86_64-w64-windows-gnu/"
 fi
+find "${_BUILD_PREFIX}" -name "*clang_rt.builtins*"
 
 # Define the wrapper script for MSVC
 CLANG_WRAPPER="${BUILD_PREFIX}\\Library\\bin\\clang-mingw-wrapper.bat"
@@ -63,7 +63,7 @@ for %%a in (%*) do (
   )
 )
 
-"%BUILD_PREFIX%\Library\bin\clang.exe" !args! --target=x86_64-w64-mingw32 -fuse-ld=lld -rtlib=compiler-rt -Wl,-defaultlib:%BUILD_PREFIX%\lib\clang\19\lib\windows\clang_rt.builtins-x86_64.lib
+"%BUILD_PREFIX%\Library\bin\clang.exe" !args! --target=x86_64-w64-mingw32 -fuse-ld=lld -rtlib=compiler-rt
 EOF
 
 # Make sure we use conda-forge clang (ghc bootstrap has a clang.exe)
