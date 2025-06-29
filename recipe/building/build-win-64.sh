@@ -41,10 +41,10 @@ EOF
 CLANG=$(find "${_BUILD_PREFIX}" -name clang.exe | head -1)
 CLANGXX=$(find "${_BUILD_PREFIX}" -name clang++.exe | head -1)
 
-export CABAL="${_SRC_DIR}"/bootstrap-cabal/cabal.exe
+export CABAL="${SRC_DIR}\\bootstrap-cabal\\cabal.exe"
 export CC="${CLANG}"
 export CXX="${CLANGXX}"
-export GHC="${_SRC_DIR}"/bootstrap-ghc/bin/ghc.exe
+export GHC="${SRC_DIR}\\bootstrap-ghc\\bin\\ghc.exe"
 
 # Find the latest MSVC version directory dynamically
 MSVC_VERSION_DIR=$(ls -d "C:/Program Files/Microsoft Visual Studio/2022/Enterprise/VC/Tools/MSVC/"*/ 2>/dev/null | sort -V | tail -1 | sed 's/\/$//')
