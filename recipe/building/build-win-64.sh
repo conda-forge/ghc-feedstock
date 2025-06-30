@@ -26,7 +26,7 @@ export TMPDIR="$(cygpath -w "${TEMP}")"
 #   fi
 # done
 
-LIBCLANG_RT_PATH=$(find "${_BUILD_PREFIX}" -name "*clang_rt.builtins*" | head -1)
+LIBCLANG_RT_PATH=$(find "${_BUILD_PREFIX}/Library" -name "*clang_rt.builtins*" | head -1)
 if [[ -z "${LIBCLANG_RT_PATH}" ]]; then
   echo "Warning: Could not find libclang_rt.builtins"
   exit 1
