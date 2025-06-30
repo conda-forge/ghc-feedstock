@@ -46,7 +46,7 @@ cat > "${_BUILD_PREFIX}/Library/bin/clang-mingw-wrapper.bat" << EOF
 @echo off
 setlocal enabledelayedexpansion
 
-REM Create a temporary file to store filtered arguments
+REM Create a temporary file for filtered arguments
 set "filtered_file=%TEMP%\filtered_args_%RANDOM%.txt"
 type nul > "!filtered_file!"
 
@@ -54,28 +54,31 @@ REM Process each argument
 for %%a in (%*) do (
     set "arg=%%a"
 
-    REM Skip problematic mingw paths
-    if "!arg!"=="-I%SRC_DIR%\bootstrap-ghc\lib/../mingw//include" (
+    REM Special handling for response files (starting with @)
+    if "!arg:~0,1!"=="@" (
+        REM For response files, preserve the exact path with quotes
+        echo "%%a" >> "!filtered_file!"
+    ) else if "!arg!"=="-I%SRC_DIR%\bootstrap-ghc\lib/../mingw//include" (
+        REM Skip problematic mingw paths
         echo Filtering: !arg!
     ) else if "!arg!"=="-L%SRC_DIR%\bootstrap-ghc\lib/../mingw//lib" (
+        REM Skip problematic mingw paths
         echo Filtering: !arg!
     ) else if "!arg!"=="-L%SRC_DIR%\bootstrap-ghc\lib/../mingw//x86_64-w64-mingw32/lib" (
+        REM Skip problematic mingw paths
         echo Filtering: !arg!
     ) else (
-        REM Preserve quotes for arguments with spaces
+        REM For normal arguments, preserve as-is
         echo %%a >> "!filtered_file!"
     )
 )
 
-REM Execute clang with the filtered arguments file
+REM Execute clang with the filtered arguments
 "%BUILD_PREFIX%\Library\bin\clang.exe" @"!filtered_file!" --target=x86_64-w64-mingw32 -fuse-ld=lld -rtlib=compiler-rt
 
-REM Store the exit code before cleaning up
+REM Store exit code and clean up
 set exit_code=%ERRORLEVEL%
-
-REM Clean up the temporary file
 del "!filtered_file!" 2>nul
-
 exit /b %exit_code%
 EOF
 
