@@ -36,7 +36,7 @@ LIBCLANG_DIR=$(dirname "${LIBCLANG_RT_PATH}")
 LIBCLANG_RT=$(basename "${LIBCLANG_RT_PATH}")
 if [ "$(basename "${LIBCLANG_DIR}")" != "x86_64-w64-windows-gnu" ]; then
   mkdir -p "$(dirname "${LIBCLANG_DIR}")/x86_64-w64-windows-gnu"
-  cp "${LIBCLANG_DIR}/${LIBCLANG_RT}" "$(dirname "${LIBCLANG_DIR}")/x86_64-w64-windows-gnu/"
+  cp "${LIBCLANG_DIR}/${LIBCLANG_RT}" "$(dirname "${LIBCLANG_DIR}")/x86_64-w64-windows-gnu/${LIBCLANG_RT//.lib/.a}"
 fi
 find "${_BUILD_PREFIX}" -name "*clang_rt.builtins*"
 
