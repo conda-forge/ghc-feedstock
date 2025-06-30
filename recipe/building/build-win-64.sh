@@ -36,7 +36,7 @@ LIBCLANG_DIR=$(dirname "${LIBCLANG_RT_PATH}")
 LIBCLANG_RT=$(basename "${LIBCLANG_RT_PATH}")
 if [ "$(basename "${LIBCLANG_DIR}")" != "x86_64-w64-windows-gnu" ]; then
   mkdir -p "$(dirname "${LIBCLANG_DIR}")/x86_64-w64-windows-gnu"
-  cp "${LIBCLANG_DIR}/${LIBCLANG_RT}" "$(dirname "${LIBCLANG_DIR}")/x86_64-w64-windows-gnu/${LIBCLANG_RT//-x86_64.lib/.a}"
+  cp "${LIBCLANG_DIR}/${LIBCLANG_RT}" "$(dirname "${LIBCLANG_DIR}")/x86_64-w64-windows-gnu/lib${LIBCLANG_RT//-x86_64.lib/.a}"
 fi
 find "${_BUILD_PREFIX}" -name "*clang_rt.builtins*"
 
@@ -46,41 +46,36 @@ cat > "${_BUILD_PREFIX}/Library/bin/clang-mingw-wrapper.bat" << EOF
 @echo off
 setlocal enabledelayedexpansion
 
-set "args="
+REM Create a temporary file to store filtered arguments
+set "filtered_file=%TEMP%\filtered_args_%RANDOM%.txt"
+type nul > "!filtered_file!"
 
-REM Process arguments one by one
+REM Process each argument
 for %%a in (%*) do (
     set "arg=%%a"
 
-    REM Check if it's a response file
-    if "!arg:~0,1!"=="@" (
-        REM Process response file content, but still include it for clang
-        set "args=!args! %%a"
-    ) else if "!arg!"=="-I%SRC_DIR%\bootstrap-ghc\lib/../mingw//include" (
-        REM Skip problematic include path
+    REM Skip problematic mingw paths
+    if "!arg!"=="-I%SRC_DIR%\bootstrap-ghc\lib/../mingw//include" (
         echo Filtering: !arg!
     ) else if "!arg!"=="-L%SRC_DIR%\bootstrap-ghc\lib/../mingw//lib" (
-        REM Skip problematic lib path
         echo Filtering: !arg!
     ) else if "!arg!"=="-L%SRC_DIR%\bootstrap-ghc\lib/../mingw//x86_64-w64-mingw32/lib" (
-        REM Skip problematic lib path
         echo Filtering: !arg!
     ) else (
-        REM Keep other arguments
-        set "args=!args! %%a"
+        REM Preserve quotes for arguments with spaces
+        echo %%a >> "!filtered_file!"
     )
 )
 
-REM Create a new response file with filtered content
-set "temp_rsp=%TEMP%\filtered_args_%RANDOM%.rsp"
-echo !args! > "!temp_rsp!"
+REM Execute clang with the filtered arguments file
+"%BUILD_PREFIX%\Library\bin\clang.exe" @"!filtered_file!" --target=x86_64-w64-mingw32 -fuse-ld=lld -rtlib=compiler-rt
 
-REM Call clang with the filtered arguments
-"%BUILD_PREFIX%\Library\bin\clang.exe" @"!temp_rsp!" --target=x86_64-w64-mingw32 -fuse-ld=lld -rtlib=compiler-rt
+REM Store the exit code before cleaning up
+set exit_code=%ERRORLEVEL%
 
-REM Get exit code and clean up
-set "exit_code=%ERRORLEVEL%"
-del "!temp_rsp!" 2>nul
+REM Clean up the temporary file
+del "!filtered_file!" 2>nul
+
 exit /b %exit_code%
 EOF
 
