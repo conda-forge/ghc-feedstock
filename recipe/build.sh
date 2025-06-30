@@ -47,7 +47,7 @@ done
 # Add package licenses
 arch="-${target_platform#*-}"
 arch="${arch//-64/-x86_64}"
-arch="${target_platform#*-}"
+arch="${arch#*-}"
 arch="${arch//arm64/aarch64}"
 pushd "${PREFIX}/share/doc/${arch}-${target_platform%%-*}-ghc-${PKG_VERSION}-inplace"
   for file in */LICENSE; do
