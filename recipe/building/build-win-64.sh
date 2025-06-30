@@ -42,45 +42,7 @@ find "${_BUILD_PREFIX}" -name "*clang_rt.builtins*"
 
 # Define the wrapper script for MSVC
 CLANG_WRAPPER="${BUILD_PREFIX}\\Library\\bin\\clang-mingw-wrapper.bat"
-cat > "${_BUILD_PREFIX}/Library/bin/clang-mingw-wrapper.bat" << EOF
-@echo off
-setlocal enabledelayedexpansion
-
-REM Create a temporary file for filtered arguments
-set "filtered_file=%TEMP%\filtered_args_%RANDOM%.txt"
-type nul > "!filtered_file!"
-
-REM Process each argument
-for %%a in (%*) do (
-    set "arg=%%a"
-
-    REM Special handling for response files (starting with @)
-    if "!arg:~0,1!"=="@" (
-        REM For response files, preserve the exact path with quotes
-        echo "%%a" >> "!filtered_file!"
-    ) else if "!arg!"=="-I%SRC_DIR%\bootstrap-ghc\lib/../mingw//include" (
-        REM Skip problematic mingw paths
-        echo Filtering: !arg!
-    ) else if "!arg!"=="-L%SRC_DIR%\bootstrap-ghc\lib/../mingw//lib" (
-        REM Skip problematic mingw paths
-        echo Filtering: !arg!
-    ) else if "!arg!"=="-L%SRC_DIR%\bootstrap-ghc\lib/../mingw//x86_64-w64-mingw32/lib" (
-        REM Skip problematic mingw paths
-        echo Filtering: !arg!
-    ) else (
-        REM For normal arguments, preserve as-is
-        echo %%a >> "!filtered_file!"
-    )
-)
-
-REM Execute clang with the filtered arguments
-"%BUILD_PREFIX%\Library\bin\clang.exe" @"!filtered_file!" --target=x86_64-w64-mingw32 -fuse-ld=lld -rtlib=compiler-rt
-
-REM Store exit code and clean up
-set exit_code=%ERRORLEVEL%
-del "!filtered_file!" 2>nul
-exit /b %exit_code%
-EOF
+cp "${RECIPE_DIR}/building/clang-mingw-wrapper.bat" "${_BUILD_PREFIX}/Library/bin/"
 
 # Make sure we use conda-forge clang (ghc bootstrap has a clang.exe)
 CLANG=$(find "${_BUILD_PREFIX}" -name clang.exe | head -1)
