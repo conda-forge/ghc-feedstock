@@ -25,6 +25,7 @@ for %%a in (%*) do (
                 set "rline=%%i"
                 set "skip_line=0"
 
+                REM Only filter -I and -L flags containing mingw/bootstrap
                 if "!rline:~0,2!"=="-I" (
                     if not "!rline:mingw=!"=="!rline!" set "skip_line=1"
                     if not "!rline:bootstrap=!"=="!rline!" set "skip_line=1"
@@ -36,13 +37,10 @@ for %%a in (%*) do (
                 if "!skip_line!"=="1" (
                     echo [WRAPPER] Skipping line from response file: !rline! 1>&2
                 ) else (
+                    REM Preserve all other flags including -D_UCRT
                     echo !rline!>>"!temp_resp!"
                 )
             )
-
-            REM Add conda mingw paths to the response file
-            echo -I%BUILD_PREFIX%\Library\mingw-w64\include>>"!temp_resp!"
-            echo -L%BUILD_PREFIX%\Library\mingw-w64\lib>>"!temp_resp!"
 
             REM Use the filtered response file
             set "filtered_args=!filtered_args! "@!temp_resp!""
@@ -70,15 +68,13 @@ for %%a in (%*) do (
     )
 )
 
-REM Add conda mingw paths if not using a response file
+REM Add conda mingw paths (not to response file)
 echo [WRAPPER] Adding conda mingw paths 1>&2
 set "filtered_args=!filtered_args! "-I%BUILD_PREFIX%\Library\mingw-w64\include" "-L%BUILD_PREFIX%\Library\mingw-w64\lib" "-L%BUILD_PREFIX%\Library\mingw-w64\lib""
 
-echo [WRAPPER] Final command: "%BUILD_PREFIX%\Library\bin\clang.exe" !filtered_args! --target=x86_64-w64-mingw32 -fuse-ld=lld -rtlib=compiler-rt -Wl,-lclang_rt.builtins-x86_64 1>&2
-
-REM Find the exact builtins library
+REM Improved search for builtins library
 set "builtins_found=0"
-for /f "delims=" %%a in ('dir /s /b "%BUILD_PREFIX%\Library\lib\clang\*\lib\windows\clang_rt.builtins-x86_64.lib" "%BUILD_PREFIX%\Lib\clang\*\lib\windows\clang_rt.builtins-x86_64.lib" 2^>nul') do (
+for /f "delims=" %%a in ('dir /s /b "%BUILD_PREFIX%\*clang*\*\lib\*\*clang_rt.builtins*.lib" "%BUILD_PREFIX%\*clang*\*\lib\*\*clang_rt.builtins*.a" 2^>nul') do (
     set "builtins=%%a"
     set "builtins_found=1"
     echo [WRAPPER] Found builtins: !builtins! 1>&2
@@ -88,13 +84,10 @@ for /f "delims=" %%a in ('dir /s /b "%BUILD_PREFIX%\Library\lib\clang\*\lib\wind
 
 if "!builtins_found!"=="1" (
     echo [WRAPPER] Using direct path to builtins library 1>&2
+    echo [WRAPPER] Final command: "%BUILD_PREFIX%\Library\bin\clang.exe" !filtered_args! --target=x86_64-w64-mingw32 -fuse-ld=lld -rtlib=compiler-rt "!builtins!" 1>&2
     "%BUILD_PREFIX%\Library\bin\clang.exe" !filtered_args! --target=x86_64-w64-mingw32 -fuse-ld=lld -rtlib=compiler-rt "!builtins!"
 ) else (
     echo [WRAPPER] Falling back to library search 1>&2
+    echo [WRAPPER] Final command: "%BUILD_PREFIX%\Library\bin\clang.exe" !filtered_args! --target=x86_64-w64-mingw32 -fuse-ld=lld -rtlib=compiler-rt -lclang_rt.builtins-x86_64 1>&2
     "%BUILD_PREFIX%\Library\bin\clang.exe" !filtered_args! --target=x86_64-w64-mingw32 -fuse-ld=lld -rtlib=compiler-rt -lclang_rt.builtins-x86_64
 )
-
-set exit_code=%ERRORLEVEL%
-echo [WRAPPER] Clang exit code: %exit_code% 1>&2
-
-exit /b %exit_code%
