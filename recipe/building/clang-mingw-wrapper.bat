@@ -53,7 +53,7 @@ for %%a in (%*) do (
 )
 
 if "!has_builtins!"=="0" (
-    for /f "delims=" %%a in ('dir /s /b "%BUILD_PREFIX%\Library\lib\clang\*\lib\windows\clang_rt.builtins-x86_64.lib" 2^>nul') do (
+    for /f "delims=" %%a in ('dir /s /b "%BUILD_PREFIX%\Library\lib\clang\*\lib\*windows*\libclang_rt.builtins.a" 2^>nul') do (
         set "builtins=%%a"
         echo [WRAPPER] Found builtins: !builtins! 1>&2
         set "filtered_args=!filtered_args! "!builtins!""
