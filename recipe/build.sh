@@ -36,8 +36,8 @@ cp "${RECIPE_DIR}/activate.sh" "${PREFIX}/etc/conda/activate.d/${PKG_NAME}_activ
 # Cleanup potential hard-coded build env paths
 perl -pi -e 's#($ENV{BUILD_PREFIX}|$ENV{PREFIX})/bin/##g' "${PREFIX}"/lib/ghc-"${PKG_VERSION}"/lib/settings
 
-# Find all the .dylib libs with the '-ghc9.12.2' extension and link them to non--ghc9.12.2
-find "${PREFIX}/lib" -name "*-ghc${PKG_VERSION}.{dylib,so}" | while read -r lib; do
+# Find all the .dylib libs with the '-ghc9.12.2' extension and link them to non-'-ghc9.12.2'
+find "${PREFIX}/lib" -name "*-ghc${PKG_VERSION}.dylib" -o -name "*-ghc${PKG_VERSION}.so" | while read -r lib; do
   base_lib="${lib//-ghc${PKG_VERSION}./.}"
   if [[ ! -e "$base_lib" ]]; then
     ln -s "$(basename "$lib")" "$base_lib"
