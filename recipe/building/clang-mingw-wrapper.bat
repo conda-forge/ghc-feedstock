@@ -72,24 +72,27 @@ for %%a in (%*) do (
 
 REM Add conda mingw paths if not using a response file
 echo [WRAPPER] Adding conda mingw paths 1>&2
-set "filtered_args=!filtered_args! "-I%BUILD_PREFIX%\Library\mingw-w64\include" "-L%BUILD_PREFIX%\Library\mingw-w64\lib""
+set "filtered_args=!filtered_args! "-I%BUILD_PREFIX%\Library\mingw-w64\include" "-L%BUILD_PREFIX%\Library\mingw-w64\lib" "-L%BUILD_PREFIX%\Library\mingw-w64\lib""
 
-REM Find and add builtins library
-set "builtins="
-for /f "delims=" %%a in ('dir /s /b "%BUILD_PREFIX%\Library\lib\clang\*\lib\windows\*clang_rt.builtins*.a" 2^>nul') do (
+echo [WRAPPER] Final command: "%BUILD_PREFIX%\Library\bin\clang.exe" !filtered_args! --target=x86_64-w64-mingw32 -fuse-ld=lld -rtlib=compiler-rt -Wl,-lclang_rt.builtins-x86_64 1>&2
+
+REM Find the exact builtins library
+set "builtins_found=0"
+for /f "delims=" %%a in ('dir /s /b "%BUILD_PREFIX%\Library\lib\clang\*\lib\windows\clang_rt.builtins-x86_64.lib" "%BUILD_PREFIX%\Lib\clang\*\lib\windows\clang_rt.builtins-x86_64.lib" 2^>nul') do (
     set "builtins=%%a"
+    set "builtins_found=1"
     echo [WRAPPER] Found builtins: !builtins! 1>&2
+    goto :found
 )
+:found
 
-if not "!builtins!"=="" (
-    set "filtered_args=!filtered_args! "!builtins!""
-    echo [WRAPPER] Added builtins library 1>&2
+if "!builtins_found!"=="1" (
+    echo [WRAPPER] Using direct path to builtins library 1>&2
+    "%BUILD_PREFIX%\Library\bin\clang.exe" !filtered_args! --target=x86_64-w64-mingw32 -fuse-ld=lld -rtlib=compiler-rt "!builtins!"
+) else (
+    echo [WRAPPER] Falling back to library search 1>&2
+    "%BUILD_PREFIX%\Library\bin\clang.exe" !filtered_args! --target=x86_64-w64-mingw32 -fuse-ld=lld -rtlib=compiler-rt -lclang_rt.builtins-x86_64
 )
-
-echo [WRAPPER] Final command: "%BUILD_PREFIX%\Library\bin\clang.exe" !filtered_args! --target=x86_64-w64-mingw32 -fuse-ld=lld -rtlib=compiler-rt -Wl,--allow-multiple-definition 1>&2
-
-REM Execute clang directly with the filtered arguments
-"%BUILD_PREFIX%\Library\bin\clang.exe" !filtered_args! --target=x86_64-w64-mingw32 -fuse-ld=lld -rtlib=compiler-rt -Wl,--allow-multiple-definition -lclang_rt.builtins-x86_64
 
 set exit_code=%ERRORLEVEL%
 echo [WRAPPER] Clang exit code: %exit_code% 1>&2
