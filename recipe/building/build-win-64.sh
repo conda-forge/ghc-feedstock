@@ -43,27 +43,45 @@ find "${_BUILD_PREFIX}" -name "*clang_rt.builtins*"
 # Define the wrapper script for MSVC
 CLANG_WRAPPER="${BUILD_PREFIX}\\Library\\bin\\clang-mingw-wrapper.bat"
 cat > "${_BUILD_PREFIX}/Library/bin/clang-mingw-wrapper.bat" << EOF
+@echo off
 setlocal enabledelayedexpansion
 
 set "args="
-set "skip_next=0"
 
-REM Process arguments and filter out problematic paths
+REM Process arguments one by one
 for %%a in (%*) do (
-  if "!skip_next!"=="1" (
-    set "skip_next=0"
-  ) else if "%%a"=="-I%SRC_DIR%\bootstrap-ghc\lib/../mingw//include" (
-    REM Skip this include path
-  ) else if "%%a"=="-L%SRC_DIR%\bootstrap-ghc\lib/../mingw//lib" (
-    REM Skip this library path
-  ) else if "%%a"=="-L%SRC_DIR%\bootstrap-ghc\lib/../mingw//x86_64-w64-mingw32/lib" (
-    REM Skip this library path
-  ) else (
-    set "args=!args! %%a"
-  )
+    set "arg=%%a"
+
+    REM Check if it's a response file
+    if "!arg:~0,1!"=="@" (
+        REM Process response file content, but still include it for clang
+        set "args=!args! %%a"
+    ) else if "!arg!"=="-I%SRC_DIR%\bootstrap-ghc\lib/../mingw//include" (
+        REM Skip problematic include path
+        echo Filtering: !arg!
+    ) else if "!arg!"=="-L%SRC_DIR%\bootstrap-ghc\lib/../mingw//lib" (
+        REM Skip problematic lib path
+        echo Filtering: !arg!
+    ) else if "!arg!"=="-L%SRC_DIR%\bootstrap-ghc\lib/../mingw//x86_64-w64-mingw32/lib" (
+        REM Skip problematic lib path
+        echo Filtering: !arg!
+    ) else (
+        REM Keep other arguments
+        set "args=!args! %%a"
+    )
 )
 
-"%BUILD_PREFIX%\Library\bin\clang.exe" !args! --target=x86_64-w64-mingw32 -fuse-ld=lld -rtlib=compiler-rt
+REM Create a new response file with filtered content
+set "temp_rsp=%TEMP%\filtered_args_%RANDOM%.rsp"
+echo !args! > "!temp_rsp!"
+
+REM Call clang with the filtered arguments
+"%BUILD_PREFIX%\Library\bin\clang.exe" @"!temp_rsp!" --target=x86_64-w64-mingw32 -fuse-ld=lld -rtlib=compiler-rt
+
+REM Get exit code and clean up
+set "exit_code=%ERRORLEVEL%"
+del "!temp_rsp!" 2>nul
+exit /b %exit_code%
 EOF
 
 # Make sure we use conda-forge clang (ghc bootstrap has a clang.exe)
