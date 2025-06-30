@@ -45,9 +45,11 @@ find "${PREFIX}/lib" -name "*-ghc${PKG_VERSION}.{dylib,so}" | while read -r lib;
 done
 
 # Add package licenses
+arch="-${target_platform#*-}"
+arch="${arch//-64/-x86_64}"
 arch="${target_platform#*-}"
 arch="${arch//arm64/aarch64}"
-pushd "${PREFIX}"/share/doc/${arch}-${target_platform%%-*}-ghc-"${PKG_VERSION}"-inplace
+pushd "${PREFIX}/share/doc/${arch}-${target_platform%%-*}-ghc-${PKG_VERSION}-inplace"
   for file in */LICENSE; do
     cp "${file///-}" "${SRC_DIR}"/license_files
   done
