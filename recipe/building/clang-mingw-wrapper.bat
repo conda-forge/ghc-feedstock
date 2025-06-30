@@ -86,10 +86,10 @@ if not "!builtins!"=="" (
     echo [WRAPPER] Added builtins library 1>&2
 )
 
-echo [WRAPPER] Final command: "%BUILD_PREFIX%\Library\bin\clang.exe" !filtered_args! --target=x86_64-w64-mingw32 -fuse-ld=lld -rtlib=compiler-rt 1>&2
+echo [WRAPPER] Final command: "%BUILD_PREFIX%\Library\bin\clang.exe" !filtered_args! --target=x86_64-w64-mingw32 -fuse-ld=lld -rtlib=compiler-rt -Wl,--allow-multiple-definition 1>&2
 
 REM Execute clang directly with the filtered arguments
-"%BUILD_PREFIX%\Library\bin\clang.exe" !filtered_args! --target=x86_64-w64-mingw32 -fuse-ld=lld -rtlib=compiler-rt
+"%BUILD_PREFIX%\Library\bin\clang.exe" !filtered_args! --target=x86_64-w64-mingw32 -fuse-ld=lld -rtlib=compiler-rt -Wl,--allow-multiple-definition -lclang_rt.builtins-x86_64
 
 set exit_code=%ERRORLEVEL%
 echo [WRAPPER] Clang exit code: %exit_code% 1>&2
