@@ -12,20 +12,6 @@ export LIBRARY_PATH="${_BUILD_PREFIX}/Library/lib${LIBRARY_PATH:+:}${LIBRARY_PAT
 export TMP="$(cygpath -w "${TEMP}")"
 export TMPDIR="$(cygpath -w "${TEMP}")"
 
-# # Create .lib versions of required libraries
-# mkdir -p "${_BUILD_PREFIX}/Library/lib/ghc-libs"
-# for lib in mingw32 mingwex m pthread clang_rt.builtins; do
-#   # Find the corresponding .a file
-#   LIB_A=$(find "${_BUILD_PREFIX}" -name "lib${lib}.a" | head -1)
-#
-#   if [ -n "$LIB_A" ]; then
-#     # Create a .lib symlink
-#     cp "$LIB_A" "${_BUILD_PREFIX}/Library/lib/ghc-libs/${lib}.lib"
-#   else
-#     echo "Warning: Could not find lib${lib}.a"
-#   fi
-# done
-
 LIBCLANG_RT_PATH=$(find "${_BUILD_PREFIX}/Library" -name "*clang_rt.builtins*" | head -1)
 if [[ -z "${LIBCLANG_RT_PATH}" ]]; then
   echo "Warning: Could not find libclang_rt.builtins"
@@ -41,8 +27,8 @@ fi
 find "${_BUILD_PREFIX}" -name "*clang_rt.builtins*"
 
 # Define the wrapper script for MSVC
-CLANG_WRAPPER="${BUILD_PREFIX}\\Library\\bin\\clang-mingw-wrapper.bat"
-cp "${RECIPE_DIR}/building/clang-mingw-wrapper.bat" "${_BUILD_PREFIX}/Library/bin/"
+CLANG_WRAPPER="${BUILD_PREFIX}\\Library\\bin\\clang-mingw-wrapper.ps1"
+cp "${RECIPE_DIR}/building/clang-mingw-wrapper.ps1" "${_BUILD_PREFIX}/Library/bin/"
 
 # Make sure we use conda-forge clang (ghc bootstrap has a clang.exe)
 CLANG=$(find "${_BUILD_PREFIX}" -name clang.exe | head -1)
