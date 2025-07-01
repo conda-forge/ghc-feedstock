@@ -16,16 +16,30 @@ def find_library_path(lib_name, search_dirs):
         f"lib{lib_name}.dll.a", # GCC-style import lib
         f"{lib_name}.dll.lib",  # MSVC-style import lib
     ]
-
+    
     for directory in search_dirs:
         if not os.path.exists(directory):
             continue
-
+        
         for pattern in patterns:
             path = os.path.join(directory, pattern)
             if os.path.exists(path):
+                print(f"[WRAPPER] Found library '{lib_name}' at {path}", file=sys.stderr)
                 return path
-
+    
+    # If not found, try recursive search in BUILD_PREFIX
+    build_prefix = os.environ.get('BUILD_PREFIX', '')
+    if build_prefix and os.path.exists(build_prefix):
+        for root, dirs, files in os.walk(build_prefix):
+            for pattern in patterns:
+                if pattern in files:
+                    path = os.path.join(root, pattern)
+                    print(f"[WRAPPER] Found library '{lib_name}' at {path} through recursive search", file=sys.stderr)
+                    # Add this directory to search paths for future searches
+                    search_dirs.append(root)
+                    return path
+    
+    print(f"[WRAPPER] Could not find library '{lib_name}' in any search paths", file=sys.stderr)
     return None
 
 
@@ -36,12 +50,16 @@ filtered_args = []
 build_prefix = os.environ.get('BUILD_PREFIX', '')
 
 # Prepare search paths for libraries
-# Use forward slashes for consistency
+# Add more potential library locations
 lib_search_paths = [
-    os.path.join(build_prefix, 'Library', 'mingw-w64', 'lib').replace('\\', '/'),
-    os.path.join(build_prefix, 'Library', 'lib').replace('\\', '/'),
-    os.path.join(build_prefix, 'lib').replace('\\', '/')
+    os.path.join(build_prefix, 'Library', 'mingw-w64', 'lib'),
+    os.path.join(build_prefix, 'Library', 'mingw-w64', 'x86_64-w64-mingw32', 'lib'),
+    os.path.join(build_prefix, 'Library', 'lib'),
+    os.path.join(build_prefix, 'lib'),
+    os.path.join(build_prefix, 'Library', 'usr', 'lib'),
+    os.path.join(build_prefix, 'mingw-w64', 'lib'),  # Additional potential location
 ]
+
 print(f"[WRAPPER] Library search paths: {lib_search_paths}", file=sys.stderr)
 
 # Process all arguments
@@ -61,32 +79,18 @@ for arg in sys.argv[1:]:
                 content = in_file.read()
                 l_path_matches = re.findall(r'-L([^\s]+)', content)
                 for path in l_path_matches:
+                    path = path.replace('\\\\', '\\')  # Fix double backslashes in paths
                     if os.path.exists(path) and path not in lib_search_paths and 'bootstrap-ghc' not in path:
-                        lib_search_paths.append(path.replace('\\', '/'))
+                        lib_search_paths.append(path)
 
                 # Reset file pointer to beginning
                 in_file.seek(0)
 
-                # Find all -l flags to resolve their paths
-                lib_flags = re.findall(r'-l([^\s]+)', content)
-                lib_paths = {}  # Store resolved paths
-
-                # Find paths for all libraries
-                for lib in lib_flags:
-                    if lib == 'clang_rt.builtins-x86_64':  # Skip clang runtime, we'll handle it specially
-                        continue
-
-                    lib_path = find_library_path(lib, lib_search_paths)
-                    if lib_path:
-                        print(f"[WRAPPER] Found library '{lib}' at {lib_path}", file=sys.stderr)
-                        lib_paths[lib] = lib_path
-                    else:
-                        print(f"[WRAPPER] Could not find library '{lib}' in search paths", file=sys.stderr)
-
-                # Reset file pointer to beginning
-                in_file.seek(0)
+                # Track libraries we've already processed to avoid duplicates
+                processed_libs = set()
 
                 # Process the response file content
+                filtered_lines = []
                 for line in in_file:
                     line = line.strip()
 
@@ -96,16 +100,25 @@ for arg in sys.argv[1:]:
                         print(f"[WRAPPER] Skipping line from response file: {line}", file=sys.stderr)
                         continue
 
-                    # Replace -l flags with actual file paths when we found them
+                    # Handle library references to avoid duplicates
                     if line.startswith('-l'):
-                        lib = line[2:]
-                        if lib in lib_paths:
-                            # Replace with the actual library path
-                            temp_file.write(f"{lib_paths[lib]}\n")
+                        lib_name = line[2:]
+                        if lib_name in processed_libs:
+                            print(f"[WRAPPER] Skipping duplicate library reference: {line}", file=sys.stderr)
                             continue
 
+                        processed_libs.add(lib_name)
+
+                        # For specific problematic libraries, try to find them directly
+                        if lib_name in ['mingw32', 'mingwex', 'm', 'pthread']:
+                            if lib_path := find_library_path(
+                                lib_name, lib_search_paths
+                            ):
+                                filtered_lines.append(lib_path)
+                                continue
+
                     # Keep all other lines
-                    temp_file.write(f"{line}\n")
+                    filtered_lines.append(line)
 
                 # Add the path to clang_rt.builtins-x86_64.lib with dynamic version detection
                 clang_lib_base = os.path.join(build_prefix, 'Lib', 'clang')
@@ -117,23 +130,29 @@ for arg in sys.argv[1:]:
                             if os.path.isdir(os.path.join(clang_lib_base, d))
                         ]:
                             latest_version = sorted(version_dirs, key=lambda v: 
-                                                  [int(x) if x.isdigit() else 0 for x in v.split('.')])[-1]
-                            clang_rt_path = os.path.join(build_prefix, 'Lib', 'clang', latest_version, 'lib', 'windows')
+                                                   [int(x) if x.isdigit() else 0 for x in v.split('.')])[-1]
+                            clang_rt_path = os.path.join(clang_lib_base, latest_version, 'lib', 'windows')
                             print(f"[WRAPPER] Using clang runtime from: {clang_rt_path}", file=sys.stderr)
                             if os.path.exists(clang_rt_path):
-                                # Add path to search paths - use Windows backslash format for paths in response file
-                                lib_search_paths.append(clang_rt_path)
-                                temp_file.write(f"-L{clang_rt_path}\n")
-                                temp_file.write("-lclang_rt.builtins-x86_64\n")
+                                # Add path to search paths
+                                if clang_rt_path not in lib_search_paths:
+                                    lib_search_paths.append(clang_rt_path)
 
-                                # Only add the explicit lib path if we're sure it exists
-                                rt_lib_path = os.path.join(clang_rt_path, "clang_rt.builtins-x86_64.lib")
-                                if os.path.exists(rt_lib_path):
-                                    # Don't add the explicit path to avoid the path parsing issue
-                                    # Just rely on -L and -l flags instead
-                                    pass
+                                # Add -L path if not already present
+                                l_path_line = f"-L{clang_rt_path}"
+                                if l_path_line not in filtered_lines:
+                                    filtered_lines.append(l_path_line)
+
+                                # Add clang runtime library if not already present
+                                if "clang_rt.builtins-x86_64" not in processed_libs:
+                                    filtered_lines.append("-lclang_rt.builtins-x86_64")
+                                    processed_libs.add("clang_rt.builtins-x86_64")
                     except (OSError, IndexError) as e:
                         print(f"[WRAPPER] Error finding clang runtime: {e}", file=sys.stderr)
+
+                # Write the filtered lines to the temporary response file
+                for line in filtered_lines:
+                    temp_file.write(f"{line}\n")
 
             # Debug: Print content of filtered response file
             print(f"[WRAPPER] Content of filtered response file {temp_resp}:", file=sys.stderr)
@@ -159,13 +178,12 @@ for arg in sys.argv[1:]:
 
 # Add conda mingw paths
 print("[WRAPPER] Adding conda mingw paths", file=sys.stderr)
-filtered_args.extend([
-    f"-I{os.path.join(build_prefix, 'Library', 'mingw-w64', 'include')}".replace('\\', '/'),
-    f"-L{os.path.join(build_prefix, 'Library', 'mingw-w64', 'lib')}".replace('\\', '/')
-])
+mingw_include = os.path.join(build_prefix, 'Library', 'mingw-w64', 'include')
+mingw_lib = os.path.join(build_prefix, 'Library', 'mingw-w64', 'lib')
+filtered_args.extend([f"-I{mingw_include}", f"-L{mingw_lib}"])
 
 # Prepare final command
-clang_exe = os.path.join(build_prefix, 'Library', 'bin', 'clang.exe').replace('\\', '/')
+clang_exe = os.path.join(build_prefix, 'Library', 'bin', 'clang.exe')
 final_cmd = [clang_exe] + filtered_args
 
 print(f"[WRAPPER] Final command: {' '.join(final_cmd)}", file=sys.stderr)
