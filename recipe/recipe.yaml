@@ -108,7 +108,7 @@ requirements:
   run:
     - ${{ compiler('c') }}
     - ${{ compiler('cxx') }}
-    - if: aarch64
+    - if: linux
       then: ${{ stdlib('c') }}
     - gmp
     - libffi
