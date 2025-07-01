@@ -111,6 +111,11 @@ for arg in sys.argv[1:]:
                         print(f"[WRAPPER] Skipping line from response file: {line}", file=sys.stderr)
                         continue
 
+                    # Skip linking with the MSVC runtime library since we'll use MinGW libraries
+                    if line.endswith('libcmt.lib') or 'libcmt.lib' in line:
+                        print(f"[WRAPPER] Skipping MSVC runtime library: {line}", file=sys.stderr)
+                        continue
+
                     # Handle library references to avoid duplicates
                     if line.startswith('-l'):
                         lib_name = line[2:]
