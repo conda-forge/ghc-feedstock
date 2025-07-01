@@ -4,10 +4,14 @@ setlocal
 set PYTHONNOUSERSITE=1
 set PYTHONPATH=
 set VIRTUAL_ENV=
+set PYTHONSTARTUP=
+set PYTHONHOME=
 
 REM Try multiple ways to find Python
-if defined PYTHON (
-    "%PYTHON%" -E "%~dp0clang-mingw-wrapper.py" %*
+if defined CONDA_PYTHON_EXE (
+    "%CONDA_PYTHON_EXE%" -Es "%~dp0clang-mingw-wrapper.py" %*
+) else if defined PYTHON (
+    "%PYTHON%" -Es "%~dp0clang-mingw-wrapper.py" %*
 ) else (
     echo Trying system Python...
     where python
