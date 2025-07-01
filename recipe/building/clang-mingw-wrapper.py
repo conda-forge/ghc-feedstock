@@ -213,8 +213,10 @@ if os.path.exists(mingw_lib.replace('\\\\', '\\')):
 # Prepare final command with escaped backslashes for file paths but not for the exe itself
 clang_exe = os.path.join(build_prefix, 'Library', 'bin', 'clang.exe')
 final_cmd = [clang_exe] + filtered_args + [
-    # Add a flag to handle duplicate symbols by telling the linker to prioritize first definition
-    '-Wl,--allow-multiple-definition'
+    # Add flags to handle duplicate symbols using the correct lld-link syntax
+    # The /FORCE:MULTIPLE option tells the linker to allow multiple definitions of symbols
+    '-Wl,-ignore:4006',  # Ignore warning LNK4006: symbol already defined
+    '-Wl,/FORCE:MULTIPLE'  # Force the linker to accept multiple definitions
 ]
 
 print(f"[WRAPPER] Final command: {' '.join(final_cmd)}", file=sys.stderr)
