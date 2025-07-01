@@ -124,6 +124,7 @@ for arg in sys.argv[1:]:
                         if lib_name in ['mingw32', 'mingwex', 'm', 'pthread']:
                             lib_path = find_library_path(lib_name, lib_search_paths)
                             if lib_path:
+                                # Use non-escaped path here - the library path from find_library_path already has escaped backslashes
                                 temp_file.write(f"{lib_path}\n")
                                 continue
 
@@ -142,7 +143,8 @@ for arg in sys.argv[1:]:
                         if _build_prefix and _build_prefix in path:
                             path = path.replace(_build_prefix, build_prefix_escaped)
                         # Make sure backslashes are escaped
-                        path = path.replace('\\', '\\\\')
+                        if '\\\\' not in path:  # Only escape once
+                            path = path.replace('\\', '\\\\')
                         line = f"{prefix}{path}"
 
                     # Handle _BUILD_PREFIX if it exists in the line
@@ -208,9 +210,12 @@ if os.path.exists(mingw_include.replace('\\\\', '\\')):
 if os.path.exists(mingw_lib.replace('\\\\', '\\')):
     filtered_args.append(f"-L{mingw_lib}")
 
-# Prepare final command with escaped backslashes
-clang_exe = os.path.join(build_prefix, 'Library', 'bin', 'clang.exe').replace('\\', '\\\\')
-final_cmd = [clang_exe.replace('\\\\', '\\')] + filtered_args
+# Prepare final command with escaped backslashes for file paths but not for the exe itself
+clang_exe = os.path.join(build_prefix, 'Library', 'bin', 'clang.exe')
+final_cmd = [clang_exe] + filtered_args + [
+    # Add a flag to handle duplicate symbols by telling the linker to prioritize first definition
+    '-Wl,--allow-multiple-definition'
+]
 
 print(f"[WRAPPER] Final command: {' '.join(final_cmd)}", file=sys.stderr)
 
