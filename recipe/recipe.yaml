@@ -112,6 +112,7 @@ requirements:
       then: ${{ stdlib('c') }}
     - gmp
     - libffi
+    - libiconv
     - llvm-tools ${{ c_compiler_version }}.*
     - if: unix
       then:

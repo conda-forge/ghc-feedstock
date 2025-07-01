@@ -38,3 +38,7 @@ CONFIGURE_ARGS=(
 run_and_log "ghc-configure" bash configure "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}"
 _hadrian_build=("${SRC_DIR}"/hadrian/build "-j${CPU_COUNT}")
 run_and_log "install" "${_hadrian_build[@]}" install --prefix="${PREFIX}" --flavour=release --docs=no-sphinx-pdfs
+
+_lib_path='x86_64-osx-ghc-'"${PKG_VERSION}"'-inplace'
+perl -pi -e "s#(link flags\", \"--target=x86_64-apple-darwin)#\$1 -L\\\$topdir/${_lib_path} -Wl,-rpath=\\\$topdir/${_lib_path} -Wl,-rpath-link=\\\$topdir/${_lib_path}#g" "${PREFIX}"/lib/ghc-"${PKG_VERSION}"/lib/settings
+perl -pi -e "s#(compiler flags\", \"--target=x86_64-apple-darwin)#\$1 -L\\\$topdir/${_lib_path} -Wl,-rpath=\\\$topdir/${_lib_path} -Wl,-rpath-link=\\\$topdir/${_lib_path}#g" "${PREFIX}"/lib/ghc-"${PKG_VERSION}"/lib/settings
