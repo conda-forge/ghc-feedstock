@@ -5,7 +5,7 @@ _log_index=0
 
 source "${RECIPE_DIR}"/building/common.sh
 
-export PYTHON=python
+export PYTHON=$(find "${BUILD_PREFIX}" -name python.exe | head -1)
 export PATH="${_SRC_DIR}/bootstrap-ghc/bin:${_SRC_DIR}/bootstrap-cabal${PATH:+:}${PATH:-}"
 export LIBRARY_PATH="${_BUILD_PREFIX}/Library/lib${LIBRARY_PATH:+:}${LIBRARY_PATH:-}"
 
