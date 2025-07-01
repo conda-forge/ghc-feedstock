@@ -108,14 +108,13 @@ requirements:
   run:
     - ${{ compiler('c') }}
     - ${{ compiler('cxx') }}
-    - if: unix
-      then: ${{ stdlib('c') }}
     - gmp
     - libffi
     - libiconv
     - llvm-tools ${{ c_compiler_version }}.*
     - if: unix
       then:
+        - ${{ stdlib('c') }}
         - ncurses
 
 tests:
