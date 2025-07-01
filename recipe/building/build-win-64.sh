@@ -27,8 +27,9 @@ fi
 find "${_BUILD_PREFIX}" -name "*clang_rt.builtins*"
 
 # Define the wrapper script for MSVC
-CLANG_WRAPPER="${BUILD_PREFIX}\\Library\\bin\\clang-mingw-wrapper.bat"
-cp "${RECIPE_DIR}/building/clang-mingw-wrapper.bat" "${_BUILD_PREFIX}/Library/bin/"
+CLANG_WRAPPER="${BUILD_PREFIX}\\Library\\bin\\clang-mingw-wrapper.py"
+cp "${RECIPE_DIR}/building/clang-mingw-wrapper.py" "${_BUILD_PREFIX}/Library/bin/"
+chmod +x "${_BUILD_PREFIX}/Library/bin/clang-mingw-wrapper.py"
 # cp "${RECIPE_DIR}/building/clang-mingw-wrapper.ps1" "${_BUILD_PREFIX}/Library/bin/"
 
 # Make sure we use conda-forge clang (ghc bootstrap has a clang.exe)
