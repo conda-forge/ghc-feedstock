@@ -56,7 +56,7 @@ for arg in sys.argv[1:]:
         print(f"[WRAPPER] Creating filtered response file: {temp_resp}", file=sys.stderr)
 
         if os.path.exists(resp_file):
-            with open(resp_file, 'r') as in_file, open(temp_resp, 'w') as temp_file:
+            with (open(resp_file, 'r') as in_file, open(temp_resp, 'w') as temp_file):
                 # Extract all -L paths to add to our search paths
                 content = in_file.read()
                 l_path_matches = re.findall(r'-L([^\s]+)', content)
@@ -111,23 +111,27 @@ for arg in sys.argv[1:]:
                 clang_lib_base = os.path.join(build_prefix, 'Lib', 'clang')
                 if os.path.exists(clang_lib_base):
                     try:
-                        version_dirs = [d for d in os.listdir(clang_lib_base)
-                                      if os.path.isdir(os.path.join(clang_lib_base, d))]
-                        if version_dirs:
-                            latest_version = sorted(version_dirs, key=lambda v:
+                        if version_dirs := [
+                            d
+                            for d in os.listdir(clang_lib_base)
+                            if os.path.isdir(os.path.join(clang_lib_base, d))
+                        ]:
+                            latest_version = sorted(version_dirs, key=lambda v: 
                                                   [int(x) if x.isdigit() else 0 for x in v.split('.')])[-1]
-                            clang_rt_path = os.path.join(clang_lib_base, latest_version, 'lib', 'windows')
+                            clang_rt_path = os.path.join(build_prefix, 'Lib', 'clang', latest_version, 'lib', 'windows')
                             print(f"[WRAPPER] Using clang runtime from: {clang_rt_path}", file=sys.stderr)
                             if os.path.exists(clang_rt_path):
-                                # Add path to search paths
-                                lib_search_paths.append(clang_rt_path.replace('\\', '/'))
+                                # Add path to search paths - use Windows backslash format for paths in response file
+                                lib_search_paths.append(clang_rt_path)
                                 temp_file.write(f"-L{clang_rt_path}\n")
                                 temp_file.write("-lclang_rt.builtins-x86_64\n")
 
-                                # Also try direct file path as fallback
+                                # Only add the explicit lib path if we're sure it exists
                                 rt_lib_path = os.path.join(clang_rt_path, "clang_rt.builtins-x86_64.lib")
                                 if os.path.exists(rt_lib_path):
-                                    temp_file.write(f"{rt_lib_path}\n")
+                                    # Don't add the explicit path to avoid the path parsing issue
+                                    # Just rely on -L and -l flags instead
+                                    pass
                     except (OSError, IndexError) as e:
                         print(f"[WRAPPER] Error finding clang runtime: {e}", file=sys.stderr)
 
