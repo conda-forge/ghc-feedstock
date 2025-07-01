@@ -108,7 +108,7 @@ requirements:
   run:
     - ${{ compiler('c') }}
     - ${{ compiler('cxx') }}
-    - if: linux
+    - if: unix
       then: ${{ stdlib('c') }}
     - gmp
     - libffi
@@ -147,7 +147,7 @@ tests:
   - script: |
       echo 'main = putStrLn "Hello conda-forge"' > hello.hs
       ghc -v hello.hs
-      ./hello || LD_PRELOAD="${PREFIX}/lib/libiconv.so.2 ${PREFIX}/lib/libgmp.so.10 ${PREFIX}/lib/libffi.so.8 ${PREFIX}/lib/libffi.so.8 ${PREFIX}/lib/libtinfow.so.6 ${PREFIX}/lib/libtinfo.so.6 ${LD_PRELOAD:-}" ./hello
+      ./hello || LD_PRELOAD="${CONDA_PREFIX}/lib/libiconv.so.2 ${CONDA_PREFIX}/lib/libgmp.so.10 ${CONDA_PREFIX}/lib/libffi.so.8 ${CONDA_PREFIX}/lib/libtinfo.so.6 ${LD_PRELOAD:-}" ./hello
 
   # - script:
   #     interpreter: python
