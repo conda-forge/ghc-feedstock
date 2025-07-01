@@ -1,10 +1,21 @@
 @echo off
-REM clang-mingw-wrapper.bat - Uses full Python path from env var
-IF defined PYTHON (
-  "%PYTHON%" "%~dp0clang-mingw-wrapper.py" %*
-) ELSE (
-  echo ERROR: PYTHON environment variable not defined
-  echo Trying system Python as fallback...
-  python "%~dp0clang-mingw-wrapper.py" %*
+REM clang-mingw-wrapper.bat - Disable virtualenv detection
+setlocal
+set PYTHONNOUSERSITE=1
+set PYTHONPATH=
+set VIRTUAL_ENV=
+
+REM Try multiple ways to find Python
+if defined PYTHON (
+    "%PYTHON%" -E "%~dp0clang-mingw-wrapper.py" %*
+) else (
+    echo Trying system Python...
+    where python
+    if %ERRORLEVEL% EQU 0 (
+        python -E "%~dp0clang-mingw-wrapper.py" %*
+    ) else (
+        echo ERROR: Python not found. Please add it to PATH or set PYTHON env var.
+        exit /b 1
+    )
 )
 exit /b %ERRORLEVEL%
