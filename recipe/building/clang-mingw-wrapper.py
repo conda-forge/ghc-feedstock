@@ -1,10 +1,8 @@
-#!/usr/bin/env python
+# clang-mingw-wrapper.py
 import sys
 import os
-import re
 import tempfile
 import subprocess
-import shlex
 
 # Debug output
 print("[WRAPPER] Starting clang-mingw-wrapper", file=sys.stderr)
@@ -29,7 +27,6 @@ for arg in sys.argv[1:]:
                     line = line.strip()
                     skip_line = False
 
-                    # Only filter -I and -L flags containing mingw/bootstrap
                     if (line.startswith('-I') or line.startswith('-L')) and \
                        ('mingw' in line or 'bootstrap' in line):
                         skip_line = True
@@ -45,7 +42,6 @@ for arg in sys.argv[1:]:
     else:
         # Handle normal arguments
         skip = False
-
         if (arg.startswith('-I') or arg.startswith('-L')) and \
            ('mingw' in arg or 'bootstrap' in arg):
             skip = True
@@ -59,7 +55,6 @@ print("[WRAPPER] Adding conda mingw paths", file=sys.stderr)
 build_prefix = os.environ.get('BUILD_PREFIX', '')
 filtered_args.append(f"-I{build_prefix}\\Library\\mingw-w64\\include")
 filtered_args.append(f"-L{build_prefix}\\Library\\mingw-w64\\lib")
-filtered_args.append(f"-L{build_prefix}\\Library\\mingw-w64\\lib")
 
 # Prepare final command
 clang_exe = f"{build_prefix}\\Library\\bin\\clang.exe"
@@ -70,8 +65,7 @@ final_cmd = [clang_exe] + filtered_args + [
     '-lclang_rt.builtins-x86_64'
 ]
 
-# Print the final command
-print(f"[WRAPPER] Final command: {clang_exe} {' '.join(filtered_args)} --target=x86_64-w64-mingw32 -fuse-ld=lld -rtlib=compiler-rt -lclang_rt.builtins-x86_64", file=sys.stderr)
+print(f"[WRAPPER] Final command: {' '.join(final_cmd)}", file=sys.stderr)
 
 # Execute clang with the filtered arguments
 exit_code = subprocess.call(final_cmd)
