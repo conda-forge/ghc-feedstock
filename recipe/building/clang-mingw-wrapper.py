@@ -43,6 +43,22 @@ def find_library_path(lib_name, search_dirs):
     return None
 
 
+def expand_env_vars(path):
+    """Expand environment variables in a path string."""
+    # Handle %VAR% format
+    if '%' in path:
+        for env_var, value in os.environ.items():
+            placeholder = f"%{env_var}%"
+            if placeholder in path:
+                path = path.replace(placeholder, value)
+
+    # Handle $VAR format
+    import re
+    path = re.sub(r'\$([a-zA-Z0-9_]+)', lambda m: os.environ.get(m.group(1), m.group(0)), path)
+
+    return path
+
+
 print("[WRAPPER] Starting clang-mingw-wrapper", file=sys.stderr)
 print("[WRAPPER] Arguments:", sys.argv[1:], file=sys.stderr)
 
@@ -80,6 +96,7 @@ for arg in sys.argv[1:]:
                 l_path_matches = re.findall(r'-L([^\s]+)', content)
                 for path in l_path_matches:
                     path = path.replace('\\\\', '\\')  # Fix double backslashes in paths
+                    path = expand_env_vars(path).replace('\\', '\\\\')  # Expand environment variables
                     if os.path.exists(path) and path not in lib_search_paths and 'bootstrap-ghc' not in path:
                         lib_search_paths.append(path)
 
@@ -114,8 +131,27 @@ for arg in sys.argv[1:]:
                             if lib_path := find_library_path(
                                 lib_name, lib_search_paths
                             ):
-                                filtered_lines.append(lib_path)
+                                # Use quotes around the path to handle spaces
+                                filtered_lines.append(f'"{lib_path}"')
                                 continue
+
+                    # Handle paths that might contain environment variables
+                    if line.startswith('-I') or line.startswith('-L'):
+                        prefix = line[:2]
+                        path = line[2:]
+                        path = expand_env_vars(path)
+                        filtered_lines.append(f"{prefix}{path}")
+                        continue
+
+                    # Handle direct file paths with environment variables
+                    if '%' in line or '$' in line:
+                        expanded_line = expand_env_vars(line)
+                        # Use quotes to handle spaces in paths
+                        if ' ' in expanded_line:
+                            filtered_lines.append(f'"{expanded_line}"')
+                        else:
+                            filtered_lines.append(expanded_line)
+                        continue
 
                     # Keep all other lines
                     filtered_lines.append(line)
@@ -136,12 +172,12 @@ for arg in sys.argv[1:]:
                             if os.path.exists(clang_rt_path):
                                 # Add path to search paths
                                 if clang_rt_path not in lib_search_paths:
-                                    lib_search_paths.append(clang_rt_path)
+                                    lib_search_paths.append(clang_rt_path.replace('\\', '\\\\'))
 
                                 # Add -L path if not already present
                                 l_path_line = f"-L{clang_rt_path}"
                                 if l_path_line not in filtered_lines:
-                                    filtered_lines.append(l_path_line)
+                                    filtered_lines.append(l_path_line.replace('\\', '\\\\'))
 
                                 # Add clang runtime library if not already present
                                 if "clang_rt.builtins-x86_64" not in processed_libs:
@@ -175,12 +211,6 @@ for arg in sys.argv[1:]:
 
         if not skip:
             filtered_args.append(arg)
-
-# Add conda mingw paths
-print("[WRAPPER] Adding conda mingw paths", file=sys.stderr)
-mingw_include = os.path.join(build_prefix, 'Library', 'mingw-w64', 'include')
-mingw_lib = os.path.join(build_prefix, 'Library', 'mingw-w64', 'lib')
-filtered_args.extend([f"-I{mingw_include}", f"-L{mingw_lib}"])
 
 # Prepare final command
 clang_exe = os.path.join(build_prefix, 'Library', 'bin', 'clang.exe')
