@@ -64,3 +64,7 @@ export LD_PRELOAD="${PREFIX}/lib/libiconv.so.2 ${PREFIX}/lib/libgmp.so.10 ${PREF
 # run_and_log "stage2_lib" "${_hadrian_build[@]}" stage2:lib:ghc --flavour=release --freeze1 --freeze2 --docs=none --progress-info=none
 
 run_and_log "install" "${_hadrian_build[@]}" install --prefix="${PREFIX}" --flavour=release --freeze1 --freeze2 --docs=none
+
+_lib_path='x86_64-linux-ghc-'"${PKG_VERSION}"'-inplace'
+perl -pi -e "s#(link flags\", \"--target=x86_64-conda-linux)#\$1 -L\\\$topdir/${_lib_path} -Wl,-rpath=\\\$topdir/${_lib_path} -Wl,-rpath-link=\\\$topdir/${_lib_path}#g" "${PREFIX}"/lib/ghc-"${PKG_VERSION}"/lib/settings
+perl -pi -e "s#(compiler flags\", \"--target=x86_64-conda-linux)#\$1 -L\\\$topdir/${_lib_path} -Wl,-rpath=\\\$topdir/${_lib_path} -Wl,-rpath-link=\\\$topdir/${_lib_path}#g" "${PREFIX}"/lib/ghc-"${PKG_VERSION}"/lib/settings
