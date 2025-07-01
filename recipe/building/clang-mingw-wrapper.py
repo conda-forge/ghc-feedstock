@@ -1,10 +1,8 @@
 # clang-mingw-wrapper.py
-import sys
 import os
-import tempfile
 import subprocess
-import glob
-import re
+import sys
+import tempfile
 
 
 def find_library_path(lib_name, search_dirs):
@@ -24,59 +22,67 @@ def find_library_path(lib_name, search_dirs):
         for pattern in patterns:
             path = os.path.join(directory, pattern)
             if os.path.exists(path):
-                print(f"[WRAPPER] Found library '{lib_name}' at {path}", file=sys.stderr)
-                return path
-    
-    # If not found, try recursive search in BUILD_PREFIX
-    build_prefix = os.environ.get('BUILD_PREFIX', '')
-    if build_prefix and os.path.exists(build_prefix):
-        for root, dirs, files in os.walk(build_prefix):
-            for pattern in patterns:
-                if pattern in files:
-                    path = os.path.join(root, pattern)
-                    print(f"[WRAPPER] Found library '{lib_name}' at {path} through recursive search", file=sys.stderr)
-                    # Add this directory to search paths for future searches
-                    search_dirs.append(root)
-                    return path
+                # Convert backslashes to double backslashes for clang
+                path_escaped = path.replace('\\', '\\\\')
+                print(f"[WRAPPER] Found library '{lib_name}' at {path_escaped}", file=sys.stderr)
+                return path_escaped
     
     print(f"[WRAPPER] Could not find library '{lib_name}' in any search paths", file=sys.stderr)
     return None
 
 
-def expand_env_vars(path):
-    """Expand environment variables in a path string."""
-    # Handle %VAR% format
-    if '%' in path:
-        for env_var, value in os.environ.items():
-            placeholder = f"%{env_var}%"
-            if placeholder in path:
-                path = path.replace(placeholder, value)
-
-    # Handle $VAR format
-    import re
-    path = re.sub(r'\$([a-zA-Z0-9_]+)', lambda m: os.environ.get(m.group(1), m.group(0)), path)
-
-    return path
+def unix_to_win_path(unix_path):
+    """Convert a Unix-style path to Windows format."""
+    if unix_path.startswith('/'):
+        # Handle drive letter, e.g. /c/path -> c:\path
+        if len(unix_path) > 2 and unix_path[2] == '/':
+            drive = unix_path[1].lower()
+            return f"{drive}:{unix_path[2:]}".replace('/', '\\')
+    
+    # Default case: just replace slashes
+    return unix_path.replace('/', '\\')
 
 
 print("[WRAPPER] Starting clang-mingw-wrapper", file=sys.stderr)
 print("[WRAPPER] Arguments:", sys.argv[1:], file=sys.stderr)
 
-filtered_args = []
-build_prefix = os.environ.get('BUILD_PREFIX', '')
+# Get build prefix from environment variables
+_build_prefix = os.environ.get('_BUILD_PREFIX', '')
+build_prefix_raw = os.environ.get('BUILD_PREFIX', '')
 
-# Prepare search paths for libraries
-# Add more potential library locations
+# If _BUILD_PREFIX is available, convert from Unix to Windows path format
+if _build_prefix:
+    # Convert Unix path to Windows with single backslashes for os.path operations
+    build_prefix = unix_to_win_path(_build_prefix)
+    # Create escaped version with double backslashes for string replacement in response file
+    build_prefix_escaped = build_prefix.replace('\\', '\\\\')
+    print(f"[WRAPPER] Using _BUILD_PREFIX (converted): {build_prefix}", file=sys.stderr)
+    print(f"[WRAPPER] Escaped for response file: {build_prefix_escaped}", file=sys.stderr)
+elif build_prefix_raw:
+    build_prefix = build_prefix_raw
+    build_prefix_escaped = build_prefix.replace('\\', '\\\\')
+    print(f"[WRAPPER] Using BUILD_PREFIX: {build_prefix}", file=sys.stderr)
+else:
+    print("[WRAPPER] Error: No build prefix environment variable found", file=sys.stderr)
+    sys.exit(1)
+
+# Library search paths - single backslashes for os.path operations
 lib_search_paths = [
     os.path.join(build_prefix, 'Library', 'mingw-w64', 'lib'),
-    os.path.join(build_prefix, 'Library', 'mingw-w64', 'x86_64-w64-mingw32', 'lib'),
+    os.path.join(build_prefix, 'Library', 'x86_64-w64-mingw32', 'lib'),
+    os.path.join(build_prefix, 'Library', 'x86_64-w64-mingw32', 'sysroot', 'usr', 'lib'),
     os.path.join(build_prefix, 'Library', 'lib'),
     os.path.join(build_prefix, 'lib'),
-    os.path.join(build_prefix, 'Library', 'usr', 'lib'),
-    os.path.join(build_prefix, 'mingw-w64', 'lib'),  # Additional potential location
 ]
 
-print(f"[WRAPPER] Library search paths: {lib_search_paths}", file=sys.stderr)
+print(
+    f"[WRAPPER] Library search paths: {list(lib_search_paths)}".replace(
+        '\\', '\\\\'
+    ),
+    file=sys.stderr,
+)
+
+filtered_args = []
 
 # Process all arguments
 for arg in sys.argv[1:]:
@@ -87,33 +93,21 @@ for arg in sys.argv[1:]:
 
         # Create a temporary filtered response file
         fd, temp_resp = tempfile.mkstemp(prefix='filtered_rsp_', suffix='.txt')
+        os.close(fd)
         print(f"[WRAPPER] Creating filtered response file: {temp_resp}", file=sys.stderr)
 
         if os.path.exists(resp_file):
-            with (open(resp_file, 'r') as in_file, open(temp_resp, 'w') as temp_file):
-                # Extract all -L paths to add to our search paths
-                content = in_file.read()
-                l_path_matches = re.findall(r'-L([^\s]+)', content)
-                for path in l_path_matches:
-                    path = path.replace('\\\\', '\\')  # Fix double backslashes in paths
-                    path = expand_env_vars(path).replace('\\', '\\\\')  # Expand environment variables
-                    if os.path.exists(path) and path not in lib_search_paths and 'bootstrap-ghc' not in path:
-                        lib_search_paths.append(path)
-
-                # Reset file pointer to beginning
-                in_file.seek(0)
-
+            with open(resp_file, 'r') as in_file, open(temp_resp, 'w') as temp_file:
                 # Track libraries we've already processed to avoid duplicates
                 processed_libs = set()
 
                 # Process the response file content
-                filtered_lines = []
                 for line in in_file:
                     line = line.strip()
 
                     # Skip bootstrap-ghc mingw paths
                     if (line.startswith('-I') or line.startswith('-L')) and \
-                       'bootstrap-ghc' in line and '/mingw/' in line:
+                       'bootstrap-ghc' in line and 'mingw' in line:
                         print(f"[WRAPPER] Skipping line from response file: {line}", file=sys.stderr)
                         continue
 
@@ -128,67 +122,55 @@ for arg in sys.argv[1:]:
 
                         # For specific problematic libraries, try to find them directly
                         if lib_name in ['mingw32', 'mingwex', 'm', 'pthread']:
-                            if lib_path := find_library_path(
-                                lib_name, lib_search_paths
-                            ):
-                                # Use quotes around the path to handle spaces
-                                filtered_lines.append(f'"{lib_path}"')
+                            lib_path = find_library_path(lib_name, lib_search_paths)
+                            if lib_path:
+                                temp_file.write(f"{lib_path}\n")
                                 continue
 
-                    # Handle paths that might contain environment variables
+                    # Replace %BUILD_PREFIX% with actual escaped path
+                    if '%BUILD_PREFIX%' in line:
+                        line = line.replace('%BUILD_PREFIX%', build_prefix_escaped)
+
+                    # Handle path prefixes with -I or -L
                     if line.startswith('-I') or line.startswith('-L'):
                         prefix = line[:2]
                         path = line[2:]
-                        path = expand_env_vars(path)
-                        filtered_lines.append(f"{prefix}{path}")
-                        continue
+                        # Replace %BUILD_PREFIX% in the path
+                        if '%BUILD_PREFIX%' in path:
+                            path = path.replace('%BUILD_PREFIX%', build_prefix_escaped)
+                        # Handle _BUILD_PREFIX if present
+                        if _build_prefix and _build_prefix in path:
+                            path = path.replace(_build_prefix, build_prefix_escaped)
+                        # Make sure backslashes are escaped
+                        path = path.replace('\\', '\\\\')
+                        line = f"{prefix}{path}"
 
-                    # Handle direct file paths with environment variables
-                    if '%' in line or '$' in line:
-                        expanded_line = expand_env_vars(line)
-                        # Use quotes to handle spaces in paths
-                        if ' ' in expanded_line:
-                            filtered_lines.append(f'"{expanded_line}"')
-                        else:
-                            filtered_lines.append(expanded_line)
-                        continue
+                    # Handle _BUILD_PREFIX if it exists in the line
+                    if _build_prefix and _build_prefix in line:
+                        line = line.replace(_build_prefix, build_prefix_escaped)
 
-                    # Keep all other lines
-                    filtered_lines.append(line)
+                    # Write processed line
+                    temp_file.write(f"{line}\n")
 
-                # Add the path to clang_rt.builtins-x86_64.lib with dynamic version detection
+                # Add clang runtime library path
                 clang_lib_base = os.path.join(build_prefix, 'Lib', 'clang')
                 if os.path.exists(clang_lib_base):
                     try:
-                        if version_dirs := [
-                            d
-                            for d in os.listdir(clang_lib_base)
-                            if os.path.isdir(os.path.join(clang_lib_base, d))
-                        ]:
-                            latest_version = sorted(version_dirs, key=lambda v: 
-                                                   [int(x) if x.isdigit() else 0 for x in v.split('.')])[-1]
+                        version_dirs = [d for d in os.listdir(clang_lib_base) 
+                                      if os.path.isdir(os.path.join(clang_lib_base, d))]
+                        if version_dirs:
+                            # Use the latest version available
+                            latest_version = sorted(version_dirs)[-1]
                             clang_rt_path = os.path.join(clang_lib_base, latest_version, 'lib', 'windows')
-                            print(f"[WRAPPER] Using clang runtime from: {clang_rt_path}", file=sys.stderr)
                             if os.path.exists(clang_rt_path):
-                                # Add path to search paths
-                                if clang_rt_path not in lib_search_paths:
-                                    lib_search_paths.append(clang_rt_path.replace('\\', '\\\\'))
-
-                                # Add -L path if not already present
-                                l_path_line = f"-L{clang_rt_path}"
-                                if l_path_line not in filtered_lines:
-                                    filtered_lines.append(l_path_line.replace('\\', '\\\\'))
-
-                                # Add clang runtime library if not already present
+                                # Escape backslashes for clang
+                                clang_rt_path_escaped = clang_rt_path.replace('\\', '\\\\')
+                                print(f"[WRAPPER] Adding clang runtime path: {clang_rt_path_escaped}", file=sys.stderr)
+                                temp_file.write(f"-L{clang_rt_path_escaped}\n")
                                 if "clang_rt.builtins-x86_64" not in processed_libs:
-                                    filtered_lines.append("-lclang_rt.builtins-x86_64")
-                                    processed_libs.add("clang_rt.builtins-x86_64")
+                                    temp_file.write("-lclang_rt.builtins-x86_64\n")
                     except (OSError, IndexError) as e:
                         print(f"[WRAPPER] Error finding clang runtime: {e}", file=sys.stderr)
-
-                # Write the filtered lines to the temporary response file
-                for line in filtered_lines:
-                    temp_file.write(f"{line}\n")
 
             # Debug: Print content of filtered response file
             print(f"[WRAPPER] Content of filtered response file {temp_resp}:", file=sys.stderr)
@@ -210,11 +192,25 @@ for arg in sys.argv[1:]:
             print(f"[WRAPPER] Skipping argument: {arg}", file=sys.stderr)
 
         if not skip:
+            # Replace %BUILD_PREFIX% in arguments if present
+            if '%BUILD_PREFIX%' in arg:
+                arg = arg.replace('%BUILD_PREFIX%', build_prefix_escaped)
+            # Replace _BUILD_PREFIX in arguments if present
+            if _build_prefix and _build_prefix in arg:
+                arg = arg.replace(_build_prefix, build_prefix_escaped)
             filtered_args.append(arg)
 
-# Prepare final command
-clang_exe = os.path.join(build_prefix, 'Library', 'bin', 'clang.exe')
-final_cmd = [clang_exe] + filtered_args
+# Add conda mingw paths with escaped backslashes
+mingw_include = os.path.join(build_prefix, 'Library', 'mingw-w64', 'include').replace('\\', '\\\\')
+mingw_lib = os.path.join(build_prefix, 'Library', 'mingw-w64', 'lib').replace('\\', '\\\\')
+if os.path.exists(mingw_include.replace('\\\\', '\\')):
+    filtered_args.append(f"-I{mingw_include}")
+if os.path.exists(mingw_lib.replace('\\\\', '\\')):
+    filtered_args.append(f"-L{mingw_lib}")
+
+# Prepare final command with escaped backslashes
+clang_exe = os.path.join(build_prefix, 'Library', 'bin', 'clang.exe').replace('\\', '\\\\')
+final_cmd = [clang_exe.replace('\\\\', '\\')] + filtered_args
 
 print(f"[WRAPPER] Final command: {' '.join(final_cmd)}", file=sys.stderr)
 
