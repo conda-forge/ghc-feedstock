@@ -100,6 +100,8 @@ for arg in sys.argv[1:]:
             with open(resp_file, 'r') as in_file, open(temp_resp, 'w') as temp_file:
                 # Track libraries we've already processed to avoid duplicates
                 processed_libs = set()
+                # Track if libgcc.a is already present
+                libgcc_added = False
 
                 # Process the response file content
                 for line in in_file:
@@ -115,6 +117,10 @@ for arg in sys.argv[1:]:
                     if line.endswith('libcmt.lib') or 'libcmt.lib' in line:
                         print(f"[WRAPPER] Skipping MSVC runtime library: {line}", file=sys.stderr)
                         continue
+
+                    # Track if libgcc.a is present
+                    if 'libgcc.a' in line:
+                        libgcc_added = True
 
                     # Handle library references to avoid duplicates
                     if line.startswith('-l'):
@@ -158,6 +164,16 @@ for arg in sys.argv[1:]:
 
                     # Write processed line
                     temp_file.write(f"{line}\n")
+
+                # --- Add libgcc.a if not already present ---
+                if not libgcc_added:
+                    # Try to find libgcc.a in the sysroot lib directories
+                    libgcc_path = find_library_path('gcc', lib_search_paths)
+                    if libgcc_path:
+                        print(f"[WRAPPER] Adding libgcc.a: {libgcc_path}", file=sys.stderr)
+                        temp_file.write(f"{libgcc_path}\n")
+                    else:
+                        print("[WRAPPER] Warning: Could not find libgcc.a to add for ___chkstk_ms", file=sys.stderr)
 
                 # Add clang runtime library path
                 clang_lib_base = os.path.join(build_prefix, 'Lib', 'clang')
