@@ -67,13 +67,43 @@ def find_gcc_library(search_dirs):
     # Try static libgcc.a first
     static_gcc = find_library_path('gcc', search_dirs)
     if static_gcc:
+        print(f"[WRAPPER] Found static GCC library: {static_gcc}", file=sys.stderr)
         return static_gcc, False  # Found static library
 
-    # Try import libraries for DLL
-    for lib_name in ['gcc_s', 'gcc_s_seh', 'gcc_s_dw2']:
+    # Try import libraries for DLL - with more variations
+    for lib_name in ['gcc_s_seh', 'gcc_s_dw2', 'gcc_s', 'gcc']:
         import_lib = find_library_path(lib_name, search_dirs)
         if import_lib:
+            print(f"[WRAPPER] Found GCC import library: {import_lib}", file=sys.stderr)
             return import_lib, True  # Found import library
+
+    # If we can't find the import library directly, try to find it based on the DLL path
+    gcc_dll = find_gcc_dll(search_dirs)
+    if gcc_dll:
+        dll_dir = os.path.dirname(gcc_dll)
+        dll_basename = os.path.basename(gcc_dll)
+        # Extract the base name without extension
+        base_name = os.path.splitext(dll_basename)[0]
+        if base_name.startswith('lib'):
+            base_name = base_name[3:]  # Remove 'lib' prefix
+        # Remove version suffix if present (e.g., _seh-1)
+        base_name = base_name.split('-')[0]
+
+        # Try to find the import library in the same directory or lib directory
+        potential_import_names = [
+            f"lib{base_name}.a",
+            f"lib{base_name}.dll.a",
+            f"{base_name}.lib"
+        ]
+
+        for name in potential_import_names:
+            for dir_path in [dll_dir, os.path.join(os.path.dirname(dll_dir), 'lib')]:
+                if os.path.exists(dir_path):
+                    lib_path = os.path.join(dir_path, name)
+                    if os.path.exists(lib_path):
+                        lib_path_escaped = lib_path.replace('\\', '\\\\')
+                        print(f"[WRAPPER] Found GCC import library based on DLL: {lib_path_escaped}", file=sys.stderr)
+                        return lib_path_escaped, True
 
     return None, False
 
@@ -133,6 +163,7 @@ lib_search_paths = [
     os.path.join(build_prefix, 'mingw64', 'lib'),
     os.path.join(build_prefix, 'Library', 'mingw-w64', 'lib'),
     os.path.join(build_prefix, 'Library', 'x86_64-w64-mingw32', 'lib'),
+    os.path.join(build_prefix, 'Library', 'bin'),  # Sometimes import libs are next to DLLs
 ]
 
 print(
@@ -157,7 +188,7 @@ if os.path.exists(mingw_bin):
 print(f"[WRAPPER] DLL search paths: {list(bin_search_paths)}", file=sys.stderr)
 
 # Find GCC libraries (both static/import lib and DLL)
-gcc_lib_path, is_dynamic_gcc = find_gcc_library(lib_search_paths)
+gcc_lib_path, is_dynamic_gcc = find_gcc_library(lib_search_paths + bin_search_paths)
 gcc_dll_path = find_gcc_dll(bin_search_paths)
 
 # If using dynamic GCC, ensure the DLL can be found at runtime
@@ -187,32 +218,43 @@ for arg in sys.argv[1:]:
                 processed_libs = set()
                 clang_rt_added = False
                 libgcc_added = False
+                # Create a list to track all lines for later manipulation
+                all_lines = []
 
+                # First pass: read all lines and detect what's already there
                 for line in in_file:
                     line = line.strip()
+                    all_lines.append(line)
 
+                    # Track if clang_rt.builtins-x86_64 is present
+                    if ("clang_rt.builtins-x86_64" in line or "-lclang_rt.builtins-x86_64" in line):
+                        clang_rt_added = True
+
+                    # Check if libgcc.a or related import libraries are already present
+                    if any(name in line for name in ['libgcc.a', 'libgcc_s.a', '-lgcc', 'gcc_s']):
+                        libgcc_added = True
+                        print(f"[WRAPPER] GCC library already included in response file: {line}", file=sys.stderr)
+
+                # Make sure libgcc is added BEFORE clang_rt.builtins to resolve symbols correctly
+                # Find the index where clang_rt is added if present
+                clang_rt_index = -1
+                for i, line in enumerate(all_lines):
+                    if "clang_rt.builtins-x86_64" in line:
+                        clang_rt_index = i
+                        break
+
+                # Write out all lines, inserting libgcc at the right position if needed
+                for i, line in enumerate(all_lines):
                     # Skip bootstrap-ghc mingw paths
                     if (line.startswith('-I') or line.startswith('-L')) and \
                        'bootstrap-ghc' in line and 'mingw' in line:
                         print(f"[WRAPPER] Skipping line from response file: {line}", file=sys.stderr)
                         continue
 
-                    # Skip linking with the MSVC runtime library since we'll use MinGW libraries
+                    # Skip linking with the MSVC runtime library
                     if line.endswith('libcmt.lib') or 'libcmt.lib' in line:
                         print(f"[WRAPPER] Skipping MSVC runtime library: {line}", file=sys.stderr)
                         continue
-
-                    # Track if clang_rt.builtins-x86_64 is present
-                    if (
-                        "clang_rt.builtins-x86_64" in line
-                        or "-lclang_rt.builtins-x86_64" in line
-                    ):
-                        clang_rt_added = True
-
-                    # Check if libgcc.a is already present
-                    if 'libgcc.a' in line or '-lgcc' in line:
-                        libgcc_added = True
-                        print("[WRAPPER] libgcc.a already included in response file", file=sys.stderr)
 
                     # Handle library references to avoid duplicates
                     if line.startswith('-l'):
@@ -220,7 +262,6 @@ for arg in sys.argv[1:]:
                         if lib_name in processed_libs:
                             print(f"[WRAPPER] Skipping duplicate library reference: {line}", file=sys.stderr)
                             continue
-
                         processed_libs.add(lib_name)
 
                         # For specific problematic libraries, try to find them directly
@@ -254,8 +295,21 @@ for arg in sys.argv[1:]:
                     if _build_prefix and _build_prefix in line:
                         line = line.replace(_build_prefix, build_prefix_escaped)
 
-                    # Write processed line
+                    # If we're at the position just before clang_rt and we need to add libgcc,
+                    # insert it here to ensure proper symbol resolution order
+                    if i == clang_rt_index - 1 and not libgcc_added and gcc_lib_path:
+                        print(f"[WRAPPER] Adding GCC library before clang_rt: {gcc_lib_path}", file=sys.stderr)
+                        temp_file.write(f"{gcc_lib_path}\n")
+                        libgcc_added = True
+
+                    # Write the processed line
                     temp_file.write(f"{line}\n")
+
+                # --- Add libgcc if not already present and no insertion point was found ---
+                if not libgcc_added and gcc_lib_path:
+                    print(f"[WRAPPER] Adding GCC library at end of response file: {gcc_lib_path}", file=sys.stderr)
+                    temp_file.write(f"{gcc_lib_path}\n")
+                    libgcc_added = True
 
                 # --- Ensure clang_rt.builtins-x86_64 is present ---
                 if not clang_rt_added:
@@ -283,21 +337,11 @@ for arg in sys.argv[1:]:
                         except (OSError, IndexError) as e:
                             print(f"[WRAPPER] Error finding clang runtime: {e}", file=sys.stderr)
 
-                # --- Add libgcc.a or libgcc_s.a if not already present and needed ---
-                if not libgcc_added and gcc_lib_path and not clang_rt_has_chkstk:
-                    print(f"[WRAPPER] Adding {os.path.basename(gcc_lib_path)} to provide ___chkstk_ms symbol", file=sys.stderr)
-                    temp_file.write(f"{gcc_lib_path}\n")
-                    libgcc_added = True
-
-                    # If this is an import library, make sure the DLL directory is available
-                    if is_dynamic_gcc and gcc_dll_path:
-                        print(f"[WRAPPER] Using dynamic GCC library, DLL at: {gcc_dll_path}", file=sys.stderr)
-
-            # Debug: Print content of filtered response file
-            print(f"[WRAPPER] Content of filtered response file {temp_resp}:", file=sys.stderr)
-            with open(temp_resp, 'r') as f:
-                for i, line in enumerate(f):
-                    print(f"[WRAPPER] Line {i+1}: {line.strip()}", file=sys.stderr)
+                # Debug: Print content of filtered response file
+                print(f"[WRAPPER] Content of filtered response file {temp_resp}:", file=sys.stderr)
+                with open(temp_resp, 'r') as f:
+                    for i, line in enumerate(f):
+                        print(f"[WRAPPER] Line {i+1}: {line.strip()}", file=sys.stderr)
 
             filtered_args.append(f"@{temp_resp}")
         else:
@@ -349,6 +393,12 @@ runtime_flags = [
 if gcc_lib_path and not libgcc_added:
     print("[WRAPPER] Adding GCC library directly to command line", file=sys.stderr)
     filtered_args.append(gcc_lib_path)
+
+    # Also add the runtime path if needed
+    if is_dynamic_gcc and gcc_dll_path:
+        gcc_dll_dir = os.path.dirname(gcc_dll_path)
+        print(f"[WRAPPER] Also adding GCC DLL directory to runtime path: {gcc_dll_dir}", file=sys.stderr)
+        filtered_args.append(f"-Wl,-rpath,{gcc_dll_dir}")
 
 final_cmd = [clang_exe] + filtered_args + runtime_flags
 
