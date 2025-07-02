@@ -217,12 +217,25 @@ if os.path.exists(mingw_lib.replace('\\\\', '\\')):
 
 # Prepare final command with escaped backslashes for file paths but not for the exe itself
 clang_exe = os.path.join(build_prefix, 'Library', 'bin', 'clang.exe')
-final_cmd = [clang_exe] + filtered_args + [
-    # Add flags to handle duplicate symbols using the correct lld-link syntax
-    # The /FORCE:MULTIPLE option tells the linker to allow multiple definitions of symbols
-    '-Wl,-ignore:4006',  # Ignore warning LNK4006: symbol already defined
-    '-Wl,/FORCE:MULTIPLE'  # Force the linker to accept multiple definitions
+
+# Add flags to explicitly control runtime libraries and avoid MSVC CRT
+runtime_flags = [
+    # Use MinGW mode for clang to avoid automatic inclusion of MSVC runtime
+    '--target=x86_64-w64-mingw32',
+    '-fuse-ld=lld',
+    # Avoid including standard libraries automatically
+    '-nostdlib',
+    # Use MinGW's CRT instead of MSVC's
+    '-Wl,-nostdlib',
+    # Add flags to handle duplicate symbols
+    '-Wl,-ignore:4006',
+    '-Wl,/FORCE:MULTIPLE',
+    # Add specific libraries needed
+    '-lmsvcrt',  # MinGW's msvcrt implementation
+    '-lucrt',    # Universal CRT
 ]
+
+final_cmd = [clang_exe] + filtered_args + runtime_flags
 
 print(f"[WRAPPER] Final command: {' '.join(final_cmd)}", file=sys.stderr)
 
