@@ -2,39 +2,29 @@ diff --git a/hadrian/src/Settings/Builders/Ghc.hs b/hadrian/src/Settings/Builder
 index c1b0584c59..bd7d294eb9 100644
 --- a/hadrian/src/Settings/Builders/Ghc.hs
 +++ b/hadrian/src/Settings/Builders/Ghc.hs
-@@ -15,6 +15,8 @@ import qualified Data.Set as Set
- import System.Directory
- import Data.Version.Extra
- 
+@@ -17,2 +17,4 @@
+
 +import System.Environment (lookupEnv)
 +
  ghcBuilderArgs :: Args
- ghcBuilderArgs = mconcat
-   [ compileAndLinkHs, compileC, compileCxx, findHsDependencies
-@@ -108,6 +110,9 @@ ghcLinkArgs = builder (Ghc LinkHs) ? do
-     osxTarget <- expr isOsxTarget
-     winTarget <- expr isWinTarget
- 
+@@ -110,2 +112,5 @@
+
 +    -- Get PREFIX from environment variable
 +    maybePrefix <- exprIO (lookupEnv "PREFIX")
 +
      let
-         dynamic = Dynamic `wayUnit` way
-         originToLibsDir = makeRelativeNoSysLink originPath distPath
-@@ -146,4 +151,15 @@
+@@ -146,4 +151,14 @@
                  , isLibrary pkg ? pure [ "-shared", "-dynload", "deploy" ]
 +                , osxTarget ? mconcat [
 +                    arg "-optl-Wl,-no_pie",  -- Disable PIE on macOS
-+                    arg "-optl-Wl,-headerpad_max_install_names"  -- Allow for longer install paths
++                    arg "-optl-Wl,-headerpad_max_install_names",  -- Allow for longer install paths
 +                    arg "-optl-Wl,-dead_strip_dylibs",  -- Remove unused dylibs
 +                    arg "-optl-Wl,-search_paths_first"  -- Search paths in order they appear
 +                  ]
                  , notStage0 ? targetSupportsRPaths ? mconcat
--                      [ arg ("-optl-Wl,-rpath," ++ rpath)
-+                      [
-+                        arg ("-optl-Wl,-rpath," ++ rpath)
-+                        -- Add PREFIX/lib to rpath on macOS if PREFIX is set
-+                        , osxTarget ? case maybePrefix of
-+                            Just prefix -> arg ("-optl-Wl,-rpath," ++ prefix ++ "/lib")
-+                            Nothing     -> mempty
+                       [ arg ("-optl-Wl,-rpath," ++ rpath)
++                      -- Add PREFIX/lib to rpath on macOS if PREFIX is set
++                      , osxTarget ? case maybePrefix of
++                          Just prefix -> arg ("-optl-Wl,-rpath," ++ prefix ++ "/lib")
++                          Nothing     -> mempty
                        , isProgram pkg ? arg ("-optl-Wl,-rpath," ++ bindistRpath)
