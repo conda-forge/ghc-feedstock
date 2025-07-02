@@ -21,14 +21,18 @@ index c1b0584c59..bd7d294eb9 100644
      let
          dynamic = Dynamic `wayUnit` way
          originToLibsDir = makeRelativeNoSysLink originPath distPath
-@@ -147,6 +152,10 @@ ghcLinkArgs = builder (Ghc LinkHs) ? do
+@@ -146,4 +151,13 @@
+                 , isLibrary pkg ? pure [ "-shared", "-dynload", "deploy" ]
++                , osxTarget ? arg "-optl-Wl,-no_pie"  -- Disable PIE on macOS to address range issues
                  , notStage0 ? targetSupportsRPaths ? mconcat
-                       [ arg ("-optl-Wl,-rpath," ++ rpath)
+-                      [ arg ("-optl-Wl,-rpath," ++ rpath)
++                      [
++                        -- On macOS, we need special handling for rpath
++                        osxTarget ? mconcat
++                          [ arg ("-optl-Wl,-rpath," ++ rpath)
++                          , isProgram pkg ? arg ("-optl-Wl,-rpath," ++ bindistRpath)
++                          , case maybePrefix of
++                              Just prefix -> arg ("-optl-Wl,-rpath," ++ prefix ++ "/lib")
++                              Nothing     -> mempty
++                          ]
                        , isProgram pkg ? arg ("-optl-Wl,-rpath," ++ bindistRpath)
-+                      -- Add PREFIX/lib to rpath on macOS if PREFIX is set
-+                      , osxTarget ? case maybePrefix of
-+                          Just prefix -> arg ("-optl-Wl,-rpath," ++ prefix ++ "/lib")
-+                          Nothing     -> mempty
-                       -- The darwin and Windows linkers don't support/require the -zorigin option
-                       , not (osxTarget || winTarget) ? arg "-optl-Wl,-zorigin"
-                       -- We set RPATH directly (relative to $ORIGIN). There's
