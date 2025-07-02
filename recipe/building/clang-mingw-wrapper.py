@@ -189,7 +189,7 @@ for arg in sys.argv[1:]:
                                 # Escape backslashes for clang
                                 clang_rt_path_escaped = clang_rt_path.replace('\\', '\\\\')
                                 print(f"[WRAPPER] Adding clang runtime path: {clang_rt_path_escaped}", file=sys.stderr)
-                                temp_file.write(f"-L{clang_rt_path_escaped}\n")
+                                temp_file.write(f"-L{clang_rt_path_escaped} {clang_rt_path_escaped}\\\\clang_rt.builtins-x86_64.lib\n")
                                 if "clang_rt.builtins-x86_64" not in processed_libs:
                                     temp_file.write("-lclang_rt.builtins-x86_64\n")
                     except (OSError, IndexError) as e:
