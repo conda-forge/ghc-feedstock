@@ -31,13 +31,32 @@ def find_library_path(lib_name, search_dirs):
     return None
 
 
+def check_symbol_in_lib(lib_path, symbol):
+    """Check if a symbol exists in a .lib file using llvm-nm."""
+    try:
+        result = subprocess.run(
+            ["llvm-nm", lib_path],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            encoding="utf-8",
+            check=True
+        )
+        for line in result.stdout.splitlines():
+            if symbol in line:
+                print(f"[WRAPPER] Symbol '{symbol}' found in {lib_path}", file=sys.stderr)
+                return True
+        print(f"[WRAPPER] Symbol '{symbol}' NOT found in {lib_path}", file=sys.stderr)
+        return False
+    except Exception as e:
+        print(f"[WRAPPER] Error running llvm-nm on {lib_path}: {e}", file=sys.stderr)
+        return False
+
+
 def unix_to_win_path(unix_path):
     """Convert a Unix-style path to Windows format."""
-    if unix_path.startswith('/'):
-        # Handle drive letter, e.g. /c/path -> c:\path
-        if len(unix_path) > 2 and unix_path[2] == '/':
-            drive = unix_path[1].lower()
-            return f"{drive}:{unix_path[2:]}".replace('/', '\\')
+    if unix_path.startswith('/') and (len(unix_path) > 2 and unix_path[2] == '/'):
+        drive = unix_path[1].lower()
+        return f"{drive}:{unix_path[2:]}".replace('/', '\\')
     
     # Default case: just replace slashes
     return unix_path.replace('/', '\\')
@@ -98,12 +117,10 @@ for arg in sys.argv[1:]:
 
         if os.path.exists(resp_file):
             with open(resp_file, 'r') as in_file, open(temp_resp, 'w') as temp_file:
-                # Track libraries we've already processed to avoid duplicates
                 processed_libs = set()
-                # Track if libgcc.a is already present
-                libgcc_added = False
+                # Track if clang_rt.builtins-x86_64 is already present
+                clang_rt_added = False
 
-                # Process the response file content
                 for line in in_file:
                     line = line.strip()
 
@@ -118,9 +135,12 @@ for arg in sys.argv[1:]:
                         print(f"[WRAPPER] Skipping MSVC runtime library: {line}", file=sys.stderr)
                         continue
 
-                    # Track if libgcc.a is present
-                    if 'libgcc.a' in line:
-                        libgcc_added = True
+                    # Track if clang_rt.builtins-x86_64 is present
+                    if (
+                        "clang_rt.builtins-x86_64" in line
+                        or "-lclang_rt.builtins-x86_64" in line
+                    ):
+                        clang_rt_added = True
 
                     # Handle library references to avoid duplicates
                     if line.startswith('-l'):
@@ -165,35 +185,27 @@ for arg in sys.argv[1:]:
                     # Write processed line
                     temp_file.write(f"{line}\n")
 
-                # --- Add libgcc.a if not already present ---
-                if not libgcc_added:
-                    # Try to find libgcc.a in the sysroot lib directories
-                    libgcc_path = find_library_path('gcc', lib_search_paths)
-                    if libgcc_path:
-                        print(f"[WRAPPER] Adding libgcc.a: {libgcc_path}", file=sys.stderr)
-                        temp_file.write(f"{libgcc_path}\n")
-                    else:
-                        print("[WRAPPER] Warning: Could not find libgcc.a to add for ___chkstk_ms", file=sys.stderr)
-
-                # Add clang runtime library path
-                clang_lib_base = os.path.join(build_prefix, 'Lib', 'clang')
-                if os.path.exists(clang_lib_base):
-                    try:
-                        version_dirs = [d for d in os.listdir(clang_lib_base) 
-                                      if os.path.isdir(os.path.join(clang_lib_base, d))]
-                        if version_dirs:
-                            # Use the latest version available
-                            latest_version = sorted(version_dirs)[-1]
-                            clang_rt_path = os.path.join(clang_lib_base, latest_version, 'lib', 'windows')
-                            if os.path.exists(clang_rt_path):
-                                # Escape backslashes for clang
-                                clang_rt_path_escaped = clang_rt_path.replace('\\', '\\\\')
-                                print(f"[WRAPPER] Adding clang runtime path: {clang_rt_path_escaped}", file=sys.stderr)
-                                temp_file.write(f"-L{clang_rt_path_escaped} {clang_rt_path_escaped}\\\\clang_rt.builtins-x86_64.lib\n")
-                                if "clang_rt.builtins-x86_64" not in processed_libs:
+                # --- Ensure clang_rt.builtins-x86_64 is present ---
+                if not clang_rt_added:
+                    clang_lib_base = os.path.join(build_prefix, 'Lib', 'clang')
+                    if os.path.exists(clang_lib_base):
+                        try:
+                            version_dirs = [d for d in os.listdir(clang_lib_base) 
+                                            if os.path.isdir(os.path.join(clang_lib_base, d))]
+                            if version_dirs:
+                                latest_version = sorted(version_dirs)[-1]
+                                clang_rt_path = os.path.join(clang_lib_base, latest_version, 'lib', 'windows')
+                                if os.path.exists(clang_rt_path):
+                                    clang_rt_lib = os.path.join(clang_rt_path, 'clang_rt.builtins-x86_64.lib')
+                                    clang_rt_path_escaped = clang_rt_path.replace('\\', '\\\\')
+                                    clang_rt_lib_escaped = clang_rt_lib.replace('\\', '\\\\')
+                                    print(f"[WRAPPER] Forcing clang runtime: {clang_rt_lib_escaped}", file=sys.stderr)
+                                    temp_file.write(f"-L{clang_rt_path_escaped}\n")
+                                    temp_file.write(f"{clang_rt_lib_escaped}\n")
                                     temp_file.write("-lclang_rt.builtins-x86_64\n")
-                    except (OSError, IndexError) as e:
-                        print(f"[WRAPPER] Error finding clang runtime: {e}", file=sys.stderr)
+                                    check_symbol_in_lib(f"{clang_rt_path_escaped}\\\\clang_rt.builtins-x86_64.lib", "___chkstk_ms")
+                        except (OSError, IndexError) as e:
+                            print(f"[WRAPPER] Error finding clang runtime: {e}", file=sys.stderr)
 
             # Debug: Print content of filtered response file
             print(f"[WRAPPER] Content of filtered response file {temp_resp}:", file=sys.stderr)
