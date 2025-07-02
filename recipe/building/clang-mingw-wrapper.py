@@ -87,11 +87,14 @@ else:
 
 # Library search paths - single backslashes for os.path operations
 lib_search_paths = [
-    os.path.join(build_prefix, 'Library', 'mingw-w64', 'lib'),
-    os.path.join(build_prefix, 'Library', 'x86_64-w64-mingw32', 'lib'),
     os.path.join(build_prefix, 'Library', 'x86_64-w64-mingw32', 'sysroot', 'usr', 'lib'),
+    # Add more potential locations for MinGW libs
     os.path.join(build_prefix, 'Library', 'lib'),
     os.path.join(build_prefix, 'lib'),
+    os.path.join(build_prefix, 'Library', 'mingw-w64', 'lib64'),
+    os.path.join(build_prefix, 'mingw64', 'lib'),
+    os.path.join(build_prefix, 'Library', 'mingw-w64', 'lib'),
+    os.path.join(build_prefix, 'Library', 'x86_64-w64-mingw32', 'lib'),
 ]
 
 print(
@@ -100,6 +103,13 @@ print(
     ),
     file=sys.stderr,
 )
+
+# Find libgcc.a before processing arguments
+libgcc_path = find_library_path('gcc', lib_search_paths)
+if libgcc_path:
+    print(f"[WRAPPER] Found libgcc.a: {libgcc_path}", file=sys.stderr)
+else:
+    print("[WRAPPER] Warning: Could not find libgcc.a for ___chkstk_ms symbol", file=sys.stderr)
 
 filtered_args = []
 
@@ -118,8 +128,8 @@ for arg in sys.argv[1:]:
         if os.path.exists(resp_file):
             with open(resp_file, 'r') as in_file, open(temp_resp, 'w') as temp_file:
                 processed_libs = set()
-                # Track if clang_rt.builtins-x86_64 is already present
                 clang_rt_added = False
+                libgcc_added = False  # Track if libgcc.a is already included
 
                 for line in in_file:
                     line = line.strip()
@@ -141,6 +151,11 @@ for arg in sys.argv[1:]:
                         or "-lclang_rt.builtins-x86_64" in line
                     ):
                         clang_rt_added = True
+
+                    # Check if libgcc.a is already present
+                    if 'libgcc.a' in line or '-lgcc' in line:
+                        libgcc_added = True
+                        print("[WRAPPER] libgcc.a already included in response file", file=sys.stderr)
 
                     # Handle library references to avoid duplicates
                     if line.startswith('-l'):
@@ -187,6 +202,8 @@ for arg in sys.argv[1:]:
 
                 # --- Ensure clang_rt.builtins-x86_64 is present ---
                 if not clang_rt_added:
+                    # After checking symbols in clang_rt:
+                    clang_rt_has_chkstk = False
                     clang_lib_base = os.path.join(build_prefix, 'Lib', 'clang')
                     if os.path.exists(clang_lib_base):
                         try:
@@ -203,9 +220,17 @@ for arg in sys.argv[1:]:
                                     temp_file.write(f"-L{clang_rt_path_escaped}\n")
                                     temp_file.write(f"{clang_rt_lib_escaped}\n")
                                     temp_file.write("-lclang_rt.builtins-x86_64\n")
-                                    check_symbol_in_lib(f"{clang_rt_path_escaped}\\\\clang_rt.builtins-x86_64.lib", "___chkstk_ms")
+
+                                    # Check if clang_rt has the required symbol
+                                    clang_rt_has_chkstk = check_symbol_in_lib(clang_rt_lib, "___chkstk_ms")
                         except (OSError, IndexError) as e:
                             print(f"[WRAPPER] Error finding clang runtime: {e}", file=sys.stderr)
+
+                # --- Add libgcc.a if not already present and needed ---
+                if not libgcc_added and libgcc_path and not clang_rt_has_chkstk:
+                    print(f"[WRAPPER] Adding libgcc.a to provide ___chkstk_ms symbol", file=sys.stderr)
+                    temp_file.write(f"{libgcc_path}\n")
+                    libgcc_added = True
 
             # Debug: Print content of filtered response file
             print(f"[WRAPPER] Content of filtered response file {temp_resp}:", file=sys.stderr)
@@ -258,6 +283,11 @@ runtime_flags = [
     '-lmsvcrt',  # MinGW's msvcrt implementation
     '-lucrt'     # Universal CRT
 ]
+
+# If we still haven't added libgcc and it's needed, add it directly to the command line
+if libgcc_path and not libgcc_added:
+    print("[WRAPPER] Adding libgcc.a directly to command line", file=sys.stderr)
+    filtered_args.append(libgcc_path)
 
 final_cmd = [clang_exe] + filtered_args + runtime_flags
 
