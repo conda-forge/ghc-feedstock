@@ -97,6 +97,7 @@ requirements:
         - m2-m4
         - m2-make
         - m2-which
+         mingw-w64-ucrt-x86_64-gcc-libs
     - gmp
     - llvm-tools ${{ c_compiler_version }}.*
     - pkg-config
