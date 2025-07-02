@@ -223,16 +223,12 @@ runtime_flags = [
     # Use MinGW mode for clang to avoid automatic inclusion of MSVC runtime
     '--target=x86_64-w64-mingw32',
     '-fuse-ld=lld',
-    # Avoid including standard libraries automatically
-    '-nostdlib',
-    # Use MinGW's CRT instead of MSVC's
-    '-Wl,-nostdlib',
-    # Add flags to handle duplicate symbols
-    '-Wl,-ignore:4006',
-    '-Wl,/FORCE:MULTIPLE',
+    # Pass linker options directly rather than with -Wl prefix
+    # Handle duplicate symbols
+    '-Xlinker', '/FORCE:MULTIPLE',
     # Add specific libraries needed
     '-lmsvcrt',  # MinGW's msvcrt implementation
-    '-lucrt',    # Universal CRT
+    '-lucrt'     # Universal CRT
 ]
 
 final_cmd = [clang_exe] + filtered_args + runtime_flags
