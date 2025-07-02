@@ -21,11 +21,13 @@ index c1b0584c59..bd7d294eb9 100644
      let
          dynamic = Dynamic `wayUnit` way
          originToLibsDir = makeRelativeNoSysLink originPath distPath
-@@ -146,4 +151,16 @@
+@@ -146,4 +151,17 @@
                  , isLibrary pkg ? pure [ "-shared", "-dynload", "deploy" ]
 +                , osxTarget ? mconcat [
 +                    arg "-optl-Wl,-no_pie",  -- Disable PIE on macOS
 +                    arg "-optl-Wl,-headerpad_max_install_names"  -- Allow for longer install paths
++                    arg "-optl-Wl,-dead_strip_dylibs",  -- Remove unused dylibs
++                    arg "-optl-Wl,-search_paths_first"  -- Search paths in order they appear
 +                  ]
                  , notStage0 ? targetSupportsRPaths ? mconcat
 -                      [ arg ("-optl-Wl,-rpath," ++ rpath)
@@ -33,6 +35,8 @@ index c1b0584c59..bd7d294eb9 100644
 +                        arg ("-optl-Wl,-rpath," ++ rpath)
 +                        -- Add PREFIX/lib to rpath on macOS if PREFIX is set
 +                        , osxTarget ? case maybePrefix of
-+                            Just prefix -> arg ("-optl-Wl,-rpath," ++ prefix ++ "/lib")
++                            Just prefix -> mconcat [
++                              arg ("-optl-Wl,-rpath," ++ prefix ++ "/lib")
++                            ]
 +                            Nothing     -> mempty
                        , isProgram pkg ? arg ("-optl-Wl,-rpath," ++ bindistRpath)
