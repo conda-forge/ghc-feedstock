@@ -30,6 +30,84 @@ def get_chkstk_obj_path():
     return None
 
 
+def create_mingw_chkstk_ms_obj(build_prefix):
+    """Create a simple object file with the ___chkstk_ms symbol for MinGW."""
+    # Define the target object file path
+    obj_path = os.path.join(build_prefix, 'Library', 'lib', 'chkstk_mingw_ms.obj')
+    obj_path_dir = os.path.dirname(obj_path)
+
+    # If the object file already exists, just return its path
+    if os.path.exists(obj_path):
+        print(f"[WRAPPER] Found existing MinGW chkstk_ms.obj at {obj_path}", file=sys.stderr)
+        return obj_path
+
+    # Make sure the directory exists
+    os.makedirs(obj_path_dir, exist_ok=True)
+
+    # Create a temporary C file with the MinGW ___chkstk_ms implementation
+    temp_c_file = os.path.join(tempfile.gettempdir(), "chkstk_mingw_ms.c")
+    with open(temp_c_file, 'w') as f:
+        f.write("""
+// MinGW-specific implementation of ___chkstk_ms for Windows
+// Based on mingw-w64 implementation
+
+#include <stdint.h>
+
+// MinGW ___chkstk_ms implementation
+// This function allocates stack space in 4K chunks
+__attribute__((used)) void ___chkstk_ms(void)
+{
+    // Get the stack pointer and requested allocation size from the registers
+    register unsigned char *stack_ptr;
+    register uintptr_t allocation_size;
+    
+    // Using inline assembly to get RAX (allocation size) and save necessary registers
+    __asm__ __volatile__ (
+        "movq %%rsp, %0\\n\\t"   // stack_ptr = RSP
+        "movq %%rax, %1\\n\\t"   // allocation_size = RAX
+        : "=r" (stack_ptr), "=r" (allocation_size)
+        :
+        // No clobber list needed as we're just reading registers
+    );
+    
+    // Round allocation size to a page multiple if necessary
+    uintptr_t page_size = 4096; // 4K page size
+    uintptr_t rounded = allocation_size + (page_size - 1) & ~(page_size - 1);
+    
+    // Ensure we touch each page to trigger the guard page mechanism
+    unsigned char *check_ptr = stack_ptr - rounded;
+    unsigned char *guard_ptr = stack_ptr - page_size;
+    
+    while (check_ptr <= guard_ptr) {
+        guard_ptr -= page_size;
+        *guard_ptr = 0; // Touch the page to commit it
+    }
+    
+    // No need to modify RAX as it already contains the original allocation size
+    return;
+}
+        """)
+
+    # Compile it to an object file
+    try:
+        clang_exe = os.path.join(build_prefix, 'Library', 'bin', 'clang.exe')
+        result = subprocess.run(
+            [clang_exe, "--target=x86_64-w64-mingw32", "-c", temp_c_file, "-o", obj_path],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=False
+        )
+        if result.returncode == 0 and os.path.exists(obj_path):
+            print(f"[WRAPPER] Created MinGW chkstk_ms.obj with ___chkstk_ms symbol at: {obj_path}", file=sys.stderr)
+            return obj_path
+        else:
+            print(f"[WRAPPER] Failed to compile MinGW chkstk_ms.obj: {result.stderr.decode()}", file=sys.stderr)
+            return None
+    except Exception as e:
+        print(f"[WRAPPER] Error compiling MinGW chkstk_ms.obj: {e}", file=sys.stderr)
+        return None
+
+
 def format_path_for_response_file(path):
     """Format a path for inclusion in a response file with proper escaping."""
     if not path:
@@ -108,6 +186,12 @@ if chkstk_obj_path:
     chkstk_obj_path_formatted = format_path_for_response_file(chkstk_obj_path)
     print(f"[WRAPPER] Using chkstk.obj at: {chkstk_obj_path_formatted}", file=sys.stderr)
 
+# Create the MinGW-specific chkstk_ms.obj file for the ___chkstk_ms symbol
+mingw_chkstk_ms_path = create_mingw_chkstk_ms_obj(build_prefix)
+if mingw_chkstk_ms_path:
+    mingw_chkstk_ms_path_formatted = format_path_for_response_file(mingw_chkstk_ms_path)
+    print(f"[WRAPPER] Using MinGW chkstk_ms.obj at: {mingw_chkstk_ms_path_formatted}", file=sys.stderr)
+
 filtered_args = []
 
 # Process all arguments
@@ -127,6 +211,7 @@ for arg in sys.argv[1:]:
                 processed_libs = set()
                 clang_rt_added = False
                 chkstk_added = False
+                mingw_chkstk_ms_added = False
                 # Create a list to track all lines for later manipulation
                 all_lines = []
 
@@ -144,6 +229,11 @@ for arg in sys.argv[1:]:
                         chkstk_added = True
                         print(f"[WRAPPER] chkstk.obj already included in response file: {line}", file=sys.stderr)
 
+                    # Check if our MinGW chkstk_ms.obj is already present
+                    if 'chkstk_mingw_ms.obj' in line:
+                        mingw_chkstk_ms_added = True
+                        print(f"[WRAPPER] MinGW chkstk_ms.obj already included in response file: {line}", file=sys.stderr)
+
                 # Make sure chkstk.obj is added BEFORE clang_rt.builtins to resolve symbols correctly
                 # Find the index where clang_rt is added if present
                 clang_rt_index = -1
@@ -152,7 +242,7 @@ for arg in sys.argv[1:]:
                         clang_rt_index = i
                         break
 
-                # Write out all lines, inserting chkstk.obj at the right position if needed
+                # Write out all lines, inserting objects at the right position if needed
                 for i, line in enumerate(all_lines):
                     # Skip bootstrap-ghc mingw paths
                     if (line.startswith('-I') or line.startswith('-L')) and \
@@ -196,10 +286,16 @@ for arg in sys.argv[1:]:
                     if _build_prefix and _build_prefix in line:
                         line = line.replace(_build_prefix, build_prefix_escaped)
 
-                    # If we're at the position just before clang_rt and we need to add chkstk.obj,
-                    # insert it here to ensure proper symbol resolution order
+                    # If we're at the position just before clang_rt and we need to add our objects,
+                    # insert them here to ensure proper symbol resolution order
                     if i == clang_rt_index - 1:
-                        # Add chkstk.obj first (before clang_rt)
+                        # Add MinGW chkstk_ms.obj first (before clang_rt) to provide ___chkstk_ms
+                        if not mingw_chkstk_ms_added and mingw_chkstk_ms_path:
+                            print(f"[WRAPPER] Adding MinGW chkstk_ms.obj before clang_rt: {mingw_chkstk_ms_path_formatted}", file=sys.stderr)
+                            temp_file.write(f"{mingw_chkstk_ms_path_formatted}\n")
+                            mingw_chkstk_ms_added = True
+
+                        # Add regular chkstk.obj if needed
                         if not chkstk_added and chkstk_obj_path:
                             print(f"[WRAPPER] Adding chkstk.obj before clang_rt: {chkstk_obj_path_formatted}", file=sys.stderr)
                             temp_file.write(f"{chkstk_obj_path_formatted}\n")
@@ -208,7 +304,13 @@ for arg in sys.argv[1:]:
                     # Write the processed line
                     temp_file.write(f"{line}\n")
 
-                # --- Add chkstk.obj if not already present ---
+                # --- Add MinGW chkstk_ms.obj if not already present ---
+                if not mingw_chkstk_ms_added and mingw_chkstk_ms_path:
+                    print(f"[WRAPPER] Adding MinGW chkstk_ms.obj at end of response file: {mingw_chkstk_ms_path_formatted}", file=sys.stderr)
+                    temp_file.write(f"{mingw_chkstk_ms_path_formatted}\n")
+                    mingw_chkstk_ms_added = True
+
+                # --- Add regular chkstk.obj if not already present ---
                 if not chkstk_added and chkstk_obj_path:
                     print(f"[WRAPPER] Adding chkstk.obj at end of response file: {chkstk_obj_path_formatted}", file=sys.stderr)
                     temp_file.write(f"{chkstk_obj_path_formatted}\n")
@@ -289,7 +391,22 @@ runtime_flags = [
     '-lucrt'     # Universal CRT
 ]
 
-# If we haven't added the chkstk.obj file, add it directly to the command
+# If we haven't added the object files, add them directly to the command
+mingw_chkstk_ms_added = locals().get('mingw_chkstk_ms_added', False)
+if mingw_chkstk_ms_path and not mingw_chkstk_ms_added:
+    # For command line, use the path with backslashes and quote it if it contains spaces
+    if ' ' in mingw_chkstk_ms_path:
+        mingw_chkstk_ms_path_cmd = f'"{mingw_chkstk_ms_path}"'
+    else:
+        mingw_chkstk_ms_path_cmd = mingw_chkstk_ms_path
+
+    # Fix any %BUILD_PREFIX% placeholders
+    mingw_chkstk_ms_path_cmd = fix_build_prefix(mingw_chkstk_ms_path_cmd, for_response_file=False)
+
+    print(f"[WRAPPER] Adding MinGW chkstk_ms.obj directly to command line: {mingw_chkstk_ms_path_cmd}", file=sys.stderr)
+    filtered_args.append(mingw_chkstk_ms_path_cmd)
+
+# Add MSVC chkstk.obj if needed and not added yet
 chkstk_added = locals().get('chkstk_added', False)
 if chkstk_obj_path and not chkstk_added:
     # For command line, use the path with backslashes and quote it if it contains spaces
