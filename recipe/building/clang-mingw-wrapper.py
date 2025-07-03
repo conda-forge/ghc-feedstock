@@ -82,11 +82,13 @@ def ensure_chkstk_ms_object(build_prefix):
     with open(temp_c_file, 'w') as f:
         f.write("""
 // Implementation of ___chkstk_ms for Windows x64
+// Use standard C code instead of naked functions, which aren't supported by Clang on x86_64
+
 #ifdef _WIN64
-__attribute__((naked))
-void ___chkstk_ms(void)
-{
-    __asm__(
+// Use standard C function with inline assembly
+void __chkstk_ms(void) {
+    // x64 implementation using inline asm
+    asm volatile (
         "push   %%rcx                  \\n\\t"
         "push   %%rax                  \\n\\t"
         "cmp    $0x1000, %%rax         \\n\\t"
@@ -104,12 +106,17 @@ void ___chkstk_ms(void)
         "pop    %%rax                  \\n\\t"
         "pop    %%rcx                  \\n\\t"
         "ret                           \\n\\t"
+        ::: "memory"
     );
+}
+
+// Simple wrapper function that calls __chkstk_ms
+void ___chkstk_ms(void) {
+    __chkstk_ms();
 }
 #else
 // 32-bit version if needed
-void ___chkstk_ms(void)
-{
+void ___chkstk_ms(void) {
     // Simplified implementation for 32-bit
     // Not implemented here as we're targeting 64-bit
 }

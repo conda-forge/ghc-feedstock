@@ -26,12 +26,13 @@ if [ "$(basename "${LIBCLANG_DIR}")" != "x86_64-w64-windows-gnu" ]; then
   cp "${LIBCLANG_DIR}/${LIBCLANG_RT}" "$(dirname "${LIBCLANG_DIR}")/x86_64-w64-windows-gnu/lib${LIBCLANG_RT//-x86_64.lib/.a}"
 fi
 find "${_BUILD_PREFIX}" -name "*clang_rt.builtins*"
+find "/c" -name "*chkstk*.obj*"
 
 # Define the wrapper script for MSVC
 CLANG_WRAPPER="${BUILD_PREFIX}\\Library\\bin\\clang-mingw-wrapper.bat"
 cp "${RECIPE_DIR}/building/clang-mingw-wrapper.bat" "${_BUILD_PREFIX}/Library/bin/"
 cp "${RECIPE_DIR}/building/clang-mingw-wrapper.py" "${_BUILD_PREFIX}/Library/bin/"
-clang.exe -c "${_RECIPE_DIR}"/building/chkstk_ms.c -o "${_BUILD_PREFIX}"/Library/lib/chkstk_ms.obj
+# clang.exe -c "${_RECIPE_DIR}"/building/chkstk_ms.c -o "${_BUILD_PREFIX}"/Library/lib/chkstk_ms.obj
 
 # Make sure we use conda-forge clang (ghc bootstrap has a clang.exe)
 CLANG=$(find "${_BUILD_PREFIX}" -name clang.exe | head -1)
