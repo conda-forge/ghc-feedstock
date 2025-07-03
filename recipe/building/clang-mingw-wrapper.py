@@ -3,6 +3,7 @@ import os
 import subprocess
 import sys
 import tempfile
+import re
 
 
 def find_library_path(lib_name, search_dirs):
@@ -200,10 +201,38 @@ else:
     sys.exit(1)
 
 # Fix %BUILD_PREFIX% in search paths
-def fix_build_prefix(path):
-    """Replace %BUILD_PREFIX% with actual build prefix."""
+def fix_build_prefix(path, for_response_file=False):
+    """
+    Replace %BUILD_PREFIX% with actual build prefix.
+
+    Args:
+        path: The path string to process
+        for_response_file: Whether the path is intended for a response file (needs double backslashes)
+    """
+    if not path:
+        return path
+
     if '%BUILD_PREFIX%' in path:
-        return path.replace('%BUILD_PREFIX%', build_prefix)
+        # Use properly escaped backslashes when needed
+        replacement = build_prefix_escaped if for_response_file else build_prefix
+        return path.replace('%BUILD_PREFIX%', replacement)
+
+    return path
+
+# Helper to ensure paths have correct format
+def format_path_for_response_file(path):
+    """Format a path for inclusion in a response file with proper escaping."""
+    if not path:
+        return path
+
+    # Replace %BUILD_PREFIX% with properly escaped build prefix
+    if '%BUILD_PREFIX%' in path:
+        path = path.replace('%BUILD_PREFIX%', build_prefix_escaped)
+
+    # Ensure backslashes are properly escaped for response files
+    if '\\' in path and '\\\\' not in path:
+        path = path.replace('\\', '\\\\')
+
     return path
 
 # Library search paths - single backslashes for os.path operations
@@ -237,7 +266,7 @@ print(f"[WRAPPER] DLL search paths: {list(bin_search_paths)}", file=sys.stderr)
 gcc_dll_path = find_gcc_dll(bin_search_paths)
 if gcc_dll_path:
     # Fix %BUILD_PREFIX% if present
-    gcc_dll_path = fix_build_prefix(gcc_dll_path)
+    gcc_dll_path = fix_build_prefix(gcc_dll_path, for_response_file=False)
     gcc_dll_dir = os.path.dirname(gcc_dll_path)
     # Add to PATH if not already there
     if gcc_dll_dir not in os.environ.get('PATH', '').split(os.pathsep):
@@ -259,7 +288,8 @@ if not gcc_lib_path and gcc_dll_path:
 # If we still don't have an import library, we'll need to use the DLL directly
 if not gcc_lib_path and gcc_dll_path:
     print(f"[WRAPPER] No import library found or created, will try to link DLL directly: {gcc_dll_path}", file=sys.stderr)
-    gcc_lib_path = gcc_dll_path
+    # Make sure to properly escape backslashes for the response file
+    gcc_lib_path = format_path_for_response_file(gcc_dll_path)
     is_dynamic_gcc = True
 
 # Additional fallback: if GCC is not found at all, try to use direct implib name pattern
@@ -455,8 +485,18 @@ for arg in sys.argv[1:]:
 
                 # --- Add libgcc if not already present and no insertion point was found ---
                 if not libgcc_added and gcc_lib_path:
-                    print(f"[WRAPPER] Adding GCC library at end of response file: {gcc_lib_path}", file=sys.stderr)
-                    temp_file.write(f"{gcc_lib_path}\n")
+                    # Format the path correctly for response file
+                    gcc_lib_path_formatted = format_path_for_response_file(gcc_lib_path)
+
+                    # Verify path doesn't have misformatted %BUILD_PREFIX%
+                    if '%BUILD_PREFIX%' in gcc_lib_path_formatted:
+                        # Replace with actual build prefix (escaped)
+                        gcc_lib_path_formatted = gcc_lib_path_formatted.replace('%BUILD_PREFIX%', build_prefix_escaped)
+                        print(f"[WRAPPER] Replaced %BUILD_PREFIX% in GCC path: {gcc_lib_path_formatted}", file=sys.stderr)
+
+                    # Write the properly formatted gcc_lib_path to the response file
+                    print(f"[WRAPPER] Adding GCC library at end of response file: {gcc_lib_path_formatted}", file=sys.stderr)
+                    temp_file.write(f"{gcc_lib_path_formatted}\n")
                     libgcc_added = True
 
                 # --- Ensure clang_rt.builtins-x86_64 is present ---
@@ -539,8 +579,17 @@ runtime_flags = [
 
 # If we still haven't added libgcc and it's needed, add it directly to the command line
 if gcc_lib_path and not libgcc_added:
-    print("[WRAPPER] Adding GCC library directly to command line", file=sys.stderr)
-    filtered_args.append(gcc_lib_path)
+    # If the gcc_lib_path contains %BUILD_PREFIX%, replace it with the actual build prefix
+    # This is important because the %BUILD_PREFIX% variable won't be expanded in the command line
+    gcc_lib_path_cmd = fix_build_prefix(gcc_lib_path, for_response_file=False)
+
+    # Make sure the path exists before trying to add it
+    path_to_check = gcc_lib_path_cmd.replace('\\\\', '\\')
+    if not os.path.exists(path_to_check):
+        print(f"[WRAPPER] WARNING: GCC library path doesn't exist: {path_to_check}", file=sys.stderr)
+    else:
+        print(f"[WRAPPER] Adding GCC library directly to command line: {gcc_lib_path_cmd}", file=sys.stderr)
+        filtered_args.append(gcc_lib_path_cmd)
 
 # If we're using a direct reference to the DLL, tell the linker it's ok
 if is_dynamic_gcc and gcc_dll_path and gcc_lib_path == gcc_dll_path:
