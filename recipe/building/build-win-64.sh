@@ -31,6 +31,7 @@ find "${_BUILD_PREFIX}" -name "*clang_rt.builtins*"
 CLANG_WRAPPER="${BUILD_PREFIX}\\Library\\bin\\clang-mingw-wrapper.bat"
 cp "${RECIPE_DIR}/building/clang-mingw-wrapper.bat" "${_BUILD_PREFIX}/Library/bin/"
 cp "${RECIPE_DIR}/building/clang-mingw-wrapper.py" "${_BUILD_PREFIX}/Library/bin/"
+clang.exe -c "${_RECIPE_DIR}"/building/chkstk_ms.c -o "${_BUILD_PREFIX}"/Library/lib/chkstk_ms.obj
 
 # Make sure we use conda-forge clang (ghc bootstrap has a clang.exe)
 CLANG=$(find "${_BUILD_PREFIX}" -name clang.exe | head -1)
