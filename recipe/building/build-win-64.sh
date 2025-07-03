@@ -25,17 +25,13 @@ if [ "$(basename "${LIBCLANG_DIR}")" != "x86_64-w64-windows-gnu" ]; then
   mkdir -p "$(dirname "${LIBCLANG_DIR}")/x86_64-w64-windows-gnu"
   cp "${LIBCLANG_DIR}/${LIBCLANG_RT}" "$(dirname "${LIBCLANG_DIR}")/x86_64-w64-windows-gnu/lib${LIBCLANG_RT//-x86_64.lib/.a}"
 fi
-find "${_BUILD_PREFIX}" -name "*clang_rt.builtins*"
-find "/c" -name "*chkstk*.obj*"
 
 # Define the wrapper script for MSVC
 CLANG_WRAPPER="${BUILD_PREFIX}\\Library\\bin\\clang-mingw-wrapper.bat"
 cp "${RECIPE_DIR}/building/clang-mingw-wrapper.bat" "${_BUILD_PREFIX}/Library/bin/"
 cp "${RECIPE_DIR}/building/clang-mingw-wrapper.py" "${_BUILD_PREFIX}/Library/bin/"
-# clang.exe -c "${_RECIPE_DIR}"/building/chkstk_ms.c -o "${_BUILD_PREFIX}"/Library/lib/chkstk_ms.obj
 
 # Make sure we use conda-forge clang (ghc bootstrap has a clang.exe)
-CLANG=$(find "${_BUILD_PREFIX}" -name clang.exe | head -1)
 CLANGXX=$(find "${_BUILD_PREFIX}" -name clang++.exe | head -1)
 
 export CABAL="${SRC_DIR}\\bootstrap-cabal\\cabal.exe"
@@ -55,6 +51,7 @@ fi
 # Export LIB with the dynamic path
 export LIB="${BUILD_PREFIX}/Library/lib;${PREFIX}/Library/lib;C:/Program Files (x86)/Windows Kits/10/Lib/10.0.26100.0/um/x64;${MSVC_VERSION_DIR}/lib/x64${LIB:+;}${LIB:-}"
 export INCLUDE="C:/Program Files (x86)/Windows Kits/10/Include/10.0.26100.0/ucrt;C:/Program Files (x86)/Windows Kits/10/Include/10.0.26100.0/um;C:/Program Files (x86)/Windows Kits/10/Include/10.0.26100.0/shared;${MSVC_VERSION_DIR}/include${INCLUDE:+;}${INCLUDE:-}"
+export CHKSTK_OBJ="${MSVC_VERSION_DIR}/lib/x64/chkstk.obj"
 
 mkdir -p "${_SRC_DIR}/hadrian/cfg" && touch "${_SRC_DIR}/hadrian/cfg/default.target.ghc-toolchain"
 

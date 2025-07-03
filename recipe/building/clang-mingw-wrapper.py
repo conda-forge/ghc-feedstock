@@ -63,84 +63,16 @@ def unix_to_win_path(unix_path):
     return unix_path.replace('/', '\\')
 
 
-def ensure_chkstk_ms_object(build_prefix):
-    """Create or find a chkstk_ms object file containing the ___chkstk_ms symbol."""
-    # Define the target object file path
-    obj_path = os.path.join(build_prefix, 'Library', 'lib', 'chkstk_ms.obj')
-    obj_path_dir = os.path.dirname(obj_path)
+def get_chkstk_obj_path():
+    """Get path to chkstk.obj from environment variable."""
+    # Check if CHKSTK_OBJ environment variable is defined
+    chkstk_env = os.environ.get('CHKSTK_OBJ')
+    if chkstk_env and os.path.exists(chkstk_env):
+        print(f"[WRAPPER] Using chkstk.obj from CHKSTK_OBJ env: {chkstk_env}", file=sys.stderr)
+        return chkstk_env
 
-    # If the object file already exists, just return its path
-    if os.path.exists(obj_path):
-        print(f"[WRAPPER] Found existing chkstk_ms.obj at {obj_path}", file=sys.stderr)
-        return obj_path
-
-    # Make sure the directory exists
-    os.makedirs(obj_path_dir, exist_ok=True)
-
-    # Create a temporary C file with proper ___chkstk_ms implementation
-    temp_c_file = os.path.join(tempfile.gettempdir(), "chkstk_ms.c")
-    with open(temp_c_file, 'w') as f:
-        f.write("""
-// Implementation of ___chkstk_ms for Windows x64
-// Use standard C code instead of naked functions, which aren't supported by Clang on x86_64
-
-#ifdef _WIN64
-// Use standard C function with inline assembly
-void __chkstk_ms(void) {
-    // x64 implementation using inline asm
-    asm volatile (
-        "push   %%rcx                  \\n\\t"
-        "push   %%rax                  \\n\\t"
-        "cmp    $0x1000, %%rax         \\n\\t"
-        "lea    24(%%rsp), %%rcx       \\n\\t"
-        "jb     1f                     \\n\\t"
-    "0:                                \\n\\t"
-        "sub    $0x1000, %%rcx         \\n\\t"
-        "test   %%rcx, (%%rcx)         \\n\\t"
-        "sub    $0x1000, %%rax         \\n\\t"
-        "cmp    $0x1000, %%rax         \\n\\t"
-        "ja     0b                     \\n\\t"
-    "1:                                \\n\\t"
-        "sub    %%rax, %%rcx           \\n\\t"
-        "test   %%rcx, (%%rcx)         \\n\\t"
-        "pop    %%rax                  \\n\\t"
-        "pop    %%rcx                  \\n\\t"
-        "ret                           \\n\\t"
-        ::: "memory"
-    );
-}
-
-// Simple wrapper function that calls __chkstk_ms
-void ___chkstk_ms(void) {
-    __chkstk_ms();
-}
-#else
-// 32-bit version if needed
-void ___chkstk_ms(void) {
-    // Simplified implementation for 32-bit
-    // Not implemented here as we're targeting 64-bit
-}
-#endif
-        """)
-
-    # Compile it to an object file
-    try:
-        clang_exe = os.path.join(build_prefix, 'Library', 'bin', 'clang.exe')
-        result = subprocess.run(
-            [clang_exe, "--target=x86_64-w64-mingw32", "-c", temp_c_file, "-o", obj_path],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            check=False
-        )
-        if result.returncode == 0 and os.path.exists(obj_path):
-            print(f"[WRAPPER] Created chkstk_ms.obj with ___chkstk_ms symbol at: {obj_path}", file=sys.stderr)
-            return obj_path
-        else:
-            print(f"[WRAPPER] Failed to compile chkstk_ms.obj: {result.stderr.decode()}", file=sys.stderr)
-            return None
-    except Exception as e:
-        print(f"[WRAPPER] Error compiling chkstk_ms.obj: {e}", file=sys.stderr)
-        return None
+    print(f"[WRAPPER] Warning: CHKSTK_OBJ not defined or path doesn't exist", file=sys.stderr)
+    return None
 
 print("[WRAPPER] Starting clang-mingw-wrapper", file=sys.stderr)
 print("[WRAPPER] Arguments:", sys.argv[1:], file=sys.stderr)
@@ -212,13 +144,13 @@ lib_search_paths = [
     os.path.join(build_prefix, 'Library', 'x86_64-w64-mingw32', 'lib'),
 ]
 
-# Create or find the chkstk_ms.obj file
-chkstk_obj_path = ensure_chkstk_ms_object(build_prefix)
+# Get the chkstk.obj path directly from environment variable
+chkstk_obj_path = get_chkstk_obj_path()
 
-# Format the chkstk_ms.obj path for response file inclusion
+# Format the chkstk.obj path for response file inclusion
 if chkstk_obj_path:
     chkstk_obj_path_formatted = format_path_for_response_file(chkstk_obj_path)
-    print(f"[WRAPPER] Using chkstk_ms.obj at: {chkstk_obj_path_formatted}", file=sys.stderr)
+    print(f"[WRAPPER] Using chkstk.obj at: {chkstk_obj_path_formatted}", file=sys.stderr)
 
 filtered_args = []
 
@@ -251,12 +183,12 @@ for arg in sys.argv[1:]:
                     if ("clang_rt.builtins-x86_64" in line or "-lclang_rt.builtins-x86_64" in line):
                         clang_rt_added = True
 
-                    # Check if chkstk_ms.obj is already present
-                    if 'chkstk_ms.obj' in line:
+                    # Check if chkstk.obj is already present
+                    if 'chkstk.obj' in line:
                         chkstk_added = True
-                        print(f"[WRAPPER] chkstk_ms.obj already included in response file: {line}", file=sys.stderr)
+                        print(f"[WRAPPER] chkstk.obj already included in response file: {line}", file=sys.stderr)
 
-                # Make sure chkstk_ms.obj is added BEFORE clang_rt.builtins to resolve symbols correctly
+                # Make sure chkstk.obj is added BEFORE clang_rt.builtins to resolve symbols correctly
                 # Find the index where clang_rt is added if present
                 clang_rt_index = -1
                 for i, line in enumerate(all_lines):
@@ -264,7 +196,7 @@ for arg in sys.argv[1:]:
                         clang_rt_index = i
                         break
 
-                # Write out all lines, inserting chkstk_ms.obj at the right position if needed
+                # Write out all lines, inserting chkstk.obj at the right position if needed
                 for i, line in enumerate(all_lines):
                     # Skip bootstrap-ghc mingw paths
                     if (line.startswith('-I') or line.startswith('-L')) and \
@@ -320,21 +252,21 @@ for arg in sys.argv[1:]:
                     if _build_prefix and _build_prefix in line:
                         line = line.replace(_build_prefix, build_prefix_escaped)
 
-                    # If we're at the position just before clang_rt and we need to add chkstk_ms.obj,
+                    # If we're at the position just before clang_rt and we need to add chkstk.obj,
                     # insert it here to ensure proper symbol resolution order
                     if i == clang_rt_index - 1:
-                        # Add chkstk_ms.obj first (before clang_rt)
+                        # Add chkstk.obj first (before clang_rt)
                         if not chkstk_added and chkstk_obj_path:
-                            print(f"[WRAPPER] Adding chkstk_ms.obj before clang_rt: {chkstk_obj_path_formatted}", file=sys.stderr)
+                            print(f"[WRAPPER] Adding chkstk.obj before clang_rt: {chkstk_obj_path_formatted}", file=sys.stderr)
                             temp_file.write(f"{chkstk_obj_path_formatted}\n")
                             chkstk_added = True
 
                     # Write the processed line
                     temp_file.write(f"{line}\n")
 
-                # --- Add chkstk_ms.obj if not already present ---
+                # --- Add chkstk.obj if not already present ---
                 if not chkstk_added and chkstk_obj_path:
-                    print(f"[WRAPPER] Adding chkstk_ms.obj at end of response file: {chkstk_obj_path_formatted}", file=sys.stderr)
+                    print(f"[WRAPPER] Adding chkstk.obj at end of response file: {chkstk_obj_path_formatted}", file=sys.stderr)
                     temp_file.write(f"{chkstk_obj_path_formatted}\n")
                     chkstk_added = True
 
@@ -392,13 +324,13 @@ for arg in sys.argv[1:]:
                 arg = arg.replace(_build_prefix, build_prefix_escaped)
             filtered_args.append(arg)
 
-# Add conda mingw paths with escaped backslashes
-mingw_include = os.path.join(build_prefix, 'Library', 'mingw-w64', 'include').replace('\\', '\\\\')
-mingw_lib = os.path.join(build_prefix, 'Library', 'mingw-w64', 'lib').replace('\\', '\\\\')
-if os.path.exists(mingw_include.replace('\\\\', '\\')):
-    filtered_args.append(f"-I{mingw_include}")
-if os.path.exists(mingw_lib.replace('\\\\', '\\')):
-    filtered_args.append(f"-L{mingw_lib}")
+# # Add conda mingw paths with escaped backslashes
+# mingw_include = os.path.join(build_prefix, 'Library', 'mingw-w64', 'include').replace('\\', '\\\\')
+# mingw_lib = os.path.join(build_prefix, 'Library', 'mingw-w64', 'lib').replace('\\', '\\\\')
+# if os.path.exists(mingw_include.replace('\\\\', '\\')):
+#     filtered_args.append(f"-I{mingw_include}")
+# if os.path.exists(mingw_lib.replace('\\\\', '\\')):
+#     filtered_args.append(f"-L{mingw_lib}")
 
 # Prepare final command with escaped backslashes for file paths but not for the exe itself
 clang_exe = os.path.join(build_prefix, 'Library', 'bin', 'clang.exe')
@@ -416,10 +348,11 @@ runtime_flags = [
     '-lucrt'     # Universal CRT
 ]
 
-# If we haven't added the chkstk_ms.obj file, add it directly to the command
-if chkstk_obj_path and not locals().get('chkstk_added', False):
+# If we haven't added the chkstk.obj file, add it directly to the command
+chkstk_added = locals().get('chkstk_added', False)
+if chkstk_obj_path and not chkstk_added:
     chkstk_obj_path_cmd = fix_build_prefix(chkstk_obj_path, for_response_file=False)
-    print(f"[WRAPPER] Adding chkstk_ms.obj directly to command line: {chkstk_obj_path_cmd}", file=sys.stderr)
+    print(f"[WRAPPER] Adding chkstk.obj directly to command line: {chkstk_obj_path_cmd}", file=sys.stderr)
     filtered_args.append(chkstk_obj_path_cmd)
 
 final_cmd = [clang_exe] + filtered_args + runtime_flags
