@@ -35,8 +35,8 @@ cp "${RECIPE_DIR}/building/clang-mingw-wrapper.py" "${_BUILD_PREFIX}/Library/bin
 CLANGXX=$(find "${_BUILD_PREFIX}" -name clang++.exe | head -1)
 
 export CABAL="${SRC_DIR}\\bootstrap-cabal\\cabal.exe"
-export CC="${CLANG}"
-export CXX="${CLANGXX}"
+# export CC="${CC}"
+# export CXX="${CLANGXX}"
 export GHC="${SRC_DIR}\\bootstrap-ghc\\bin\\ghc.exe"
 
 # Find the latest MSVC version directory dynamically
