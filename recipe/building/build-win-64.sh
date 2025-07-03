@@ -28,8 +28,16 @@ fi
 
 # Define the wrapper script for MSVC
 CLANG_WRAPPER="${BUILD_PREFIX}\\Library\\bin\\clang-mingw-wrapper.bat"
-cp "${RECIPE_DIR}/building/clang-mingw-wrapper.bat" "${_BUILD_PREFIX}/Library/bin/"
-cp "${RECIPE_DIR}/building/clang-mingw-wrapper.py" "${_BUILD_PREFIX}/Library/bin/"
+cp "${RECIPE_DIR}/building/non-unix/clang-mingw-wrapper.bat" "${_BUILD_PREFIX}/Library/bin/"
+cp "${RECIPE_DIR}/building/non-unix/clang-mingw-wrapper.py" "${_BUILD_PREFIX}/Library/bin/"
+
+# First run the script to create the MinGW chkstk_ms.obj file once
+echo "Creating MinGW chkstk_ms.obj file..."
+${PYTHON} "${RECIPE_DIR}/building/non-unix/create_mingw_chkstk.py"
+if [ $? -ne 0 ]; then
+  echo "Error: Failed to create MinGW chkstk_ms.obj file"
+  exit 1
+fi
 
 # Make sure we use conda-forge clang (ghc bootstrap has a clang.exe)
 CLANGXX=$(find "${_BUILD_PREFIX}" -name clang++.exe | head -1)
@@ -112,5 +120,5 @@ export CABFLAGS="--with-compiler=${GHC} --with-gcc=${CLANG_WRAPPER}"
   --flavour=quickest \
   --docs=none \
   --progress-info=unicorn || true
-
+cat C:/cabal/logs/ghc-9.10.1/clock-0.8.4*.log
 run_and_log "install" "${_hadrian_build[@]}" install --prefix="${_PREFIX}" --flavour=release --freeze1 --docs=none

@@ -30,81 +30,14 @@ def get_chkstk_obj_path():
     return None
 
 
-def create_mingw_chkstk_ms_obj(build_prefix):
-    """Create a simple object file with the ___chkstk_ms symbol for MinGW."""
-    # Define the target object file path
+def get_mingw_chkstk_ms_path(build_prefix):
+    """Get path to the pregenerated MinGW chkstk_ms.obj file."""
     obj_path = os.path.join(build_prefix, 'Library', 'lib', 'chkstk_mingw_ms.obj')
-    obj_path_dir = os.path.dirname(obj_path)
-
-    # If the object file already exists, just return its path
     if os.path.exists(obj_path):
-        print(f"[WRAPPER] Found existing MinGW chkstk_ms.obj at {obj_path}", file=sys.stderr)
+        print(f"[WRAPPER] Using existing MinGW chkstk_ms.obj at {obj_path}", file=sys.stderr)
         return obj_path
-
-    # Make sure the directory exists
-    os.makedirs(obj_path_dir, exist_ok=True)
-
-    # Create a temporary C file with the MinGW ___chkstk_ms implementation
-    temp_c_file = os.path.join(tempfile.gettempdir(), "chkstk_mingw_ms.c")
-    with open(temp_c_file, 'w') as f:
-        f.write("""
-// MinGW-specific implementation of ___chkstk_ms for Windows
-// Based on mingw-w64 implementation
-
-#include <stdint.h>
-
-// MinGW ___chkstk_ms implementation
-// This function allocates stack space in 4K chunks
-__attribute__((used)) void ___chkstk_ms(void)
-{
-    // Get the stack pointer and requested allocation size from the registers
-    register unsigned char *stack_ptr;
-    register uintptr_t allocation_size;
-    
-    // Using inline assembly to get RAX (allocation size) and save necessary registers
-    __asm__ __volatile__ (
-        "movq %%rsp, %0\\n\\t"   // stack_ptr = RSP
-        "movq %%rax, %1\\n\\t"   // allocation_size = RAX
-        : "=r" (stack_ptr), "=r" (allocation_size)
-        :
-        // No clobber list needed as we're just reading registers
-    );
-    
-    // Round allocation size to a page multiple if necessary
-    uintptr_t page_size = 4096; // 4K page size
-    uintptr_t rounded = allocation_size + (page_size - 1) & ~(page_size - 1);
-    
-    // Ensure we touch each page to trigger the guard page mechanism
-    unsigned char *check_ptr = stack_ptr - rounded;
-    unsigned char *guard_ptr = stack_ptr - page_size;
-    
-    while (check_ptr <= guard_ptr) {
-        guard_ptr -= page_size;
-        *guard_ptr = 0; // Touch the page to commit it
-    }
-    
-    // No need to modify RAX as it already contains the original allocation size
-    return;
-}
-        """)
-
-    # Compile it to an object file
-    try:
-        clang_exe = os.path.join(build_prefix, 'Library', 'bin', 'clang.exe')
-        result = subprocess.run(
-            [clang_exe, "--target=x86_64-w64-mingw32", "-c", temp_c_file, "-o", obj_path],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            check=False
-        )
-        if result.returncode == 0 and os.path.exists(obj_path):
-            print(f"[WRAPPER] Created MinGW chkstk_ms.obj with ___chkstk_ms symbol at: {obj_path}", file=sys.stderr)
-            return obj_path
-        else:
-            print(f"[WRAPPER] Failed to compile MinGW chkstk_ms.obj: {result.stderr.decode()}", file=sys.stderr)
-            return None
-    except Exception as e:
-        print(f"[WRAPPER] Error compiling MinGW chkstk_ms.obj: {e}", file=sys.stderr)
+    else:
+        print(f"[WRAPPER] Warning: MinGW chkstk_ms.obj not found at {obj_path}", file=sys.stderr)
         return None
 
 
@@ -186,8 +119,8 @@ if chkstk_obj_path:
     chkstk_obj_path_formatted = format_path_for_response_file(chkstk_obj_path)
     print(f"[WRAPPER] Using chkstk.obj at: {chkstk_obj_path_formatted}", file=sys.stderr)
 
-# Create the MinGW-specific chkstk_ms.obj file for the ___chkstk_ms symbol
-mingw_chkstk_ms_path = create_mingw_chkstk_ms_obj(build_prefix)
+# Get the MinGW-specific chkstk_ms.obj file path (should be pre-created)
+mingw_chkstk_ms_path = get_mingw_chkstk_ms_path(build_prefix)
 if mingw_chkstk_ms_path:
     mingw_chkstk_ms_path_formatted = format_path_for_response_file(mingw_chkstk_ms_path)
     print(f"[WRAPPER] Using MinGW chkstk_ms.obj at: {mingw_chkstk_ms_path_formatted}", file=sys.stderr)
@@ -207,7 +140,7 @@ for arg in sys.argv[1:]:
         print(f"[WRAPPER] Creating filtered response file: {temp_resp}", file=sys.stderr)
 
         if os.path.exists(resp_file):
-            with open(resp_file, 'r') as in_file, open(temp_resp, 'w') as temp_file:
+            with (open(resp_file, 'r') as in_file, open(temp_resp, 'w') as temp_file):
                 processed_libs = set()
                 clang_rt_added = False
                 chkstk_added = False
@@ -318,26 +251,10 @@ for arg in sys.argv[1:]:
 
                 # --- Ensure clang_rt.builtins-x86_64 is present ---
                 if not clang_rt_added:
-                    clang_lib_base = os.path.join(build_prefix, 'Lib', 'clang')
-                    if os.path.exists(clang_lib_base):
-                        try:
-                            version_dirs = [d for d in os.listdir(clang_lib_base) 
-                                           if os.path.isdir(os.path.join(clang_lib_base, d))]
-                            if version_dirs:
-                                latest_version = sorted(version_dirs)[-1]
-                                clang_rt_path = os.path.join(clang_lib_base, latest_version, 'lib', 'windows')
-                                if os.path.exists(clang_rt_path):
-                                    clang_rt_lib = os.path.join(clang_rt_path, 'clang_rt.builtins-x86_64.lib')
-                                    # Fix any %BUILD_PREFIX% in the path
-                                    clang_rt_lib = fix_build_prefix(clang_rt_lib)
-                                    clang_rt_path_escaped = format_path_for_response_file(clang_rt_path)
-                                    clang_rt_lib_escaped = format_path_for_response_file(clang_rt_lib)
-                                    print(f"[WRAPPER] Forcing clang runtime: {clang_rt_lib_escaped}", file=sys.stderr)
-                                    temp_file.write(f"-L{clang_rt_path_escaped}\n")
-                                    temp_file.write(f"{clang_rt_lib_escaped}\n")
-                                    temp_file.write("-lclang_rt.builtins-x86_64\n")
-                        except (OSError, IndexError) as e:
-                            print(f"[WRAPPER] Error finding clang runtime: {e}", file=sys.stderr)
+                    # Simple approach: just add a reference to the library
+                    # Instead of searching for it each time, rely on compiler search paths
+                    print("[WRAPPER] Adding clang_rt.builtins-x86_64 reference", file=sys.stderr)
+                    temp_file.write("-lclang_rt.builtins-x86_64\n")
 
                 # Debug: Print content of filtered response file
                 print(f"[WRAPPER] Content of filtered response file {temp_resp}:", file=sys.stderr)
@@ -366,14 +283,6 @@ for arg in sys.argv[1:]:
             if _build_prefix and _build_prefix in arg:
                 arg = arg.replace(_build_prefix, build_prefix_escaped)
             filtered_args.append(arg)
-
-# # Add conda mingw paths with escaped backslashes
-# mingw_include = os.path.join(build_prefix, 'Library', 'mingw-w64', 'include').replace('\\', '\\\\')
-# mingw_lib = os.path.join(build_prefix, 'Library', 'mingw-w64', 'lib').replace('\\', '\\\\')
-# if os.path.exists(mingw_include.replace('\\\\', '\\')):
-#     filtered_args.append(f"-I{mingw_include}")
-# if os.path.exists(mingw_lib.replace('\\\\', '\\')):
-#     filtered_args.append(f"-L{mingw_lib}")
 
 # Prepare final command with escaped backslashes for file paths but not for the exe itself
 clang_exe = os.path.join(build_prefix, 'Library', 'bin', 'clang.exe')
