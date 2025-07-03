@@ -5,26 +5,34 @@ _log_index=0
 
 source "${RECIPE_DIR}"/building/common.sh
 
-export PYTHON=$(find "${BUILD_PREFIX}" -name python.exe | head -1)
-export PWSH=$(find "${BUILD_PREFIX}" -name powershell.exe | head -1)
 export PATH="${_SRC_DIR}/bootstrap-ghc/bin:${_SRC_DIR}/bootstrap-cabal${PATH:+:}${PATH:-}"
-export LIBRARY_PATH="${_BUILD_PREFIX}/Library/lib${LIBRARY_PATH:+:}${LIBRARY_PATH:-}"
 
+# Prepare python environment
+export PYTHON=$(find "${BUILD_PREFIX}" -name python.exe | head -1)
+export LIBRARY_PATH="${_BUILD_PREFIX}/Library/lib${LIBRARY_PATH:+:}${LIBRARY_PATH:-}"
+export PYTHONNOUSERSITE=1
+export PYTHONPATH=
+export VIRTUAL_ENV=
+export PYTHONSTARTUP=
+export PYTHONHOME=
+
+# Set up tmep variables
 export TMP="$(cygpath -w "${TEMP}")"
 export TMPDIR="$(cygpath -w "${TEMP}")"
 
-LIBCLANG_RT_PATH=$(find "${_BUILD_PREFIX}/Library" -name "*clang_rt.builtins*" | head -1)
-if [[ -z "${LIBCLANG_RT_PATH}" ]]; then
-  echo "Warning: Could not find libclang_rt.builtins"
-  exit 1
-fi
-
-LIBCLANG_DIR=$(dirname "${LIBCLANG_RT_PATH}")
-LIBCLANG_RT=$(basename "${LIBCLANG_RT_PATH}")
-if [ "$(basename "${LIBCLANG_DIR}")" != "x86_64-w64-windows-gnu" ]; then
-  mkdir -p "$(dirname "${LIBCLANG_DIR}")/x86_64-w64-windows-gnu"
-  cp "${LIBCLANG_DIR}/${LIBCLANG_RT}" "$(dirname "${LIBCLANG_DIR}")/x86_64-w64-windows-gnu/lib${LIBCLANG_RT//-x86_64.lib/.a}"
-fi
+# Some compilation complained about not finding clang_rt.builtins: Still needed?
+# LIBCLANG_RT_PATH=$(find "${_BUILD_PREFIX}/Library" -name "*clang_rt.builtins*" | head -1)
+# if [[ -z "${LIBCLANG_RT_PATH}" ]]; then
+#   echo "Warning: Could not find libclang_rt.builtins"
+#   exit 1
+# fi
+#
+# LIBCLANG_DIR=$(dirname "${LIBCLANG_RT_PATH}")
+# LIBCLANG_RT=$(basename "${LIBCLANG_RT_PATH}")
+# if [ "$(basename "${LIBCLANG_DIR}")" != "x86_64-w64-windows-gnu" ]; then
+#   mkdir -p "$(dirname "${LIBCLANG_DIR}")/x86_64-w64-windows-gnu"
+#   cp "${LIBCLANG_DIR}/${LIBCLANG_RT}" "$(dirname "${LIBCLANG_DIR}")/x86_64-w64-windows-gnu/lib${LIBCLANG_RT//-x86_64.lib/.a}"
+# fi
 
 # Define the wrapper script for MSVC
 CLANG_WRAPPER="${BUILD_PREFIX}\\Library\\bin\\clang-mingw-wrapper.bat"
@@ -40,11 +48,12 @@ if [ $? -ne 0 ]; then
 fi
 
 # Make sure we use conda-forge clang (ghc bootstrap has a clang.exe)
+CLANG=$(find "${_BUILD_PREFIX}" -name clang.exe | head -1)
 CLANGXX=$(find "${_BUILD_PREFIX}" -name clang++.exe | head -1)
 
 export CABAL="${SRC_DIR}\\bootstrap-cabal\\cabal.exe"
-# export CC="${CC}"
-# export CXX="${CLANGXX}"
+export CC="${CLANG}"
+export CXX="${CLANGXX}"
 export GHC="${SRC_DIR}\\bootstrap-ghc\\bin\\ghc.exe"
 
 # Find the latest MSVC version directory dynamically
