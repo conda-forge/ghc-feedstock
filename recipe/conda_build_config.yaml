@@ -9,8 +9,10 @@ c_stdlib_version:
 c_compiler:
   - clang
 c_compiler_version:
-  - 18
+  - 19                     # [linux]
+  - 18                     # [not linux]
 cxx_compiler:
   - clangxx
 cxx_compiler_version:
-  - 18
+  - 19                     # [linux]
+  - 18                     # [not linux]
