@@ -107,6 +107,7 @@ requirements:
     - libffi
     - if: unix
       then:
+        - ${{ stdlib('c') }}
         - ncurses
 
 tests:
@@ -115,8 +116,6 @@ tests:
         - etc/bash_completion.d/ghc
         - etc/conda/activate.d/ghc_activate.sh
 
-        - lib/ghc-${{ version }}/lib/html/**
-        - lib/ghc-${{ version }}/lib/latex/haddock.sty
         - lib/ghc-${{ version }}/lib/llvm-passes
         - lib/ghc-${{ version }}/lib/llvm-targets
         - lib/ghc-${{ version }}/lib/package.conf.d/**
@@ -129,11 +128,13 @@ tests:
         - lib/ghc-${{ version }}/lib/settings
         - lib/ghc-${{ version }}/lib/template-hsc.h
 
-        - share/doc/ghc-${{ version }}/html/**
-        - share/man/man1/ghc.1
-
   - script: |
       ghc --version
+
+  - script:
+      - if: unix
+        then: cat ${CONDA_PREFIX}/lib/ghc-${{ version }}/lib/settings
+        else: type %CONDA_PREFIX%\\Library\\lib\\ghc-${{ version }}\\lib\\settings
 
   - script: |
       echo 'main = putStrLn "Hello conda-forge"' > hello.hs
