@@ -138,7 +138,7 @@ tests:
 
   - script: |
       echo 'main = putStrLn "Hello conda-forge"' > hello.hs
-      ghc hello.hs
+      ghc -v hello.hs
       ./hello
 
   # - script:
