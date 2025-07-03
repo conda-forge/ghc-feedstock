@@ -68,6 +68,8 @@ def get_chkstk_obj_path():
     # Check if CHKSTK_OBJ environment variable is defined
     chkstk_env = os.environ.get('CHKSTK_OBJ')
     if chkstk_env and os.path.exists(chkstk_env):
+        # Make sure the path uses Windows-style backslashes
+        chkstk_env = chkstk_env.replace('/', '\\')
         print(f"[WRAPPER] Using chkstk.obj from CHKSTK_OBJ env: {chkstk_env}", file=sys.stderr)
         return chkstk_env
 
@@ -149,7 +151,14 @@ chkstk_obj_path = get_chkstk_obj_path()
 
 # Format the chkstk.obj path for response file inclusion
 if chkstk_obj_path:
-    chkstk_obj_path_formatted = format_path_for_response_file(chkstk_obj_path)
+    # Ensure the path uses Windows-style backslashes and is properly quoted if it contains spaces
+    if ' ' in chkstk_obj_path:
+        # For paths with spaces, use quotes and double backslashes for response files
+        chkstk_obj_path_formatted = f'"{chkstk_obj_path}".replace("\\", "\\\\")'
+    else:
+        # For paths without spaces, just ensure proper escaping of backslashes
+        chkstk_obj_path_formatted = chkstk_obj_path.replace('\\', '\\\\')
+
     print(f"[WRAPPER] Using chkstk.obj at: {chkstk_obj_path_formatted}", file=sys.stderr)
 
 filtered_args = []
@@ -351,7 +360,15 @@ runtime_flags = [
 # If we haven't added the chkstk.obj file, add it directly to the command
 chkstk_added = locals().get('chkstk_added', False)
 if chkstk_obj_path and not chkstk_added:
-    chkstk_obj_path_cmd = fix_build_prefix(chkstk_obj_path, for_response_file=False)
+    # For command line, use the path with backslashes and quote it if it contains spaces
+    if ' ' in chkstk_obj_path:
+        chkstk_obj_path_cmd = f'"{chkstk_obj_path}"'
+    else:
+        chkstk_obj_path_cmd = chkstk_obj_path
+
+    # Fix any %BUILD_PREFIX% placeholders
+    chkstk_obj_path_cmd = fix_build_prefix(chkstk_obj_path_cmd, for_response_file=False)
+
     print(f"[WRAPPER] Adding chkstk.obj directly to command line: {chkstk_obj_path_cmd}", file=sys.stderr)
     filtered_args.append(chkstk_obj_path_cmd)
 
