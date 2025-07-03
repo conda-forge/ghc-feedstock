@@ -13,7 +13,7 @@ index c1b0584c59..bd7d294eb9 100644
 +    maybePrefix <- exprIO (lookupEnv "PREFIX")
 +
      let
-@@ -146,4 +151,14 @@
+@@ -146,5 +151,17 @@
                  , isLibrary pkg ? pure [ "-shared", "-dynload", "deploy" ]
 +                , osxTarget ? mconcat [
 +                    arg "-optl-Wl,-no_pie",  -- Disable PIE on macOS
@@ -28,3 +28,6 @@ index c1b0584c59..bd7d294eb9 100644
 +                          Just prefix -> arg ("-optl-Wl,-rpath," ++ prefix ++ "/lib")
 +                          Nothing     -> mempty
                        , isProgram pkg ? arg ("-optl-Wl,-rpath," ++ bindistRpath)
++                      -- Fix for macOS linker RIP relative reference out of range error
++                      , osxTarget ? arg "-optl-Wl,-no_pie"
+                       -- The darwin and Windows linkers don't support/require the -zorigin option
