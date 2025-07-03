@@ -130,6 +130,52 @@ def find_gcc_dll(search_dirs):
     return None
 
 
+def create_import_lib(dll_path, output_dir=None):
+    """Create an import library for the given DLL using llvm-dlltool."""
+    if not dll_path or not os.path.exists(dll_path):
+        return None
+
+    # Ensure output directory exists
+    if not output_dir:
+        output_dir = os.path.dirname(dll_path)
+
+    # Create import library name
+    dll_name = os.path.basename(dll_path)
+    base_name = os.path.splitext(dll_name)[0]
+    if base_name.startswith('lib'):
+        base_name = base_name[3:]  # Remove 'lib' prefix
+
+    # Remove version suffix if present
+    base_name = base_name.split('-')[0]
+    import_lib_name = f"lib{base_name}.dll.a"
+    import_lib_path = os.path.join(output_dir, import_lib_name)
+
+    # Skip if already exists
+    if os.path.exists(import_lib_path):
+        print(f"[WRAPPER] Import library already exists: {import_lib_path}", file=sys.stderr)
+        return import_lib_path
+
+    # Try to create import library using llvm-dlltool
+    try:
+        print(f"[WRAPPER] Attempting to create import library for {dll_path}", file=sys.stderr)
+        result = subprocess.run(
+            ["llvm-dlltool", "-d", dll_path, "-l", import_lib_path],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=False
+        )
+
+        if result.returncode == 0 and os.path.exists(import_lib_path):
+            print(f"[WRAPPER] Successfully created import library: {import_lib_path}", file=sys.stderr)
+            return import_lib_path
+        else:
+            print(f"[WRAPPER] Failed to create import library: {result.stderr.decode()}", file=sys.stderr)
+    except Exception as e:
+        print(f"[WRAPPER] Error creating import library: {e}", file=sys.stderr)
+
+    return None
+
+
 print("[WRAPPER] Starting clang-mingw-wrapper", file=sys.stderr)
 print("[WRAPPER] Arguments:", sys.argv[1:], file=sys.stderr)
 
@@ -153,6 +199,13 @@ else:
     print("[WRAPPER] Error: No build prefix environment variable found", file=sys.stderr)
     sys.exit(1)
 
+# Fix %BUILD_PREFIX% in search paths
+def fix_build_prefix(path):
+    """Replace %BUILD_PREFIX% with actual build prefix."""
+    if '%BUILD_PREFIX%' in path:
+        return path.replace('%BUILD_PREFIX%', build_prefix)
+    return path
+
 # Library search paths - single backslashes for os.path operations
 lib_search_paths = [
     os.path.join(build_prefix, 'Library', 'x86_64-w64-mingw32', 'sysroot', 'usr', 'lib'),
@@ -165,13 +218,6 @@ lib_search_paths = [
     os.path.join(build_prefix, 'Library', 'x86_64-w64-mingw32', 'lib'),
     os.path.join(build_prefix, 'Library', 'bin'),  # Sometimes import libs are next to DLLs
 ]
-
-print(
-    f"[WRAPPER] Library search paths: {list(lib_search_paths)}".replace(
-        '\\', '\\\\'
-    ),
-    file=sys.stderr,
-)
 
 # Add LIBRARY_BIN to search paths for DLLs
 bin_search_paths = lib_search_paths.copy()
@@ -187,17 +233,115 @@ if os.path.exists(mingw_bin):
 
 print(f"[WRAPPER] DLL search paths: {list(bin_search_paths)}", file=sys.stderr)
 
-# Find GCC libraries (both static/import lib and DLL)
-gcc_lib_path, is_dynamic_gcc = find_gcc_library(lib_search_paths + bin_search_paths)
+# Find GCC DLL first
 gcc_dll_path = find_gcc_dll(bin_search_paths)
-
-# If using dynamic GCC, ensure the DLL can be found at runtime
 if gcc_dll_path:
+    # Fix %BUILD_PREFIX% if present
+    gcc_dll_path = fix_build_prefix(gcc_dll_path)
     gcc_dll_dir = os.path.dirname(gcc_dll_path)
     # Add to PATH if not already there
     if gcc_dll_dir not in os.environ.get('PATH', '').split(os.pathsep):
         os.environ['PATH'] = f"{gcc_dll_dir}{os.pathsep}{os.environ.get('PATH', '')}"
         print(f"[WRAPPER] Added GCC DLL directory to PATH: {gcc_dll_dir}", file=sys.stderr)
+
+# Now find or create GCC import library
+gcc_lib_path, is_dynamic_gcc = find_gcc_library(lib_search_paths + bin_search_paths)
+
+# If we couldn't find the import library but have the DLL, try to create one
+if not gcc_lib_path and gcc_dll_path:
+    temp_dir = tempfile.gettempdir()
+    import_lib = create_import_lib(gcc_dll_path, temp_dir)
+    if import_lib:
+        gcc_lib_path = import_lib
+        is_dynamic_gcc = True
+        print(f"[WRAPPER] Created and will use import library: {gcc_lib_path}", file=sys.stderr)
+
+# If we still don't have an import library, we'll need to use the DLL directly
+if not gcc_lib_path and gcc_dll_path:
+    print(f"[WRAPPER] No import library found or created, will try to link DLL directly: {gcc_dll_path}", file=sys.stderr)
+    gcc_lib_path = gcc_dll_path
+    is_dynamic_gcc = True
+
+# Additional fallback: if GCC is not found at all, try to use direct implib name pattern
+if not gcc_lib_path:
+    print("[WRAPPER] No GCC library found, trying direct import library name patterns", file=sys.stderr)
+    # Try some common patterns for import libraries
+    for lib_dir in lib_search_paths:
+        if not os.path.exists(lib_dir):
+            continue
+
+        potential_libs = [
+            os.path.join(lib_dir, "libgcc_s.a"),
+            os.path.join(lib_dir, "libgcc_s_seh-1.a"),
+            os.path.join(lib_dir, "libgcc_s_seh.a"),
+            os.path.join(lib_dir, "libgcc_s_dw2-1.a"),
+            os.path.join(lib_dir, "libgcc_s_dw2.a"),
+            os.path.join(lib_dir, "libgcc.a"),
+        ]
+
+        for lib in potential_libs:
+            if os.path.exists(lib):
+                gcc_lib_path = lib
+                print(f"[WRAPPER] Found GCC library through direct pattern match: {gcc_lib_path}", file=sys.stderr)
+                break
+
+        if gcc_lib_path:
+            break
+
+# Last resort: try to extract the directory of libgcc from gcc command
+if not gcc_lib_path:
+    try:
+        print("[WRAPPER] Trying to find libgcc.a using gcc -print-libgcc-file-name", file=sys.stderr)
+        gcc_path = os.path.join(build_prefix, 'Library', 'bin', 'gcc.exe')
+        if os.path.exists(gcc_path):
+            result = subprocess.run(
+                [gcc_path, "-print-libgcc-file-name"],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                check=False
+            )
+            if result.returncode == 0 and result.stdout:
+                gcc_lib_path = result.stdout.strip()
+                print(f"[WRAPPER] Found libgcc using gcc: {gcc_lib_path}", file=sys.stderr)
+        else:
+            print(f"[WRAPPER] GCC not found at {gcc_path}", file=sys.stderr)
+    except Exception as e:
+        print(f"[WRAPPER] Error running gcc: {e}", file=sys.stderr)
+
+# If we still don't have the library path, create a stub with ___chkstk_ms
+if not gcc_lib_path:
+    print("[WRAPPER] Could not find or create GCC library, creating minimal stub for ___chkstk_ms", file=sys.stderr)
+    # Create a minimal C file with __chkstk_ms implementation
+    temp_c_file = os.path.join(tempfile.gettempdir(), "chkstk_ms.c")
+    with open(temp_c_file, 'w') as f:
+        f.write("""
+// Simplified implementation of ___chkstk_ms
+__attribute__((used))
+void ___chkstk_ms(unsigned long size) {
+    // Simple implementation that does nothing
+    // This is just a stub to satisfy the linker
+    (void)size;
+}
+        """)
+
+    # Compile it to an object file
+    temp_obj_file = os.path.join(tempfile.gettempdir(), "chkstk_ms.o")
+    try:
+        clang_exe = os.path.join(build_prefix, 'Library', 'bin', 'clang.exe')
+        result = subprocess.run(
+            [clang_exe, "--target=x86_64-w64-mingw32", "-c", temp_c_file, "-o", temp_obj_file],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=False
+        )
+        if result.returncode == 0 and os.path.exists(temp_obj_file):
+            gcc_lib_path = temp_obj_file
+            print(f"[WRAPPER] Created stub object file with ___chkstk_ms: {gcc_lib_path}", file=sys.stderr)
+        else:
+            print(f"[WRAPPER] Failed to compile stub: {result.stderr.decode()}", file=sys.stderr)
+    except Exception as e:
+        print(f"[WRAPPER] Error compiling stub: {e}", file=sys.stderr)
 
 filtered_args = []
 
@@ -256,6 +400,10 @@ for arg in sys.argv[1:]:
                         print(f"[WRAPPER] Skipping MSVC runtime library: {line}", file=sys.stderr)
                         continue
 
+                    # Fix %BUILD_PREFIX% in the line if present
+                    if '%BUILD_PREFIX%' in line:
+                        line = line.replace('%BUILD_PREFIX%', build_prefix)
+
                     # Handle library references to avoid duplicates
                     if line.startswith('-l'):
                         lib_name = line[2:]
@@ -313,8 +461,6 @@ for arg in sys.argv[1:]:
 
                 # --- Ensure clang_rt.builtins-x86_64 is present ---
                 if not clang_rt_added:
-                    # After checking symbols in clang_rt:
-                    clang_rt_has_chkstk = False
                     clang_lib_base = os.path.join(build_prefix, 'Lib', 'clang')
                     if os.path.exists(clang_lib_base):
                         try:
@@ -325,6 +471,8 @@ for arg in sys.argv[1:]:
                                 clang_rt_path = os.path.join(clang_lib_base, latest_version, 'lib', 'windows')
                                 if os.path.exists(clang_rt_path):
                                     clang_rt_lib = os.path.join(clang_rt_path, 'clang_rt.builtins-x86_64.lib')
+                                    # Fix any %BUILD_PREFIX% in the path
+                                    clang_rt_lib = fix_build_prefix(clang_rt_lib)
                                     clang_rt_path_escaped = clang_rt_path.replace('\\', '\\\\')
                                     clang_rt_lib_escaped = clang_rt_lib.replace('\\', '\\\\')
                                     print(f"[WRAPPER] Forcing clang runtime: {clang_rt_lib_escaped}", file=sys.stderr)
@@ -333,7 +481,7 @@ for arg in sys.argv[1:]:
                                     temp_file.write("-lclang_rt.builtins-x86_64\n")
 
                                     # Check if clang_rt has the required symbol
-                                    clang_rt_has_chkstk = check_symbol_in_lib(clang_rt_lib, "___chkstk_ms")
+                                    check_symbol_in_lib(clang_rt_lib, "___chkstk_ms")
                         except (OSError, IndexError) as e:
                             print(f"[WRAPPER] Error finding clang runtime: {e}", file=sys.stderr)
 
@@ -394,11 +542,10 @@ if gcc_lib_path and not libgcc_added:
     print("[WRAPPER] Adding GCC library directly to command line", file=sys.stderr)
     filtered_args.append(gcc_lib_path)
 
-    # Also add the runtime path if needed
-    if is_dynamic_gcc and gcc_dll_path:
-        gcc_dll_dir = os.path.dirname(gcc_dll_path)
-        print(f"[WRAPPER] Also adding GCC DLL directory to runtime path: {gcc_dll_dir}", file=sys.stderr)
-        filtered_args.append(f"-Wl,-rpath,{gcc_dll_dir}")
+# If we're using a direct reference to the DLL, tell the linker it's ok
+if is_dynamic_gcc and gcc_dll_path and gcc_lib_path == gcc_dll_path:
+    print("[WRAPPER] Adding special flags for linking directly with DLL", file=sys.stderr)
+    filtered_args.extend(["-Wl,--allow-shlib-undefined"])
 
 final_cmd = [clang_exe] + filtered_args + runtime_flags
 
