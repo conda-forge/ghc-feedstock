@@ -6,53 +6,6 @@ import tempfile
 import re
 
 
-def find_library_path(lib_name, search_dirs):
-    """Find a library in the given search directories."""
-    # Try different library file patterns
-    patterns = [
-        f"lib{lib_name}.a",     # GCC-style static lib
-        f"{lib_name}.lib",      # MSVC-style static lib
-        f"lib{lib_name}.dll.a", # GCC-style import lib
-        f"{lib_name}.dll.lib",  # MSVC-style import lib
-    ]
-    
-    for directory in search_dirs:
-        if not os.path.exists(directory):
-            continue
-        
-        for pattern in patterns:
-            path = os.path.join(directory, pattern)
-            if os.path.exists(path):
-                # Convert backslashes to double backslashes for clang
-                path_escaped = path.replace('\\', '\\\\')
-                print(f"[WRAPPER] Found library '{lib_name}' at {path_escaped}", file=sys.stderr)
-                return path_escaped
-    
-    print(f"[WRAPPER] Could not find library '{lib_name}' in any search paths", file=sys.stderr)
-    return None
-
-
-def check_symbol_in_lib(lib_path, symbol):
-    """Check if a symbol exists in a .lib file using llvm-nm."""
-    try:
-        result = subprocess.run(
-            ["llvm-nm", lib_path],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            encoding="utf-8",
-            check=True
-        )
-        for line in result.stdout.splitlines():
-            if symbol in line:
-                print(f"[WRAPPER] Symbol '{symbol}' found in {lib_path}", file=sys.stderr)
-                return True
-        print(f"[WRAPPER] Symbol '{symbol}' NOT found in {lib_path}", file=sys.stderr)
-        return False
-    except Exception as e:
-        print(f"[WRAPPER] Error running llvm-nm on {lib_path}: {e}", file=sys.stderr)
-        return False
-
-
 def unix_to_win_path(unix_path):
     """Convert a Unix-style path to Windows format."""
     if unix_path.startswith('/') and (len(unix_path) > 2 and unix_path[2] == '/'):
@@ -75,6 +28,43 @@ def get_chkstk_obj_path():
 
     print(f"[WRAPPER] Warning: CHKSTK_OBJ not defined or path doesn't exist", file=sys.stderr)
     return None
+
+
+def format_path_for_response_file(path):
+    """Format a path for inclusion in a response file with proper escaping."""
+    if not path:
+        return path
+
+    # For paths with spaces, use quotes and double backslashes for response files
+    if ' ' in path:
+        # Double backslashes inside the path
+        escaped_path = path.replace('\\', '\\\\')
+        # Wrap in quotes
+        return f'"{escaped_path}"'
+    else:
+        # For paths without spaces, just ensure proper escaping of backslashes
+        return path.replace('\\', '\\\\')
+
+
+# Fix %BUILD_PREFIX% in search paths
+def fix_build_prefix(path, for_response_file=False):
+    """
+    Replace %BUILD_PREFIX% with actual build prefix.
+
+    Args:
+        path: The path string to process
+        for_response_file: Whether the path is intended for a response file (needs double backslashes)
+    """
+    if not path:
+        return path
+
+    if '%BUILD_PREFIX%' in path:
+        # Use properly escaped backslashes when needed
+        replacement = build_prefix_escaped if for_response_file else build_prefix
+        return path.replace('%BUILD_PREFIX%', replacement)
+
+    return path
+
 
 print("[WRAPPER] Starting clang-mingw-wrapper", file=sys.stderr)
 print("[WRAPPER] Arguments:", sys.argv[1:], file=sys.stderr)
@@ -99,45 +89,9 @@ else:
     print("[WRAPPER] Error: No build prefix environment variable found", file=sys.stderr)
     sys.exit(1)
 
-# Fix %BUILD_PREFIX% in search paths
-def fix_build_prefix(path, for_response_file=False):
-    """
-    Replace %BUILD_PREFIX% with actual build prefix.
-
-    Args:
-        path: The path string to process
-        for_response_file: Whether the path is intended for a response file (needs double backslashes)
-    """
-    if not path:
-        return path
-
-    if '%BUILD_PREFIX%' in path:
-        # Use properly escaped backslashes when needed
-        replacement = build_prefix_escaped if for_response_file else build_prefix
-        return path.replace('%BUILD_PREFIX%', replacement)
-
-    return path
-
-# Helper to ensure paths have correct format
-def format_path_for_response_file(path):
-    """Format a path for inclusion in a response file with proper escaping."""
-    if not path:
-        return path
-
-    # Replace %BUILD_PREFIX% with properly escaped build prefix
-    if '%BUILD_PREFIX%' in path:
-        path = path.replace('%BUILD_PREFIX%', build_prefix_escaped)
-
-    # Ensure backslashes are properly escaped for response files
-    if '\\' in path and '\\\\' not in path:
-        path = path.replace('\\', '\\\\')
-
-    return path
-
 # Library search paths - single backslashes for os.path operations
 lib_search_paths = [
     os.path.join(build_prefix, 'Library', 'x86_64-w64-mingw32', 'sysroot', 'usr', 'lib'),
-    # Add more potential locations for MinGW libs
     os.path.join(build_prefix, 'Library', 'lib'),
     os.path.join(build_prefix, 'lib'),
     os.path.join(build_prefix, 'Library', 'mingw-w64', 'lib64'),
@@ -151,14 +105,7 @@ chkstk_obj_path = get_chkstk_obj_path()
 
 # Format the chkstk.obj path for response file inclusion
 if chkstk_obj_path:
-    # Ensure the path uses Windows-style backslashes and is properly quoted if it contains spaces
-    if ' ' in chkstk_obj_path:
-        # For paths with spaces, use quotes and double backslashes for response files
-        chkstk_obj_path_formatted = f'"{chkstk_obj_path}".replace("\\", "\\\\")'
-    else:
-        # For paths without spaces, just ensure proper escaping of backslashes
-        chkstk_obj_path_formatted = chkstk_obj_path.replace('\\', '\\\\')
-
+    chkstk_obj_path_formatted = format_path_for_response_file(chkstk_obj_path)
     print(f"[WRAPPER] Using chkstk.obj at: {chkstk_obj_path_formatted}", file=sys.stderr)
 
 filtered_args = []
@@ -220,7 +167,7 @@ for arg in sys.argv[1:]:
 
                     # Fix %BUILD_PREFIX% in the line if present
                     if '%BUILD_PREFIX%' in line:
-                        line = line.replace('%BUILD_PREFIX%', build_prefix)
+                        line = line.replace('%BUILD_PREFIX%', build_prefix_escaped)
 
                     # Handle library references to avoid duplicates
                     if line.startswith('-l'):
@@ -229,18 +176,6 @@ for arg in sys.argv[1:]:
                             print(f"[WRAPPER] Skipping duplicate library reference: {line}", file=sys.stderr)
                             continue
                         processed_libs.add(lib_name)
-
-                        # For specific problematic libraries, try to find them directly
-                        if lib_name in ['mingw32', 'mingwex', 'm', 'pthread']:
-                            lib_path = find_library_path(lib_name, lib_search_paths)
-                            if lib_path:
-                                # Use non-escaped path here - the library path from find_library_path already has escaped backslashes
-                                temp_file.write(f"{lib_path}\n")
-                                continue
-
-                    # Replace %BUILD_PREFIX% with actual escaped path
-                    if '%BUILD_PREFIX%' in line:
-                        line = line.replace('%BUILD_PREFIX%', build_prefix_escaped)
 
                     # Handle path prefixes with -I or -L
                     if line.startswith('-I') or line.startswith('-L'):
@@ -285,7 +220,7 @@ for arg in sys.argv[1:]:
                     if os.path.exists(clang_lib_base):
                         try:
                             version_dirs = [d for d in os.listdir(clang_lib_base) 
-                                            if os.path.isdir(os.path.join(clang_lib_base, d))]
+                                           if os.path.isdir(os.path.join(clang_lib_base, d))]
                             if version_dirs:
                                 latest_version = sorted(version_dirs)[-1]
                                 clang_rt_path = os.path.join(clang_lib_base, latest_version, 'lib', 'windows')
@@ -293,15 +228,12 @@ for arg in sys.argv[1:]:
                                     clang_rt_lib = os.path.join(clang_rt_path, 'clang_rt.builtins-x86_64.lib')
                                     # Fix any %BUILD_PREFIX% in the path
                                     clang_rt_lib = fix_build_prefix(clang_rt_lib)
-                                    clang_rt_path_escaped = clang_rt_path.replace('\\', '\\\\')
-                                    clang_rt_lib_escaped = clang_rt_lib.replace('\\', '\\\\')
+                                    clang_rt_path_escaped = format_path_for_response_file(clang_rt_path)
+                                    clang_rt_lib_escaped = format_path_for_response_file(clang_rt_lib)
                                     print(f"[WRAPPER] Forcing clang runtime: {clang_rt_lib_escaped}", file=sys.stderr)
                                     temp_file.write(f"-L{clang_rt_path_escaped}\n")
                                     temp_file.write(f"{clang_rt_lib_escaped}\n")
                                     temp_file.write("-lclang_rt.builtins-x86_64\n")
-
-                                    # Check if clang_rt has the required symbol
-                                    check_symbol_in_lib(clang_rt_lib, "___chkstk_ms")
                         except (OSError, IndexError) as e:
                             print(f"[WRAPPER] Error finding clang runtime: {e}", file=sys.stderr)
 
