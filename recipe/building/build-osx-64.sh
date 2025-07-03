@@ -5,6 +5,10 @@ _log_index=0
 
 source "${RECIPE_DIR}"/building/common.sh
 
+# This is needed as in seems to interfere with configure scripts
+unset build_alias
+unset host_alias
+
 # Install bootstrap GHC - Set conda platform moniker
 pushd bootstrap-ghc
   run_and_log "bs-configure" bash configure \
