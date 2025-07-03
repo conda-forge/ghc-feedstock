@@ -93,7 +93,6 @@ requirements:
         - m2-grep
         - m2-m4
         - m2-make
-        - mingw-w64-ucrt-x86_64-gcc-libs
     - gmp
     - llvm-tools ${{ c_compiler_version }}.*
     - python 3.12.*
@@ -108,11 +107,12 @@ requirements:
         - ncurses
   run:
     - ${{ compiler('c') }}
-    - ${{ compiler('cxx') }}
+    # - ${{ compiler('cxx') }}
     - gmp
     - libffi
-    - libiconv
-    - llvm-tools ${{ c_compiler_version }}.*
+    - if: aarch64
+      then: libiconv
+    # - llvm-tools ${{ c_compiler_version }}.*
     - if: unix
       then:
         - ${{ stdlib('c') }}
