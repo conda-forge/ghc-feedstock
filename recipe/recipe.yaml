@@ -118,8 +118,6 @@ tests:
         - etc/bash_completion.d/ghc
         - etc/conda/activate.d/ghc_activate.sh
 
-        - lib/ghc-${{ version }}/lib/html/**
-        - lib/ghc-${{ version }}/lib/latex/haddock.sty
         - lib/ghc-${{ version }}/lib/llvm-passes
         - lib/ghc-${{ version }}/lib/llvm-targets
         - lib/ghc-${{ version }}/lib/package.conf.d/**
@@ -131,9 +129,6 @@ tests:
         - lib/ghc-${{ version }}/lib/prelude.mjs
         - lib/ghc-${{ version }}/lib/settings
         - lib/ghc-${{ version }}/lib/template-hsc.h
-
-        - share/doc/ghc-${{ version }}/html/**
-        - share/man/man1/ghc.1
 
   - script: |
       ghc --version
