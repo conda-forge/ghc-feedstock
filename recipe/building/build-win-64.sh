@@ -16,18 +16,18 @@ export TMP="$(cygpath -w "${TEMP}")"
 export TMPDIR="$(cygpath -w "${TEMP}")"
 
 # Some compilation complained about not finding clang_rt.builtins: Still needed?
-# LIBCLANG_RT_PATH=$(find "${_BUILD_PREFIX}/Library" -name "*clang_rt.builtins*" | head -1)
-# if [[ -z "${LIBCLANG_RT_PATH}" ]]; then
-#   echo "Warning: Could not find libclang_rt.builtins"
-#   exit 1
-# fi
-#
-# LIBCLANG_DIR=$(dirname "${LIBCLANG_RT_PATH}")
-# LIBCLANG_RT=$(basename "${LIBCLANG_RT_PATH}")
-# if [ "$(basename "${LIBCLANG_DIR}")" != "x86_64-w64-windows-gnu" ]; then
-#   mkdir -p "$(dirname "${LIBCLANG_DIR}")/x86_64-w64-windows-gnu"
-#   cp "${LIBCLANG_DIR}/${LIBCLANG_RT}" "$(dirname "${LIBCLANG_DIR}")/x86_64-w64-windows-gnu/lib${LIBCLANG_RT//-x86_64.lib/.a}"
-# fi
+LIBCLANG_RT_PATH=$(find "${_BUILD_PREFIX}/Library" -name "*clang_rt.builtins*" | head -1)
+if [[ -z "${LIBCLANG_RT_PATH}" ]]; then
+  echo "Warning: Could not find libclang_rt.builtins"
+  exit 1
+fi
+
+LIBCLANG_DIR=$(dirname "${LIBCLANG_RT_PATH}")
+LIBCLANG_RT=$(basename "${LIBCLANG_RT_PATH}")
+if [ "$(basename "${LIBCLANG_DIR}")" != "x86_64-w64-windows-gnu" ]; then
+  mkdir -p "$(dirname "${LIBCLANG_DIR}")/x86_64-w64-windows-gnu"
+  cp "${LIBCLANG_DIR}/${LIBCLANG_RT}" "$(dirname "${LIBCLANG_DIR}")/x86_64-w64-windows-gnu/lib${LIBCLANG_RT//-x86_64.lib/.a}"
+fi
 
 # Define the wrapper script for MSVC
 CLANG_WRAPPER="${BUILD_PREFIX}\\Library\\bin\\clang-mingw-wrapper.bat"
