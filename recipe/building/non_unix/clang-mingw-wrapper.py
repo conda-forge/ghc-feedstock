@@ -1,5 +1,4 @@
-#!/usr/bin/env python
-
+# clang-mingw-wrapper.py
 import os
 import sys
 import subprocess
@@ -121,7 +120,7 @@ for arg in sys.argv[1:]:
         print(f"[WRAPPER] Creating filtered response file: {temp_resp}", file=sys.stderr)
 
         if os.path.exists(resp_file):
-            with open(resp_file, 'r') as in_file, open(temp_resp, 'w') as temp_file:
+            with (open(resp_file, 'r') as in_file, open(temp_resp, 'w') as temp_file):
                 processed_libs = set()
                 clang_rt_added = False
                 chkstk_added = False
