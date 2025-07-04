@@ -31,13 +31,13 @@ export TMPDIR="$(cygpath -w "${TEMP}")"
 
 # Define the wrapper script for MSVC
 CLANG_WRAPPER="${BUILD_PREFIX}\\Library\\bin\\clang-mingw-wrapper.bat"
-cp "${RECIPE_DIR}/building/non-unix/clang-mingw-wrapper.bat" "${_BUILD_PREFIX}/Library/bin/"
-cp "${RECIPE_DIR}/building/non-unix/clang-mingw-wrapper.py" "${_BUILD_PREFIX}/Library/bin/"
+cp "${RECIPE_DIR}/building/non_unix/clang-mingw-wrapper.bat" "${_BUILD_PREFIX}/Library/bin/"
+cp "${RECIPE_DIR}/building/non_unix/clang-mingw-wrapper.py" "${_BUILD_PREFIX}/Library/bin/"
 
 # First run the script to create the MinGW chkstk_ms.obj file once
 echo "Creating MinGW chkstk_ms.obj file..."
 # Use -S flag to disable user site and -I to isolate mode (ignore environment variables)
-${PYTHON} -S -I "${RECIPE_DIR}/building/non-unix/create_mingw_chkstk.py" 2>/dev/null
+${PYTHON} -S -I "${RECIPE_DIR}/building/non_unix/create_mingw_chkstk.py" 2>/dev/null
 if [ $? -ne 0 ]; then
   echo "Error: Failed to create MinGW chkstk_ms.obj file"
   exit 1
