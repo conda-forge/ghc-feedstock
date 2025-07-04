@@ -22,7 +22,8 @@ mkdir -p "${PREFIX}"/etc/bash_completion.d
 cp utils/completion/ghc.bash "${PREFIX}"/etc/bash_completion.d/ghc
 
 # Clean up package cache
-find "${PREFIX}"/lib/*ghc-"${PKG_VERSION}" -name '*inplace.a' -delete
+# Does this allow building Hello with inbedded HS libs and prevent segfault on linux and 4GB reloc on osx?
+# find "${PREFIX}"/lib/*ghc-"${PKG_VERSION}" -name '*inplace.a' -delete
 find "${PREFIX}"/lib/*ghc-"${PKG_VERSION}" -name '*_p.a' -delete
 find "${PREFIX}"/lib/*ghc-"${PKG_VERSION}" -name '*.p_o' -delete
 
