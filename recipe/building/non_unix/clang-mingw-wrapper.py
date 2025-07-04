@@ -1,9 +1,10 @@
-# clang-mingw-wrapper.py
+#!/usr/bin/env python
+
 import os
-import subprocess
 import sys
+import subprocess
 import tempfile
-import glob
+import platform
 
 
 def unix_to_win_path(unix_path):
@@ -48,7 +49,7 @@ def find_clang_version(build_prefix):
 
 
 # Fix %BUILD_PREFIX% in search paths
-def fix_build_prefix(path, for_response_file=False):
+def fix_build_prefix(path, build_prefix, build_prefix_escaped, for_response_file=False):
     """Replace %BUILD_PREFIX% with actual build prefix."""
     if not path:
         return path
@@ -120,7 +121,7 @@ for arg in sys.argv[1:]:
         print(f"[WRAPPER] Creating filtered response file: {temp_resp}", file=sys.stderr)
 
         if os.path.exists(resp_file):
-            with (open(resp_file, 'r') as in_file, open(temp_resp, 'w') as temp_file):
+            with open(resp_file, 'r') as in_file, open(temp_resp, 'w') as temp_file:
                 processed_libs = set()
                 clang_rt_added = False
                 chkstk_added = False
@@ -170,7 +171,7 @@ for arg in sys.argv[1:]:
 
                     # Fix %BUILD_PREFIX% in the line if present
                     if '%BUILD_PREFIX%' in line:
-                        line = line.replace('%BUILD_PREFIX%', build_prefix_escaped)
+                        line = fix_build_prefix(line, build_prefix, build_prefix_escaped, True)
 
                     # Handle library references to avoid duplicates
                     if line.startswith('-l'):
@@ -186,7 +187,7 @@ for arg in sys.argv[1:]:
                         path = line[2:]
                         # Replace %BUILD_PREFIX% in the path
                         if '%BUILD_PREFIX%' in path:
-                            path = path.replace('%BUILD_PREFIX%', build_prefix_escaped)
+                            path = fix_build_prefix(path, build_prefix, build_prefix_escaped, True)
                         # Handle _BUILD_PREFIX if present
                         if _build_prefix and _build_prefix in path:
                             path = path.replace(_build_prefix, build_prefix_escaped)
@@ -231,11 +232,17 @@ for arg in sys.argv[1:]:
 
                 # --- Ensure clang_rt.builtins-x86_64 is present ---
                 if not clang_rt_added:
-                    # Use the detected clang version instead of hardcoding 19
-                    clang_rt_path = f"{build_prefix_escaped}\\Lib\\clang\\{clang_version}\\lib\\windows\\clang_rt.builtins-x86_64.lib"
+                    # Create proper Windows path with backslashes for the clang runtime
+                    clang_rt_path = os.path.join(build_prefix, "Lib", "clang", clang_version, "lib", "windows", "clang_rt.builtins-x86_64.lib")
+                    clang_rt_path_formatted = format_path_for_response_file(clang_rt_path)
+
+                    # Create properly formatted lib directory path
+                    lib_dir = os.path.join(build_prefix, "Lib", "clang", clang_version, "lib", "windows")
+                    lib_dir_formatted = format_path_for_response_file(lib_dir)
+
                     print(f"[WRAPPER] Forcing clang runtime: {clang_rt_path}", file=sys.stderr)
-                    temp_file.write(f"-L{build_prefix_escaped}\\Lib\\clang\\{clang_version}\\lib\\windows\n")
-                    temp_file.write(f"{clang_rt_path}\n")
+                    temp_file.write(f"-L{lib_dir_formatted}\n")
+                    temp_file.write(f"{clang_rt_path_formatted}\n")
                     temp_file.write("-lclang_rt.builtins-x86_64\n")
 
             filtered_args.append(f"@{temp_resp}")
@@ -254,7 +261,7 @@ for arg in sys.argv[1:]:
         if not skip:
             # Replace %BUILD_PREFIX% in arguments if present
             if '%BUILD_PREFIX%' in arg:
-                arg = arg.replace('%BUILD_PREFIX%', build_prefix_escaped)
+                arg = fix_build_prefix(arg, build_prefix, build_prefix_escaped, False)
             # Replace _BUILD_PREFIX in arguments if present
             if _build_prefix and _build_prefix in arg:
                 arg = arg.replace(_build_prefix, build_prefix_escaped)
