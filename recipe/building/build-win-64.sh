@@ -122,6 +122,8 @@ export LIB="${BUILD_PREFIX}/Library/lib;${PREFIX}/Library/lib;C:/Program Files (
 export INCLUDE="C:/Program Files (x86)/Windows Kits/10/Include/10.0.26100.0/ucrt;C:/Program Files (x86)/Windows Kits/10/Include/10.0.26100.0/um;C:/Program Files (x86)/Windows Kits/10/Include/10.0.26100.0/shared;${MSVC_VERSION_DIR}/include${INCLUDE:+;}${INCLUDE:-}"
 export CHKSTK_OBJ="${MSVC_VERSION_DIR}/lib/x64/chkstk.obj"
 
+ls "${MSVC_VERSION_DIR}/lib/x64/"
+
 mkdir -p "${_SRC_DIR}/hadrian/cfg" && touch "${_SRC_DIR}/hadrian/cfg/default.target.ghc-toolchain"
 
 # Remove this annoying mingw
@@ -141,7 +143,7 @@ _hadrian_build=("${_SRC_DIR}"/hadrian/build.bat)
 # Configure and build GHC
 SYSTEM_CONFIG=(
   --build="x86_64-w64-mingw32"
-  # --host="x86_64-w64-mingw32"
+  --host="x86_64-w64-mingw32"
   # --target="x86_64-w64-mingw32"
 )
 
@@ -181,5 +183,9 @@ export CABFLAGS="--with-compiler=${GHC} --with-gcc=${CLANG_WRAPPER}"
   --flavour=quickest \
   --docs=none \
   --progress-info=unicorn || true
+
+echo "*** Stage 1 GHC build clock logs. ***"
 cat C:/cabal/logs/ghc-9.10.1/clock-0.8.4*.log
+echo "*** Stage 1 GHC build clock logs. ***"
+
 run_and_log "install" "${_hadrian_build[@]}" install --prefix="${_PREFIX}" --flavour=release --freeze1 --docs=none
