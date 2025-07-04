@@ -1,123 +1,120 @@
-#!/usr/bin/env python3
-# create_mingw_chkstk.py - Creates the MinGW ___chkstk_ms object file
+#!/usr/bin/env python
+
 import os
-import subprocess
 import sys
+import subprocess
 import tempfile
 
 
-def unix_to_win_path(unix_path):
-    """Convert a Unix-style path to Windows format."""
-    if unix_path.startswith('/') and (len(unix_path) > 2 and unix_path[2] == '/'):
-        drive = unix_path[1].lower()
-        return f"{drive}:{unix_path[2:]}".replace('/', '\\')
+def main():
+    """Create a custom MinGW chkstk_ms.obj file to provide ___chkstk_ms symbol."""
 
-    # Default case: just replace slashes
-    return unix_path.replace('/', '\\')
+    print("Creating MinGW chkstk_ms.obj file...")
 
+    # Get build environment variables
+    build_prefix = os.environ.get('BUILD_PREFIX', os.environ.get('_BUILD_PREFIX', ''))
+    if not build_prefix:
+        print("Error: BUILD_PREFIX environment variable not set")
+        return 1
 
-def create_mingw_chkstk_ms_obj(build_prefix):
-    """Create a simple object file with the ___chkstk_ms symbol for MinGW."""
-    # Define the target object file path
-    obj_path = os.path.join(build_prefix, 'Library', 'lib', 'chkstk_mingw_ms.obj')
-    obj_path_dir = os.path.dirname(obj_path)
+    # Convert Unix path to Windows if needed
+    if build_prefix.startswith('/'):
+        if len(build_prefix) > 2 and build_prefix[2] == '/':
+            drive = build_prefix[1].lower()
+            build_prefix = f"{drive}:{build_prefix[2:]}".replace('/', '\\')
+        else:
+            build_prefix = build_prefix.replace('/', '\\')
 
-    # If the object file already exists, just return its path
-    if os.path.exists(obj_path):
-        print(f"[SETUP] Found existing MinGW chkstk_ms.obj at {obj_path}", file=sys.stderr)
-        return obj_path
+    # Create output directory
+    output_dir = os.path.join(build_prefix, 'Library', 'lib')
+    os.makedirs(output_dir, exist_ok=True)
 
-    print(f"[SETUP] Creating MinGW chkstk_ms.obj at {obj_path}", file=sys.stderr)
+    output_file = os.path.join(output_dir, 'chkstk_mingw_ms.obj')
 
-    # Make sure the directory exists
-    os.makedirs(obj_path_dir, exist_ok=True)
+    # If output file already exists, we're done
+    if os.path.exists(output_file):
+        print(f"File already exists: {output_file}")
+        return 0
 
-    # Create a temporary C file with the MinGW ___chkstk_ms implementation
-    temp_c_file = os.path.join(tempfile.gettempdir(), "chkstk_mingw_ms.c")
-    with open(temp_c_file, 'w') as f:
+    # Create a temporary file for the C source
+    with tempfile.NamedTemporaryFile(suffix='.c', delete=False, mode='w') as f:
+        source_file = f.name
+        # Write C code for ___chkstk_ms implementation compatible with LLVM
         f.write("""
-// MinGW-specific implementation of ___chkstk_ms for Windows
-// Based on mingw-w64 implementation
-
+/* 
+ * Custom implementation of __chkstk_ms for MinGW to work with clang
+ * This is simplified and doesn't use naked functions 
+ */
 #include <stdint.h>
 
-// MinGW ___chkstk_ms implementation
-// This function allocates stack space in 4K chunks
-__attribute__((used)) void ___chkstk_ms(void)
-{
-    // Get the stack pointer and requested allocation size from the registers
-    register unsigned char *stack_ptr;
-    register uintptr_t allocation_size;
+/* Get the page size for this platform */
+#define PAGE_SIZE 4096
 
-    // Using inline assembly to get RAX (allocation size) and save necessary registers
-    __asm__ __volatile__ (
-        "movq %%rsp, %0\\n\\t"   // stack_ptr = RSP
-        "movq %%rax, %1\\n\\t"   // allocation_size = RAX
-        : "=r" (stack_ptr), "=r" (allocation_size)
-        :
-        // No clobber list needed as we're just reading registers
-    );
-
-    // Round allocation size to a page multiple if necessary
-    uintptr_t page_size = 4096; // 4K page size
-    uintptr_t rounded = allocation_size + (page_size - 1) & ~(page_size - 1);
-
-    // Ensure we touch each page to trigger the guard page mechanism
-    unsigned char *check_ptr = stack_ptr - rounded;
-    unsigned char *guard_ptr = stack_ptr - page_size;
-
-    while (check_ptr <= guard_ptr) {
-        guard_ptr -= page_size;
-        *guard_ptr = 0; // Touch the page to commit it
+void ___chkstk_ms(void) {
+    /* Simplified stack probing implementation */
+    register unsigned char *probe;
+    register uintptr_t stack_ptr;
+    
+    /* Get current stack pointer */
+    __asm__("movq %%rsp, %0" : "=r" (stack_ptr));
+    
+    /* Get the stack size requested in bytes from rax */
+    uintptr_t stack_size;
+    __asm__("movq %%rax, %0" : "=r" (stack_size));
+    
+    /* If size < PAGE_SIZE, only probe once */
+    if (stack_size <= PAGE_SIZE) {
+        probe = (unsigned char*)(stack_ptr - stack_size);
+        *probe = 0;  /* Probe the page */
+        return;
     }
-
-    // No need to modify RAX as it already contains the original allocation size
-    return;
+    
+    /* For large allocations, probe every page */
+    probe = (unsigned char*)(stack_ptr & ~(PAGE_SIZE - 1)); /* Round down to page boundary */
+    while (stack_size > PAGE_SIZE) {
+        probe -= PAGE_SIZE;
+        *probe = 0;  /* Probe the page */
+        stack_size -= PAGE_SIZE;
+    }
+    
+    /* Probe the final page */
+    probe -= stack_size;
+    *probe = 0;  /* Probe the page */
 }
-        """)
 
-    # Compile it to an object file
-    try:
-        clang_exe = os.path.join(build_prefix, 'Library', 'bin', 'clang.exe')
-        result = subprocess.run(
-            [clang_exe, "--target=x86_64-w64-mingw32", "-c", temp_c_file, "-o", obj_path],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            check=False
-        )
-        if result.returncode == 0 and os.path.exists(obj_path):
-            print(f"[SETUP] Successfully created MinGW chkstk_ms.obj with ___chkstk_ms symbol at: {obj_path}",
-                  file=sys.stderr)
-            return obj_path
-        else:
-            print(f"[SETUP] Failed to compile MinGW chkstk_ms.obj: {result.stderr.decode()}", file=sys.stderr)
-            return None
-    except Exception as e:
-        print(f"[SETUP] Error compiling MinGW chkstk_ms.obj: {e}", file=sys.stderr)
-        return None
+/* Create an alias for __chkstk_ms which some code might use */
+void __chkstk_ms(void) {
+    ___chkstk_ms();  /* Just call the real implementation */
+}
+""")
+
+    # Compile the source file
+    clang_exe = os.path.join(build_prefix, 'Library', 'bin', 'clang.exe')
+    if not os.path.exists(clang_exe):
+        print(f"Error: Clang not found at {clang_exe}")
+        return 1
+
+    cmd = [
+        clang_exe,
+        "-c", source_file,
+        "-o", output_file,
+        "--target=x86_64-w64-mingw32",
+        "-O2"
+    ]
+
+    print(f"Running: {' '.join(cmd)}")
+    result = subprocess.run(cmd)
+
+    # Clean up source file
+    os.unlink(source_file)
+
+    if result.returncode != 0:
+        print(f"Error: Failed to compile chkstk_ms implementation, returncode={result.returncode}")
+        return 1
+
+    print(f"Successfully created {output_file}")
+    return 0
 
 
 if __name__ == "__main__":
-    # Get build prefix from environment variables
-    _build_prefix = os.environ.get('_BUILD_PREFIX', '')
-    build_prefix_raw = os.environ.get('BUILD_PREFIX', '')
-
-    # Determine which build prefix to use
-    if _build_prefix:
-        # Convert Unix path to Windows with single backslashes for os.path operations
-        build_prefix = unix_to_win_path(_build_prefix)
-        print(f"[SETUP] Using _BUILD_PREFIX (converted): {build_prefix}", file=sys.stderr)
-    elif build_prefix_raw:
-        build_prefix = build_prefix_raw
-        print(f"[SETUP] Using BUILD_PREFIX: {build_prefix}", file=sys.stderr)
-    else:
-        print("[SETUP] Error: No build prefix environment variable found", file=sys.stderr)
-        sys.exit(1)
-
-    if obj_path := create_mingw_chkstk_ms_obj(build_prefix):
-        print(f"[SETUP] Successfully created or found chkstk_mingw_ms.obj at {obj_path}", file=sys.stderr)
-        sys.exit(0)
-    else:
-        print("[SETUP] Failed to create chkstk_mingw_ms.obj", file=sys.stderr)
-        sys.exit(1)
-
+    sys.exit(main())
