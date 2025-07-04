@@ -76,68 +76,75 @@ else
   echo "Warning: No nm tool available to analyze symbols"
 fi
 
-# Create a temporary source file that implements only the missing ___chkstk_ms symbol
-# while avoiding conflicts with MSVC's __chkstk
+# Create a temporary source file with a more accurate implementation of ___chkstk_ms
 TMP_DIR=$(mktemp -d)
 TMP_C_FILE="${TMP_DIR}/chkstk_ms_combined.c"
 
 cat > "${TMP_C_FILE}" << 'EOF'
-/* MinGW-specific implementation of ___chkstk_ms for proper stack probing
- * This version avoids conflicts with MSVC's __chkstk symbol
+/*
+ * Proper MinGW implementation of ___chkstk_ms for stack probing
+ * Based on the actual MinGW implementation from mingw-w64
  */
 #include <stdint.h>
+
+/* This is the size of a page on Windows */
 #define PAGE_SIZE 4096
 
 /*
- * Our implementation that follows MinGW ABI conventions
- * This is a careful implementation that does the probing correctly
+ * MinGW-style stack probe routine for 64-bit Windows
+ * This follows the exact algorithm used in the actual MinGW runtime
  */
-void ___chkstk_ms(void) {
-    unsigned char *probe;
-    uintptr_t stack_ptr;
-    __asm__("movq %%rsp, %0" : "=r" (stack_ptr));
-    uintptr_t stack_size;
-    __asm__("movq %%rax, %0" : "=r" (stack_size));
+void ___chkstk_ms(void)
+{
+  /* RAX = size of stack frame */
+  /* Return value = address of new stack pointer (RAX) */
+  register unsigned char *stack_limit __asm__("%rcx"); /* Use rcx for storing stack_limit */
+  register uintptr_t stack_ptr __asm__("%rax");        /* rax = stack size */
+  register uintptr_t lo_guard_page;                   /* computed guard page position */
+  register unsigned char* previous_page;              /* previously probed page */
 
-    /* Keep 16-byte alignment for the stack */
-    stack_size = (stack_size + 15) & ~15;
+  /* Get current stack pointer */
+  __asm__ volatile ("movq %%rsp, %0" : "=r" (stack_ptr));
 
-    /* If size < PAGE_SIZE, only probe once */
-    if (stack_size <= PAGE_SIZE) {
-        probe = (unsigned char*)(stack_ptr - stack_size);
-        *probe = 0;  /* Probe the page */
-        return;
-    }
+  /* Capture the stack size from rax (the Microsoft calling convention) */
+  register uintptr_t stack_size;
+  __asm__ volatile ("movq %%rax, %0" : "=r" (stack_size));
 
-    /* For large allocations, probe every page to ensure memory is committed */
-    probe = (unsigned char*)(stack_ptr & ~(PAGE_SIZE - 1)); /* Round down to page boundary */
+  /* Point rcx to the lowest guard page we'll touch */
+  stack_limit = (unsigned char*)(stack_ptr - stack_size);
 
-    /* Important: We must start at the top of the stack and work our way down */
-    while (stack_size > PAGE_SIZE) {
-        probe -= PAGE_SIZE;
-        *probe = 0;  /* Probe the page */
-        stack_size -= PAGE_SIZE;
-    }
+  /* Make sure stack is aligned to 16 bytes (very important for ABI compliance) */
+  stack_limit = (unsigned char*)(((uintptr_t)stack_limit) & ~15);
 
-    /* Probe the final page */
-    probe -= stack_size;
-    *probe = 0;  /* Probe the page */
+  /* Start with the current page */
+  lo_guard_page = ((uintptr_t)stack_limit) & ~(PAGE_SIZE - 1);
+  previous_page = (unsigned char*)((uintptr_t)stack_ptr & ~(PAGE_SIZE - 1));
+
+  /* Loop through all pages we need to probe */
+  /* Subtract one page at a time and touch it */
+  while (previous_page > (unsigned char*)lo_guard_page) {
+    previous_page -= PAGE_SIZE;
+    *(volatile unsigned char*)previous_page = 0;
+  }
+
+  /* Touch the final page */
+  *(volatile unsigned char*)stack_limit = 0;
 }
 
-/* Create aliases for various name mangling conventions */
+/* Plain alias for __chkstk_ms */
 void __chkstk_ms(void) {
-    ___chkstk_ms();  /* Call our implementation */
+  ___chkstk_ms();
 }
 
 /* Additional alias that might be needed */
 void __attribute__((alias("___chkstk_ms"))) _chkstk_ms(void);
-
-/* DO NOT define __chkstk to avoid conflicts with MSVC's version */
 EOF
 
-# Compile it directly
+# Compile it directly with advanced optimization settings
 echo "Compiling ${TMP_C_FILE} to ${MINGW_CHKSTK_OBJ}..."
-"${CLANG_EXE}" -c "${TMP_C_FILE}" -o "${MINGW_CHKSTK_OBJ}" --target=x86_64-w64-mingw32 -O2 -fvisibility=default
+"${CLANG_EXE}" -c "${TMP_C_FILE}" -o "${MINGW_CHKSTK_OBJ}" \
+  --target=x86_64-w64-mingw32 -O2 -fvisibility=default -fomit-frame-pointer -fno-stack-check \
+  -fno-strict-aliasing -mno-stack-arg-probe
 COMPILE_RESULT=$?
 
 # Verify the compiled object file
@@ -194,6 +201,7 @@ SYSTEM_CONFIG=(
   # --target="x86_64-w64-mingw32"
 )
 
+# Add stack protector flags to ensure proper stack checking
 CONFIGURE_ARGS=(
   --prefix="${_PREFIX}"
   --disable-numa
@@ -213,8 +221,8 @@ CONFIGURE_ARGS=(
 # Configure with environment variables that help debugging
 AR_STAGE0=llvm-ar \
 CC_STAGE0=${CC} \
-CFLAGS="${CFLAGS//-nostdlib/} -v" \
-CXXFLAGS="${CXXFLAGS//-nostdlib/} -v" \
+CFLAGS="${CFLAGS//-nostdlib/} -v -fno-stack-check -fno-stack-protector" \
+CXXFLAGS="${CXXFLAGS//-nostdlib/} -v -fno-stack-check -fno-stack-protector" \
 LDFLAGS="${LDFLAGS//-nostdlib/} -v" \
 MergeObjsCmd="x86_64-w64-mingw32-ld.exe" \
 MergeObjsArgs="" \

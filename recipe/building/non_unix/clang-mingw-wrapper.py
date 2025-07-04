@@ -289,6 +289,9 @@ for arg in sys.argv[1:]:
 # Prepare final command with escaped backslashes for file paths but not for the exe itself
 clang_exe = os.path.join(build_prefix, 'Library', 'bin', 'clang.exe')
 
+# Check if we're building or running an HSC tool
+hsc_tool = any('hsc_make' in arg or 'hsc2hs' in arg for arg in sys.argv)
+
 # Add flags to explicitly control runtime libraries and avoid MSVC CRT
 runtime_flags = [
     # Use MinGW mode for clang to avoid automatic inclusion of MSVC runtime
@@ -302,8 +305,23 @@ runtime_flags = [
     '-lucrt',    # Universal CRT
 ]
 
-# Add debug symbols for easier troubleshooting
-if any(arg == '-c' for arg in filtered_args):
+# Special handling for HSC tools
+if hsc_tool:
+    print("[WRAPPER] HSC tool detected, using special flags", file=sys.stderr)
+    runtime_flags.extend([
+        # These flags help with HSC tools stack issues
+        '-fno-stack-check',
+        '-fno-stack-protector',
+        # Ensure our custom chkstk_ms.obj is linked properly
+        '-Xlinker', '/INCLUDE:___chkstk_ms',
+    ])
+
+    # Add debug info for HSC tools only
+    if any('.o' in arg or '.obj' in arg for arg in filtered_args):
+        runtime_flags.extend(['-g', '-gdwarf-4'])
+
+# Add debug symbols for easier troubleshooting for normal compilation
+elif any(arg == '-c' for arg in filtered_args):
     # Only for compilation, not linking
     runtime_flags.extend(['-g'])
 
