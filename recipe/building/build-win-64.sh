@@ -37,7 +37,13 @@ cp "${RECIPE_DIR}/building/non_unix/clang-mingw-wrapper.py" "${_BUILD_PREFIX}/Li
 # First run the script to create the MinGW chkstk_ms.obj file once
 echo "Creating MinGW chkstk_ms.obj file..."
 # Use -S flag to disable user site and -I to isolate mode (ignore environment variables)
-${PYTHON} -S -I "${RECIPE_DIR}/building/non_unix/create_mingw_chkstk.py"
+# Redirect stderr to /dev/null to suppress "No pyvenv.cfg file" message
+PYTHONNOUSERSITE=1 \
+PYTHONPATH= \
+VIRTUAL_ENV= \
+PYTHONSTARTUP= \
+PYTHONHOME= \
+${PYTHON} -S -I "${RECIPE_DIR}/building/non_unix/create_mingw_chkstk.py" 2>/dev/null
 if [ $? -ne 0 ]; then
   echo "Error: Failed to create MinGW chkstk_ms.obj file"
   exit 1
