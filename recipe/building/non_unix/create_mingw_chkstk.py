@@ -22,6 +22,9 @@ def main():
 
     print(f"Using build_prefix: {build_prefix}")
 
+    # Fix path with double slashes and normalize
+    build_prefix = build_prefix.replace('//', '/')
+
     # Convert Unix path to Windows if needed
     if build_prefix.startswith('/'):
         if len(build_prefix) > 2 and build_prefix[2] == '/':
@@ -50,79 +53,77 @@ def main():
         print(f"File already exists: {output_file}")
         return 0
 
-    # Create a temporary file for the C source
-    try:
-        fd, source_file = tempfile.mkstemp(suffix='.c', text=True)
-        print(f"Created temporary source file: {source_file}")
-        with os.fdopen(fd, 'w') as f:
-            # Write C code for ___chkstk_ms implementation compatible with LLVM
-            f.write("""
-/* 
- * Custom implementation of __chkstk_ms for MinGW to work with clang
- * This is simplified and doesn't use naked functions 
- */
-#include <stdint.h>
+    # Create a temporary file for the C source - use a more reliable method
+    temp_dir = tempfile.mkdtemp()
+    source_file = os.path.join(temp_dir, 'chkstk_ms.c')
+    print(f"Created temporary source file: {source_file}")
 
-/* Get the page size for this platform */
+    try:
+        with open(source_file, 'w') as f:
+            f.write("""
+/* Simple implementation of __chkstk_ms for MinGW */
+#include <stdint.h>
 #define PAGE_SIZE 4096
 
 void ___chkstk_ms(void) {
-    /* Simplified stack probing implementation */
-    register unsigned char *probe;
-    register uintptr_t stack_ptr;
-    
-    /* Get current stack pointer */
+    unsigned char *probe;
+    uintptr_t stack_ptr;
     __asm__("movq %%rsp, %0" : "=r" (stack_ptr));
-    
-    /* Get the stack size requested in bytes from rax */
     uintptr_t stack_size;
     __asm__("movq %%rax, %0" : "=r" (stack_size));
     
-    /* If size < PAGE_SIZE, only probe once */
     if (stack_size <= PAGE_SIZE) {
         probe = (unsigned char*)(stack_ptr - stack_size);
-        *probe = 0;  /* Probe the page */
+        *probe = 0;
         return;
     }
     
-    /* For large allocations, probe every page */
-    probe = (unsigned char*)(stack_ptr & ~(PAGE_SIZE - 1)); /* Round down to page boundary */
+    probe = (unsigned char*)(stack_ptr & ~(PAGE_SIZE - 1));
     while (stack_size > PAGE_SIZE) {
         probe -= PAGE_SIZE;
-        *probe = 0;  /* Probe the page */
+        *probe = 0;
         stack_size -= PAGE_SIZE;
     }
-    
-    /* Probe the final page */
     probe -= stack_size;
-    *probe = 0;  /* Probe the page */
+    *probe = 0;
 }
 
-/* Create an alias for __chkstk_ms which some code might use */
 void __chkstk_ms(void) {
-    ___chkstk_ms();  /* Just call the real implementation */
+    ___chkstk_ms();
 }
 """)
     except Exception as e:
-        print(f"Error creating temporary file: {e}")
+        print(f"Error writing source file: {e}")
         return 1
 
-    # Find clang executable
-    clang_exe = os.path.join(build_prefix, 'Library', 'bin', 'clang.exe')
-    if not os.path.exists(clang_exe):
-        print(f"Error: Clang not found at {clang_exe}")
-        print("Searching for clang...")
+    # Find clang executable - try multiple paths
+    clang_exe = None
+    possible_paths = [
+        os.path.join(build_prefix, 'Library', 'bin', 'clang.exe'),
+        os.path.join(build_prefix, 'bin', 'clang.exe')
+    ]
+
+    for path in possible_paths:
+        if os.path.exists(path):
+            clang_exe = path
+            print(f"Found clang at: {clang_exe}")
+            break
+
+    if not clang_exe:
+        print("Error: Could not find clang.exe in standard locations, searching...")
+        # Last resort - search for it
         for root, dirs, files in os.walk(build_prefix):
             for file in files:
                 if file.lower() == 'clang.exe':
                     clang_exe = os.path.join(root, file)
                     print(f"Found clang at: {clang_exe}")
                     break
-            if os.path.exists(clang_exe):
+            if clang_exe:
                 break
-        if not os.path.exists(clang_exe):
-            print("Error: Could not find clang.exe")
-            return 1
+
+    if not clang_exe:
+        print("Critical Error: Could not find clang.exe")
+        return 1
 
     # Compile the source file
     cmd = [
@@ -147,12 +148,13 @@ void __chkstk_ms(void) {
         print(f"Exception running compiler: {e}")
         return 1
     finally:
-        # Clean up source file
+        # Clean up temporary directory
         try:
-            os.unlink(source_file)
-            print(f"Deleted temporary source file")
+            import shutil
+            shutil.rmtree(temp_dir, ignore_errors=True)
+            print(f"Deleted temporary directory")
         except Exception as e:
-            print(f"Error cleaning up source file: {e}")
+            print(f"Error cleaning up temp dir: {e}")
 
     # Verify file was created
     if os.path.exists(output_file):

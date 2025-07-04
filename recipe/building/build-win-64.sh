@@ -42,31 +42,27 @@ MINGW_CHKSTK_OBJ="${MINGW_CHKSTK_DIR}/chkstk_mingw_ms.obj"
 # First run the script to create the MinGW chkstk_ms.obj file once
 echo "Creating MinGW chkstk_ms.obj file at ${MINGW_CHKSTK_OBJ}..."
 
-# Don't suppress output for better debugging
-PYTHONNOUSERSITE=1 \
-PYTHONPATH="" \
-VIRTUAL_ENV="" \
-PYTHONSTARTUP="" \
-PYTHONHOME="" \
-PYTHONWARNINGS=ignore \
-${PYTHON} -S "${RECIPE_DIR}/building/non_unix/create_mingw_chkstk.py"
+# Find clang executable
+CLANG_EXE=$(find "${_BUILD_PREFIX}" -name clang.exe | head -1)
 
-# Check if the file was created
-if [ ! -f "${MINGW_CHKSTK_OBJ}" ]; then
-  echo "Error: MinGW chkstk_ms.obj file was not created at ${MINGW_CHKSTK_OBJ}"
-  # Try to create the file directly with inline compilation command
-  CLANG_EXE=$(find "${_BUILD_PREFIX}" -name clang.exe | head -1)
-  echo "Attempting direct compilation with ${CLANG_EXE}..."
+if [ -z "${CLANG_EXE}" ]; then
+  echo "Error: Could not find clang.exe"
+  exit 1
+fi
 
-  # Create a temporary source file
-  TMP_C_FILE=$(mktemp --suffix=.c)
-  cat > "${TMP_C_FILE}" << 'EOF'
+echo "Found clang at: ${CLANG_EXE}"
+
+# Create a temporary source file
+TMP_DIR=$(mktemp -d)
+TMP_C_FILE="${TMP_DIR}/chkstk_ms.c"
+
+cat > "${TMP_C_FILE}" << 'EOF'
 /* Custom implementation of __chkstk_ms for MinGW */
 #include <stdint.h>
 #define PAGE_SIZE 4096
 void ___chkstk_ms(void) {
-    register unsigned char *probe;
-    register uintptr_t stack_ptr;
+    unsigned char *probe;
+    uintptr_t stack_ptr;
     __asm__("movq %%rsp, %0" : "=r" (stack_ptr));
     uintptr_t stack_size;
     __asm__("movq %%rax, %0" : "=r" (stack_size));
@@ -87,16 +83,21 @@ void ___chkstk_ms(void) {
 void __chkstk_ms(void) { ___chkstk_ms(); }
 EOF
 
-  # Compile it directly
-  "${CLANG_EXE}" -c "${TMP_C_FILE}" -o "${MINGW_CHKSTK_OBJ}" --target=x86_64-w64-mingw32 -O2
-  rm "${TMP_C_FILE}"
+# Compile it directly
+echo "Compiling ${TMP_C_FILE} to ${MINGW_CHKSTK_OBJ}..."
+"${CLANG_EXE}" -c "${TMP_C_FILE}" -o "${MINGW_CHKSTK_OBJ}" --target=x86_64-w64-mingw32 -O2
+COMPILE_RESULT=$?
 
-  if [ ! -f "${MINGW_CHKSTK_OBJ}" ]; then
-    echo "Critical Error: Could not create MinGW chkstk_ms.obj file through any method"
-    exit 1
-  fi
-  echo "Successfully created ${MINGW_CHKSTK_OBJ} via direct compilation"
+# Clean up temporary files
+rm -rf "${TMP_DIR}"
+
+# Check if compilation succeeded
+if [ ${COMPILE_RESULT} -ne 0 ] || [ ! -f "${MINGW_CHKSTK_OBJ}" ]; then
+  echo "Critical Error: Failed to create MinGW chkstk_ms.obj file"
+  exit 1
 fi
+
+echo "Successfully created ${MINGW_CHKSTK_OBJ} via direct compilation"
 
 # Make sure we use conda-forge clang (ghc bootstrap has a clang.exe)
 CLANG=$(find "${_BUILD_PREFIX}" -name clang.exe | head -1)
