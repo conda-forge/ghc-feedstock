@@ -34,19 +34,68 @@ CLANG_WRAPPER="${BUILD_PREFIX}\\Library\\bin\\clang-mingw-wrapper.bat"
 cp "${RECIPE_DIR}/building/non_unix/clang-mingw-wrapper.bat" "${_BUILD_PREFIX}/Library/bin/"
 cp "${RECIPE_DIR}/building/non_unix/clang-mingw-wrapper.py" "${_BUILD_PREFIX}/Library/bin/"
 
+# Create directory for MinGW chkstk_ms.obj file
+MINGW_CHKSTK_DIR="${_BUILD_PREFIX}/Library/lib"
+mkdir -p "${MINGW_CHKSTK_DIR}"
+MINGW_CHKSTK_OBJ="${MINGW_CHKSTK_DIR}/chkstk_mingw_ms.obj"
+
 # First run the script to create the MinGW chkstk_ms.obj file once
-echo "Creating MinGW chkstk_ms.obj file..."
-# Use -S flag to disable user site and -I to isolate mode (ignore environment variables)
-# Redirect stderr to /dev/null to suppress "No pyvenv.cfg file" message
+echo "Creating MinGW chkstk_ms.obj file at ${MINGW_CHKSTK_OBJ}..."
+
+# Don't suppress output for better debugging
 PYTHONNOUSERSITE=1 \
 PYTHONPATH="" \
 VIRTUAL_ENV="" \
 PYTHONSTARTUP="" \
 PYTHONHOME="" \
-${PYTHON} -S -I "${RECIPE_DIR}/building/non_unix/create_mingw_chkstk.py" 2>/dev/null
-if [ $? -ne 0 ]; then
-  echo "Error: Failed to create MinGW chkstk_ms.obj file"
-  exit 1
+PYTHONWARNINGS=ignore \
+${PYTHON} -S "${RECIPE_DIR}/building/non_unix/create_mingw_chkstk.py"
+
+# Check if the file was created
+if [ ! -f "${MINGW_CHKSTK_OBJ}" ]; then
+  echo "Error: MinGW chkstk_ms.obj file was not created at ${MINGW_CHKSTK_OBJ}"
+  # Try to create the file directly with inline compilation command
+  CLANG_EXE=$(find "${_BUILD_PREFIX}" -name clang.exe | head -1)
+  echo "Attempting direct compilation with ${CLANG_EXE}..."
+
+  # Create a temporary source file
+  TMP_C_FILE=$(mktemp --suffix=.c)
+  cat > "${TMP_C_FILE}" << 'EOF'
+/* Custom implementation of __chkstk_ms for MinGW */
+#include <stdint.h>
+#define PAGE_SIZE 4096
+void ___chkstk_ms(void) {
+    register unsigned char *probe;
+    register uintptr_t stack_ptr;
+    __asm__("movq %%rsp, %0" : "=r" (stack_ptr));
+    uintptr_t stack_size;
+    __asm__("movq %%rax, %0" : "=r" (stack_size));
+    if (stack_size <= PAGE_SIZE) {
+        probe = (unsigned char*)(stack_ptr - stack_size);
+        *probe = 0;
+        return;
+    }
+    probe = (unsigned char*)(stack_ptr & ~(PAGE_SIZE - 1));
+    while (stack_size > PAGE_SIZE) {
+        probe -= PAGE_SIZE;
+        *probe = 0;
+        stack_size -= PAGE_SIZE;
+    }
+    probe -= stack_size;
+    *probe = 0;
+}
+void __chkstk_ms(void) { ___chkstk_ms(); }
+EOF
+
+  # Compile it directly
+  "${CLANG_EXE}" -c "${TMP_C_FILE}" -o "${MINGW_CHKSTK_OBJ}" --target=x86_64-w64-mingw32 -O2
+  rm "${TMP_C_FILE}"
+
+  if [ ! -f "${MINGW_CHKSTK_OBJ}" ]; then
+    echo "Critical Error: Could not create MinGW chkstk_ms.obj file through any method"
+    exit 1
+  fi
+  echo "Successfully created ${MINGW_CHKSTK_OBJ} via direct compilation"
 fi
 
 # Make sure we use conda-forge clang (ghc bootstrap has a clang.exe)
