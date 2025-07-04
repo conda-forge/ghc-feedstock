@@ -227,9 +227,10 @@ for arg in sys.argv[1:]:
                             temp_file.write(f"{mingw_chkstk_ms_path_formatted}\n")
                             mingw_chkstk_ms_added = True
 
-                        # Add regular chkstk.obj if needed
-                        if not chkstk_added and chkstk_obj_path:
-                            print(f"[WRAPPER] Adding chkstk.obj before clang_rt: {chkstk_obj_path_formatted}", file=sys.stderr)
+                        # We don't need to add the MSVC chkstk.obj if we have our MinGW version
+                        # This prevents symbol conflicts with __chkstk
+                        if not chkstk_added and chkstk_obj_path and not mingw_chkstk_ms_added:
+                            print(f"[WRAPPER] Adding MSVC chkstk.obj before clang_rt: {chkstk_obj_path_formatted}", file=sys.stderr)
                             temp_file.write(f"{chkstk_obj_path_formatted}\n")
                             chkstk_added = True
 
@@ -242,9 +243,9 @@ for arg in sys.argv[1:]:
                     temp_file.write(f"{mingw_chkstk_ms_path_formatted}\n")
                     mingw_chkstk_ms_added = True
 
-                # --- Add regular chkstk.obj if not already present ---
-                if not chkstk_added and chkstk_obj_path:
-                    print(f"[WRAPPER] Adding chkstk.obj at end of response file: {chkstk_obj_path_formatted}", file=sys.stderr)
+                # --- Add MSVC chkstk.obj only if we don't have our MinGW version ---
+                if not chkstk_added and chkstk_obj_path and not mingw_chkstk_ms_added:
+                    print(f"[WRAPPER] Adding MSVC chkstk.obj at end of response file: {chkstk_obj_path_formatted}", file=sys.stderr)
                     temp_file.write(f"{chkstk_obj_path_formatted}\n")
                     chkstk_added = True
 

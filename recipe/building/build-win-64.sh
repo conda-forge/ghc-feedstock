@@ -76,12 +76,15 @@ else
   echo "Warning: No nm tool available to analyze symbols"
 fi
 
-# Create a temporary source file that combines our implementation with msvc
+# Create a temporary source file that implements only the missing ___chkstk_ms symbol
+# while avoiding conflicts with MSVC's __chkstk
 TMP_DIR=$(mktemp -d)
 TMP_C_FILE="${TMP_DIR}/chkstk_ms_combined.c"
 
 cat > "${TMP_C_FILE}" << 'EOF'
-/* Combined implementation of __chkstk_ms for MinGW - also exports aliases */
+/* MinGW-specific implementation of ___chkstk_ms for proper stack probing
+ * This version avoids conflicts with MSVC's __chkstk symbol
+ */
 #include <stdint.h>
 #define PAGE_SIZE 4096
 
@@ -129,8 +132,7 @@ void __chkstk_ms(void) {
 /* Additional alias that might be needed */
 void __attribute__((alias("___chkstk_ms"))) _chkstk_ms(void);
 
-/* Windows x64 convention */
-void __attribute__((alias("___chkstk_ms"))) __chkstk(void);
+/* DO NOT define __chkstk to avoid conflicts with MSVC's version */
 EOF
 
 # Compile it directly
@@ -170,9 +172,6 @@ export GHC="${SRC_DIR}\\bootstrap-ghc\\bin\\ghc.exe"
 # Export LIB with the dynamic path
 export LIB="${BUILD_PREFIX}/Library/lib;${PREFIX}/Library/lib;C:/Program Files (x86)/Windows Kits/10/Lib/10.0.26100.0/um/x64;${MSVC_VERSION_DIR}/lib/x64${LIB:+;}${LIB:-}"
 export INCLUDE="C:/Program Files (x86)/Windows Kits/10/Include/10.0.26100.0/ucrt;C:/Program Files (x86)/Windows Kits/10/Include/10.0.26100.0/um;C:/Program Files (x86)/Windows Kits/10/Include/10.0.26100.0/shared;${MSVC_VERSION_DIR}/include${INCLUDE:+;}${INCLUDE:-}"
-
-# Check contents of the MSVC lib/x64 directory to see what's available
-ls "${MSVC_VERSION_DIR}/lib/x64/"
 
 mkdir -p "${_SRC_DIR}/hadrian/cfg" && touch "${_SRC_DIR}/hadrian/cfg/default.target.ghc-toolchain"
 
