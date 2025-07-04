@@ -70,7 +70,10 @@ requirements:
         - libffi
 
     - if: target_platform == "linux-aarch64"
-      then: sysroot_${{ build_platform }} >=2.28
+      then:
+        # Restrict to 2.43 (2.44 does not seem to have ld.gold and makes aarch64 build fail)
+        - binutils 2.43
+        - sysroot_${{ build_platform }} >=2.28
 
     - if: linux
       then:
