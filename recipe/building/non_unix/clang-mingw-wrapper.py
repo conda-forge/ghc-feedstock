@@ -21,15 +21,13 @@ def format_path_for_response_file(path):
     if not path:
         return path
 
-    # For paths with spaces, use quotes and double backslashes for response files
-    if ' ' in path:
-        # Double backslashes inside the path
-        escaped_path = path.replace('\\', '\\\\')
-        # Wrap in quotes
-        return f'"{escaped_path}"'
-    else:
+    if ' ' not in path:
         # For paths without spaces, just ensure proper escaping of backslashes
         return path.replace('\\', '\\\\')
+    # Double backslashes inside the path
+    escaped_path = path.replace('\\', '\\\\')
+    # Wrap in quotes
+    return f'"{escaped_path}"'
 
 
 def find_clang_version(build_prefix):
