@@ -99,6 +99,27 @@ mingw_chkstk_ms_path = os.path.join(build_prefix, 'Library', 'lib', 'chkstk_ming
 if os.path.exists(mingw_chkstk_ms_path):
     mingw_chkstk_ms_path_formatted = format_path_for_response_file(mingw_chkstk_ms_path)
     print(f"[WRAPPER] Using MinGW chkstk_ms.obj at: {mingw_chkstk_ms_path_formatted}", file=sys.stderr)
+
+    # Check if this is a linking command by looking for common linker flags
+    linking_command = any(arg.startswith('-l') or '.o' in arg or '.obj' in arg or '.lib' in arg for arg in sys.argv[1:])
+
+    if linking_command:
+        try:
+            # Check what symbols are in our object file to help diagnose issues
+            check_cmd = ['llvm-nm', mingw_chkstk_ms_path]
+            try:
+                nm_output = subprocess.check_output(check_cmd, stderr=subprocess.STDOUT, text=True)
+                print(f"[WRAPPER] Symbols in {mingw_chkstk_ms_path}:\n{nm_output}", file=sys.stderr)
+            except (subprocess.SubprocessError, FileNotFoundError):
+                # Fall back to dumpbin if available
+                try:
+                    dumpbin_cmd = ['dumpbin', '/SYMBOLS', mingw_chkstk_ms_path]
+                    dumpbin_output = subprocess.check_output(dumpbin_cmd, stderr=subprocess.STDOUT, text=True)
+                    print(f"[WRAPPER] Dumpbin symbols for {mingw_chkstk_ms_path}:\n{dumpbin_output}", file=sys.stderr)
+                except (subprocess.SubprocessError, FileNotFoundError):
+                    print(f"[WRAPPER] Warning: Could not analyze symbols in {mingw_chkstk_ms_path}", file=sys.stderr)
+        except Exception as e:
+            print(f"[WRAPPER] Error analyzing symbols: {e}", file=sys.stderr)
 else:
     print(f"[WRAPPER] Warning: MinGW chkstk_ms.obj not found at {mingw_chkstk_ms_path}", file=sys.stderr)
     mingw_chkstk_ms_path = None
@@ -277,8 +298,13 @@ runtime_flags = [
     '-Xlinker', '/FORCE:MULTIPLE',
     # Add specific libraries needed
     '-lmsvcrt',  # MinGW's msvcrt implementation
-    '-lucrt'     # Universal CRT
+    '-lucrt',    # Universal CRT
 ]
+
+# Add debug symbols for easier troubleshooting
+if any(arg == '-c' for arg in filtered_args):
+    # Only for compilation, not linking
+    runtime_flags.extend(['-g'])
 
 final_cmd = [clang_exe] + filtered_args + runtime_flags
 

@@ -52,41 +52,100 @@ fi
 
 echo "Found clang at: ${CLANG_EXE}"
 
-# Create a temporary source file
+# Find the latest MSVC version directory dynamically
+MSVC_VERSION_DIR=$(ls -d "C:/Program Files/Microsoft Visual Studio/2022/Enterprise/VC/Tools/MSVC/"*/ 2>/dev/null | sort -V | tail -1 | sed 's/\/$//')
+
+# Use the discovered path or fall back to a default if not found
+if [ -z "$MSVC_VERSION_DIR" ]; then
+  echo "Warning: Could not find MSVC tools directory, using fallback path"
+  MSVC_VERSION_DIR="C:/Program Files/Microsoft Visual Studio/2022/Enterprise/VC/Tools/MSVC/14.38.33130"
+fi
+
+# Export MSVC chkstk.obj location and analyze it
+export CHKSTK_OBJ="${MSVC_VERSION_DIR}/lib/x64/chkstk.obj"
+echo "Using MSVC chkstk.obj at ${CHKSTK_OBJ}"
+
+# Analyze MSVC chkstk.obj to see what symbols it exports
+if command -v llvm-nm &>/dev/null; then
+  echo "Analyzing MSVC chkstk.obj symbols with llvm-nm:"
+  llvm-nm "${CHKSTK_OBJ}" || echo "Failed to analyze symbols"
+elif command -v nm &>/dev/null; then
+  echo "Analyzing MSVC chkstk.obj symbols with nm:"
+  nm "${CHKSTK_OBJ}" || echo "Failed to analyze symbols"
+else
+  echo "Warning: No nm tool available to analyze symbols"
+fi
+
+# Create a temporary source file that combines our implementation with msvc
 TMP_DIR=$(mktemp -d)
-TMP_C_FILE="${TMP_DIR}/chkstk_ms.c"
+TMP_C_FILE="${TMP_DIR}/chkstk_ms_combined.c"
 
 cat > "${TMP_C_FILE}" << 'EOF'
-/* Custom implementation of __chkstk_ms for MinGW */
+/* Combined implementation of __chkstk_ms for MinGW - also exports aliases */
 #include <stdint.h>
 #define PAGE_SIZE 4096
+
+/*
+ * Our implementation that follows MinGW ABI conventions
+ * This is a careful implementation that does the probing correctly
+ */
 void ___chkstk_ms(void) {
     unsigned char *probe;
     uintptr_t stack_ptr;
     __asm__("movq %%rsp, %0" : "=r" (stack_ptr));
     uintptr_t stack_size;
     __asm__("movq %%rax, %0" : "=r" (stack_size));
+
+    /* Keep 16-byte alignment for the stack */
+    stack_size = (stack_size + 15) & ~15;
+
+    /* If size < PAGE_SIZE, only probe once */
     if (stack_size <= PAGE_SIZE) {
         probe = (unsigned char*)(stack_ptr - stack_size);
-        *probe = 0;
+        *probe = 0;  /* Probe the page */
         return;
     }
-    probe = (unsigned char*)(stack_ptr & ~(PAGE_SIZE - 1));
+
+    /* For large allocations, probe every page to ensure memory is committed */
+    probe = (unsigned char*)(stack_ptr & ~(PAGE_SIZE - 1)); /* Round down to page boundary */
+
+    /* Important: We must start at the top of the stack and work our way down */
     while (stack_size > PAGE_SIZE) {
         probe -= PAGE_SIZE;
-        *probe = 0;
+        *probe = 0;  /* Probe the page */
         stack_size -= PAGE_SIZE;
     }
+
+    /* Probe the final page */
     probe -= stack_size;
-    *probe = 0;
+    *probe = 0;  /* Probe the page */
 }
-void __chkstk_ms(void) { ___chkstk_ms(); }
+
+/* Create aliases for various name mangling conventions */
+void __chkstk_ms(void) {
+    ___chkstk_ms();  /* Call our implementation */
+}
+
+/* Additional alias that might be needed */
+void __attribute__((alias("___chkstk_ms"))) _chkstk_ms(void);
+
+/* Windows x64 convention */
+void __attribute__((alias("___chkstk_ms"))) __chkstk(void);
 EOF
 
 # Compile it directly
 echo "Compiling ${TMP_C_FILE} to ${MINGW_CHKSTK_OBJ}..."
-"${CLANG_EXE}" -c "${TMP_C_FILE}" -o "${MINGW_CHKSTK_OBJ}" --target=x86_64-w64-mingw32 -O2
+"${CLANG_EXE}" -c "${TMP_C_FILE}" -o "${MINGW_CHKSTK_OBJ}" --target=x86_64-w64-mingw32 -O2 -fvisibility=default
 COMPILE_RESULT=$?
+
+# Verify the compiled object file
+if command -v llvm-nm &>/dev/null; then
+  echo "Analyzing compiled chkstk_mingw_ms.obj symbols with llvm-nm:"
+  llvm-nm "${MINGW_CHKSTK_OBJ}" || echo "Failed to analyze symbols"
+elif command -v nm &>/dev/null; then
+  echo "Analyzing compiled chkstk_mingw_ms.obj symbols with nm:"
+  nm "${MINGW_CHKSTK_OBJ}" || echo "Failed to analyze symbols"
+fi
 
 # Clean up temporary files
 rm -rf "${TMP_DIR}"
@@ -108,27 +167,16 @@ export CC="${CLANG}"
 export CXX="${CLANGXX}"
 export GHC="${SRC_DIR}\\bootstrap-ghc\\bin\\ghc.exe"
 
-# Find the latest MSVC version directory dynamically
-MSVC_VERSION_DIR=$(ls -d "C:/Program Files/Microsoft Visual Studio/2022/Enterprise/VC/Tools/MSVC/"*/ 2>/dev/null | sort -V | tail -1 | sed 's/\/$//')
-
-# Use the discovered path or fall back to a default if not found
-if [ -z "$MSVC_VERSION_DIR" ]; then
-  echo "Warning: Could not find MSVC tools directory, using fallback path"
-  MSVC_VERSION_DIR="C:/Program Files/Microsoft Visual Studio/2022/Enterprise/VC/Tools/MSVC/14.38.33130"
-fi
-
 # Export LIB with the dynamic path
 export LIB="${BUILD_PREFIX}/Library/lib;${PREFIX}/Library/lib;C:/Program Files (x86)/Windows Kits/10/Lib/10.0.26100.0/um/x64;${MSVC_VERSION_DIR}/lib/x64${LIB:+;}${LIB:-}"
 export INCLUDE="C:/Program Files (x86)/Windows Kits/10/Include/10.0.26100.0/ucrt;C:/Program Files (x86)/Windows Kits/10/Include/10.0.26100.0/um;C:/Program Files (x86)/Windows Kits/10/Include/10.0.26100.0/shared;${MSVC_VERSION_DIR}/include${INCLUDE:+;}${INCLUDE:-}"
-export CHKSTK_OBJ="${MSVC_VERSION_DIR}/lib/x64/chkstk.obj"
 
+# Check contents of the MSVC lib/x64 directory to see what's available
 ls "${MSVC_VERSION_DIR}/lib/x64/"
 
 mkdir -p "${_SRC_DIR}/hadrian/cfg" && touch "${_SRC_DIR}/hadrian/cfg/default.target.ghc-toolchain"
 
 # Remove this annoying mingw
-#rm -rf "${_SRC_DIR}"/bootstrap-ghc/mingw/clan*
-#cp "${_BUILD_PREFIX}"/bin/*clang* "${_SRC_DIR}"/bootstrap-ghc/mingw/
 perl -i -pe 's#\$topdir/../mingw//bin/(llvm-)?##g' "${_SRC_DIR}"/bootstrap-ghc/lib/lib/settings
 perl -i -pe 's#-I\$topdir/../mingw//include##g' "${_SRC_DIR}"/bootstrap-ghc/lib/lib/settings
 perl -i -pe 's#-L\$topdir/../mingw//lib -L\$topdir/../mingw//x86_64-w64-mingw32/lib##g' "${_SRC_DIR}"/bootstrap-ghc/lib/lib/settings
@@ -163,11 +211,12 @@ CONFIGURE_ARGS=(
   --with-iconv-libraries="${_PREFIX}"/lib
 )
 
+# Configure with environment variables that help debugging
 AR_STAGE0=llvm-ar \
 CC_STAGE0=${CC} \
-CFLAGS="${CFLAGS//-nostdlib/}" \
-CXXFLAGS="${CXXFLAGS//-nostdlib/}" \
-LDFLAGS="${LDFLAGS//-nostdlib/}" \
+CFLAGS="${CFLAGS//-nostdlib/} -v" \
+CXXFLAGS="${CXXFLAGS//-nostdlib/} -v" \
+LDFLAGS="${LDFLAGS//-nostdlib/} -v" \
 MergeObjsCmd="x86_64-w64-mingw32-ld.exe" \
 MergeObjsArgs="" \
 run_and_log "ghc-configure" bash configure "${CONFIGURE_ARGS[@]}" || ( cat config.log ; exit 1 )
@@ -178,7 +227,10 @@ stage1.*.cabal.configure.opts += --verbose=3 --with-compiler="${GHC}" --with-gcc
 EOF
 
 export CABFLAGS="--with-compiler=${GHC} --with-gcc=${CLANG_WRAPPER}"
-# run_and_log "stage1_exe-1" "${_hadrian_build[@]}" stage1:exe:ghc-bin -VV \
+# Enable debugging mode for more verbose output
+export GHC_DEBUG=1
+
+# Build with more detailed output to debug the issue
 "${_hadrian_build[@]}" stage1:exe:ghc-bin -VV \
   --flavour=quickest \
   --docs=none \
