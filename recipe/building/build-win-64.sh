@@ -10,13 +10,8 @@ export PATH="${_SRC_DIR}/bootstrap-ghc/bin:${_SRC_DIR}/bootstrap-cabal${PATH:+:}
 # Prepare python environment
 export PYTHON=$(find "${BUILD_PREFIX}" -name python.exe | head -1)
 export LIBRARY_PATH="${_BUILD_PREFIX}/Library/lib${LIBRARY_PATH:+:}${LIBRARY_PATH:-}"
-export PYTHONNOUSERSITE=1
-export PYTHONPATH=
-export VIRTUAL_ENV=
-export PYTHONSTARTUP=
-export PYTHONHOME=
 
-# Set up tmep variables
+# Set up temp variables
 export TMP="$(cygpath -w "${TEMP}")"
 export TMPDIR="$(cygpath -w "${TEMP}")"
 
@@ -41,7 +36,8 @@ cp "${RECIPE_DIR}/building/non-unix/clang-mingw-wrapper.py" "${_BUILD_PREFIX}/Li
 
 # First run the script to create the MinGW chkstk_ms.obj file once
 echo "Creating MinGW chkstk_ms.obj file..."
-${PYTHON} "${RECIPE_DIR}/building/non-unix/create_mingw_chkstk.py"
+# Use -S flag to disable user site and -I to isolate mode (ignore environment variables)
+${PYTHON} -S -I "${RECIPE_DIR}/building/non-unix/create_mingw_chkstk.py" 2>/dev/null
 if [ $? -ne 0 ]; then
   echo "Error: Failed to create MinGW chkstk_ms.obj file"
   exit 1

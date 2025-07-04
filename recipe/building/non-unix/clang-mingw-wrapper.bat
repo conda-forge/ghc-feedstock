@@ -9,14 +9,14 @@ set PYTHONHOME=
 
 REM Try multiple ways to find Python
 if defined CONDA_PYTHON_EXE (
-    "%CONDA_PYTHON_EXE%" -Es "%~dp0clang-mingw-wrapper.py" %*
+    "%CONDA_PYTHON_EXE%" -S -I "%~dp0clang-mingw-wrapper.py" %*
 ) else if defined PYTHON (
-    "%PYTHON%" -Es "%~dp0clang-mingw-wrapper.py" %*
+    "%PYTHON%" -S -I "%~dp0clang-mingw-wrapper.py" %*
 ) else (
     echo Trying system Python...
     where python
     if %ERRORLEVEL% EQU 0 (
-        python -E "%~dp0clang-mingw-wrapper.py" %*
+        python -S -I "%~dp0clang-mingw-wrapper.py" %*
     ) else (
         echo ERROR: Python not found. Please add it to PATH or set PYTHON env var.
         exit /b 1

@@ -3,7 +3,7 @@ import os
 import subprocess
 import sys
 import tempfile
-import re
+import glob
 
 
 def unix_to_win_path(unix_path):
@@ -14,31 +14,6 @@ def unix_to_win_path(unix_path):
     
     # Default case: just replace slashes
     return unix_path.replace('/', '\\')
-
-
-def get_chkstk_obj_path():
-    """Get path to chkstk.obj from environment variable."""
-    # Check if CHKSTK_OBJ environment variable is defined
-    chkstk_env = os.environ.get('CHKSTK_OBJ')
-    if chkstk_env and os.path.exists(chkstk_env):
-        # Make sure the path uses Windows-style backslashes
-        chkstk_env = chkstk_env.replace('/', '\\')
-        print(f"[WRAPPER] Using chkstk.obj from CHKSTK_OBJ env: {chkstk_env}", file=sys.stderr)
-        return chkstk_env
-
-    print(f"[WRAPPER] Warning: CHKSTK_OBJ not defined or path doesn't exist", file=sys.stderr)
-    return None
-
-
-def get_mingw_chkstk_ms_path(build_prefix):
-    """Get path to the pregenerated MinGW chkstk_ms.obj file."""
-    obj_path = os.path.join(build_prefix, 'Library', 'lib', 'chkstk_mingw_ms.obj')
-    if os.path.exists(obj_path):
-        print(f"[WRAPPER] Using existing MinGW chkstk_ms.obj at {obj_path}", file=sys.stderr)
-        return obj_path
-    else:
-        print(f"[WRAPPER] Warning: MinGW chkstk_ms.obj not found at {obj_path}", file=sys.stderr)
-        return None
 
 
 def format_path_for_response_file(path):
@@ -57,15 +32,24 @@ def format_path_for_response_file(path):
         return path.replace('\\', '\\\\')
 
 
+def find_clang_version(build_prefix):
+    """Find the installed clang version by looking at the directory structure."""
+    clang_dir = os.path.join(build_prefix, 'Lib', 'clang')
+    if os.path.exists(clang_dir):
+        # Look for version directories (e.g., 18, 19, 20)
+        version_dirs = [d for d in os.listdir(clang_dir) if os.path.isdir(os.path.join(clang_dir, d)) and d.isdigit()]
+        if version_dirs:
+            # Sort numerically and get the latest version
+            return sorted(version_dirs, key=int)[-1]
+
+    # Default to 19 if we can't find it
+    print("[WRAPPER] Warning: Could not determine clang version, defaulting to 19", file=sys.stderr)
+    return "19"
+
+
 # Fix %BUILD_PREFIX% in search paths
 def fix_build_prefix(path, for_response_file=False):
-    """
-    Replace %BUILD_PREFIX% with actual build prefix.
-
-    Args:
-        path: The path string to process
-        for_response_file: Whether the path is intended for a response file (needs double backslashes)
-    """
+    """Replace %BUILD_PREFIX% with actual build prefix."""
     if not path:
         return path
 
@@ -100,30 +84,26 @@ else:
     print("[WRAPPER] Error: No build prefix environment variable found", file=sys.stderr)
     sys.exit(1)
 
-# Library search paths - single backslashes for os.path operations
-lib_search_paths = [
-    os.path.join(build_prefix, 'Library', 'x86_64-w64-mingw32', 'sysroot', 'usr', 'lib'),
-    os.path.join(build_prefix, 'Library', 'lib'),
-    os.path.join(build_prefix, 'lib'),
-    os.path.join(build_prefix, 'Library', 'mingw-w64', 'lib64'),
-    os.path.join(build_prefix, 'mingw64', 'lib'),
-    os.path.join(build_prefix, 'Library', 'mingw-w64', 'lib'),
-    os.path.join(build_prefix, 'Library', 'x86_64-w64-mingw32', 'lib'),
-]
+# Determine clang version
+clang_version = find_clang_version(build_prefix)
+print(f"[WRAPPER] Detected clang version: {clang_version}", file=sys.stderr)
 
-# Get the chkstk.obj path directly from environment variable
-chkstk_obj_path = get_chkstk_obj_path()
-
-# Format the chkstk.obj path for response file inclusion
+# Get chkstk object paths from environment variables
+chkstk_obj_path = os.environ.get('CHKSTK_OBJ')
 if chkstk_obj_path:
+    print(f"[WRAPPER] Using chkstk.obj from CHKSTK_OBJ env: {chkstk_obj_path}", file=sys.stderr)
+    # Format for response file inclusion
     chkstk_obj_path_formatted = format_path_for_response_file(chkstk_obj_path)
     print(f"[WRAPPER] Using chkstk.obj at: {chkstk_obj_path_formatted}", file=sys.stderr)
 
-# Get the MinGW-specific chkstk_ms.obj file path (should be pre-created)
-mingw_chkstk_ms_path = get_mingw_chkstk_ms_path(build_prefix)
-if mingw_chkstk_ms_path:
+# Get pre-created MinGW chkstk_ms.obj path
+mingw_chkstk_ms_path = os.path.join(build_prefix, 'Library', 'lib', 'chkstk_mingw_ms.obj')
+if os.path.exists(mingw_chkstk_ms_path):
     mingw_chkstk_ms_path_formatted = format_path_for_response_file(mingw_chkstk_ms_path)
     print(f"[WRAPPER] Using MinGW chkstk_ms.obj at: {mingw_chkstk_ms_path_formatted}", file=sys.stderr)
+else:
+    print(f"[WRAPPER] Warning: MinGW chkstk_ms.obj not found at {mingw_chkstk_ms_path}", file=sys.stderr)
+    mingw_chkstk_ms_path = None
 
 filtered_args = []
 
@@ -251,16 +231,12 @@ for arg in sys.argv[1:]:
 
                 # --- Ensure clang_rt.builtins-x86_64 is present ---
                 if not clang_rt_added:
-                    # Simple approach: just add a reference to the library
-                    # Instead of searching for it each time, rely on compiler search paths
-                    print("[WRAPPER] Adding clang_rt.builtins-x86_64 reference", file=sys.stderr)
+                    # Use the detected clang version instead of hardcoding 19
+                    clang_rt_path = f"{build_prefix_escaped}\\Lib\\clang\\{clang_version}\\lib\\windows\\clang_rt.builtins-x86_64.lib"
+                    print(f"[WRAPPER] Forcing clang runtime: {clang_rt_path}", file=sys.stderr)
+                    temp_file.write(f"-L{build_prefix_escaped}\\Lib\\clang\\{clang_version}\\lib\\windows\n")
+                    temp_file.write(f"{clang_rt_path}\n")
                     temp_file.write("-lclang_rt.builtins-x86_64\n")
-
-                # Debug: Print content of filtered response file
-                print(f"[WRAPPER] Content of filtered response file {temp_resp}:", file=sys.stderr)
-                with open(temp_resp, 'r') as f:
-                    for i, line in enumerate(f):
-                        print(f"[WRAPPER] Line {i+1}: {line.strip()}", file=sys.stderr)
 
             filtered_args.append(f"@{temp_resp}")
         else:
@@ -299,36 +275,6 @@ runtime_flags = [
     '-lmsvcrt',  # MinGW's msvcrt implementation
     '-lucrt'     # Universal CRT
 ]
-
-# If we haven't added the object files, add them directly to the command
-mingw_chkstk_ms_added = locals().get('mingw_chkstk_ms_added', False)
-if mingw_chkstk_ms_path and not mingw_chkstk_ms_added:
-    # For command line, use the path with backslashes and quote it if it contains spaces
-    if ' ' in mingw_chkstk_ms_path:
-        mingw_chkstk_ms_path_cmd = f'"{mingw_chkstk_ms_path}"'
-    else:
-        mingw_chkstk_ms_path_cmd = mingw_chkstk_ms_path
-
-    # Fix any %BUILD_PREFIX% placeholders
-    mingw_chkstk_ms_path_cmd = fix_build_prefix(mingw_chkstk_ms_path_cmd, for_response_file=False)
-
-    print(f"[WRAPPER] Adding MinGW chkstk_ms.obj directly to command line: {mingw_chkstk_ms_path_cmd}", file=sys.stderr)
-    filtered_args.append(mingw_chkstk_ms_path_cmd)
-
-# Add MSVC chkstk.obj if needed and not added yet
-chkstk_added = locals().get('chkstk_added', False)
-if chkstk_obj_path and not chkstk_added:
-    # For command line, use the path with backslashes and quote it if it contains spaces
-    if ' ' in chkstk_obj_path:
-        chkstk_obj_path_cmd = f'"{chkstk_obj_path}"'
-    else:
-        chkstk_obj_path_cmd = chkstk_obj_path
-
-    # Fix any %BUILD_PREFIX% placeholders
-    chkstk_obj_path_cmd = fix_build_prefix(chkstk_obj_path_cmd, for_response_file=False)
-
-    print(f"[WRAPPER] Adding chkstk.obj directly to command line: {chkstk_obj_path_cmd}", file=sys.stderr)
-    filtered_args.append(chkstk_obj_path_cmd)
 
 final_cmd = [clang_exe] + filtered_args + runtime_flags
 
