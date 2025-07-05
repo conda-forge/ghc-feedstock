@@ -117,11 +117,6 @@ perl -pi -e 's#"--target=[\w-]+"#"--target=aarch64-apple-darwin"#'  "${SRC_DIR}"
 perl -pi -e 's#"--target=[\w-]+"#"--target=x86_64-apple-darwin"#'  "${SRC_DIR}"/hadrian/cfg/default.host.target
 perl -pi -e 's/aarch64/x86_64/;s/ArchAArch64/ArchX86_64/' "${SRC_DIR}"/hadrian/cfg/default.host.target
 
-# pushd "${SRC_DIR}"/rts
-#   cp "${RECIPE_DIR}"/building/configure.sh ./configure
-#   ./configure --prefix="${PREFIX}" || { cat config.log;}
-# popd
-
 export DYLD_INSERT_LIBRARIES="${BUILD_PREFIX}/lib/libiconv.dylib:${BUILD_PREFIX}/lib/libffi.dylib${DYLD_INSERT_LIBRARIES:+:}${DYLD_INSERT_LIBRARIES:-}"
 run_and_log "stage1_lib" "${_hadrian_build[@]}" stage1:lib:ghc -VV --flavour=release --docs=none --progress-info=unicorn
 run_and_log "stage2_exe" "${_hadrian_build[@]}" stage2:exe:ghc-bin --flavour=release --freeze1 --docs=none --progress-info=none
@@ -142,10 +137,3 @@ pushd "${PREFIX}"/lib
     ln -s ghc-"${PKG_VERSION}" arm64-apple-darwin20.0.0-ghc-"${PKG_VERSION}"
   fi
 popd
-
-pushd "${PREFIX}"/share/doc/aarch64-osx-ghc-"${PKG_VERSION}"-inplace
-  for file in */LICENSE; do
-    cp "${file///-}" "${SRC_DIR}"/license_files
-  done
-popd
-perl -pi -e 's#($ENV{BUILD_PREFIX}|$ENV{PREFIX})/bin/##g' "${PREFIX}"/lib/ghc-"${PKG_VERSION}"/lib/settings

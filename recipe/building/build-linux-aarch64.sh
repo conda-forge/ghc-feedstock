@@ -94,19 +94,19 @@ CONFIGURE_ARGS=(
   --with-iconv-libraries="${PREFIX}"/lib
 )
 run_and_log "ghc-configure" bash configure "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}"
-perl -pi -e 's#($ENV{BUILD_PREFIX}|$ENV{PREFIX})/bin/##' "${SRC_DIR}"/hadrian/cfg/default.target
+# perl -pi -e 's#($ENV{BUILD_PREFIX}|$ENV{PREFIX})/bin/##' "${SRC_DIR}"/hadrian/cfg/default.target
 perl -pi -e 's#"--target=[\w-]+"#"--target=aarch64-unknown-linux","--sysroot=$ENV{BUILD_PREFIX}/aarch64-conda-linux-gnu/sysroot"#'  "${SRC_DIR}"/hadrian/cfg/default.target
 perl -pi -e 's#"--target=[\w-]+"#"--target=x86_64-unknown-linux","--sysroot=$ENV{BUILD_PREFIX}/x86_64-conda-linux-gnu/sysroot"#'  "${SRC_DIR}"/hadrian/cfg/default.host.target
 perl -pi -e 's/aarch64/x86_64/;s/ArchAArch64/ArchX86_64/' "${SRC_DIR}"/hadrian/cfg/default.host.target
-run_and_log "stage1_lib" "${_hadrian_build[@]}" stage1:lib:ghc --flavour=release --freeze1 --docs=none --progress-info=none
+# run_and_log "stage1_lib" "${_hadrian_build[@]}" stage1:lib:ghc --flavour=release --freeze1 --docs=none --progress-info=none
 
-run_and_log "stage2_exe" "${_hadrian_build[@]}" stage2:exe:ghc-bin --flavour=release --freeze1 --docs=none --progress-info=none
-perl -pi -e 's#($ENV{BUILD_PREFIX}|$ENV{PREFIX})/bin/##' "${SRC_DIR}"/_build/stage1/lib/settings
+# run_and_log "stage2_exe" "${_hadrian_build[@]}" stage2:exe:ghc-bin --flavour=release --freeze1 --docs=none --progress-info=none
+# perl -pi -e 's#($ENV{BUILD_PREFIX}|$ENV{PREFIX})/bin/##' "${SRC_DIR}"/_build/stage1/lib/settings
 
 # GHC build ghc-pkg with '-fno-use-rpaths' but it requires libiconv.so.2
 # _build/stage1/bin/ghc-pkg: error while loading shared libraries: libiconv.so.2
 export LD_PRELOAD="${BUILD_PREFIX}/lib/libiconv.so.2 ${BUILD_PREFIX}/lib/libgmp.so.10 ${BUILD_PREFIX}/lib/libffi.so.8 ${BUILD_PREFIX}/lib/libtinfow.so.6 ${BUILD_PREFIX}/lib/libtinfo.so.6 ${LD_PRELOAD:-}"
-run_and_log "install" "${_hadrian_build[@]}" install --prefix="${PREFIX}" --flavour=release --freeze1 --freeze2 --docs=none --progress-info=none
+run_and_log "install" "${_hadrian_build[@]}" install --prefix="${PREFIX}" --flavour=release --docs=none --progress-info=none
 
 # Create links of aarch64-conda-linux-gnu-xxx to xxx
 pushd "${PREFIX}"/bin
@@ -121,6 +121,6 @@ if [[ -d "${PREFIX}"/lib/aarch64-conda-linux-gnu-ghc-"${PKG_VERSION}" ]]; then
   ln -sf "${PREFIX}"/lib/ghc-"${PKG_VERSION}" "${PREFIX}"/lib/aarch64-conda-linux-gnu-ghc-"${PKG_VERSION}"
 fi
 
-_lib_path='aarch64-linux-ghc-'"${PKG_VERSION}"'-inplace'
-perl -pi -e "s#(link flags\", \"--target=aarch64-conda-linux)#\$1 -L\\\$topdir/${_lib_path} -Wl,-rpath=\\\$topdir/${_lib_path} -Wl,-rpath-link=\\\$topdir/${_lib_path}#g" "${PREFIX}"/lib/ghc-"${PKG_VERSION}"/lib/settings
-perl -pi -e "s#(compiler flags\", \"--target=aarch64-conda-linux)#\$1 -L\\\$topdir/${_lib_path} -Wl,-rpath=\\\$topdir/${_lib_path} -Wl,-rpath-link=\\\$topdir/${_lib_path}#g" "${PREFIX}"/lib/ghc-"${PKG_VERSION}"/lib/settings
+# _lib_path='aarch64-linux-ghc-'"${PKG_VERSION}"'-inplace'
+# perl -pi -e "s#(link flags\", \"--target=aarch64-conda-linux)#\$1 -L\\\$topdir/${_lib_path} -Wl,-rpath=\\\$topdir/${_lib_path} -Wl,-rpath-link=\\\$topdir/${_lib_path}#g" "${PREFIX}"/lib/ghc-"${PKG_VERSION}"/lib/settings
+# perl -pi -e "s#(compiler flags\", \"--target=aarch64-conda-linux)#\$1 -L\\\$topdir/${_lib_path} -Wl,-rpath=\\\$topdir/${_lib_path} -Wl,-rpath-link=\\\$topdir/${_lib_path}#g" "${PREFIX}"/lib/ghc-"${PKG_VERSION}"/lib/settings

@@ -72,6 +72,7 @@ requirements:
     - if: target_platform == "linux-aarch64"
       then:
         # Restrict to 2.43 (2.44 does not seem to have ld.gold and makes aarch64 build fail)
+        - binutils_impl_${{ build_platform }} <2.44
         - binutils_${{ target_platform }} <2.44
         - sysroot_${{ build_platform }} >=2.28
 
