@@ -182,16 +182,15 @@ export INCLUDE="C:/Program Files (x86)/Windows Kits/10/Include/10.0.26100.0/ucrt
 
 # ==================== Begin HSC Tool Fixes ====================
 # Copy the direct HSC fix script
-mkdir -p "${_BUILD_PREFIX}/bin" && cp "${_BUILD_PREFIX}/Library/usr/bin/m4.exe" "${_BUILD_PREFIX}/bin"
-cp "${RECIPE_DIR}/building/direct-fix-hsc.py" "${_BUILD_PREFIX}/bin/"
+cp "${RECIPE_DIR}/building/fix-hsc-direct.py" "${_BUILD_PREFIX}/bin/"
 
 # Create a script to help if HSC tools crash
 cat > "${_BUILD_PREFIX}/bin/fix-hsc-crash.sh" << 'EOF'
 #!/bin/bash
-set -e
+set -ex
 echo "Attempting to fix HSC crashes..."
-# Run the direct fix script
-python "$(dirname "$0")/direct-fix-hsc.py"
+# Run the direct fix script with explicit paths to search
+python "$(dirname "$0")/fix-hsc-direct.py" "${SRC_DIR}" "C:/cabal" "${HOME}/.cabal" "${BUILD_PREFIX}" "C:/cabal/store/ghc-9.10.1"
 echo "HSC fixes applied"
 EOF
 chmod +x "${_BUILD_PREFIX}/bin/fix-hsc-crash.sh"
