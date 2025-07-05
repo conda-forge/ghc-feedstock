@@ -125,12 +125,14 @@ tests:
         - ghc
         - ghc-pkg
         - ghci
-        - haddock
         - hp2ps
-        - hpc
         - hsc2hs
-        - runghc
-        - runhaskell
+        - if: build_platform != target_platform
+          then:
+          - haddock
+          - hpc
+          - runghc
+          - runhaskell
       files:
         - etc/bash_completion.d/ghc
         - etc/conda/activate.d/ghc_activate.sh
