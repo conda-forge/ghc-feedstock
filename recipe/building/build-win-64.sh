@@ -181,40 +181,24 @@ export LIB="${BUILD_PREFIX}/Library/lib;${PREFIX}/Library/lib;C:/Program Files (
 export INCLUDE="C:/Program Files (x86)/Windows Kits/10/Include/10.0.26100.0/ucrt;C:/Program Files (x86)/Windows Kits/10/Include/10.0.26100.0/um;C:/Program Files (x86)/Windows Kits/10/Include/10.0.26100.0/shared;${MSVC_VERSION_DIR}/include${INCLUDE:+;}${INCLUDE:-}"
 
 # ==================== Begin HSC Tool Fixes ====================
-# Set up the HSC wrapper for fixing access violations
-HSC_WRAPPER_DIR="${_BUILD_PREFIX}/bin"
-mkdir -p "${HSC_WRAPPER_DIR}"
-HSC_WRAPPER="${HSC_WRAPPER_DIR}/hsc-wrapper.bat"
+# Create directory structure for HSC workarounds
+mkdir -p "${_BUILD_PREFIX}/bin"
+mkdir -p "${_BUILD_PREFIX}/bin/hsc_workarounds/clock/System"
+mkdir -p "${_BUILD_PREFIX}/bin/hsc_workarounds/file-io/System/File"
 
-# Copy HSC wrapper script
-cp "${RECIPE_DIR}/building/hsc-wrapper.bat" "${HSC_WRAPPER}"
-chmod +x "${HSC_WRAPPER}"
-export HSC_WRAPPER
+# Copy HSC fix script
+cp "${RECIPE_DIR}/building/fix-hsc-tools.py" "${_BUILD_PREFIX}/bin/"
 
-# Create cabal config directory if it doesn't exist
-mkdir -p "${HOME}/.cabal"
-
-# Copy custom Cabal config to help with HSC tool issues
-cp "${RECIPE_DIR}/building/custom.cabal.config" "${HOME}/.cabal/config"
-
-# Copy clock package workaround files
-CLOCK_WORKAROUND_DIR="${_BUILD_PREFIX}/bin/clock_workaround"
-mkdir -p "${CLOCK_WORKAROUND_DIR}"
-cp -r "${RECIPE_DIR}/building/clock_workaround" "${_BUILD_PREFIX}/bin/"
-
-# Create helper scripts for HSC fixes
-cp "${RECIPE_DIR}/building/extract-hsc-commands.py" "${_BUILD_PREFIX}/bin/"
-cp "${RECIPE_DIR}/building/patch-hsc-makefile.py" "${_BUILD_PREFIX}/bin/"
-cp "${RECIPE_DIR}/building/patch-clock-build.py" "${_BUILD_PREFIX}/bin/"
+# Copy pre-generated Haskell files
+cp "${RECIPE_DIR}/building/hsc_workarounds/clock/System/Clock.hs" "${_BUILD_PREFIX}/bin/hsc_workarounds/clock/System/"
+cp "${RECIPE_DIR}/building/hsc_workarounds/file-io/System/File/Platform.hs" "${_BUILD_PREFIX}/bin/hsc_workarounds/file-io/System/File/"
 
 # Create a script to help if HSC tools crash
 cat > "${_BUILD_PREFIX}/bin/fix-hsc-crash.sh" << 'EOF'
 #!/bin/bash
 set -e
-echo "Attempting to fix HSC crash for clock package..."
-python "$(dirname "$0")/patch-clock-build.py"
-echo "Fixing HSC makefiles to use wrapper..."
-python "$(dirname "$0")/patch-hsc-makefile.py"
+echo "Attempting to fix HSC crashes..."
+python "$(dirname "$0")/fix-hsc-tools.py"
 echo "HSC fixes applied"
 EOF
 chmod +x "${_BUILD_PREFIX}/bin/fix-hsc-crash.sh"
@@ -283,7 +267,7 @@ export GHC_DEBUG=1
   --docs=none \
   --progress-info=unicorn || {
     echo "*** First build attempt failed - trying to fix HSC crash ***"
-    # If the build failed, try to patch the clock package
+    # If the build failed, try to patch the HSC tools
     "${_BUILD_PREFIX}/bin/fix-hsc-crash.sh"
 
     # And try again
