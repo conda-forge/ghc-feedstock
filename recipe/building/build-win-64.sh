@@ -182,6 +182,7 @@ export INCLUDE="C:/Program Files (x86)/Windows Kits/10/Include/10.0.26100.0/ucrt
 
 # ==================== Begin HSC Tool Fixes ====================
 # Copy the direct HSC fix script
+mkdir -p "${_BUILD_PREFIX}/bin" && cp "${_BUILD_PREFIX}/Library/usr/bin/m4.exe" "${_BUILD_PREFIX}/bin"
 cp "${RECIPE_DIR}/building/direct-fix-hsc.py" "${_BUILD_PREFIX}/bin/"
 
 # Create a script to help if HSC tools crash
@@ -202,8 +203,6 @@ mkdir -p "${_SRC_DIR}/hadrian/cfg" && touch "${_SRC_DIR}/hadrian/cfg/default.tar
 perl -i -pe 's#\$topdir/../mingw//bin/(llvm-)?##g' "${_SRC_DIR}"/bootstrap-ghc/lib/lib/settings
 perl -i -pe 's#-I\$topdir/../mingw//include##g' "${_SRC_DIR}"/bootstrap-ghc/lib/lib/settings
 perl -i -pe 's#-L\$topdir/../mingw//lib -L\$topdir/../mingw//x86_64-w64-mingw32/lib##g' "${_SRC_DIR}"/bootstrap-ghc/lib/lib/settings
-
-mkdir -p "${_BUILD_PREFIX}"/bin && ln -s "${_BUILD_PREFIX}"/Library/usr/bin/m4.exe "${_BUILD_PREFIX}"/bin
 
 # Update cabal package database
 run_and_log "cabal-update" cabal v2-update
