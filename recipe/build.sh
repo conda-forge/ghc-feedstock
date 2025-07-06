@@ -23,11 +23,6 @@ if [[ "$target_platform" == win-* ]]; then
 #!/usr/bin/env python
 import os
 import sys
-import glob
-import re
-import subprocess
-import tempfile
-import shutil
 
 def create_system_clock_hs(output_path):
     """Create System/Clock.hs file directly with all necessary content."""
@@ -175,73 +170,26 @@ isExtSeparator c = c == '.'
 """)
 
 def main():
-    print(f"Direct HSC fix - Creating System/Clock.hs and System/File/Platform.hs files")
+    print(f"Direct HSC fix - Creating files to bypass HSC processing")
     print(f"Working directory: {os.getcwd()}")
 
-    # Target directories where we need to create files
+    # Create files directly in the current working directory structure
     cwd = os.getcwd()
 
-    # Create clock files in current working directory
-    clock_target_paths = [
-        # Current directory structure
-        os.path.join(cwd, "dist", "build", "System", "Clock.hs"),
-        os.path.join(cwd, "System", "Clock.hs"),
-
-        # Hard-coded cabal directory paths for Windows
-        "C:/cabal/packages/clock-0.8.4/System/Clock.hs",
-        "C:/cabal/store/ghc-9.10.1/clock-0.8.4/System/Clock.hs",
-        "C:/cabal/store/ghc-9.10.1/clock-0.8.4-e7f0f9eac776c074e3a799d7f0ea74a1e404ccf0/System/Clock.hs",
-
-        # Dist directory paths
-        os.path.join(cwd, "dist", "System", "Clock.hs"),
-        os.path.join(cwd, "dist-newstyle", "build", "System", "Clock.hs")
+    # Create directories and files for both packages
+    target_files = [
+        (os.path.join(cwd, "dist", "build", "System", "Clock.hs"), create_system_clock_hs),
+        (os.path.join(cwd, "dist", "build", "System", "File", "Platform.hs"), create_system_file_platform_hs)
     ]
 
-    # Create file-io files in current working directory
-    file_io_target_paths = [
-        # Current directory structure
-        os.path.join(cwd, "dist", "build", "System", "File", "Platform.hs"),
-        os.path.join(cwd, "System", "File", "Platform.hs"),
-
-        # Hard-coded cabal directory paths for Windows
-        "C:/cabal/packages/file-io-0.1.4/System/File/Platform.hs",
-        "C:/cabal/store/ghc-9.10.1/file-io-0.1.4/System/File/Platform.hs",
-        "C:/cabal/store/ghc-9.10.1/file-io-0.1.4-2900bd4050e8ac2583e3044a5989d1df306fdce7/System/File/Platform.hs",
-
-        # Dist directory paths
-        os.path.join(cwd, "dist", "System", "File", "Platform.hs"),
-        os.path.join(cwd, "dist-newstyle", "build", "System", "File", "Platform.hs")
-    ]
-
-    # Add clock and file-io package directories in cabal store
-    if os.path.exists("C:/cabal/store"):
+    for file_path, create_func in target_files:
         try:
-            for root, dirs, _ in os.walk("C:/cabal/store"):
-                for d in dirs:
-                    if "clock-0.8.4" in d:
-                        clock_target_paths.append(os.path.join(root, d, "System", "Clock.hs"))
-                        clock_target_paths.append(os.path.join(root, d, "dist", "build", "System", "Clock.hs"))
-                    if "file-io-0.1.4" in d:
-                        file_io_target_paths.append(os.path.join(root, d, "System", "File", "Platform.hs"))
-                        file_io_target_paths.append(os.path.join(root, d, "dist", "build", "System", "File", "Platform.hs"))
+            create_func(file_path)
+            print(f"Successfully created {file_path}")
         except Exception as e:
-            print(f"Error searching cabal store: {e}")
+            print(f"Error creating {file_path}: {e}")
 
-    # Create clock files in all target paths
-    for path in clock_target_paths:
-        try:
-            create_system_clock_hs(path)
-        except Exception as e:
-            print(f"Error creating {path}: {e}")
-
-    # Create file-io files in all target paths
-    for path in file_io_target_paths:
-        try:
-            create_system_file_platform_hs(path)
-        except Exception as e:
-            print(f"Error creating {path}: {e}")
-
-    print("HSC fix completed - Clock.hs and Platform.hs files created in multiple locations")
+    print("HSC fix completed")
     return 0
 
 if __name__ == "__main__":
@@ -250,22 +198,21 @@ EOF
 
     chmod +x $PREFIX/bin/fix-hsc-direct.py
 
-    # Create a wrapper script to call the Python script without relying on environment variables
+    # Create a wrapper script that directly creates the files in the expected location
     cat > $PREFIX/bin/fix-hsc-crash.sh << 'EOF'
 #!/bin/bash
 set -e
-SCRIPT_DIR=$(dirname "$0")
 echo "Attempting to fix HSC crashes..."
 
-# Run the Python script directly, no args needed
-python "$SCRIPT_DIR/fix-hsc-direct.py"
-
-# Also create the files directly in the current directory's error location
+# Get current directory
 CURR_DIR=$(pwd)
+echo "Current directory: $CURR_DIR"
+
+# Create the necessary directories
 mkdir -p "$CURR_DIR/dist/build/System"
 mkdir -p "$CURR_DIR/dist/build/System/File"
 
-# Create Clock.hs
+# Create Clock.hs directly
 cat > "$CURR_DIR/dist/build/System/Clock.hs" << 'EOHASKELL'
 -- Auto-generated by fix-hsc-crash.sh
 {-# LANGUAGE CPP, ForeignFunctionInterface, CApiFFI #-}
@@ -314,7 +261,7 @@ getRes :: ClockID -> IO TimeSpec
 getRes _ = return $ TimeSpec 0 1
 EOHASKELL
 
-# Create Platform.hs
+# Create Platform.hs directly
 cat > "$CURR_DIR/dist/build/System/File/Platform.hs" << 'EOHASKELL'
 -- Auto-generated by fix-hsc-crash.sh
 {-# LANGUAGE CPP #-}
@@ -346,7 +293,13 @@ isExtSeparator :: Char -> Bool
 isExtSeparator c = c == '.'
 EOHASKELL
 
-echo "Created direct Clock.hs and Platform.hs files in $CURR_DIR/dist/build/System/"
+echo "Created Clock.hs and Platform.hs files in $CURR_DIR/dist/build/System/"
+
+# Also run the Python script as backup
+SCRIPT_DIR=$(dirname "$0")
+if [ -f "$SCRIPT_DIR/fix-hsc-direct.py" ]; then
+    python "$SCRIPT_DIR/fix-hsc-direct.py" || true
+fi
 EOF
 
     chmod +x $PREFIX/bin/fix-hsc-crash.sh
