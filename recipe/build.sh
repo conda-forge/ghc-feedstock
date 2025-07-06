@@ -352,7 +352,7 @@ EOF
     chmod +x $PREFIX/bin/fix-hsc-crash.sh
 fi
 
-"${RECIPE_DIR}"/building/build-"${target_platform}".sh"
+"${RECIPE_DIR}"/building/build-"${target_platform}".sh
 
 # Create bash completion
 mkdir -p "${PREFIX}"/etc/bash_completion.d
