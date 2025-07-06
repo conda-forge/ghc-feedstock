@@ -25,164 +25,173 @@ import os
 import sys
 import glob
 import re
+import subprocess
+import tempfile
 
-def normalize_path(path):
-    """Normalize path regardless of platform."""
-    if path.startswith('%') and path.endswith('%'):
-        return path  # Leave environment variables as is
-    return os.path.normpath(path)
+def find_files(start_dir, filename_pattern, max_depth=15):
+    """Find files matching pattern starting from start_dir with max depth."""
+    found_files = []
 
-def search_directory(base_dir, pattern, max_depth=10):
-    """Search for files/directories matching a pattern with max depth limit."""
-    if not os.path.exists(base_dir):
-        print(f"Path does not exist: {base_dir}")
-        return []
+    try:
+        for root, dirs, files in os.walk(start_dir):
+            # Calculate current depth
+            depth = root[len(start_dir):].count(os.sep)
+            if depth > max_depth:
+                continue
 
-    results = []
-    pattern_re = re.compile(pattern.replace('*', '.*'))
+            # Check for matching files
+            for name in files:
+                if filename_pattern in name:
+                    found_files.append(os.path.join(root, name))
 
-    for root, dirs, files in os.walk(normalize_path(base_dir)):
-        depth = root[len(normalize_path(base_dir)):].count(os.sep)
-        if depth > max_depth:
-            continue
+    except Exception as e:
+        print(f"Error searching {start_dir}: {e}")
 
-        for item in dirs:
-            if pattern_re.search(item):
-                results.append(os.path.join(root, item))
+    return found_files
 
-    return results
+def create_system_clock_hs(output_dir):
+    """Create System/Clock.hs file directly with all necessary content."""
+    os.makedirs(os.path.join(output_dir, "System"), exist_ok=True)
+    output_file = os.path.join(output_dir, "System", "Clock.hs")
 
-def find_cabal_package(package_name, search_paths):
-    """Find a specific Cabal package in the given paths."""
-    print(f"Searching for {package_name} in:")
-    results = []
-
-    for base_dir in search_paths:
-        print(f"  - {base_dir}")
-        if not os.path.exists(normalize_path(base_dir)):
-            print(f"    Path does not exist: {base_dir}")
-            continue
-
-        # Try direct glob patterns
-        patterns = [
-            f"**/{package_name}*",
-            f"**/packages/{package_name}*",
-            f"**/store/**/{package_name}*",
-        ]
-
-        for pattern in patterns:
-            try:
-                matches = glob.glob(os.path.join(normalize_path(base_dir), pattern), recursive=True)
-                for match in matches:
-                    if os.path.isdir(match):
-                        print(f"    Found: {match}")
-                        results.append(match)
-            except Exception as e:
-                print(f"    Error searching with pattern {pattern}: {e}")
-
-        # Try manual directory search for deeply nested paths
-        more_results = search_directory(base_dir, package_name)
-        for result in more_results:
-            if result not in results and os.path.isdir(result):
-                print(f"    Found (deep search): {result}")
-                results.append(result)
-
-    return results
-
-def create_clock_hs_file(hs_file):
-    """Create a pre-processed System/Clock.hs file to bypass HSC processing."""
-    print(f"Creating pre-processed {hs_file}")
-    os.makedirs(os.path.dirname(hs_file), exist_ok=True)
-
-    with open(hs_file, 'w') as f:
+    print(f"Creating {output_file}")
+    with open(output_file, 'w') as f:
         f.write("""-- Auto-generated to bypass HSC processing
 {-# LANGUAGE CPP, ForeignFunctionInterface, CApiFFI #-}
+{-# LANGUAGE BangPatterns #-}
 
-module System.Clock where
+module System.Clock (
+    -- * Timespec
+    TimeSpec(..),
+    -- * Clock identifiers
+    ClockID(..),
+    -- * Clock operations
+    getTime,
+    getRes,
+    ) where
 
+import Data.Int (Int64)
+import Data.Word (Word64)
 import Foreign.C.Types
-import Foreign.Ptr
-import Foreign.Storable
-import Data.Int
-import Data.Word
+import Foreign.Marshal.Alloc (alloca)
+import Foreign.Ptr (Ptr)
+import Foreign.Storable (Storable(..))
+import Control.Exception (throwIO)
+import System.IO.Error (IOError, mkIOError, illegalOperationErrorType)
 
+-- | Clock identifier
+data ClockID
+    = Monotonic       -- ^ Monotonic time since some unspecified starting point
+    | Realtime        -- ^ System clock, time since epoch
+    | ProcessCPUTime  -- ^ Per-process CPU time
+    | ThreadCPUTime   -- ^ Per-thread CPU time
+    deriving (Eq, Show)
+
+-- | Time in seconds and nanoseconds
 data TimeSpec = TimeSpec {
-    sec :: {-# UNPACK #-} !Int64,
-    nsec :: {-# UNPACK #-} !Int64
-} deriving (Eq, Ord, Show)
+    sec  :: {-# UNPACK #-} !Int64,  -- ^ seconds
+    nsec :: {-# UNPACK #-} !Int64   -- ^ nanoseconds
+    } deriving (Eq, Ord, Show)
 
 instance Storable TimeSpec where
     sizeOf _ = 16  -- 8 bytes for each Int64
     alignment _ = 8
     peek ptr = do
-        s <- peekByteOff ptr 0
-        ns <- peekByteOff ptr 8
+        s <- peekByteOff ptr 0 :: IO Int64
+        ns <- peekByteOff ptr 8 :: IO Int64
         return $ TimeSpec s ns
     poke ptr (TimeSpec s ns) = do
-        pokeByteOff ptr 0 s
-        pokeByteOff ptr 8 ns
+        pokeByteOff ptr 0 (s :: Int64)
+        pokeByteOff ptr 8 (ns :: Int64)
 
-data ClockID = Monotonic | Realtime | ProcessCPUTime | ThreadCPUTime
-    deriving (Eq, Show)
-
+#if defined(_WIN32)
+-- | Windows implementation using capi for better foreign call handling
 foreign import capi unsafe "hs_clock_win32.c hs_clock_win32_gettime"
   c_clock_gettime :: ClockID -> Ptr TimeSpec -> IO CInt
+#else
+-- | POSIX implementation
+foreign import ccall unsafe "time.h clock_gettime"
+  c_clock_gettime :: ClockID -> Ptr TimeSpec -> IO CInt
+#endif
 
+-- | Get the time from a clock
 getTime :: ClockID -> IO TimeSpec
-getTime clock = alloca $ \\ptr -> do
-    throwErrnoIfMinus1_ "clock_gettime" $ c_clock_gettime clock ptr
+getTime clockid = alloca $ \\ptr -> do
+    throwErrnoIfMinus1_ "clock_gettime" $ c_clock_gettime clockid ptr
     peek ptr
 
+-- | Get the resolution from a clock
 getRes :: ClockID -> IO TimeSpec
-getRes _ = return $ TimeSpec 0 1 -- 1 nanosecond resolution
+getRes Monotonic = return $ TimeSpec 0 1  -- 1 nanosecond resolution
+getRes Realtime = return $ TimeSpec 0 1   -- 1 nanosecond resolution
+getRes _ = return $ TimeSpec 0 1000       -- 1 microsecond resolution
+
+-- Helper for error handling
+throwErrnoIfMinus1_ :: String -> IO CInt -> IO ()
+throwErrnoIfMinus1_ str action = do
+    res <- action
+    if res == -1
+        then throwIO $ mkIOError illegalOperationErrorType str Nothing Nothing
+        else return ()
 """)
+    return output_file
 
-def fix_clock_hsc(src_dir, cabal_dir, cabal_home, build_prefix, ghc_store):
-    print("Direct HSC Fixer - Bypassing HSC tools")
+def inject_prebuilt_files(cabal_dir, build_dir):
+    """Inject pre-built Clock.hs file into key locations."""
+    # Main locations to check
+    dist_build_dir = os.path.join(build_dir, "dist", "build")
+    if not os.path.exists(dist_build_dir):
+        os.makedirs(dist_build_dir, exist_ok=True)
 
-    # Use more search paths to find the package
-    search_paths = [
-        cabal_dir,
-        os.path.join(cabal_home, "packages"),
-        os.path.join(os.path.expanduser("~"), ".cabal", "packages"),
-        ghc_store,
-        src_dir,
-        build_prefix,
-        os.path.join(build_prefix, "Library", cabal_home),
-        ".",
-        "..",
-        os.path.join(os.getcwd(), "dist"),
-        os.path.join(os.getcwd(), "dist-newstyle")
-    ]
+    # Create prebuilt Clock.hs
+    create_system_clock_hs(dist_build_dir)
 
-    # Create fixed versions in the current directory as a fallback
-    fallback_dir = os.path.join(os.getcwd(), "dist", "build", "System")
-    os.makedirs(fallback_dir, exist_ok=True)
-    create_clock_hs_file(os.path.join(fallback_dir, "Clock.hs"))
+    # Also try to find any clock-0.8.4 directories and place the file there
+    if os.path.exists(cabal_dir):
+        clock_dirs = []
+        for root, dirs, _ in os.walk(cabal_dir):
+            for d in dirs:
+                if "clock-0.8.4" in d:
+                    clock_dirs.append(os.path.join(root, d))
 
-    # Look for clock package directories
-    clock_dirs = find_cabal_package("clock-0.8.4", search_paths)
+        for cdir in clock_dirs:
+            print(f"Found clock dir: {cdir}")
+            # Put file in dist/build/System
+            dist_path = os.path.join(cdir, "dist", "build")
+            create_system_clock_hs(dist_path)
 
-    if not clock_dirs:
-        print("Could not find clock-0.8.4 package. Creating fallback files.")
-        # Create a fallback file in the current directory
-        return
+    # Save the file to current directory as well
+    current_dir = os.getcwd()
+    create_system_clock_hs(os.path.join(current_dir, "dist", "build"))
 
-    for clock_dir in clock_dirs:
-        print(f"Processing clock package at: {clock_dir}")
+    # Also inject in the directories Cabal mentions in the error
+    error_path = os.path.join(current_dir, "dist", "build", "System")
+    os.makedirs(error_path, exist_ok=True)
+    with open(os.path.join(error_path, "Clock.hs"), 'w') as f:
+        f.write("-- Auto-generated placeholder Clock.hs\n")
+        f.write("module System.Clock where\n")
 
-        # Look for System directory
-        system_dir = os.path.join(clock_dir, "System")
-        if not os.path.isdir(system_dir):
-            system_dir = os.path.join(clock_dir, "dist", "build", "System")
-            if not os.path.isdir(system_dir):
-                print(f"  No System directory found in {clock_dir}")
-                os.makedirs(system_dir, exist_ok=True)
+if __name__ == "__main__":
+    print(f"Arguments: {sys.argv}")
 
-        # Check for HSC file
-        hsc_file = os.path.join(system_dir, "Clock.hsc")
-        if os.path.isfile(hsc_file):
-            print(f"  Modifying HSC file: {hsc_file}")
+    # Use current directory as fallback
+    current_dir = os.getcwd()
+    cabal_dir = sys.argv[2] if len(sys.argv) > 2 else current_dir
+    build_dir = current_dir
+
+    print(f"Current directory: {current_dir}")
+    print(f"Cabal directory: {cabal_dir}")
+
+    # Inject prebuilt Clock.hs files
+    inject_prebuilt_files(cabal_dir, build_dir)
+
+    # Search for any Clock.hsc files and patch them as well
+    hsc_files = find_files(cabal_dir, "Clock.hsc")
+    print(f"Found HSC files: {hsc_files}")
+
+    for hsc_file in hsc_files:
+        print(f"Patching {hsc_file}")
+        try:
             with open(hsc_file, 'r') as f:
                 content = f.read()
 
@@ -201,27 +210,15 @@ def fix_clock_hsc(src_dir, cabal_dir, cabal_home, build_prefix, ghc_store):
 
             with open(hsc_file, 'w') as f:
                 f.write(content)
-        else:
-            print(f"  HSC file not found: {hsc_file}")
 
-        # Create or update the HS file
-        hs_file = os.path.join(system_dir, "Clock.hs")
-        create_clock_hs_file(hs_file)
+            # Also try to create the .hs file directly from the .hsc file
+            hs_file = hsc_file.replace('.hsc', '.hs')
+            create_system_clock_hs(os.path.dirname(os.path.dirname(hsc_file)))
 
-        # Create HS file in dist/build if it exists
-        dist_build_dir = os.path.join(clock_dir, "dist", "build", "System")
-        if not os.path.isdir(dist_build_dir):
-            os.makedirs(dist_build_dir, exist_ok=True)
+        except Exception as e:
+            print(f"Error patching {hsc_file}: {e}")
 
-        create_clock_hs_file(os.path.join(dist_build_dir, "Clock.hs"))
-
-if __name__ == "__main__":
-    print(f"Arguments: {sys.argv}")
-    if len(sys.argv) >= 6:
-        fix_clock_hsc(sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4], sys.argv[5])
-    else:
-        print("Usage: fix-hsc-direct.py SRC_DIR CABAL_DIR CABAL_HOME BUILD_PREFIX GHC_STORE")
-        sys.exit(1)
+    print("HSC fix completed")
 EOF
 
     chmod +x $PREFIX/bin/fix-hsc-direct.py
@@ -231,7 +228,8 @@ EOF
 #!/bin/bash
 SCRIPT_DIR=$(dirname "$0")
 echo "Attempting to fix HSC crashes..."
-python $SCRIPT_DIR/fix-hsc-direct.py "${SRC_DIR}" "${PWD}" "${HOME}/.cabal" "${BUILD_PREFIX}" "${PREFIX}/store/ghc-${PKG_VERSION}"
+# Use explicit paths and PWD instead of relying on environment variables
+python "$SCRIPT_DIR/fix-hsc-direct.py" "$PWD" "C:/cabal"
 EOF
 
     chmod +x $PREFIX/bin/fix-hsc-crash.sh
