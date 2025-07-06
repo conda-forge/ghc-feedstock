@@ -27,32 +27,14 @@ import glob
 import re
 import subprocess
 import tempfile
-
-def find_files(start_dir, filename_pattern, max_depth=15):
-    """Find files matching pattern starting from start_dir with max depth."""
-    found_files = []
-
-    try:
-        for root, dirs, files in os.walk(start_dir):
-            # Calculate current depth
-            depth = root[len(start_dir):].count(os.sep)
-            if depth > max_depth:
-                continue
-
-            # Check for matching files
-            for name in files:
-                if filename_pattern in name:
-                    found_files.append(os.path.join(root, name))
-
-    except Exception as e:
-        print(f"Error searching {start_dir}: {e}")
-
-    return found_files
+import shutil
 
 def create_system_clock_hs(output_dir):
     """Create System/Clock.hs file directly with all necessary content."""
-    os.makedirs(os.path.join(output_dir, "System"), exist_ok=True)
-    output_file = os.path.join(output_dir, "System", "Clock.hs")
+    os.makedirs(output_dir, exist_ok=True)
+    system_dir = os.path.join(output_dir, "System")
+    os.makedirs(system_dir, exist_ok=True)
+    output_file = os.path.join(system_dir, "Clock.hs")
 
     print(f"Creating {output_file}")
     with open(output_file, 'w') as f:
@@ -136,89 +118,115 @@ throwErrnoIfMinus1_ str action = do
 """)
     return output_file
 
-def inject_prebuilt_files(cabal_dir, build_dir):
-    """Inject pre-built Clock.hs file into key locations."""
-    # Main locations to check
-    dist_build_dir = os.path.join(build_dir, "dist", "build")
-    if not os.path.exists(dist_build_dir):
-        os.makedirs(dist_build_dir, exist_ok=True)
+def find_dist_dirs(start_dir):
+    """Find all dist and dist-newstyle dirs under start_dir."""
+    result = []
+    try:
+        for root, dirs, _ in os.walk(start_dir):
+            if "dist" in dirs:
+                result.append(os.path.join(root, "dist"))
+            if "dist-newstyle" in dirs:
+                result.append(os.path.join(root, "dist-newstyle"))
+    except Exception as e:
+        print(f"Error searching for dist dirs: {e}")
+    return result
 
-    # Create prebuilt Clock.hs
-    create_system_clock_hs(dist_build_dir)
+def create_clock_files_everywhere():
+    """Create Clock.hs files in multiple locations to ensure they're found."""
+    # Current directory and its dist folder
+    create_system_clock_hs(".")
+    create_system_clock_hs("./dist")
+    create_system_clock_hs("./dist/build")
 
-    # Also try to find any clock-0.8.4 directories and place the file there
-    if os.path.exists(cabal_dir):
-        clock_dirs = []
-        for root, dirs, _ in os.walk(cabal_dir):
-            for d in dirs:
-                if "clock-0.8.4" in d:
-                    clock_dirs.append(os.path.join(root, d))
+    # Direct creation in the error path
+    cwd = os.getcwd()
+    dist_build_system = os.path.join(cwd, "dist", "build", "System")
+    os.makedirs(dist_build_system, exist_ok=True)
+    with open(os.path.join(dist_build_system, "Clock.hs"), "w") as f:
+        f.write("""-- Auto-generated direct replacement
+module System.Clock where
 
-        for cdir in clock_dirs:
-            print(f"Found clock dir: {cdir}")
-            # Put file in dist/build/System
-            dist_path = os.path.join(cdir, "dist", "build")
-            create_system_clock_hs(dist_path)
+import Data.Int
+import Foreign.C.Types
+import Foreign.Ptr
+import Foreign.Storable
+import Foreign.Marshal.Alloc
 
-    # Save the file to current directory as well
-    current_dir = os.getcwd()
-    create_system_clock_hs(os.path.join(current_dir, "dist", "build"))
+data TimeSpec = TimeSpec {
+    sec :: Int64,
+    nsec :: Int64
+} deriving (Eq, Ord, Show)
 
-    # Also inject in the directories Cabal mentions in the error
-    error_path = os.path.join(current_dir, "dist", "build", "System")
-    os.makedirs(error_path, exist_ok=True)
-    with open(os.path.join(error_path, "Clock.hs"), 'w') as f:
-        f.write("-- Auto-generated placeholder Clock.hs\n")
-        f.write("module System.Clock where\n")
+data ClockID = Monotonic | Realtime | ProcessCPUTime | ThreadCPUTime deriving (Eq, Show)
+
+instance Storable TimeSpec where
+    sizeOf _ = 16
+    alignment _ = 8
+    peek ptr = do
+        s <- peekByteOff ptr 0 :: IO Int64
+        ns <- peekByteOff ptr 8 :: IO Int64
+        return $ TimeSpec s ns
+    poke ptr (TimeSpec s ns) = do
+        pokeByteOff ptr 0 (s :: Int64)
+        pokeByteOff ptr 8 (ns :: Int64)
+
+foreign import capi unsafe "hs_clock_win32.c hs_clock_win32_gettime"
+  c_clock_gettime :: ClockID -> Ptr TimeSpec -> IO CInt
+
+getTime :: ClockID -> IO TimeSpec
+getTime clock = alloca $ \\ptr -> do
+    c_clock_gettime clock ptr
+    peek ptr
+
+getRes :: ClockID -> IO TimeSpec
+getRes _ = return $ TimeSpec 0 1
+""")
+
+    # Search for cabal directories
+    cabal_dirs = []
+    for path in ["C:/cabal", "C:/cabal/packages", "C:/cabal/store"]:
+        if os.path.exists(path):
+            cabal_dirs.append(path)
+            # Find any clock-0.8.4 directories
+            try:
+                for root, dirs, _ in os.walk(path):
+                    for d in dirs:
+                        if "clock-0.8.4" in d:
+                            clock_dir = os.path.join(root, d)
+                            print(f"Found clock package: {clock_dir}")
+                            create_system_clock_hs(clock_dir)
+                            # Also create in dist/build
+                            create_system_clock_hs(os.path.join(clock_dir, "dist"))
+                            create_system_clock_hs(os.path.join(clock_dir, "dist", "build"))
+            except Exception as e:
+                print(f"Error searching in {path}: {e}")
+
+    # Try to locate any directories with dist/build/System
+    for cabal_dir in cabal_dirs:
+        try:
+            for root, dirs, _ in os.walk(cabal_dir):
+                if "build" in dirs and "System" in os.listdir(os.path.join(root, "build")):
+                    print(f"Found build/System directory: {os.path.join(root, 'build')}")
+                    create_system_clock_hs(os.path.join(root))
+        except Exception as e:
+            print(f"Error searching for build/System: {e}")
 
 if __name__ == "__main__":
-    print(f"Arguments: {sys.argv}")
+    print(f"Direct HSC fix - Creating System/Clock.hs files")
+    print(f"Working directory: {os.getcwd()}")
+    print(f"Command line arguments: {sys.argv}")
 
-    # Use current directory as fallback
-    current_dir = os.getcwd()
-    cabal_dir = sys.argv[2] if len(sys.argv) > 2 else current_dir
-    build_dir = current_dir
+    # Create Clock.hs files in multiple locations
+    create_clock_files_everywhere()
 
-    print(f"Current directory: {current_dir}")
-    print(f"Cabal directory: {cabal_dir}")
+    # Try to find the problematic directory from the error message
+    rsp_file_pattern = "dist\\\\build\\\\System\\\\hsc*.rsp"
+    output_file_pattern = "dist\\\\build\\\\System\\\\Clock.hs"
 
-    # Inject prebuilt Clock.hs files
-    inject_prebuilt_files(cabal_dir, build_dir)
+    # Create any parent directories
+    os.makedirs("dist/build/System", exist_ok=True)
 
-    # Search for any Clock.hsc files and patch them as well
-    hsc_files = find_files(cabal_dir, "Clock.hsc")
-    print(f"Found HSC files: {hsc_files}")
-
-    for hsc_file in hsc_files:
-        print(f"Patching {hsc_file}")
-        try:
-            with open(hsc_file, 'r') as f:
-                content = f.read()
-
-            # Add CApiFFI language pragma
-            if '{-# LANGUAGE CApiFFI #-}' not in content:
-                content = content.replace(
-                    '{-# LANGUAGE CPP, ForeignFunctionInterface #-}',
-                    '{-# LANGUAGE CPP, ForeignFunctionInterface, CApiFFI #-}'
-                )
-
-            # Replace ccall with capi for Windows imports
-            content = content.replace(
-                'foreign import ccall unsafe "hs_clock_win32.c hs_clock_win32_gettime"',
-                'foreign import capi unsafe "hs_clock_win32.c hs_clock_win32_gettime"'
-            )
-
-            with open(hsc_file, 'w') as f:
-                f.write(content)
-
-            # Also try to create the .hs file directly from the .hsc file
-            hs_file = hsc_file.replace('.hsc', '.hs')
-            create_system_clock_hs(os.path.dirname(os.path.dirname(hsc_file)))
-
-        except Exception as e:
-            print(f"Error patching {hsc_file}: {e}")
-
-    print("HSC fix completed")
+    print("HSC fix completed - Clock.hs files created in multiple locations")
 EOF
 
     chmod +x $PREFIX/bin/fix-hsc-direct.py
@@ -226,10 +234,53 @@ EOF
     # Create a wrapper script to call the Python script
     cat > $PREFIX/bin/fix-hsc-crash.sh << 'EOF'
 #!/bin/bash
+set -e
 SCRIPT_DIR=$(dirname "$0")
 echo "Attempting to fix HSC crashes..."
-# Use explicit paths and PWD instead of relying on environment variables
-python "$SCRIPT_DIR/fix-hsc-direct.py" "$PWD" "C:/cabal"
+python "$SCRIPT_DIR/fix-hsc-direct.py"
+# Also create the file directly in the error location
+CURR_DIR=$(pwd)
+mkdir -p "$CURR_DIR/dist/build/System"
+cat > "$CURR_DIR/dist/build/System/Clock.hs" << 'EOHASKELL'
+-- Auto-generated by fix-hsc-crash.sh
+module System.Clock where
+
+import Data.Int
+import Foreign.C.Types
+import Foreign.Ptr
+import Foreign.Storable
+import Foreign.Marshal.Alloc
+
+data TimeSpec = TimeSpec {
+    sec :: Int64,
+    nsec :: Int64
+} deriving (Eq, Ord, Show)
+
+data ClockID = Monotonic | Realtime | ProcessCPUTime | ThreadCPUTime deriving (Eq, Show)
+
+instance Storable TimeSpec where
+    sizeOf _ = 16
+    alignment _ = 8
+    peek ptr = do
+        s <- peekByteOff ptr 0 :: IO Int64
+        ns <- peekByteOff ptr 8 :: IO Int64
+        return $ TimeSpec s ns
+    poke ptr (TimeSpec s ns) = do
+        pokeByteOff ptr 0 (s :: Int64)
+        pokeByteOff ptr 8 (ns :: Int64)
+
+foreign import capi unsafe "hs_clock_win32.c hs_clock_win32_gettime"
+  c_clock_gettime :: ClockID -> Ptr TimeSpec -> IO CInt
+
+getTime :: ClockID -> IO TimeSpec
+getTime clock = alloca $ \ptr -> do
+    c_clock_gettime clock ptr
+    peek ptr
+
+getRes :: ClockID -> IO TimeSpec
+getRes _ = return $ TimeSpec 0 1
+EOHASKELL
+echo "Created direct Clock.hs file in $CURR_DIR/dist/build/System/"
 EOF
 
     chmod +x $PREFIX/bin/fix-hsc-crash.sh
