@@ -23,34 +23,6 @@ if [[ "$target_platform" == win-* ]]; then
 #!/usr/bin/env python
 import os
 import sys
-import glob
-
-def find_clock_package_dirs():
-    """Find all clock package directories in the cabal environment."""
-    clock_dirs = []
-    search_paths = [
-        "C:/cabal/packages",
-        "C:/cabal/store",
-        os.path.expanduser("~/.cabal/packages"),
-        ".",
-        ".."
-    ]
-
-    for search_path in search_paths:
-        if os.path.exists(search_path):
-            print(f"DEBUG: Searching in {search_path}")
-            try:
-                # Look for clock-0.8.4 directories
-                for root, dirs, files in os.walk(search_path):
-                    for dirname in dirs:
-                        if "clock-0.8.4" in dirname:
-                            clock_dir = os.path.join(root, dirname)
-                            clock_dirs.append(clock_dir)
-                            print(f"DEBUG: Found clock package directory: {clock_dir}")
-            except Exception as e:
-                print(f"DEBUG: Error searching {search_path}: {e}")
-
-    return clock_dirs
 
 def create_system_clock_hs_from_github_source(output_path):
     """Create System/Clock.hs file based on the actual GitHub source structure."""
@@ -235,10 +207,6 @@ def main():
     print(f"DEBUG: Python version: {sys.version}")
     print(f"DEBUG: Working directory: {os.getcwd()}")
 
-    # Find and patch clock package HSC files
-    clock_dirs = find_clock_package_dirs()
-    # patch_clock_hsc_files(clock_dirs)  # Comment out for now since we're creating complete files
-
     # Create files directly in the current working directory structure
     cwd = os.getcwd()
     print(f"DEBUG: Current working directory: {cwd}")
@@ -281,7 +249,6 @@ EOF
 #!/bin/bash
 set -e
 echo "DEBUG: Starting HSC crash fix script"
-echo "DEBUG: Script arguments: $@"
 
 # Get current directory
 CURR_DIR=$(pwd)
