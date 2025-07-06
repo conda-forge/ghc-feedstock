@@ -114,15 +114,75 @@ throwErrnoIfMinus1_ str action = do
         else return ()
 """)
 
+def create_system_file_platform_hs(output_path):
+    """Create System/File/Platform.hs file directly with all necessary content."""
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+
+    print(f"Creating {output_path}")
+    with open(output_path, 'w') as f:
+        f.write("""-- Auto-generated to bypass HSC processing
+{-# LANGUAGE CPP, ForeignFunctionInterface, CApiFFI #-}
+{-# LANGUAGE BangPatterns #-}
+
+module System.File.Platform (
+    -- * File operations
+    PlatformPath,
+    pathSeparator,
+    isPathSeparator,
+    searchPathSeparator,
+    extSeparator,
+    isExtSeparator,
+    ) where
+
+import Data.Char (ord)
+import Foreign.C.Types
+import Foreign.Ptr (Ptr)
+
+-- | Platform-specific path type
+type PlatformPath = String
+
+-- | Platform-specific path separator
+pathSeparator :: Char
+#if defined(_WIN32)
+pathSeparator = '\\\\'
+#else
+pathSeparator = '/'
+#endif
+
+-- | Check if character is a path separator
+isPathSeparator :: Char -> Bool
+#if defined(_WIN32)
+isPathSeparator c = c == '\\\\' || c == '/'
+#else
+isPathSeparator c = c == '/'
+#endif
+
+-- | Platform-specific search path separator
+searchPathSeparator :: Char
+#if defined(_WIN32)
+searchPathSeparator = ';'
+#else
+searchPathSeparator = ':'
+#endif
+
+-- | Extension separator
+extSeparator :: Char
+extSeparator = '.'
+
+-- | Check if character is an extension separator
+isExtSeparator :: Char -> Bool
+isExtSeparator c = c == '.'
+""")
+
 def main():
-    print(f"Direct HSC fix - Creating System/Clock.hs files")
+    print(f"Direct HSC fix - Creating System/Clock.hs and System/File/Platform.hs files")
     print(f"Working directory: {os.getcwd()}")
 
-    # Target directories where we need to create Clock.hs files
+    # Target directories where we need to create files
     cwd = os.getcwd()
 
     # Create clock files in current working directory
-    target_paths = [
+    clock_target_paths = [
         # Current directory structure
         os.path.join(cwd, "dist", "build", "System", "Clock.hs"),
         os.path.join(cwd, "System", "Clock.hs"),
@@ -137,25 +197,51 @@ def main():
         os.path.join(cwd, "dist-newstyle", "build", "System", "Clock.hs")
     ]
 
-    # Add clock package directories in cabal store
+    # Create file-io files in current working directory
+    file_io_target_paths = [
+        # Current directory structure
+        os.path.join(cwd, "dist", "build", "System", "File", "Platform.hs"),
+        os.path.join(cwd, "System", "File", "Platform.hs"),
+
+        # Hard-coded cabal directory paths for Windows
+        "C:/cabal/packages/file-io-0.1.4/System/File/Platform.hs",
+        "C:/cabal/store/ghc-9.10.1/file-io-0.1.4/System/File/Platform.hs",
+        "C:/cabal/store/ghc-9.10.1/file-io-0.1.4-2900bd4050e8ac2583e3044a5989d1df306fdce7/System/File/Platform.hs",
+
+        # Dist directory paths
+        os.path.join(cwd, "dist", "System", "File", "Platform.hs"),
+        os.path.join(cwd, "dist-newstyle", "build", "System", "File", "Platform.hs")
+    ]
+
+    # Add clock and file-io package directories in cabal store
     if os.path.exists("C:/cabal/store"):
         try:
             for root, dirs, _ in os.walk("C:/cabal/store"):
                 for d in dirs:
                     if "clock-0.8.4" in d:
-                        target_paths.append(os.path.join(root, d, "System", "Clock.hs"))
-                        target_paths.append(os.path.join(root, d, "dist", "build", "System", "Clock.hs"))
+                        clock_target_paths.append(os.path.join(root, d, "System", "Clock.hs"))
+                        clock_target_paths.append(os.path.join(root, d, "dist", "build", "System", "Clock.hs"))
+                    if "file-io-0.1.4" in d:
+                        file_io_target_paths.append(os.path.join(root, d, "System", "File", "Platform.hs"))
+                        file_io_target_paths.append(os.path.join(root, d, "dist", "build", "System", "File", "Platform.hs"))
         except Exception as e:
             print(f"Error searching cabal store: {e}")
 
-    # Create files in all target paths
-    for path in target_paths:
+    # Create clock files in all target paths
+    for path in clock_target_paths:
         try:
             create_system_clock_hs(path)
         except Exception as e:
             print(f"Error creating {path}: {e}")
 
-    print("HSC fix completed - Clock.hs files created in multiple locations")
+    # Create file-io files in all target paths
+    for path in file_io_target_paths:
+        try:
+            create_system_file_platform_hs(path)
+        except Exception as e:
+            print(f"Error creating {path}: {e}")
+
+    print("HSC fix completed - Clock.hs and Platform.hs files created in multiple locations")
     return 0
 
 if __name__ == "__main__":
@@ -174,9 +260,12 @@ echo "Attempting to fix HSC crashes..."
 # Run the Python script directly, no args needed
 python "$SCRIPT_DIR/fix-hsc-direct.py"
 
-# Also create the file directly in the current directory's error location
+# Also create the files directly in the current directory's error location
 CURR_DIR=$(pwd)
 mkdir -p "$CURR_DIR/dist/build/System"
+mkdir -p "$CURR_DIR/dist/build/System/File"
+
+# Create Clock.hs
 cat > "$CURR_DIR/dist/build/System/Clock.hs" << 'EOHASKELL'
 -- Auto-generated by fix-hsc-crash.sh
 {-# LANGUAGE CPP, ForeignFunctionInterface, CApiFFI #-}
@@ -225,13 +314,45 @@ getRes :: ClockID -> IO TimeSpec
 getRes _ = return $ TimeSpec 0 1
 EOHASKELL
 
-echo "Created direct Clock.hs file in $CURR_DIR/dist/build/System/"
+# Create Platform.hs
+cat > "$CURR_DIR/dist/build/System/File/Platform.hs" << 'EOHASKELL'
+-- Auto-generated by fix-hsc-crash.sh
+{-# LANGUAGE CPP #-}
+
+module System.File.Platform (
+    PlatformPath,
+    pathSeparator,
+    isPathSeparator,
+    searchPathSeparator,
+    extSeparator,
+    isExtSeparator,
+    ) where
+
+type PlatformPath = String
+
+pathSeparator :: Char
+pathSeparator = '\\'
+
+isPathSeparator :: Char -> Bool
+isPathSeparator c = c == '\\' || c == '/'
+
+searchPathSeparator :: Char
+searchPathSeparator = ';'
+
+extSeparator :: Char
+extSeparator = '.'
+
+isExtSeparator :: Char -> Bool
+isExtSeparator c = c == '.'
+EOHASKELL
+
+echo "Created direct Clock.hs and Platform.hs files in $CURR_DIR/dist/build/System/"
 EOF
 
     chmod +x $PREFIX/bin/fix-hsc-crash.sh
 fi
 
-"${RECIPE_DIR}"/building/build-"${target_platform}.sh"
+"${RECIPE_DIR}"/building/build-"${target_platform}".sh"
 
 # Create bash completion
 mkdir -p "${PREFIX}"/etc/bash_completion.d

@@ -20,6 +20,7 @@ cxx_compiler_version:
   - 18                     # [unix]
   - 19                     # [not unix]
 
-# Add clock to the list of packages to patch for Windows
+# Add clock and file-io to the list of packages to patch for Windows
 win_patched_packages:
   - clock-0.8.4
+  - file-io-0.1.4
