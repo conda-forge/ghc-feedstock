@@ -1,0 +1,176 @@
+context:
+  version: "9.12.2"
+  boot_version: "9.10.1"
+  cabal_version: "3.14.2.0"
+
+package:
+  name: ghc
+  version: ${{ version }}
+
+source:
+  - url: https://downloads.haskell.org/~ghc/${{ version }}/ghc-${{ version }}-src.tar.xz
+    sha256: 0e49cd5dde43f348c5716e5de9a5d7a0f8d68d945dc41cf75dfdefe65084f933
+    patches:
+      - patch-rpath-macos.patch
+      - if: osx and arm64
+        then:
+          - patch-osname-macos.patch
+
+  # Bootstrap GHC compilers
+  - if: osx
+    then:
+      url: https://downloads.haskell.org/~ghc/${{ boot_version }}/ghc-${{ boot_version }}-x86_64-apple-darwin.tar.xz
+      sha256: 8cf22188930e10d7ac5270d425e21a3dab606af73a655493639345200c650be9
+      target_directory: bootstrap-ghc
+  - if: linux
+    then:
+      url: https://downloads.haskell.org/~ghc/${{ boot_version }}/ghc-${{ boot_version }}-x86_64-ubuntu20_04-linux.tar.xz
+      sha256: ae3be406fdb73bd2b0c22baada77a8ff2f8cde6220dd591dc24541cfe9d895eb
+      target_directory: bootstrap-ghc
+  - if: not unix
+    then:
+      url: https://downloads.haskell.org/~ghc/${{ boot_version }}/ghc-${{ boot_version }}-x86_64-unknown-mingw32.tar.gz
+      sha256: 76847b0125547e975791fdbb9b9c963961aa81d833299d75a37ca48338fcc232
+      target_directory: bootstrap-ghc
+
+  # Cabal install
+  - if: osx
+    then:
+      url: https://downloads.haskell.org/~cabal/cabal-install-${{ cabal_version }}/cabal-install-${{ cabal_version }}-x86_64-darwin.tar.xz
+      sha256: f9d0cac59deeeb1d35f72f4aa7e5cba3bfe91d838e9ce69b8bc9fc855247ce0f
+      target_directory: bootstrap-cabal
+  - if: linux
+    then:
+      url: https://downloads.haskell.org/~cabal/cabal-install-${{ cabal_version }}/cabal-install-${{ cabal_version }}-x86_64-linux-ubuntu20_04.tar.xz
+      sha256: 974a0c29cae721a150d5aa079a65f2e1c0843d1352ffe6aedd7594b176c3e1e6
+      target_directory: bootstrap-cabal
+  - if: not unix
+    then:
+      url: https://downloads.haskell.org/~cabal/cabal-install-${{ cabal_version }}/cabal-install-${{ cabal_version }}-x86_64-windows.zip
+      sha256: e313d60f849d4d7838406c154d60fdef8bfb7214848ac614ebafff19972c194e
+      target_directory: bootstrap-cabal
+
+build:
+  number: 0
+  skip: not unix or ppc64le
+  script:
+    env:
+      BOOT_VERSION: ${{ boot_version }}
+
+requirements:
+  build:
+    - ${{ compiler('c') }}
+    - ${{ compiler('cxx') }}
+    - ${{ stdlib('c') }}
+
+    - if: build_platform != target_platform
+      then:
+        - gmp
+        - libffi
+
+    - if: target_platform == "linux-aarch64"
+      then:
+        # Restrict to 2.43 (2.44 does not seem to have ld.gold and makes aarch64 build fail)
+        - binutils_impl_${{ build_platform }} <2.44
+        - binutils_${{ target_platform }} <2.44
+        - sysroot_${{ build_platform }} >=2.28
+
+    - if: linux
+      then:
+        - patchelf
+        - perl
+
+    - if: unix
+      then:
+        - autoconf
+        - automake
+        - m4
+        - make
+        - ncurses
+        - sed
+      else:
+        - m2-autoconf
+        - m2-automake-wrapper
+        - m2-bash
+        - m2-findutils
+        - m2-grep
+        - m2-m4
+        - m2-make
+    - gmp
+    - llvm-tools ${{ c_compiler_version }}.*
+    - python 3.12.*
+    - sphinx
+    - zstd
+  host:
+    - gmp
+    - libiconv
+    - libffi
+    - if: unix
+      then:
+        - ncurses
+  run:
+    - ${{ compiler('c') }}
+    - gmp
+    - libffi
+    - if: aarch64
+      then: libiconv
+    - if: unix
+      then:
+        - ${{ stdlib('c') }}
+        - ncurses
+
+tests:
+  - package_contents:
+      bin:
+        - ghc
+        - ghc-pkg
+        - ghci
+        - hp2ps
+        - hsc2hs
+        - if: build_platform == target_platform
+          then:
+          - haddock
+          - hpc
+          - runghc
+          - runhaskell
+      files:
+        - etc/bash_completion.d/ghc
+        - etc/conda/activate.d/ghc_activate.sh
+        - lib/ghc-${{ version }}/lib/llvm-passes
+        - lib/ghc-${{ version }}/lib/llvm-targets
+        - lib/ghc-${{ version }}/lib/package.conf.d/**
+        - lib/ghc-${{ version }}/lib/dyld.mjs
+        - lib/ghc-${{ version }}/lib/ghc-interp.js
+        - lib/ghc-${{ version }}/lib/ghc-usage.txt
+        - lib/ghc-${{ version }}/lib/ghci-usage.txt
+        - lib/ghc-${{ version }}/lib/post-link.mjs
+        - lib/ghc-${{ version }}/lib/prelude.mjs
+        - lib/ghc-${{ version }}/lib/settings
+        - lib/ghc-${{ version }}/lib/template-hsc.h
+        - lib/ghc-${{ version }}/lib/*-ghc-${{ version }}-inplace/*-inplace/*-inplace.a
+
+  - script: ghc --version
+
+  - script:
+      - echo 'main = putStrLn "Hello conda-forge"' > hello.hs
+      - ghc hello.hs
+      - ./hello
+
+about:
+  homepage: https://haskell.org/ghc/
+  license: BSD-3-Clause
+  license_file:
+    - LICENSE
+    - license_files
+  summary: Glorious Glasgow Haskell Compilation System
+  description: |
+    GHC is a state-of-the-art, open source, compiler and interactive environment 
+    for the functional language Haskell.
+  documentation: https://www.haskell.org/ghc/documentation.html
+  repository: https://gitlab.haskell.org/ghc/ghc
+
+extra:
+  recipe-maintainers:
+    - eggzilla
+    - step21
+    - xhochy
