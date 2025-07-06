@@ -154,8 +154,6 @@ tests:
   - script:
       - echo 'main = putStrLn "Hello conda-forge"' > hello.hs
       - ghc hello.hs
-      # - if: aarch64
-      #   then: export LD_PRELOAD="${CONDA_PREFIX}/lib/libiconv.so.2 ${CONDA_PREFIX}/lib/libgmp.so.10 ${CONDA_PREFIX}/lib/libffi.so.8 ${LD_PRELOAD:-}"
       - ./hello
 
 about:
