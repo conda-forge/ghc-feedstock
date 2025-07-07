@@ -192,6 +192,7 @@ cp "${_BUILD_PREFIX}/Library/usr/bin/m4.exe" "${_BUILD_PREFIX}/bin"
 cp "${RECIPE_DIR}/building/fix-hsc-direct.py" "${_BUILD_PREFIX}/bin/"
 cp "${RECIPE_DIR}/building/fix-hsc-stack-overflow.py" "${_BUILD_PREFIX}/bin/"
 cp "${RECIPE_DIR}/building/fix-stack-protector.py" "${_BUILD_PREFIX}/bin/"
+cp "${RECIPE_DIR}/building/prevent-hsc-execution.py" "${_BUILD_PREFIX}/bin/"
 
 # Create a comprehensive script to fix HSC crashes and create wrappers
 cat > "${_BUILD_PREFIX}/bin/fix-hsc-crash.sh" << EOF
@@ -209,6 +210,10 @@ python "\$(dirname "\$0")/fix-hsc-stack-overflow.py" "C:/cabal" "\${BUILD_PREFIX
 
 # Run the direct fix script with explicit paths to search
 RECIPE_DIR="${RECIPE_DIR}" python "\$(dirname "\$0")/fix-hsc-direct.py" "\${SRC_DIR}" "C:/cabal" "\${HOME}/.cabal" "\${BUILD_PREFIX}" "C:/cabal/store/ghc-9.10.1"
+
+# Apply aggressive HSC execution prevention
+echo "Preventing HSC execution via Makefile and timestamp fixes..."
+python "\$(dirname "\$0")/prevent-hsc-execution.py" "C:/cabal" "\${BUILD_PREFIX}" "\${SRC_DIR}"
 
 # Also create HSC tool wrappers to prevent crashes
 echo "Creating HSC tool wrappers..."
