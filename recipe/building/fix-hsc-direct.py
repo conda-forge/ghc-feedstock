@@ -357,6 +357,7 @@ def find_target_files(search_paths, clock_content, platform_content, verbose=Tru
         for target_file in targets.keys():
             # Try to find the target file or its parent directory
             target_patterns = [
+                # Standard dist/build patterns
                 os.path.join(expanded_path, "**", "dist*", "build", target_file),
                 os.path.join(expanded_path, "**", "dist*", "build", "*", target_file),
                 os.path.join(expanded_path, "**", "build", target_file),
@@ -367,6 +368,11 @@ def find_target_files(search_paths, clock_content, platform_content, verbose=Tru
                 # Look specifically in clock and file-io package directories
                 os.path.join(expanded_path, "**", "clock-*", "**", target_file),
                 os.path.join(expanded_path, "**", "file-io-*", "**", target_file),
+                # More specific Cabal store patterns
+                os.path.join(expanded_path, "clock-*", "dist", "build", target_file),
+                os.path.join(expanded_path, "file-io-*", "dist", "build", target_file),
+                os.path.join(expanded_path, "clock-*", "dist", "build", "System", "Clock.hs"),
+                os.path.join(expanded_path, "file-io-*", "dist", "build", "System", "File", "Platform.hs"),
             ]
 
             for pattern in target_patterns:
@@ -519,15 +525,21 @@ def main():
 
     # Use the loaded content from workaround files
 
-    # Default search paths
+    # Default search paths - more comprehensive search
     search_paths = [
         "C:/cabal",
+        "C:/cabal/store",
+        "C:/cabal/store/ghc-9.10.1",
         os.path.expanduser("~") + "/AppData/Local/Temp",
         os.path.expandvars("%APPDATA%") + "/cabal",
         os.path.expandvars("%SRC_DIR%"),
         os.path.expandvars("%BUILD_PREFIX%"),
+        os.path.expandvars("%BUILD_PREFIX%") + "/../work",
         ".",
-        ".."
+        "..",
+        # More comprehensive Cabal store search
+        "C:/cabal/store/ghc-9.10.1/clock-0.8.4*",
+        "C:/cabal/store/ghc-9.10.1/file-io-0.1.4*",
     ]
 
     # Add command-line arguments as search paths
@@ -548,22 +560,51 @@ def main():
             else:
                 print(f"Path does not exist: {expanded}")
 
-        # Last resort - try a direct path to clock and file-io
-        direct_paths = [
+        # Last resort - try direct paths and also search dynamically
+        print("Searching for Cabal store directories dynamically...")
+        direct_paths = []
+        
+        # First try to find the actual Cabal store directories
+        cabal_store_base = "C:/cabal/store/ghc-9.10.1"
+        if os.path.exists(cabal_store_base):
+            for item in os.listdir(cabal_store_base):
+                if item.startswith("clock-"):
+                    clock_path = os.path.join(cabal_store_base, item, "dist", "build", "System")
+                    direct_paths.append(clock_path)
+                    print(f"Found clock directory: {clock_path}")
+                elif item.startswith("file-io-"):
+                    file_io_path = os.path.join(cabal_store_base, item, "dist", "build", "System", "File")
+                    direct_paths.append(file_io_path)
+                    print(f"Found file-io directory: {file_io_path}")
+        
+        # Also try the known paths from the error message  
+        direct_paths.extend([
             "C:/cabal/store/ghc-9.10.1/clock-0.8.4-e7f0f9eac776c074e3a799d7f0ea74a1e404ccf0/dist/build/System",
             "C:/cabal/store/ghc-9.10.1/file-io-0.1.4-2900bd4050e8ac2583e3044a5989d1df306fdce7/dist/build/System/File"
-        ]
+        ])
 
         print("Trying direct paths:")
         for path in direct_paths:
-            if os.path.exists(path):
-                print(f"Direct path exists: {path}")
-                if "clock" in path:
-                    create_file("System/Clock.hs", path, clock_content)
-                    patch_makefile(path, "System/Clock.hs")
-                elif "file-io" in path:
-                    create_file("System/File/Platform.hs", path, platform_content)
-                    patch_makefile(path, "System/File/Platform.hs")
+            try:
+                # Create the directory if it doesn't exist
+                if not os.path.exists(path):
+                    print(f"Creating directory: {path}")
+                    os.makedirs(path, exist_ok=True)
+                
+                print(f"Processing path: {path}")
+                if "clock" in path.lower():
+                    success = create_file("Clock.hs", path, clock_content)
+                    if success:
+                        print(f"Successfully created Clock.hs in {path}")
+                        patch_makefile(path, "Clock.hs")
+                elif "file-io" in path.lower():
+                    success = create_file("Platform.hs", path, platform_content)
+                    if success:
+                        print(f"Successfully created Platform.hs in {path}")
+                        patch_makefile(path, "Platform.hs")
+            except Exception as e:
+                print(f"Error processing {path}: {e}")
+                continue
 
         return 1
 
