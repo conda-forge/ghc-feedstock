@@ -188,12 +188,12 @@ cp "${_BUILD_PREFIX}/Library/usr/bin/m4.exe" "${_BUILD_PREFIX}/bin"
 cp "${RECIPE_DIR}/building/fix-hsc-direct.py" "${_BUILD_PREFIX}/bin/"
 
 # Create a script to help if HSC tools crash
-cat > "${_BUILD_PREFIX}/bin/fix-hsc-crash.sh" << 'EOF'
+cat > "${_BUILD_PREFIX}/bin/fix-hsc-crash.sh" << EOF
 #!/bin/bash
 set -ex
 echo "Attempting to fix HSC crashes..."
 # Run the direct fix script with explicit paths to search
-python "$(dirname "$0")/fix-hsc-direct.py" "${SRC_DIR}" "C:/cabal" "${HOME}/.cabal" "${BUILD_PREFIX}" "C:/cabal/store/ghc-9.10.1"
+RECIPE_DIR="${RECIPE_DIR}" python "\$(dirname "\$0")/fix-hsc-direct.py" "\${SRC_DIR}" "C:/cabal" "\${HOME}/.cabal" "\${BUILD_PREFIX}" "C:/cabal/store/ghc-9.10.1"
 echo "HSC fixes applied"
 EOF
 chmod +x "${_BUILD_PREFIX}/bin/fix-hsc-crash.sh"

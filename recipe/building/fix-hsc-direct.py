@@ -330,12 +330,12 @@ seek_END = 2  -- SEEK_END
 #endif
 '''
 
-def find_target_files(search_paths, verbose=True):
+def find_target_files(search_paths, clock_content, platform_content, verbose=True):
     """Find all target files in the given search paths"""
     # Target files to look for
     targets = {
-        "System/Clock.hs": CLOCK_HS_CONTENT,
-        "System/File/Platform.hs": PLATFORM_HS_CONTENT
+        "System/Clock.hs": clock_content,
+        "System/File/Platform.hs": platform_content
     }
 
     if verbose:
@@ -477,9 +477,47 @@ def create_file(target_file, dir_path, content, verbose=True):
             print(f"Error creating {full_path}: {e}")
         return False
 
+def load_workaround_file(relative_path):
+    """Load content from workaround file in recipe directory"""
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    
+    # Try multiple potential locations for the workaround files
+    potential_paths = [
+        # Same directory as script (original location)
+        os.path.join(script_dir, "hsc_workarounds", relative_path),
+        # Recipe directory (when script is copied elsewhere)
+        os.path.join(os.path.expandvars("${RECIPE_DIR}"), "building", "hsc_workarounds", relative_path),
+        # Fallback to environment variable
+        os.path.join(os.environ.get("RECIPE_DIR", ""), "building", "hsc_workarounds", relative_path)
+    ]
+    
+    for workaround_path in potential_paths:
+        if os.path.exists(workaround_path):
+            print(f"Loading workaround file from: {workaround_path}")
+            with open(workaround_path, "r", encoding="utf-8") as f:
+                return f.read()
+    
+    print(f"Warning: Workaround file not found in any of these paths:")
+    for path in potential_paths:
+        print(f"  - {path}")
+    return None
+
 def main():
     """Main entry point"""
     print("Direct HSC Fixer - Bypassing HSC tools")
+
+    # Load workaround files from recipe directory
+    clock_content = load_workaround_file("clock/System/Clock.hs")
+    platform_content = load_workaround_file("file-io/System/File/Platform.hs")
+    
+    if not clock_content:
+        print("Using fallback Clock.hs content")
+        clock_content = CLOCK_HS_CONTENT
+    if not platform_content:
+        print("Using fallback Platform.hs content") 
+        platform_content = PLATFORM_HS_CONTENT
+
+    # Use the loaded content from workaround files
 
     # Default search paths
     search_paths = [
@@ -497,7 +535,7 @@ def main():
         search_paths.extend(sys.argv[1:])
 
     # Find all target files in the search paths
-    targets = find_target_files(search_paths)
+    targets = find_target_files(search_paths, clock_content, platform_content)
 
     if not targets:
         print("No target files found! Here are more details about the search paths:")
@@ -521,10 +559,10 @@ def main():
             if os.path.exists(path):
                 print(f"Direct path exists: {path}")
                 if "clock" in path:
-                    create_file("System/Clock.hs", path, CLOCK_HS_CONTENT)
+                    create_file("System/Clock.hs", path, clock_content)
                     patch_makefile(path, "System/Clock.hs")
                 elif "file-io" in path:
-                    create_file("System/File/Platform.hs", path, PLATFORM_HS_CONTENT)
+                    create_file("System/File/Platform.hs", path, platform_content)
                     patch_makefile(path, "System/File/Platform.hs")
 
         return 1
