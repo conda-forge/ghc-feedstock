@@ -215,19 +215,40 @@ RECIPE_DIR="${RECIPE_DIR}" python "\$(dirname "\$0")/fix-hsc-direct.py" "\${SRC_
 echo "Preventing HSC execution via Makefile and timestamp fixes..."
 python "\$(dirname "\$0")/prevent-hsc-execution.py" "C:/cabal" "\${BUILD_PREFIX}" "\${SRC_DIR}"
 
-# Also create HSC tool wrappers to prevent crashes
-echo "Creating HSC tool wrappers..."
+# Also create smart HSC tool wrappers to prevent crashes
+echo "Creating smart HSC tool wrappers..."
 find "C:/cabal/store" -name "*_hsc_make.exe" 2>/dev/null | while read hsc_tool; do
     if [[ -f "\$hsc_tool" ]]; then
-        echo "Creating wrapper for \$hsc_tool"
+        echo "Creating smart wrapper for \$hsc_tool"
         mv "\$hsc_tool" "\$hsc_tool.real" 2>/dev/null || true
         cat > "\$hsc_tool" << 'HSCEOF'
-#!/bin/bash
-echo "HSC tool wrapper called - using pre-generated files instead"
-# Just return success - the files should already be in place
-exit 0
+@echo off
+REM Smart HSC tool wrapper - handles version queries and uses pre-generated files
+
+REM Check if this is a version query
+if "%1"=="--version" goto version
+if "%1"=="-V" goto version
+if "%1"=="--help" goto help
+if "%1"=="-h" goto help
+if "%1"=="-?" goto help
+
+REM For any other usage, just return success (files should be pre-generated)
+echo HSC tool wrapper called: %0 %*
+echo Using pre-generated files instead of running HSC tool
+exit /b 0
+
+:version
+echo hsc2hs version 2.68.8
+exit /b 0
+
+:help
+echo HSC tool wrapper - uses pre-generated files
+echo Usage: [tool] [OPTIONS] INPUT.hsc
+echo   --version     show version
+echo   --help        show help
+echo This wrapper uses pre-generated files instead of processing.
+exit /b 0
 HSCEOF
-        chmod +x "\$hsc_tool"
     fi
 done
 

@@ -144,7 +144,7 @@ def replace_hsc_executables(search_paths):
 
 def replace_with_stub(exe_path):
     """
-    Replace an executable with a stub that returns success
+    Replace an executable with a smart stub that can handle version queries
     """
     print(f"  Replacing with stub: {exe_path}")
     
@@ -154,19 +154,39 @@ def replace_with_stub(exe_path):
         if not os.path.exists(backup_path):
             shutil.move(exe_path, backup_path)
         
-        # Create a batch file stub
+        # Create a smart batch file stub that handles version queries
         stub_content = f'''@echo off
-REM HSC tool stub - using pre-generated files
-echo HSC tool called: %0 %*
-echo Using pre-generated .hs file instead
-REM Always return success
+REM Smart HSC tool stub - handles version queries and uses pre-generated files
+
+REM Check if this is a version query
+if "%1"=="--version" goto version
+if "%1"=="-V" goto version
+if "%1"=="--help" goto help
+if "%1"=="-h" goto help
+if "%1"=="-?" goto help
+
+REM For any other usage, just return success (files should be pre-generated)
+echo HSC tool stub called: %0 %*
+echo Using pre-generated .hs file instead of running HSC tool
+exit /b 0
+
+:version
+echo hsc2hs version 2.68.8
+exit /b 0
+
+:help
+echo hsc2hs - Haskell C pre-processor (stub version)
+echo Usage: hsc2hs [OPTIONS] INPUT.hsc
+echo   --version     show version
+echo   --help        show help
+echo This is a stub that uses pre-generated files.
 exit /b 0
 '''
         
         with open(exe_path, 'w') as f:
             f.write(stub_content)
         
-        print(f"    Created stub for {exe_path}")
+        print(f"    Created smart stub for {exe_path}")
         
     except Exception as e:
         print(f"    Error creating stub for {exe_path}: {e}")

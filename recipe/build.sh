@@ -31,3 +31,17 @@ rm -f "${PREFIX}"/lib/ghc-"${PKG_VERSION}"/lib/package.conf.d/package.cache.lock
 
 mkdir -p "${PREFIX}/etc/conda/activate.d"
 cp "${RECIPE_DIR}/activate.sh" "${PREFIX}/etc/conda/activate.d/${PKG_NAME}_activate.sh"
+
+# Add package licenses
+mkdir -p "${SRC_DIR}"/license_files
+arch="-${target_platform#*-}"
+arch="${arch//-64/-x86_64}"
+arch="${arch#*-}"
+arch="${arch//arm64/aarch64}"
+os=${target_platform%%-*}
+os="${os//win/windows}"
+pushd "${PREFIX}/ghc-bootstrap/share/doc/${arch}-${os}-ghc-${PKG_VERSION}"
+  for file in */LICENSE; do
+    cp "${file///-}" "${SRC_DIR}"/license_files
+  done
+popd
