@@ -167,6 +167,10 @@ fi
 
 echo "Successfully created ${MINGW_CHKSTK_OBJ} via direct compilation"
 
+# Apply stack protector fixes early in the process
+echo "*** Applying early stack protector fixes ***"
+python "${RECIPE_DIR}/building/fix-stack-protector.py"
+
 # Make sure we use conda-forge clang (ghc bootstrap has a clang.exe)
 CLANG=$(find "${_BUILD_PREFIX}" -name clang.exe | head -1)
 CLANGXX=$(find "${_BUILD_PREFIX}" -name clang++.exe | head -1)
@@ -187,6 +191,7 @@ cp "${_BUILD_PREFIX}/Library/usr/bin/m4.exe" "${_BUILD_PREFIX}/bin"
 # Copy the HSC fix scripts
 cp "${RECIPE_DIR}/building/fix-hsc-direct.py" "${_BUILD_PREFIX}/bin/"
 cp "${RECIPE_DIR}/building/fix-hsc-stack-overflow.py" "${_BUILD_PREFIX}/bin/"
+cp "${RECIPE_DIR}/building/fix-stack-protector.py" "${_BUILD_PREFIX}/bin/"
 
 # Create a comprehensive script to fix HSC crashes and create wrappers
 cat > "${_BUILD_PREFIX}/bin/fix-hsc-crash.sh" << EOF
@@ -194,7 +199,11 @@ cat > "${_BUILD_PREFIX}/bin/fix-hsc-crash.sh" << EOF
 set -ex
 echo "Attempting to fix HSC crashes..."
 
-# First try to fix stack overflow issues in HSC tools
+# First apply stack protector fixes (most likely root cause)
+echo "Applying stack protector fixes..."
+python "\$(dirname "\$0")/fix-stack-protector.py"
+
+# Then try to fix stack overflow issues in HSC tools
 echo "Applying stack overflow fixes to HSC tools..."
 python "\$(dirname "\$0")/fix-hsc-stack-overflow.py" "C:/cabal" "\${BUILD_PREFIX}" "\${SRC_DIR}"
 
@@ -273,13 +282,30 @@ MergeObjsArgs="" \
 run_and_log "ghc-configure" bash configure "${CONFIGURE_ARGS[@]}" || ( cat config.log ; exit 1 )
 
 # Cabal configure seems to default to the wrong clang
+# Also ensure stack protection is disabled for all stages
 cat > hadrian/hadrian.settings << EOF
 stage1.*.cabal.configure.opts += --verbose=3 --with-compiler="${GHC}" --with-gcc="${CLANG_WRAPPER}"
+stage1.*.cc.c.opts += -fno-stack-protector -fno-stack-check
+stage1.*.cc.cpp.opts += -fno-stack-protector -fno-stack-check
+stage1.*.ghc.c.opts += -optc-fno-stack-protector -optc-fno-stack-check
+stage1.*.ghc.cpp.opts += -optcxx-fno-stack-protector -optcxx-fno-stack-check
+stage0.*.cc.c.opts += -fno-stack-protector -fno-stack-check
+stage0.*.cc.cpp.opts += -fno-stack-protector -fno-stack-check
+stage0.*.ghc.c.opts += -optc-fno-stack-protector -optc-fno-stack-check
+stage0.*.ghc.cpp.opts += -optcxx-fno-stack-protector -optcxx-fno-stack-check
 EOF
 
-export CABFLAGS="--with-compiler=${GHC} --with-gcc=${CLANG_WRAPPER}"
+export CABFLAGS="--with-compiler=${GHC} --with-gcc=${CLANG_WRAPPER} --ghc-options=-optc-fno-stack-protector --ghc-options=-optc-fno-stack-check"
 # Enable debugging mode for more verbose output
 export GHC_DEBUG=1
+
+# Ensure stack protection is disabled for all tools
+export CFLAGS="${CFLAGS} -fno-stack-protector -fno-stack-check"
+export CXXFLAGS="${CXXFLAGS} -fno-stack-protector -fno-stack-check"
+export LDFLAGS="${LDFLAGS} -fno-stack-protector"
+
+# Also set these for Cabal
+export CABAL_EXTRA_BUILD_FLAGS="--ghc-options=-optc-fno-stack-protector --ghc-options=-optc-fno-stack-check"
 
 # First, let's try a diagnostic build of clock to understand the issue
 echo "*** Running clock package diagnostic (can be disabled with SKIP_CLOCK_DIAG=1) ***"
