@@ -158,27 +158,38 @@ def replace_with_stub(exe_path):
         stub_content = f'''@echo off
 REM Smart HSC tool stub - handles version queries and uses pre-generated files
 
-REM Check if this is a version query
+REM Always output version info first, since many tools check stderr/stdout patterns
+REM This handles various ways Cabal might try to detect the version
+if "%1"=="" goto version
 if "%1"=="--version" goto version
 if "%1"=="-V" goto version
 if "%1"=="--help" goto help
 if "%1"=="-h" goto help
 if "%1"=="-?" goto help
+if "%1"=="--numeric-version" goto numeric_version
 
-REM For any other usage, just return success (files should be pre-generated)
-echo HSC tool stub called: %0 %*
-echo Using pre-generated .hs file instead of running HSC tool
+REM Check for any flag that might be a version query
+echo %1 | findstr /C:"version" >nul && goto version
+echo %1 | findstr /C:"-V" >nul && goto version
+
+REM For compilation, just return success (files should be pre-generated)
+echo HSC tool stub: Using pre-generated .hs file instead of %0 %*
 exit /b 0
 
 :version
 echo hsc2hs version 2.68.8
 exit /b 0
 
+:numeric_version
+echo 2.68.8
+exit /b 0
+
 :help
 echo hsc2hs - Haskell C pre-processor (stub version)
 echo Usage: hsc2hs [OPTIONS] INPUT.hsc
-echo   --version     show version
-echo   --help        show help
+echo   --version             show version
+echo   --numeric-version     show numeric version
+echo   --help                show help
 echo This is a stub that uses pre-generated files.
 exit /b 0
 '''

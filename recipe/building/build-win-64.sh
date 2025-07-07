@@ -225,27 +225,37 @@ find "C:/cabal/store" -name "*_hsc_make.exe" 2>/dev/null | while read hsc_tool; 
 @echo off
 REM Smart HSC tool wrapper - handles version queries and uses pre-generated files
 
-REM Check if this is a version query
+REM Always output version info first for various detection methods
+if "%1"=="" goto version
 if "%1"=="--version" goto version
 if "%1"=="-V" goto version
 if "%1"=="--help" goto help
 if "%1"=="-h" goto help
 if "%1"=="-?" goto help
+if "%1"=="--numeric-version" goto numeric_version
 
-REM For any other usage, just return success (files should be pre-generated)
-echo HSC tool wrapper called: %0 %*
-echo Using pre-generated files instead of running HSC tool
+REM Check for any flag that might be a version query
+echo %1 | findstr /C:"version" >nul && goto version
+echo %1 | findstr /C:"-V" >nul && goto version
+
+REM For compilation, just return success (files should be pre-generated)
+echo HSC tool wrapper: Using pre-generated files instead of %0 %*
 exit /b 0
 
 :version
 echo hsc2hs version 2.68.8
 exit /b 0
 
+:numeric_version
+echo 2.68.8
+exit /b 0
+
 :help
 echo HSC tool wrapper - uses pre-generated files
 echo Usage: [tool] [OPTIONS] INPUT.hsc
-echo   --version     show version
-echo   --help        show help
+echo   --version             show version
+echo   --numeric-version     show numeric version
+echo   --help                show help
 echo This wrapper uses pre-generated files instead of processing.
 exit /b 0
 HSCEOF
@@ -266,6 +276,19 @@ perl -i -pe 's#-L\$topdir/../mingw//lib -L\$topdir/../mingw//x86_64-w64-mingw32/
 
 # Update cabal package database
 run_and_log "cabal-update" cabal v2-update
+
+# Build clock package separately to avoid HSC crashes
+echo "*** Building clock package separately ***"
+if [[ "${SKIP_CLOCK_SEPARATE_BUILD:-0}" != "1" ]]; then
+    bash "${RECIPE_DIR}/building/build-clock-separately.sh" || {
+        echo "Warning: Separate clock build failed, continuing anyway"
+    }
+    
+    # Verify clock is installed
+    echo "Checking if clock is now available..."
+    "${GHC}" -e "import System.Clock" && echo "Clock package is available!" || echo "Clock import test failed"
+    ghc-pkg list clock || echo "ghc-pkg list failed"
+fi
 
 # Apply HSC fixes right after cabal update but before any builds
 echo "*** Applying HSC fixes after cabal update ***"
