@@ -184,14 +184,19 @@ mkdir -p "${_BUILD_PREFIX}/bin"
 cp "${_BUILD_PREFIX}/Library/usr/bin/m4.exe" "${_BUILD_PREFIX}/bin"
 
 # ==================== Begin HSC Tool Fixes ====================
-# Copy the direct HSC fix script
+# Copy the HSC fix scripts
 cp "${RECIPE_DIR}/building/fix-hsc-direct.py" "${_BUILD_PREFIX}/bin/"
+cp "${RECIPE_DIR}/building/fix-hsc-stack-overflow.py" "${_BUILD_PREFIX}/bin/"
 
 # Create a comprehensive script to fix HSC crashes and create wrappers
 cat > "${_BUILD_PREFIX}/bin/fix-hsc-crash.sh" << EOF
 #!/bin/bash
 set -ex
 echo "Attempting to fix HSC crashes..."
+
+# First try to fix stack overflow issues in HSC tools
+echo "Applying stack overflow fixes to HSC tools..."
+python "\$(dirname "\$0")/fix-hsc-stack-overflow.py" "C:/cabal" "\${BUILD_PREFIX}" "\${SRC_DIR}"
 
 # Run the direct fix script with explicit paths to search
 RECIPE_DIR="${RECIPE_DIR}" python "\$(dirname "\$0")/fix-hsc-direct.py" "\${SRC_DIR}" "C:/cabal" "\${HOME}/.cabal" "\${BUILD_PREFIX}" "C:/cabal/store/ghc-9.10.1"
@@ -275,6 +280,62 @@ EOF
 export CABFLAGS="--with-compiler=${GHC} --with-gcc=${CLANG_WRAPPER}"
 # Enable debugging mode for more verbose output
 export GHC_DEBUG=1
+
+# First, let's try a diagnostic build of clock to understand the issue
+echo "*** Running clock package diagnostic (can be disabled with SKIP_CLOCK_DIAG=1) ***"
+if [[ "${SKIP_CLOCK_DIAG:-0}" != "1" ]]; then
+    # Create diagnostic script inline
+    cat > "${_BUILD_PREFIX}/bin/diagnose-clock.sh" << 'DIAGEOF'
+#!/bin/bash
+set -x
+
+echo "=== Quick Clock Package Diagnostic ==="
+DIAG_DIR="${TEMP}/clock-quick-diag"
+mkdir -p "${DIAG_DIR}"
+
+# Download and extract clock package  
+cd "${DIAG_DIR}"
+echo "Fetching clock-0.8.4..."
+cabal get clock-0.8.4 --no-dependencies || {
+    echo "Failed to fetch clock package"
+    exit 1
+}
+
+cd clock-0.8.4
+
+# Just try to run hsc2hs on the Clock.hsc file directly
+echo "=== Looking for Clock.hsc ==="
+find . -name "Clock.hsc" | while read hsc_file; do
+    echo "Found: ${hsc_file}"
+    echo "=== Trying direct hsc2hs conversion ==="
+    
+    # First check if hsc2hs exists
+    which hsc2hs || echo "hsc2hs not in PATH"
+    
+    # Try using the bootstrap GHC's hsc2hs
+    HSC2HS="${SRC_DIR}/bootstrap-ghc/bin/hsc2hs.exe"
+    if [[ -f "${HSC2HS}" ]]; then
+        echo "Using hsc2hs from: ${HSC2HS}"
+        "${HSC2HS}" --help || echo "hsc2hs help failed"
+        
+        # Try the actual conversion
+        "${HSC2HS}" "${hsc_file}" -o Clock.hs || {
+            echo "Direct hsc2hs failed with exit code: $?"
+        }
+    fi
+    
+    # Check what cabal would do
+    echo "=== Checking cabal's approach ==="
+    cabal configure --with-compiler="${GHC}" -v3 2>&1 | grep -A5 -B5 "hsc2hs\|Clock" || true
+done
+
+echo "=== Quick diagnostic complete ==="
+DIAGEOF
+    chmod +x "${_BUILD_PREFIX}/bin/diagnose-clock.sh"
+    
+    # Run the diagnostic
+    "${_BUILD_PREFIX}/bin/diagnose-clock.sh" || echo "Clock diagnostic completed"
+fi
 
 # Proactively apply HSC fixes before any build attempts
 echo "*** Applying HSC fixes proactively ***"
