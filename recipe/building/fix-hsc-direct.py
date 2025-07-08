@@ -591,9 +591,9 @@ def main():
                     direct_paths.append(file_io_path)
                     print(f"Found file-io directory: {file_io_path}")
         
-        # Also try the known paths from the error message  
+        # Also try the known paths from hadrian plan
         direct_paths.extend([
-            "C:/cabal/store/ghc-9.10.1/clock-0.8.4-e7f0f9eac776c074e3a799d7f0ea74a1e404ccf0/dist/build/System",
+            "C:/cabal/store/ghc-9.10.1/clock-0.8.4-eb0ebbe55e474fb9e033017098f5e645eb60d91a974ed9850a52ed14211e031d/dist/build/System",
             "C:/cabal/store/ghc-9.10.1/file-io-0.1.4-2900bd4050e8ac2583e3044a5989d1df306fdce7/dist/build/System/File"
         ])
 
