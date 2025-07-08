@@ -342,6 +342,8 @@ def find_target_files(search_paths, clock_content, platform_content, verbose=Tru
         print(f"Searching for target files: {list(targets.keys())}")
 
     results = []
+    seen_dirs = set()  # Track directories we've already found
+    
     for search_path in search_paths:
         # Replace environment variables
         expanded_path = os.path.expandvars(search_path)
@@ -384,6 +386,12 @@ def find_target_files(search_paths, clock_content, platform_content, verbose=Tru
                             # Found a parent directory - use it to create the full path
                             file_path = os.path.join(match, os.path.basename(target_file))
                             dir_path = match
+                            norm_dir = os.path.normpath(dir_path).lower()
+                            
+                            if norm_dir in seen_dirs:
+                                continue
+                            seen_dirs.add(norm_dir)
+                            
                             if verbose:
                                 print(f"Found target directory: {dir_path}")
 
@@ -396,6 +404,12 @@ def find_target_files(search_paths, clock_content, platform_content, verbose=Tru
                     elif os.path.exists(match):
                         # Found the exact file
                         dir_path = os.path.dirname(match)
+                        norm_dir = os.path.normpath(dir_path).lower()
+                        
+                        if norm_dir in seen_dirs:
+                            continue
+                        seen_dirs.add(norm_dir)
+                        
                         if verbose:
                             print(f"Found existing target file: {match}")
                         results.append((target_file, dir_path, targets[target_file]))
@@ -608,9 +622,19 @@ def main():
 
         return 1
 
-    # Apply fixes
+    # Apply fixes - deduplicate by directory path
     fixes_applied = 0
+    processed_paths = set()
+    
     for target_file, dir_path, content in targets:
+        # Normalize the path to avoid duplicates
+        norm_path = os.path.normpath(dir_path).lower()
+        
+        if norm_path in processed_paths:
+            print(f"Skipping duplicate: {target_file} in {dir_path} (already processed)")
+            continue
+            
+        processed_paths.add(norm_path)
         print(f"Fixing {target_file} in {dir_path}")
 
         # Create the file
