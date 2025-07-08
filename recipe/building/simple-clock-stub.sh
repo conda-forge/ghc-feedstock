@@ -4,8 +4,8 @@ set -eu
 echo "=== Creating simple clock stub ==="
 
 # Create the cabal store structure for clock
-# Hash from hadrian/bootstrap/plan-9_10_1.json
-CLOCK_HASH="eb0ebbe55e474fb9e033017098f5e645eb60d91a974ed9850a52ed14211e031d"
+# Use the hash that Cabal expects (from the build log)
+CLOCK_HASH="e7f0f9eac776c074e3a799d7f0ea74a1e404ccf0"
 STORE_PATH="C:/cabal/store/ghc-9.10.1/clock-0.8.4-${CLOCK_HASH}"
 BUILD_PATH="${STORE_PATH}/dist/build/System"
 

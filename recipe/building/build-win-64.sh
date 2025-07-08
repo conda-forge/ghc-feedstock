@@ -230,6 +230,10 @@ run_and_log "cabal-update" cabal v2-update
 echo "*** Creating clock stub ***"
 if [[ "${SKIP_CLOCK_STUB:-0}" != "1" ]]; then
     bash "${RECIPE_DIR}/building/simple-clock-stub.sh" || echo "Clock stub creation failed"
+    
+    # Also register the clock package with GHC
+    echo "*** Registering clock package ***"
+    bash "${RECIPE_DIR}/building/register-clock-package.sh" || echo "Clock registration failed"
 fi
 
 # Apply HSC fixes right after cabal update but before any builds
