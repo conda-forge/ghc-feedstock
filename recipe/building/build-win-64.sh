@@ -192,77 +192,26 @@ cp "${_BUILD_PREFIX}/Library/usr/bin/m4.exe" "${_BUILD_PREFIX}/bin"
 cp "${RECIPE_DIR}/building/fix-hsc-direct.py" "${_BUILD_PREFIX}/bin/"
 cp "${RECIPE_DIR}/building/fix-hsc-stack-overflow.py" "${_BUILD_PREFIX}/bin/"
 cp "${RECIPE_DIR}/building/fix-stack-protector.py" "${_BUILD_PREFIX}/bin/"
-cp "${RECIPE_DIR}/building/prevent-hsc-execution.py" "${_BUILD_PREFIX}/bin/"
 
-# Create a comprehensive script to fix HSC crashes and create wrappers
+# Create a simplified script to fix HSC crashes
 cat > "${_BUILD_PREFIX}/bin/fix-hsc-crash.sh" << EOF
 #!/bin/bash
 set -ex
-echo "Attempting to fix HSC crashes..."
+echo "Applying HSC fixes..."
 
-# First apply stack protector fixes (most likely root cause)
+# Apply stack protector fixes
 echo "Applying stack protector fixes..."
 python "\$(dirname "\$0")/fix-stack-protector.py"
 
-# Then try to fix stack overflow issues in HSC tools
+# Apply stack overflow fixes to HSC tools
 echo "Applying stack overflow fixes to HSC tools..."
 python "\$(dirname "\$0")/fix-hsc-stack-overflow.py" "C:/cabal" "\${BUILD_PREFIX}" "\${SRC_DIR}"
 
-# Run the direct fix script with explicit paths to search
+# Run the direct fix script to pre-generate .hs files
+echo "Pre-generating .hs files from .hsc sources..."
 RECIPE_DIR="${RECIPE_DIR}" python "\$(dirname "\$0")/fix-hsc-direct.py" "\${SRC_DIR}" "C:/cabal" "\${HOME}/.cabal" "\${BUILD_PREFIX}" "C:/cabal/store/ghc-9.10.1"
 
-# Apply aggressive HSC execution prevention
-echo "Preventing HSC execution via Makefile and timestamp fixes..."
-python "\$(dirname "\$0")/prevent-hsc-execution.py" "C:/cabal" "\${BUILD_PREFIX}" "\${SRC_DIR}"
-
-# Also create smart HSC tool wrappers to prevent crashes
-echo "Creating smart HSC tool wrappers..."
-find "C:/cabal/store" -name "*_hsc_make.exe" 2>/dev/null | while read hsc_tool; do
-    if [[ -f "\$hsc_tool" ]]; then
-        echo "Creating smart wrapper for \$hsc_tool"
-        mv "\$hsc_tool" "\$hsc_tool.real" 2>/dev/null || true
-        cat > "\$hsc_tool" << 'HSCEOF'
-@echo off
-REM Smart HSC tool wrapper - handles version queries and uses pre-generated files
-
-REM Always output version info first for various detection methods
-if "%1"=="" goto version
-if "%1"=="--version" goto version
-if "%1"=="-V" goto version
-if "%1"=="--help" goto help
-if "%1"=="-h" goto help
-if "%1"=="-?" goto help
-if "%1"=="--numeric-version" goto numeric_version
-
-REM Check for any flag that might be a version query
-echo %1 | findstr /C:"version" >nul && goto version
-echo %1 | findstr /C:"-V" >nul && goto version
-
-REM For compilation, just return success (files should be pre-generated)
-echo HSC tool wrapper: Using pre-generated files instead of %0 %*
-exit /b 0
-
-:version
-echo hsc2hs version 2.68.8
-exit /b 0
-
-:numeric_version
-echo 2.68.8
-exit /b 0
-
-:help
-echo HSC tool wrapper - uses pre-generated files
-echo Usage: [tool] [OPTIONS] INPUT.hsc
-echo   --version             show version
-echo   --numeric-version     show numeric version
-echo   --help                show help
-echo This wrapper uses pre-generated files instead of processing.
-exit /b 0
-HSCEOF
-    fi
-done
-
-echo "HSC fixes and wrappers applied"
+echo "HSC fixes applied"
 EOF
 chmod +x "${_BUILD_PREFIX}/bin/fix-hsc-crash.sh"
 # ==================== End HSC Tool Fixes ====================
@@ -277,17 +226,16 @@ perl -i -pe 's#-L\$topdir/../mingw//lib -L\$topdir/../mingw//x86_64-w64-mingw32/
 # Update cabal package database
 run_and_log "cabal-update" cabal v2-update
 
-# Build clock package separately to avoid HSC crashes
-echo "*** Building clock package separately ***"
-if [[ "${SKIP_CLOCK_SEPARATE_BUILD:-0}" != "1" ]]; then
-    bash "${RECIPE_DIR}/building/build-clock-separately.sh" || {
-        echo "Warning: Separate clock build failed, continuing anyway"
+# Pre-install clock package to avoid HSC crashes
+echo "*** Pre-installing clock package ***"
+if [[ "${SKIP_CLOCK_PREINSTALL:-0}" != "1" ]]; then
+    bash "${RECIPE_DIR}/building/preinstall-clock-package.sh" || {
+        echo "Warning: Clock pre-installation had issues, continuing anyway"
     }
     
-    # Verify clock is installed
-    echo "Checking if clock is now available..."
-    "${GHC}" -e "import System.Clock" && echo "Clock package is available!" || echo "Clock import test failed"
-    ghc-pkg list clock || echo "ghc-pkg list failed"
+    # The pre-installation creates the necessary files in the cabal store
+    # so that when GHC build tries to build clock, it will find the files already there
+    echo "Clock package files should now be in place at C:/cabal/store/ghc-9.10.1/"
 fi
 
 # Apply HSC fixes right after cabal update but before any builds
@@ -356,91 +304,16 @@ export LDFLAGS="${LDFLAGS} -fno-stack-protector"
 # Also set these for Cabal
 export CABAL_EXTRA_BUILD_FLAGS="--ghc-options=-optc-fno-stack-protector --ghc-options=-optc-fno-stack-check"
 
-# First, let's try a diagnostic build of clock to understand the issue
-echo "*** Running clock package diagnostic (can be disabled with SKIP_CLOCK_DIAG=1) ***"
-if [[ "${SKIP_CLOCK_DIAG:-0}" != "1" ]]; then
-    # Create diagnostic script inline
-    cat > "${_BUILD_PREFIX}/bin/diagnose-clock.sh" << 'DIAGEOF'
-#!/bin/bash
-set -x
-
-echo "=== Quick Clock Package Diagnostic ==="
-DIAG_DIR="${TEMP}/clock-quick-diag"
-mkdir -p "${DIAG_DIR}"
-
-# Download and extract clock package  
-cd "${DIAG_DIR}"
-echo "Fetching clock-0.8.4..."
-cabal get clock-0.8.4 --no-dependencies || {
-    echo "Failed to fetch clock package"
-    exit 1
-}
-
-cd clock-0.8.4
-
-# Just try to run hsc2hs on the Clock.hsc file directly
-echo "=== Looking for Clock.hsc ==="
-find . -name "Clock.hsc" | while read hsc_file; do
-    echo "Found: ${hsc_file}"
-    echo "=== Trying direct hsc2hs conversion ==="
-    
-    # First check if hsc2hs exists
-    which hsc2hs || echo "hsc2hs not in PATH"
-    
-    # Try using the bootstrap GHC's hsc2hs
-    HSC2HS="${SRC_DIR}/bootstrap-ghc/bin/hsc2hs.exe"
-    if [[ -f "${HSC2HS}" ]]; then
-        echo "Using hsc2hs from: ${HSC2HS}"
-        "${HSC2HS}" --help || echo "hsc2hs help failed"
-        
-        # Try the actual conversion
-        "${HSC2HS}" "${hsc_file}" -o Clock.hs || {
-            echo "Direct hsc2hs failed with exit code: $?"
-        }
-    fi
-    
-    # Check what cabal would do
-    echo "=== Checking cabal's approach ==="
-    cabal configure --with-compiler="${GHC}" -v3 2>&1 | grep -A5 -B5 "hsc2hs\|Clock" || true
-done
-
-echo "=== Quick diagnostic complete ==="
-DIAGEOF
-    chmod +x "${_BUILD_PREFIX}/bin/diagnose-clock.sh"
-    
-    # Run the diagnostic
-    "${_BUILD_PREFIX}/bin/diagnose-clock.sh" || echo "Clock diagnostic completed"
-fi
 
 # Proactively apply HSC fixes before any build attempts
 echo "*** Applying HSC fixes proactively ***"
 "${_BUILD_PREFIX}/bin/fix-hsc-crash.sh" || echo "Pre-emptive HSC fix completed"
 
-# Try the build with HSC fixes already in place
-echo "*** Starting stage1 build with HSC workarounds ***"
-"${_hadrian_build[@]}" stage1:exe:ghc-bin -VV \
+# Build stage1 GHC
+echo "*** Building stage1 GHC ***"
+run_and_log "ghc-stage1-build" "${_hadrian_build[@]}" stage1:exe:ghc-bin -VV \
   --flavour=quickest \
   --docs=none \
-  --progress-info=unicorn || {
-    echo "*** Build failed even with HSC fixes - trying enhanced HSC fix ***"
-    
-    # Try a more comprehensive HSC fix
-    echo "Running enhanced HSC fix with broader search..."
-    "${_BUILD_PREFIX}/bin/fix-hsc-crash.sh"
-    
-    # Wait a moment for files to be written
-    sleep 2
-    
-    # Try one more time
-    echo "*** Retrying build after enhanced HSC fix ***"
-    "${_hadrian_build[@]}" stage1:exe:ghc-bin -VV \
-      --flavour=quickest \
-      --docs=none \
-      --progress-info=unicorn || true
-  }
-
-echo "*** Stage 1 GHC build clock logs. ***"
-cat C:/cabal/logs/ghc-9.10.1/clock-0.8.4*.log
-echo "*** Stage 1 GHC build clock logs. ***"
+  --progress-info=unicorn
 
 run_and_log "install" "${_hadrian_build[@]}" install --prefix="${_PREFIX}" --flavour=release --freeze1 --docs=none
