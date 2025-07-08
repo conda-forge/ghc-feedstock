@@ -11,7 +11,8 @@ export GHC="${SRC_DIR}\\bootstrap-ghc\\bin\\ghc.exe"
 export GHC_PKG="${SRC_DIR}\\bootstrap-ghc\\bin\\ghc-pkg.exe"
 
 # Create the cabal store directory structure for clock
-CLOCK_STORE_DIR="C:/cabal/store/ghc-9.10.1/clock-0.8.4-e7f0f9eac776c074e3a799d7f0ea74a1e404ccf0"
+# Hash from hadrian/bootstrap/plan-9_10_1.json
+CLOCK_STORE_DIR="C:/cabal/store/ghc-9.10.1/clock-0.8.4-eb0ebbe55e474fb9e033017098f5e645eb60d91a974ed9850a52ed14211e031d"
 CLOCK_BUILD_DIR="${CLOCK_STORE_DIR}/dist/build"
 CLOCK_LIB_DIR="${CLOCK_STORE_DIR}/lib"
 
