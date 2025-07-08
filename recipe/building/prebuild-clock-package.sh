@@ -20,9 +20,8 @@ PREBUILD_DIR="${TEMP}/prebuild-clock"
 rm -rf "${PREBUILD_DIR}"
 mkdir -p "${PREBUILD_DIR}"
 
-# First, let's check if clock is already in the package index
-echo "Checking if clock is in package index..."
-"${CABAL}" list clock --simple-output || echo "Clock not in index"
+# Check if clock is already available (quietly)
+"${CABAL}" list clock --simple-output > /dev/null 2>&1 || echo "Clock not in index"
 
 # Create a minimal clock package that satisfies the dependency
 cd "${PREBUILD_DIR}"
@@ -71,15 +70,15 @@ EOF
 
 cd clock-0.8.4
 
-# Build and install using v2 commands
+# Build and install using v2 commands (reduced verbosity)
 echo "Building clock package..."
-"${CABAL}" v2-build --with-compiler="${GHC}" -v2 || {
+"${CABAL}" v2-build --with-compiler="${GHC}" || {
     echo "v2-build failed, trying v1 approach..."
     
     # Try v1 build
-    "${CABAL}" configure --with-compiler="${GHC}" --with-gcc="${CLANG}"
-    "${CABAL}" build -v2
-    "${CABAL}" install --global -v2
+    "${CABAL}" configure --with-compiler="${GHC}" --with-gcc="${CLANG}" > /dev/null 2>&1
+    "${CABAL}" build > /dev/null 2>&1
+    "${CABAL}" install --global > /dev/null 2>&1
 }
 
 # Try to register it

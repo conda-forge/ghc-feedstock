@@ -13,7 +13,9 @@ module System.Clock
 
 import Control.Applicative
 import Data.Int
+import Data.Word
 import Foreign.C.Types
+import Foreign.C.String
 import Foreign.Marshal.Alloc
 import Foreign.Ptr
 import Foreign.Storable
@@ -69,8 +71,6 @@ fromNanoSecs ns =
 
 -- Windows implementation
 #ifdef mingw32_HOST_OS
-import Data.Word
-import Foreign.C.String
 
 -- Windows time functions
 foreign import ccall unsafe "windows.h GetSystemTimeAsFileTime"
