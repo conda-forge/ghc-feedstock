@@ -311,56 +311,27 @@ export CABAL_EXTRA_BUILD_FLAGS="--ghc-options=-optc-fno-stack-protector --ghc-op
 echo "*** Applying HSC fixes proactively ***"
 "${_BUILD_PREFIX}/bin/fix-hsc-crash.sh" || echo "Pre-emptive HSC fix completed"
 
-# Build stage1 GHC with HSC workaround
+# Start HSC build interceptor
+echo "*** Starting HSC build interceptor ***"
+bash "${RECIPE_DIR}/building/intercept-clock-build.sh" || echo "Interceptor start failed"
+
+# Build stage1 GHC
 echo "*** Building stage1 GHC ***"
-
-# Set up a wrapper for cabal to intercept HSC builds
-export CABAL_BUILDDIR="C:/cabal/dist-newstyle"
-export CABAL_STORE="C:/cabal/store"
-
-# Monitor and stub HSC tools during the build
-(
-    while true; do
-        # Look for any Clock_hsc_make.exe that might be created
-        find "${CABAL_STORE}" "${CABAL_BUILDDIR}" -name "Clock_hsc_make.exe" -newer "${_BUILD_PREFIX}/bin/fix-hsc-crash.sh" 2>/dev/null | while read hsc_exe; do
-            if [[ -f "${hsc_exe}" && ! -f "${hsc_exe}.stubbed" ]]; then
-                echo "Found new HSC tool, stubbing: ${hsc_exe}"
-                mv "${hsc_exe}" "${hsc_exe}.original" 2>/dev/null || true
-                cat > "${hsc_exe}" << 'EOF'
-@echo off
-exit /b 0
-EOF
-                touch "${hsc_exe}.stubbed"
-                
-                # Also ensure Clock.hs exists
-                hsc_dir=$(dirname "${hsc_exe}")
-                if [[ ! -f "${hsc_dir}/Clock.hs" ]]; then
-                    cp "${RECIPE_DIR}/building/hsc_workarounds/clock/System/Clock.hs" "${hsc_dir}/Clock.hs" 2>/dev/null || true
-                fi
-            fi
-        done
-        sleep 2
-    done
-) &
-HSC_MONITOR_PID=$!
-
-# Run the build
 run_and_log "ghc-stage1-build" "${_hadrian_build[@]}" stage1:exe:ghc-bin -VV \
   --flavour=quickest \
   --docs=none \
   --progress-info=unicorn || BUILD_RESULT=$?
 
-# Stop the HSC monitor
-kill $HSC_MONITOR_PID 2>/dev/null || true
+# Stop the interceptor
+if [[ -f "${TEMP}/clock-interceptor.pid" ]]; then
+    INTERCEPTOR_PID=$(cat "${TEMP}/clock-interceptor.pid")
+    kill $INTERCEPTOR_PID 2>/dev/null || true
+    echo "Stopped clock interceptor (PID $INTERCEPTOR_PID)"
+fi
 
 # Check build result
 if [[ "${BUILD_RESULT:-0}" -ne 0 ]]; then
     echo "Build failed with code ${BUILD_RESULT}"
-    # Check for clock-specific errors
-    if grep -q "clock-0.8.4" C:/cabal/logs/ghc-9.10.1/*.log 2>/dev/null; then
-        echo "Clock package build failed. Trying alternative approach..."
-        # TODO: Add alternative approach
-    fi
     exit ${BUILD_RESULT}
 fi
 
