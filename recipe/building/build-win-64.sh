@@ -307,9 +307,9 @@ export CABAL_EXTRA_BUILD_FLAGS="--ghc-options=-optc-fno-stack-protector --ghc-op
 echo "*** Applying HSC fixes proactively ***"
 "${_BUILD_PREFIX}/bin/fix-hsc-crash.sh" || echo "Pre-emptive HSC fix completed"
 
-# Start HSC build interceptor
-echo "*** Starting HSC build interceptor ***"
-bash "${RECIPE_DIR}/building/intercept-clock-build.sh" || echo "Interceptor start failed"
+# Start aggressive HSC prevention
+echo "*** Starting aggressive HSC crash prevention ***"
+bash "${RECIPE_DIR}/building/aggressive-hsc-prevention.sh" || echo "HSC prevention start failed"
 
 # Build stage1 GHC
 echo "*** Building stage1 GHC ***"
@@ -318,11 +318,11 @@ run_and_log "ghc-stage1-build" "${_hadrian_build[@]}" stage1:exe:ghc-bin -VV \
   --docs=none \
   --progress-info=unicorn || BUILD_RESULT=$?
 
-# Stop the interceptor
-if [[ -f "${TEMP}/clock-interceptor.pid" ]]; then
-    INTERCEPTOR_PID=$(cat "${TEMP}/clock-interceptor.pid")
-    kill $INTERCEPTOR_PID 2>/dev/null || true
-    echo "Stopped clock interceptor (PID $INTERCEPTOR_PID)"
+# Stop the HSC monitor
+if [[ -f "${TEMP}/hsc-monitor.pid" ]]; then
+    MONITOR_PID=$(cat "${TEMP}/hsc-monitor.pid")
+    kill $MONITOR_PID 2>/dev/null || true
+    echo "Stopped HSC monitor (PID $MONITOR_PID)"
 fi
 
 # Check build result
