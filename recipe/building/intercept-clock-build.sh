@@ -25,9 +25,14 @@ while true; do
                 hsc_dir=$(dirname "${hsc_exe}")
                 
                 # Create the Clock.hs file instead of running the tool
-                if [[ -f "D:/a/1/s/recipe/building/hsc_workarounds/clock/System/Clock.hs" ]]; then
+                if [[ -f "${RECIPE_DIR}/building/hsc_workarounds/clock/System/Clock.hs" ]]; then
+                    cp "${RECIPE_DIR}/building/hsc_workarounds/clock/System/Clock.hs" "${hsc_dir}/Clock.hs"
+                    echo "Created ${hsc_dir}/Clock.hs"
+                elif [[ -f "D:/a/1/s/recipe/building/hsc_workarounds/clock/System/Clock.hs" ]]; then
                     cp "D:/a/1/s/recipe/building/hsc_workarounds/clock/System/Clock.hs" "${hsc_dir}/Clock.hs"
                     echo "Created ${hsc_dir}/Clock.hs"
+                else
+                    echo "Warning: Could not find Clock.hs workaround file"
                 fi
                 
                 # Replace the HSC tool with a stub that just exits successfully

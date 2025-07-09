@@ -226,14 +226,10 @@ perl -i -pe 's#-L\$topdir/../mingw//lib -L\$topdir/../mingw//x86_64-w64-mingw32/
 # Update cabal package database
 run_and_log "cabal-update" cabal v2-update
 
-# Create simple clock stub to avoid HSC crashes
-echo "*** Creating clock stub ***"
+# Pre-build clock package completely to avoid HSC crashes
+echo "*** Pre-building clock package completely ***"
 if [[ "${SKIP_CLOCK_STUB:-0}" != "1" ]]; then
-    bash "${RECIPE_DIR}/building/simple-clock-stub.sh" || echo "Clock stub creation failed"
-    
-    # Also register the clock package with GHC
-    echo "*** Registering clock package ***"
-    bash "${RECIPE_DIR}/building/register-clock-package.sh" || echo "Clock registration failed"
+    bash "${RECIPE_DIR}/building/prebuild-clock-completely.sh" || echo "Clock pre-build failed"
 fi
 
 # Apply HSC fixes right after cabal update but before any builds
