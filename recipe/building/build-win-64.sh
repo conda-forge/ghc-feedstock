@@ -226,10 +226,12 @@ perl -i -pe 's#-L\$topdir/../mingw//lib -L\$topdir/../mingw//x86_64-w64-mingw32/
 # Update cabal package database
 run_and_log "cabal-update" cabal v2-update
 
-# Pre-build clock package completely to avoid HSC crashes
-echo "*** Pre-building clock package completely ***"
+# Fix cabal Clock package recognition to avoid HSC crashes
+echo "*** Fixing cabal Clock package recognition ***"
 if [[ "${SKIP_CLOCK_STUB:-0}" != "1" ]]; then
-    bash "${RECIPE_DIR}/building/prebuild-clock-completely.sh" || echo "Clock pre-build failed"
+    bash "${RECIPE_DIR}/building/fix-cabal-clock-recognition.sh" || echo "Clock recognition fix failed"
+    # Verify the fix worked
+    bash "${RECIPE_DIR}/building/verify-clock-fix.sh" || echo "Clock verification completed"
 fi
 
 # Apply HSC fixes right after cabal update but before any builds
