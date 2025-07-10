@@ -183,7 +183,8 @@ bash "${RECIPE_DIR}/building/test-windres-fix.sh" || echo "Windres test complete
 CLANG=$(find "${_BUILD_PREFIX}" -name clang.exe | head -1)
 CLANGXX=$(find "${_BUILD_PREFIX}" -name clang++.exe | head -1)
 
-export CABAL="${SRC_DIR}\\bootstrap-cabal\\cabal.exe"
+# CABAL will be set by ultimate-cabal-wrapper.sh
+# export CABAL="${SRC_DIR}\\bootstrap-cabal\\cabal.exe"
 export CC="${CLANG}"
 export CXX="${CLANGXX}"
 export GHC="${SRC_DIR}\\bootstrap-ghc\\bin\\ghc.exe"
@@ -234,13 +235,13 @@ perl -i -pe 's#-L\$topdir/../mingw//lib -L\$topdir/../mingw//x86_64-w64-mingw32/
 # Update cabal package database
 run_and_log "cabal-update" cabal v2-update
 
-# Force Clock package installation to avoid HSC crashes
-echo "*** Forcefully installing Clock package ***"
+# Deploy ultimate cabal wrapper - most aggressive solution
+echo "*** Deploying ultimate cabal wrapper ***"
 if [[ "${SKIP_CLOCK_STUB:-0}" != "1" ]]; then
-    bash "${RECIPE_DIR}/building/force-clock-install.sh" || echo "Force Clock install failed"
-    # Test the installation thoroughly
+    bash "${RECIPE_DIR}/building/ultimate-cabal-wrapper.sh" || echo "Ultimate cabal wrapper deployment failed"
+    # Test the Clock installation as backup
     bash "${RECIPE_DIR}/building/test-clock-install.sh" || echo "Clock install test completed"
-    # Install HSC stubs as backup
+    # Install HSC stubs as additional backup
     bash "${RECIPE_DIR}/building/install-hsc-stub.sh" || echo "HSC stub installation failed"
 fi
 
