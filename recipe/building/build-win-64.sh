@@ -171,6 +171,14 @@ echo "Successfully created ${MINGW_CHKSTK_OBJ} via direct compilation"
 echo "*** Applying early stack protector fixes ***"
 python "${RECIPE_DIR}/building/fix-stack-protector.py"
 
+# Fix windres to use clang instead of gcc
+echo "*** Fixing windres to use clang instead of gcc ***"
+bash "${RECIPE_DIR}/building/fix-ghc-bootstrap-windres.sh" || echo "Windres fix failed"
+
+# Test the windres fix
+echo "*** Testing windres fix ***"
+bash "${RECIPE_DIR}/building/test-windres-fix.sh" || echo "Windres test completed"
+
 # Make sure we use conda-forge clang (ghc bootstrap has a clang.exe)
 CLANG=$(find "${_BUILD_PREFIX}" -name clang.exe | head -1)
 CLANGXX=$(find "${_BUILD_PREFIX}" -name clang++.exe | head -1)
@@ -226,16 +234,14 @@ perl -i -pe 's#-L\$topdir/../mingw//lib -L\$topdir/../mingw//x86_64-w64-mingw32/
 # Update cabal package database
 run_and_log "cabal-update" cabal v2-update
 
-# Fix cabal Clock package recognition to avoid HSC crashes
-echo "*** Fixing cabal Clock package recognition ***"
+# Force Clock package installation to avoid HSC crashes
+echo "*** Forcefully installing Clock package ***"
 if [[ "${SKIP_CLOCK_STUB:-0}" != "1" ]]; then
-    bash "${RECIPE_DIR}/building/fix-cabal-clock-recognition.sh" || echo "Clock recognition fix failed"
-    # Verify the fix worked
-    bash "${RECIPE_DIR}/building/verify-clock-fix.sh" || echo "Clock verification completed"
-    # Install HSC stubs to prevent crashes
+    bash "${RECIPE_DIR}/building/force-clock-install.sh" || echo "Force Clock install failed"
+    # Test the installation thoroughly
+    bash "${RECIPE_DIR}/building/test-clock-install.sh" || echo "Clock install test completed"
+    # Install HSC stubs as backup
     bash "${RECIPE_DIR}/building/install-hsc-stub.sh" || echo "HSC stub installation failed"
-    # Install aggressive Clock build prevention
-    bash "${RECIPE_DIR}/building/prevent-clock-build.sh" || echo "Clock build prevention failed"
 fi
 
 # Apply HSC fixes right after cabal update but before any builds
