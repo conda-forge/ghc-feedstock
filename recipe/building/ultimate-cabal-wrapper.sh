@@ -8,7 +8,12 @@ cat > "${_BUILD_PREFIX}/bin/cabal-ultimate.exe" << 'EOF'
 #!/bin/bash
 # Ultimate cabal wrapper that completely prevents Clock builds
 
-REAL_CABAL="${SRC_DIR}/bootstrap-cabal/cabal.exe"
+# Find the real cabal binary
+if [[ -f "${SRC_DIR}/bootstrap-cabal/cabal.exe.orig" ]]; then
+    REAL_CABAL="${SRC_DIR}/bootstrap-cabal/cabal.exe.orig"
+else
+    REAL_CABAL="${SRC_DIR}/bootstrap-cabal/cabal.exe"
+fi
 CLOCK_HASH="e7f0f9eac776c074e3a799d7f0ea74a1e404ccf0"
 
 # Function to ensure Clock package is marked as built
@@ -158,6 +163,21 @@ export CABAL="${_BUILD_PREFIX}/bin/cabal-ultimate.exe"
 # Also create symlinks so any direct cabal calls use our wrapper
 ln -sf "${_BUILD_PREFIX}/bin/cabal-ultimate.exe" "${_BUILD_PREFIX}/bin/cabal.exe" 2>/dev/null || true
 ln -sf "${_BUILD_PREFIX}/bin/cabal-ultimate.exe" "${_BUILD_PREFIX}/bin/cabal" 2>/dev/null || true
+
+# Override the bootstrap cabal with our wrapper
+if [[ -f "${SRC_DIR}/bootstrap-cabal/cabal.exe" ]] && [[ ! -f "${SRC_DIR}/bootstrap-cabal/cabal.exe.orig" ]]; then
+    echo "Moving original bootstrap cabal to backup..."
+    mv "${SRC_DIR}/bootstrap-cabal/cabal.exe" "${SRC_DIR}/bootstrap-cabal/cabal.exe.orig"
+fi
+
+if [[ -f "${SRC_DIR}/bootstrap-cabal/cabal.exe.orig" ]]; then
+    echo "Installing ultimate cabal wrapper as bootstrap cabal..."
+    cp "${_BUILD_PREFIX}/bin/cabal-ultimate.exe" "${SRC_DIR}/bootstrap-cabal/cabal.exe"
+    chmod +x "${SRC_DIR}/bootstrap-cabal/cabal.exe"
+fi
+
+# Also ensure our wrapper is first in PATH
+export PATH="${_BUILD_PREFIX}/bin:${PATH}"
 
 echo "Ultimate cabal wrapper installed at: ${_BUILD_PREFIX}/bin/cabal-ultimate.exe"
 echo "All cabal commands will now be intercepted and Clock builds prevented"
