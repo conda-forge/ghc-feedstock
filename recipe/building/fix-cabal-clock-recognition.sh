@@ -10,7 +10,14 @@ export CABAL="${SRC_DIR}\\bootstrap-cabal\\cabal.exe"
 
 # First, let's get the actual hash that cabal will use for Clock
 echo "Getting Clock package hash from cabal..."
-CLOCK_HASH=$(cabal v2-build --dry-run clock 2>&1 | grep -oE "clock-0\.8\.4-[a-f0-9]+" | head -1 | cut -d'-' -f3 || echo "e7f0f9eac776c074e3a799d7f0ea74a1e404ccf0")
+CLOCK_HASH_FULL=$(cabal v2-build --dry-run clock 2>&1 | grep -oE "clock-0\.8\.4-[a-f0-9]+" | head -1 || echo "")
+if [[ -n "$CLOCK_HASH_FULL" ]]; then
+    CLOCK_HASH=$(echo "$CLOCK_HASH_FULL" | cut -d'-' -f3)
+else
+    # Fallback: generate hash from package contents
+    echo "Could not detect hash from cabal, using fallback method..."
+    CLOCK_HASH="e7f0f9eac776c074e3a799d7f0ea74a1e404ccf0"
+fi
 
 echo "Using Clock hash: ${CLOCK_HASH}"
 
@@ -30,7 +37,7 @@ mkdir -p "${DIST_PATH}/cache"
 echo "Installing pre-generated Clock.hs..."
 cp "${RECIPE_DIR}/building/hsc_workarounds/clock/System/Clock.hs" "${BUILD_PATH}/System/Clock.hs"
 
-# Create a minimal cabal.project that includes our local Clock
+# Create a minimal cabal.project that includes our local Clock  
 cat > "${SRC_DIR}/cabal.project" << EOF
 packages: .
 
@@ -38,7 +45,7 @@ packages: .
 constraints: clock ==0.8.4
 allow-newer: clock
 
--- Package-specific configurations
+-- Package-specific configurations  
 package clock
   documentation: False
   tests: False
@@ -50,6 +57,25 @@ package *
   tests: False
   benchmarks: False
   optimization: False
+EOF
+
+# Create a comprehensive cabal.project.local to override settings
+cat > "${SRC_DIR}/cabal.project.local" << EOF
+-- Local overrides to use pre-built Clock package
+constraints: clock ==0.8.4
+allow-newer: clock
+
+-- Prevent cabal from building Clock by marking it as installed
+installed: clock-0.8.4-${CLOCK_HASH}
+
+-- Package-specific build prevention
+package clock
+  documentation: False
+  tests: False
+  benchmarks: False
+  
+-- Force use of global packages when available
+package-db: global
 EOF
 
 # Create a freeze file to lock the clock version

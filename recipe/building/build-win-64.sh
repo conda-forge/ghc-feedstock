@@ -232,6 +232,10 @@ if [[ "${SKIP_CLOCK_STUB:-0}" != "1" ]]; then
     bash "${RECIPE_DIR}/building/fix-cabal-clock-recognition.sh" || echo "Clock recognition fix failed"
     # Verify the fix worked
     bash "${RECIPE_DIR}/building/verify-clock-fix.sh" || echo "Clock verification completed"
+    # Install HSC stubs to prevent crashes
+    bash "${RECIPE_DIR}/building/install-hsc-stub.sh" || echo "HSC stub installation failed"
+    # Install aggressive Clock build prevention
+    bash "${RECIPE_DIR}/building/prevent-clock-build.sh" || echo "Clock build prevention failed"
 fi
 
 # Apply HSC fixes right after cabal update but before any builds
