@@ -361,6 +361,15 @@ which cabal || echo "WARNING: cabal not found in PATH"
 echo "Cabal executable test:"
 cabal --version || echo "WARNING: cabal --version failed"
 
+# Ensure hadrian can find cabal by testing in the same way hadrian would
+echo "Testing hadrian's cabal access method:"
+cmd /c "cabal --version" || echo "WARNING: cmd /c cabal --version failed"
+cmd /c "where cabal" || echo "WARNING: cmd /c where cabal failed"
+
+# Set the Windows environment variable for batch scripts
+export CABAL_EXE="${_BUILD_PREFIX}/bin/cabal-ultimate.exe"
+echo "Set CABAL_EXE to: ${CABAL_EXE}"
+
 run_and_log "ghc-stage1-build" "${_hadrian_build[@]}" stage1:exe:ghc-bin -VV \
   --flavour=quickest \
   --docs=none \
