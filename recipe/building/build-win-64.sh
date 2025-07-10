@@ -366,6 +366,22 @@ echo "Testing hadrian's cabal access method:"
 cmd /c "cabal --version" || echo "WARNING: cmd /c cabal --version failed"
 cmd /c "where cabal" || echo "WARNING: cmd /c where cabal failed"
 
+# Test batch wrappers specifically
+echo "Testing Windows batch wrappers:"
+if [[ -f "${_BUILD_PREFIX}/bin/cabal.bat" ]]; then
+    echo "Found cabal.bat wrapper"
+    cmd /c "cabal.bat --version" || echo "WARNING: cabal.bat test failed"
+else
+    echo "WARNING: cabal.bat not found"
+fi
+
+if [[ -f "${SRC_DIR}/bootstrap-cabal/cabal.bat" ]]; then
+    echo "Found bootstrap cabal.bat wrapper"
+    cmd /c "\"${SRC_DIR}/bootstrap-cabal/cabal.bat\" --version" || echo "WARNING: bootstrap cabal.bat test failed"
+else
+    echo "WARNING: bootstrap cabal.bat not found"
+fi
+
 # Set the Windows environment variable for batch scripts
 export CABAL_EXE="${_BUILD_PREFIX}/bin/cabal-ultimate.exe"
 echo "Set CABAL_EXE to: ${CABAL_EXE}"

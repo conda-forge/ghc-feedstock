@@ -160,7 +160,19 @@ chmod +x "${_BUILD_PREFIX}/bin/cabal-ultimate.exe"
 # Replace all cabal references with our wrapper
 export CABAL="${_BUILD_PREFIX}/bin/cabal-ultimate.exe"
 
-# Also create symlinks so any direct cabal calls use our wrapper
+# Create a Windows batch wrapper for hadrian's batch environment
+cat > "${_BUILD_PREFIX}/bin/cabal.bat" << 'BATCH_EOF'
+@echo off
+REM Windows batch wrapper for cabal that can be found by hadrian build.bat
+REM This calls our bash wrapper which handles Clock interception
+
+bash "%~dp0cabal-ultimate.exe" %*
+BATCH_EOF
+
+# Also create .cmd version for Windows compatibility
+cp "${_BUILD_PREFIX}/bin/cabal.bat" "${_BUILD_PREFIX}/bin/cabal.cmd"
+
+# Create symlinks as backup
 ln -sf "${_BUILD_PREFIX}/bin/cabal-ultimate.exe" "${_BUILD_PREFIX}/bin/cabal.exe" 2>/dev/null || true
 ln -sf "${_BUILD_PREFIX}/bin/cabal-ultimate.exe" "${_BUILD_PREFIX}/bin/cabal" 2>/dev/null || true
 
@@ -174,11 +186,17 @@ if [[ -f "${SRC_DIR}/bootstrap-cabal/cabal.exe.orig" ]]; then
     echo "Installing ultimate cabal wrapper as bootstrap cabal..."
     cp "${_BUILD_PREFIX}/bin/cabal-ultimate.exe" "${SRC_DIR}/bootstrap-cabal/cabal.exe"
     chmod +x "${SRC_DIR}/bootstrap-cabal/cabal.exe"
+    
+    # Also install Windows batch wrappers to bootstrap-cabal directory
+    echo "Installing Windows batch wrappers to bootstrap-cabal..."
+    cp "${_BUILD_PREFIX}/bin/cabal.bat" "${SRC_DIR}/bootstrap-cabal/"
+    cp "${_BUILD_PREFIX}/bin/cabal.cmd" "${SRC_DIR}/bootstrap-cabal/"
 fi
 
 # Also ensure our wrapper is first in PATH
-export PATH="${_BUILD_PREFIX}/bin:${PATH}"
+export PATH="${_BUILD_PREFIX}/bin:${SRC_DIR}/bootstrap-cabal:${PATH}"
 
 echo "Ultimate cabal wrapper installed at: ${_BUILD_PREFIX}/bin/cabal-ultimate.exe"
+echo "Windows batch wrappers created: cabal.bat and cabal.cmd"
 echo "All cabal commands will now be intercepted and Clock builds prevented"
 echo "CABAL environment variable set to: ${CABAL}"
