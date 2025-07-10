@@ -244,6 +244,22 @@ if [[ "${SKIP_CLOCK_STUB:-0}" != "1" ]]; then
         export CABAL="${_BUILD_PREFIX}/bin/cabal-ultimate.exe"
         export PATH="${_BUILD_PREFIX}/bin:${PATH}"
         echo "CABAL wrapper activated: ${CABAL}"
+        
+        # Ensure cabal is findable in PATH by creating additional symlinks
+        echo "*** Ensuring cabal is in PATH ***"
+        which cabal || echo "cabal not found in PATH before symlinks"
+        ln -sf "${_BUILD_PREFIX}/bin/cabal-ultimate.exe" "${_BUILD_PREFIX}/bin/cabal" 2>/dev/null || true
+        ln -sf "${_BUILD_PREFIX}/bin/cabal-ultimate.exe" "${_BUILD_PREFIX}/bin/cabal.exe" 2>/dev/null || true
+        
+        # Verify cabal is now findable
+        echo "PATH contains: ${PATH}"
+        echo "Checking cabal availability:"
+        which cabal || echo "cabal still not found"
+        ls -la "${_BUILD_PREFIX}/bin/cabal"* || echo "No cabal files in bin"
+        
+        # Test cabal wrapper execution
+        echo "Testing cabal wrapper:"
+        "${_BUILD_PREFIX}/bin/cabal-ultimate.exe" --version || echo "Wrapper test failed"
     fi
     # Test the Clock installation as backup
     bash "${RECIPE_DIR}/building/test-clock-install.sh" || echo "Clock install test completed"
@@ -332,6 +348,19 @@ bash "${RECIPE_DIR}/building/aggressive-hsc-prevention.sh" || echo "HSC preventi
 
 # Build stage1 GHC
 echo "*** Building stage1 GHC ***"
+
+# Ensure cabal wrapper is in PATH for hadrian
+echo "*** Final cabal PATH verification before hadrian build ***"
+export PATH="${_BUILD_PREFIX}/bin:${PATH}"
+if [[ -f "${_BUILD_PREFIX}/bin/cabal-ultimate.exe" ]]; then
+    export CABAL="${_BUILD_PREFIX}/bin/cabal-ultimate.exe"
+    echo "CABAL set to: ${CABAL}"
+fi
+echo "PATH: ${PATH}"
+which cabal || echo "WARNING: cabal not found in PATH"
+echo "Cabal executable test:"
+cabal --version || echo "WARNING: cabal --version failed"
+
 run_and_log "ghc-stage1-build" "${_hadrian_build[@]}" stage1:exe:ghc-bin -VV \
   --flavour=quickest \
   --docs=none \
