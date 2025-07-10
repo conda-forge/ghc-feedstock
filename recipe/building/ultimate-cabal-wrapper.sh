@@ -3,14 +3,8 @@ set -eu
 
 echo "=== Creating ultimate cabal wrapper to completely bypass Clock builds ==="
 
-# Create a Windows batch wrapper that calls our bash script
-cat > "${_BUILD_PREFIX}/bin/cabal-ultimate.bat" << 'EOF'
-@echo off
-bash "%~dp0cabal-ultimate.sh" %*
-EOF
-
-# Create the bash script that does the actual work
-cat > "${_BUILD_PREFIX}/bin/cabal-ultimate.sh" << 'EOF'
+# Create a working cabal wrapper executable
+cat > "${_BUILD_PREFIX}/bin/cabal-ultimate.exe" << 'EOF'
 #!/bin/bash
 # Ultimate cabal wrapper that completely prevents Clock builds
 
@@ -161,14 +155,14 @@ case "${1:-}" in
 esac
 EOF
 
-chmod +x "${_BUILD_PREFIX}/bin/cabal-ultimate.sh"
+chmod +x "${_BUILD_PREFIX}/bin/cabal-ultimate.exe"
 
 # Replace all cabal references with our wrapper
-export CABAL="${_BUILD_PREFIX}/bin/cabal-ultimate.bat"
+export CABAL="${_BUILD_PREFIX}/bin/cabal-ultimate.exe"
 
 # Also create symlinks so any direct cabal calls use our wrapper
-ln -sf "${_BUILD_PREFIX}/bin/cabal-ultimate.bat" "${_BUILD_PREFIX}/bin/cabal.exe" 2>/dev/null || true
-ln -sf "${_BUILD_PREFIX}/bin/cabal-ultimate.bat" "${_BUILD_PREFIX}/bin/cabal" 2>/dev/null || true
+ln -sf "${_BUILD_PREFIX}/bin/cabal-ultimate.exe" "${_BUILD_PREFIX}/bin/cabal.exe" 2>/dev/null || true
+ln -sf "${_BUILD_PREFIX}/bin/cabal-ultimate.exe" "${_BUILD_PREFIX}/bin/cabal" 2>/dev/null || true
 
 # Override the bootstrap cabal with our wrapper
 if [[ -f "${SRC_DIR}/bootstrap-cabal/cabal.exe" ]] && [[ ! -f "${SRC_DIR}/bootstrap-cabal/cabal.exe.orig" ]]; then
@@ -178,13 +172,13 @@ fi
 
 if [[ -f "${SRC_DIR}/bootstrap-cabal/cabal.exe.orig" ]]; then
     echo "Installing ultimate cabal wrapper as bootstrap cabal..."
-    cp "${_BUILD_PREFIX}/bin/cabal-ultimate.bat" "${SRC_DIR}/bootstrap-cabal/cabal.exe"
+    cp "${_BUILD_PREFIX}/bin/cabal-ultimate.exe" "${SRC_DIR}/bootstrap-cabal/cabal.exe"
     chmod +x "${SRC_DIR}/bootstrap-cabal/cabal.exe"
 fi
 
 # Also ensure our wrapper is first in PATH
 export PATH="${_BUILD_PREFIX}/bin:${PATH}"
 
-echo "Ultimate cabal wrapper installed at: ${_BUILD_PREFIX}/bin/cabal-ultimate.bat"
+echo "Ultimate cabal wrapper installed at: ${_BUILD_PREFIX}/bin/cabal-ultimate.exe"
 echo "All cabal commands will now be intercepted and Clock builds prevented"
 echo "CABAL environment variable set to: ${CABAL}"

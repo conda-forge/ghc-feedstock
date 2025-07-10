@@ -240,8 +240,8 @@ echo "*** Deploying ultimate cabal wrapper ***"
 if [[ "${SKIP_CLOCK_STUB:-0}" != "1" ]]; then
     bash "${RECIPE_DIR}/building/ultimate-cabal-wrapper.sh" || echo "Ultimate cabal wrapper deployment failed"
     # Source the environment changes from the wrapper script
-    if [[ -f "${_BUILD_PREFIX}/bin/cabal-ultimate.bat" ]]; then
-        export CABAL="${_BUILD_PREFIX}/bin/cabal-ultimate.bat"
+    if [[ -f "${_BUILD_PREFIX}/bin/cabal-ultimate.exe" ]]; then
+        export CABAL="${_BUILD_PREFIX}/bin/cabal-ultimate.exe"
         export PATH="${_BUILD_PREFIX}/bin:${PATH}"
         echo "CABAL wrapper activated: ${CABAL}"
     fi
