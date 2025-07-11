@@ -193,8 +193,29 @@ if [[ -f "${SRC_DIR}/bootstrap-cabal/cabal.exe.orig" ]]; then
     cp "${_BUILD_PREFIX}/bin/cabal.cmd" "${SRC_DIR}/bootstrap-cabal/"
 fi
 
+# Install wrappers to binary directory where hadrian expects them
+BINARY_DIR="${SRC_DIR}/../binary/bin"
+if [[ -d "${BINARY_DIR}" ]]; then
+    echo "Installing cabal wrappers to binary directory: ${BINARY_DIR}"
+    cp "${_BUILD_PREFIX}/bin/cabal-ultimate.exe" "${BINARY_DIR}/"
+    cp "${_BUILD_PREFIX}/bin/cabal.bat" "${BINARY_DIR}/"
+    cp "${_BUILD_PREFIX}/bin/cabal.cmd" "${BINARY_DIR}/"
+    ln -sf "${BINARY_DIR}/cabal-ultimate.exe" "${BINARY_DIR}/cabal.exe" 2>/dev/null || true
+    ln -sf "${BINARY_DIR}/cabal-ultimate.exe" "${BINARY_DIR}/cabal" 2>/dev/null || true
+else
+    echo "Warning: Binary directory not found at ${BINARY_DIR}"
+    # Create it if it doesn't exist
+    mkdir -p "${BINARY_DIR}"
+    echo "Created binary directory: ${BINARY_DIR}"
+    cp "${_BUILD_PREFIX}/bin/cabal-ultimate.exe" "${BINARY_DIR}/"
+    cp "${_BUILD_PREFIX}/bin/cabal.bat" "${BINARY_DIR}/"
+    cp "${_BUILD_PREFIX}/bin/cabal.cmd" "${BINARY_DIR}/"
+    ln -sf "${BINARY_DIR}/cabal-ultimate.exe" "${BINARY_DIR}/cabal.exe" 2>/dev/null || true
+    ln -sf "${BINARY_DIR}/cabal-ultimate.exe" "${BINARY_DIR}/cabal" 2>/dev/null || true
+fi
+
 # Also ensure our wrapper is first in PATH
-export PATH="${_BUILD_PREFIX}/bin:${SRC_DIR}/bootstrap-cabal:${PATH}"
+export PATH="${_BUILD_PREFIX}/bin:${SRC_DIR}/bootstrap-cabal:${BINARY_DIR}:${PATH}"
 
 echo "Ultimate cabal wrapper installed at: ${_BUILD_PREFIX}/bin/cabal-ultimate.exe"
 echo "Windows batch wrappers created: cabal.bat and cabal.cmd"

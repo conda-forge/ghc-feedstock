@@ -377,7 +377,9 @@ fi
 
 if [[ -f "${SRC_DIR}/bootstrap-cabal/cabal.bat" ]]; then
     echo "Found bootstrap cabal.bat wrapper"
-    cmd /c "\"${SRC_DIR}/bootstrap-cabal/cabal.bat\" --version" || echo "WARNING: bootstrap cabal.bat test failed"
+    # Fix Windows path for cmd execution
+    WIN_CABAL_BAT=$(cygpath -w "${SRC_DIR}/bootstrap-cabal/cabal.bat")
+    cmd /c "\"${WIN_CABAL_BAT}\" --version" || echo "WARNING: bootstrap cabal.bat test failed"
 else
     echo "WARNING: bootstrap cabal.bat not found"
 fi
@@ -385,6 +387,30 @@ fi
 # Set the Windows environment variable for batch scripts
 export CABAL_EXE="${_BUILD_PREFIX}/bin/cabal-ultimate.exe"
 echo "Set CABAL_EXE to: ${CABAL_EXE}"
+
+# Debug PATH and verify hadrian can find cabal wrappers
+echo "Final PATH verification for hadrian:"
+echo "Bootstrap-cabal in PATH: $(echo "$PATH" | grep -o bootstrap-cabal || echo "NOT FOUND")"
+echo "Testing PATH order for cabal discovery:"
+echo "  which cabal: $(which cabal 2>/dev/null || echo "NOT FOUND")"
+echo "  where cabal in cmd: $(cmd /c "where cabal" 2>/dev/null || echo "NOT FOUND")"
+
+# Check binary directory where hadrian expects cabal
+BINARY_DIR="${SRC_DIR}/../binary/bin"
+echo "Checking binary directory for hadrian: ${BINARY_DIR}"
+if [[ -d "${BINARY_DIR}" ]]; then
+    echo "  Binary directory exists"
+    echo "  Contents: $(ls -la "${BINARY_DIR}"/cabal* 2>/dev/null || echo "No cabal files found")"
+else
+    echo "  Binary directory does not exist"
+fi
+
+# Test if hadrian's working directory affects cabal discovery
+echo "Testing cabal from hadrian's working directory:"
+cd "${SRC_DIR}"
+echo "  pwd: $(pwd)"
+echo "  which cabal from SRC_DIR: $(which cabal 2>/dev/null || echo "NOT FOUND")"
+echo "  cmd where cabal from SRC_DIR: $(cmd /c "where cabal" 2>/dev/null || echo "NOT FOUND")"
 
 run_and_log "ghc-stage1-build" "${_hadrian_build[@]}" stage1:exe:ghc-bin -VV \
   --flavour=quickest \
