@@ -160,13 +160,36 @@ chmod +x "${_BUILD_PREFIX}/bin/cabal-ultimate.exe"
 # Replace all cabal references with our wrapper
 export CABAL="${_BUILD_PREFIX}/bin/cabal-ultimate.exe"
 
-# Create a Windows batch wrapper for hadrian's batch environment
+# Create a Windows batch wrapper that works natively in Windows batch environment
 cat > "${_BUILD_PREFIX}/bin/cabal.bat" << 'BATCH_EOF'
 @echo off
-REM Windows batch wrapper for cabal that can be found by hadrian build.bat
-REM This calls our bash wrapper which handles Clock interception
+REM Native Windows batch wrapper for cabal that can be found by hadrian build.bat
+REM This intercepts Clock builds and calls the real cabal for everything else
 
-bash "%~dp0cabal-ultimate.exe" %*
+REM Check if this is a Clock build command
+echo %* | findstr /i "clock" >nul
+if %errorlevel% == 0 (
+    echo CABAL WRAPPER: Clock build request intercepted - using pre-built version
+    exit /b 0
+)
+
+REM Find the real cabal executable - try original bootstrap location first
+set REAL_CABAL=
+if exist "%~dp0..\..\work\bootstrap-cabal\cabal.exe.orig" (
+    set REAL_CABAL=%~dp0..\..\work\bootstrap-cabal\cabal.exe.orig
+) else if exist "%SRC_DIR%\bootstrap-cabal\cabal.exe.orig" (
+    set REAL_CABAL=%SRC_DIR%\bootstrap-cabal\cabal.exe.orig  
+) else if exist "%~dp0cabal-ultimate.exe" (
+    REM Fall back to bash wrapper if we can't find original
+    bash "%~dp0cabal-ultimate.exe" %*
+    exit /b %errorlevel%
+) else (
+    echo Error: Could not find real cabal executable
+    exit /b 1
+)
+
+REM Call the real cabal with all arguments
+"%REAL_CABAL%" %*
 BATCH_EOF
 
 # Also create .cmd version for Windows compatibility

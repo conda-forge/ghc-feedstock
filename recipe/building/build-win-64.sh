@@ -412,6 +412,22 @@ echo "  pwd: $(pwd)"
 echo "  which cabal from SRC_DIR: $(which cabal 2>/dev/null || echo "NOT FOUND")"
 echo "  cmd where cabal from SRC_DIR: $(cmd /c "where cabal" 2>/dev/null || echo "NOT FOUND")"
 
+# Test the new native batch wrappers
+echo "Testing native batch wrapper directly:"
+if [[ -f "${BINARY_DIR}/cabal.bat" ]]; then
+    echo "  Testing cabal.bat from binary directory:"
+    WIN_BINARY_DIR=$(cygpath -w "${BINARY_DIR}")
+    cmd /c "\"${WIN_BINARY_DIR}\\cabal.bat\" --version" || echo "  FAILED: cabal.bat test"
+else
+    echo "  cabal.bat not found in binary directory"
+fi
+
+# Test if Windows can find cabal.exe specifically
+echo "Testing Windows executable discovery:"
+cmd /c "where cabal.exe" 2>/dev/null || echo "  cabal.exe not found by Windows"
+cmd /c "where cabal.bat" 2>/dev/null || echo "  cabal.bat not found by Windows"
+cmd /c "where cabal.cmd" 2>/dev/null || echo "  cabal.cmd not found by Windows"
+
 run_and_log "ghc-stage1-build" "${_hadrian_build[@]}" stage1:exe:ghc-bin -VV \
   --flavour=quickest \
   --docs=none \
