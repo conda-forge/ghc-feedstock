@@ -16,9 +16,9 @@ else
 fi
 CLOCK_HASH="e7f0f9eac776c074e3a799d7f0ea74a1e404ccf0"
 
-# If no arguments provided, just execute real cabal to get proper exit code
+# If no arguments provided, return exit code 1 (what hadrian expects)
 if [[ $# -eq 0 ]]; then
-    exec "${REAL_CABAL}"
+    exit 1
 fi
 
 # Function to ensure Clock package is marked as built
