@@ -16,6 +16,11 @@ else
 fi
 CLOCK_HASH="e7f0f9eac776c074e3a799d7f0ea74a1e404ccf0"
 
+# If no arguments provided, just execute real cabal to get proper exit code
+if [[ $# -eq 0 ]]; then
+    exec "${REAL_CABAL}"
+fi
+
 # Function to ensure Clock package is marked as built
 ensure_clock_built() {
     local store_path="C:/cabal/store/ghc-9.10.1/clock-0.8.4-${CLOCK_HASH}"
@@ -157,6 +162,7 @@ EOF
 
 chmod +x "${_BUILD_PREFIX}/bin/cabal-ultimate.exe"
 
+
 # Replace all cabal references with our wrapper
 export CABAL="${_BUILD_PREFIX}/bin/cabal-ultimate.exe"
 
@@ -166,12 +172,17 @@ cat > "${_BUILD_PREFIX}/bin/cabal.bat" << 'BATCH_EOF'
 REM Native Windows batch wrapper for cabal that can be found by hadrian build.bat
 REM This intercepts Clock builds and calls the real cabal for everything else
 
+REM If no arguments, just call real cabal to get proper exit code (hadrian expects 1)
+if "%*"=="" goto call_real_cabal
+
 REM Check if this is a Clock build command
 echo %* | findstr /i "clock" >nul 2>nul
 if %errorlevel% == 0 (
     echo CABAL WRAPPER: Clock build request intercepted - using pre-built version
     exit /b 0
 )
+
+:call_real_cabal
 
 REM Find the real cabal executable - try original bootstrap location first
 set REAL_CABAL=
