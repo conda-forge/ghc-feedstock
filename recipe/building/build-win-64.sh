@@ -394,6 +394,15 @@ CABAL_WIN_PATH=$(cygpath -w "${_BUILD_PREFIX}/bin/cabal-hadrian.bat")
 export CABAL="${CABAL_WIN_PATH}"
 echo "Set CABAL (Windows path) to: ${CABAL}"
 
+# Also ensure Windows can find this path by setting a fully resolved path
+CABAL_RESOLVED=$(cygpath -w "${_BUILD_PREFIX}/bin/cabal-hadrian.bat")
+echo "Testing resolved CABAL path: ${CABAL_RESOLVED}"
+if [[ -f "${_BUILD_PREFIX}/bin/cabal-hadrian.bat" ]]; then
+    echo "✓ cabal-hadrian.bat exists at expected location"
+else
+    echo "✗ cabal-hadrian.bat missing at expected location"
+fi
+
 # Also test if Windows batch can now find cabal
 echo "Testing Windows batch CABAL variable:"
 cmd /c "echo CABAL=%CABAL%" || echo "WARNING: cmd CABAL test failed"
@@ -449,16 +458,28 @@ cmd /c "if exist \"%CABAL%\" (echo CABAL executable exists) else (echo CABAL exe
 
 # Test cabal execution like hadrian does
 echo "Testing cabal execution like hadrian build-cabal.bat:"
+echo "CABAL variable contains: ${CABAL}"
+echo "Testing direct execution of cabal-hadrian.bat:"
+WIN_BAT_PATH=$(cygpath -w "${_BUILD_PREFIX}/bin/cabal-hadrian.bat")
+cmd /c "\"${WIN_BAT_PATH}\" 2>nul" 2>/dev/null
+DIRECT_TEST_EXIT=$?
+echo "Direct cabal-hadrian.bat test exit code: ${DIRECT_TEST_EXIT} (should be 1)"
+
+echo "Testing via CABAL variable:"
 cmd /c "\"%CABAL%\" 2>nul" 2>/dev/null
 CABAL_TEST_EXIT=$?
-echo "Cabal test exit code: ${CABAL_TEST_EXIT} (hadrian expects 1)"
+echo "CABAL variable test exit code: ${CABAL_TEST_EXIT} (hadrian expects 1)"
+
 if [[ ${CABAL_TEST_EXIT} -eq 1 ]]; then
     echo "✅ Cabal test matches hadrian expectation"
 else
     echo "❌ Cabal test differs from hadrian expectation (expected 1, got ${CABAL_TEST_EXIT})"
+    echo "Investigating issue..."
+    echo "File exists: $(test -f "${_BUILD_PREFIX}/bin/cabal-hadrian.bat" && echo "YES" || echo "NO")"
+    echo "File permissions: $(ls -la "${_BUILD_PREFIX}/bin/cabal-hadrian.bat" 2>/dev/null || echo "FILE NOT FOUND")"
 fi
 
-run_and_log "ghc-stage1-build" "${_hadrian_build[@]}" stage1:exe:ghc-bin -VV \
+"${_hadrian_build[@]}" stage1:exe:ghc-bin -VV \
   --flavour=quickest \
   --docs=none \
   --progress-info=unicorn || BUILD_RESULT=$?
