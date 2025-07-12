@@ -167,7 +167,7 @@ REM Native Windows batch wrapper for cabal that can be found by hadrian build.ba
 REM This intercepts Clock builds and calls the real cabal for everything else
 
 REM Check if this is a Clock build command
-echo %* | findstr /i "clock" >nul
+echo %* | findstr /i "clock" >nul 2>nul
 if %errorlevel% == 0 (
     echo CABAL WRAPPER: Clock build request intercepted - using pre-built version
     exit /b 0
@@ -190,14 +190,18 @@ if exist "%~dp0..\..\work\bootstrap-cabal\cabal.exe.orig" (
 
 REM Call the real cabal with all arguments
 "%REAL_CABAL%" %*
+exit /b %errorlevel%
 BATCH_EOF
 
 # Also create .cmd version for Windows compatibility
 cp "${_BUILD_PREFIX}/bin/cabal.bat" "${_BUILD_PREFIX}/bin/cabal.cmd"
 
-# Create symlinks as backup
-ln -sf "${_BUILD_PREFIX}/bin/cabal-ultimate.exe" "${_BUILD_PREFIX}/bin/cabal.exe" 2>/dev/null || true
-ln -sf "${_BUILD_PREFIX}/bin/cabal-ultimate.exe" "${_BUILD_PREFIX}/bin/cabal" 2>/dev/null || true
+# Create proper copies instead of symlinks for Windows compatibility
+cp "${_BUILD_PREFIX}/bin/cabal-ultimate.exe" "${_BUILD_PREFIX}/bin/cabal.exe" 2>/dev/null || true
+cp "${_BUILD_PREFIX}/bin/cabal-ultimate.exe" "${_BUILD_PREFIX}/bin/cabal" 2>/dev/null || true
+
+# Ensure all cabal wrappers are executable
+chmod +x "${_BUILD_PREFIX}/bin/cabal"* 2>/dev/null || true
 
 # Override the bootstrap cabal with our wrapper
 if [[ -f "${SRC_DIR}/bootstrap-cabal/cabal.exe" ]] && [[ ! -f "${SRC_DIR}/bootstrap-cabal/cabal.exe.orig" ]]; then
@@ -223,8 +227,9 @@ if [[ -d "${BINARY_DIR}" ]]; then
     cp "${_BUILD_PREFIX}/bin/cabal-ultimate.exe" "${BINARY_DIR}/"
     cp "${_BUILD_PREFIX}/bin/cabal.bat" "${BINARY_DIR}/"
     cp "${_BUILD_PREFIX}/bin/cabal.cmd" "${BINARY_DIR}/"
-    ln -sf "${BINARY_DIR}/cabal-ultimate.exe" "${BINARY_DIR}/cabal.exe" 2>/dev/null || true
-    ln -sf "${BINARY_DIR}/cabal-ultimate.exe" "${BINARY_DIR}/cabal" 2>/dev/null || true
+    cp "${BINARY_DIR}/cabal-ultimate.exe" "${BINARY_DIR}/cabal.exe" 2>/dev/null || true
+    cp "${BINARY_DIR}/cabal-ultimate.exe" "${BINARY_DIR}/cabal" 2>/dev/null || true
+    chmod +x "${BINARY_DIR}/cabal"* 2>/dev/null || true
 else
     echo "Warning: Binary directory not found at ${BINARY_DIR}"
     # Create it if it doesn't exist
@@ -233,8 +238,9 @@ else
     cp "${_BUILD_PREFIX}/bin/cabal-ultimate.exe" "${BINARY_DIR}/"
     cp "${_BUILD_PREFIX}/bin/cabal.bat" "${BINARY_DIR}/"
     cp "${_BUILD_PREFIX}/bin/cabal.cmd" "${BINARY_DIR}/"
-    ln -sf "${BINARY_DIR}/cabal-ultimate.exe" "${BINARY_DIR}/cabal.exe" 2>/dev/null || true
-    ln -sf "${BINARY_DIR}/cabal-ultimate.exe" "${BINARY_DIR}/cabal" 2>/dev/null || true
+    cp "${BINARY_DIR}/cabal-ultimate.exe" "${BINARY_DIR}/cabal.exe" 2>/dev/null || true
+    cp "${BINARY_DIR}/cabal-ultimate.exe" "${BINARY_DIR}/cabal" 2>/dev/null || true
+    chmod +x "${BINARY_DIR}/cabal"* 2>/dev/null || true
 fi
 
 # Also ensure our wrapper is first in PATH

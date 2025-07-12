@@ -388,6 +388,17 @@ fi
 export CABAL_EXE="${_BUILD_PREFIX}/bin/cabal-ultimate.exe"
 echo "Set CABAL_EXE to: ${CABAL_EXE}"
 
+# Critical: Ensure CABAL environment variable is set for Windows batch scripts
+# Convert Unix path to Windows path for batch script compatibility
+CABAL_WIN_PATH=$(cygpath -w "${_BUILD_PREFIX}/bin/cabal-ultimate.exe")
+export CABAL="${CABAL_WIN_PATH}"
+echo "Set CABAL (Windows path) to: ${CABAL}"
+
+# Also test if Windows batch can now find cabal
+echo "Testing Windows batch CABAL variable:"
+cmd /c "echo CABAL=%CABAL%" || echo "WARNING: cmd CABAL test failed"
+cmd /c "if defined CABAL echo CABAL is defined: %CABAL%" || echo "WARNING: cmd CABAL definition test failed"
+
 # Debug PATH and verify hadrian can find cabal wrappers
 echo "Final PATH verification for hadrian:"
 echo "Bootstrap-cabal in PATH: $(echo "$PATH" | grep -o bootstrap-cabal || echo "NOT FOUND")"
@@ -424,9 +435,28 @@ fi
 
 # Test if Windows can find cabal.exe specifically
 echo "Testing Windows executable discovery:"
+echo "Windows PATH for executable discovery:"
+cmd /c "echo %PATH%" 2>/dev/null | head -1 || echo "  Failed to get Windows PATH"
 cmd /c "where cabal.exe" 2>/dev/null || echo "  cabal.exe not found by Windows"
 cmd /c "where cabal.bat" 2>/dev/null || echo "  cabal.bat not found by Windows"
 cmd /c "where cabal.cmd" 2>/dev/null || echo "  cabal.cmd not found by Windows"
+
+# Critical test: Can hadrian's method find our cabal?
+echo "Testing hadrian's exact cabal discovery method:"
+echo "CABAL environment variable test:"
+cmd /c "if defined CABAL (echo CABAL is defined as: %CABAL%) else (echo CABAL is not defined)" 2>/dev/null || echo "  CABAL test failed"
+cmd /c "if exist \"%CABAL%\" (echo CABAL executable exists) else (echo CABAL executable missing)" 2>/dev/null || echo "  CABAL existence test failed"
+
+# Test cabal execution like hadrian does
+echo "Testing cabal execution like hadrian build-cabal.bat:"
+cmd /c "\"%CABAL%\" 2>nul" 2>/dev/null
+CABAL_TEST_EXIT=$?
+echo "Cabal test exit code: ${CABAL_TEST_EXIT} (hadrian expects 1)"
+if [[ ${CABAL_TEST_EXIT} -eq 1 ]]; then
+    echo "✅ Cabal test matches hadrian expectation"
+else
+    echo "❌ Cabal test differs from hadrian expectation (expected 1, got ${CABAL_TEST_EXIT})"
+fi
 
 run_and_log "ghc-stage1-build" "${_hadrian_build[@]}" stage1:exe:ghc-bin -VV \
   --flavour=quickest \
