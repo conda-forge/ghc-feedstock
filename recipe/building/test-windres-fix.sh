@@ -12,16 +12,12 @@ else
     echo "✗ gcc.exe not found in PATH"
 fi
 
-# Test 2: Check environment variables
-echo ""
-echo "Test 2: Checking environment variables..."
-echo "  CC=${CC:-not set}"
-echo "  CPP=${CPP:-not set}"
-echo "  WINDRES_CC=${WINDRES_CC:-not set}"
-echo "  WINDRES_CPP=${WINDRES_CPP:-not set}"
+# Test 2: Basic environment check
+if [[ -z "${CC:-}" ]]; then
+    echo "Warning: CC environment variable not set"
+fi
 
 # Test 3: Check if windres can find a preprocessor
-echo ""
 echo "Test 3: Testing windres..."
 WINDRES_PATH=$(find "${BUILD_PREFIX}" -name "windres.exe" -type f | head -1)
 if [[ -n "$WINDRES_PATH" ]]; then

@@ -352,8 +352,7 @@ def find_target_files(search_paths, clock_content, platform_content, verbose=Tru
                 print(f"Path does not exist: {expanded_path}")
             continue
 
-        if verbose:
-            print(f"Searching in: {expanded_path}")
+        # Suppress verbose searching output for cleaner logs
 
         # Look for build directories that might contain our targets
         for target_file in targets.keys():
@@ -392,8 +391,7 @@ def find_target_files(search_paths, clock_content, platform_content, verbose=Tru
                                 continue
                             seen_dirs.add(norm_dir)
                             
-                            if verbose:
-                                print(f"Found target directory: {dir_path}")
+                            # Suppress directory discovery logging
 
                             if os.path.exists(file_path):
                                 if verbose:
@@ -410,8 +408,7 @@ def find_target_files(search_paths, clock_content, platform_content, verbose=Tru
                             continue
                         seen_dirs.add(norm_dir)
                         
-                        if verbose:
-                            print(f"Found existing target file: {match}")
+                        # Suppress file discovery logging
                         results.append((target_file, dir_path, targets[target_file]))
 
     return results

@@ -173,14 +173,9 @@ def set_environment_variables():
         if '-fno-stack-protector' not in current:
             new_value = f"{current} {flags}".strip()
             os.environ[var] = new_value
-            print(f"Set {var}={new_value}")
 
 def main():
     """Main entry point"""
-    print("Windows Stack Protector Fix for GHC HSC Tools")
-    print("=" * 50)
-    
-    print("Setting environment variables...")
     set_environment_variables()
     
     print("Patching Cabal configuration...")

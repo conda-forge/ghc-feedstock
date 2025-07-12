@@ -38,15 +38,12 @@ def patch_executable_stack_size(exe_path, stack_size_mb=16):
         print("Warning: editbin.exe not found, trying alternative approach")
         return try_alternative_stack_fix(exe_path)
     
-    print(f"Using editbin from: {editbin_exe}")
-    
     try:
         # Increase stack size using editbin
         cmd = [editbin_exe, "/STACK:" + str(stack_size_bytes), exe_path]
         result = subprocess.run(cmd, capture_output=True, text=True)
         
         if result.returncode == 0:
-            print(f"Successfully increased stack size to {stack_size_mb}MB")
             return True
         else:
             print(f"editbin failed: {result.stderr}")
@@ -110,8 +107,6 @@ def find_and_patch_hsc_tools(search_paths):
         if not os.path.exists(base_path):
             continue
             
-        print(f"Searching in: {base_path}")
-        
         for pattern in patterns:
             # Search recursively
             search_pattern = os.path.join(base_path, "**", pattern)
@@ -119,11 +114,8 @@ def find_and_patch_hsc_tools(search_paths):
             
             for exe_path in matches:
                 if os.path.isfile(exe_path) and not exe_path.endswith(".original"):
-                    print(f"Found HSC tool: {exe_path}")
-                    
                     # Check if it's already been patched
                     if os.path.exists(exe_path + ".original"):
-                        print("  Already patched, skipping")
                         continue
                     
                     # Try to patch it

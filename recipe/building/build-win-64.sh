@@ -65,16 +65,8 @@ fi
 export CHKSTK_OBJ="${MSVC_VERSION_DIR}/lib/x64/chkstk.obj"
 echo "Using MSVC chkstk.obj at ${CHKSTK_OBJ}"
 
-# Analyze MSVC chkstk.obj to see what symbols it exports
-if command -v llvm-nm &>/dev/null; then
-  echo "Analyzing MSVC chkstk.obj symbols with llvm-nm:"
-  llvm-nm "${CHKSTK_OBJ}" || echo "Failed to analyze symbols"
-elif command -v nm &>/dev/null; then
-  echo "Analyzing MSVC chkstk.obj symbols with nm:"
-  nm "${CHKSTK_OBJ}" || echo "Failed to analyze symbols"
-else
-  echo "Warning: No nm tool available to analyze symbols"
-fi
+# Check if MSVC chkstk.obj exists
+test -f "${CHKSTK_OBJ}" || echo "Warning: MSVC chkstk.obj not found"
 
 # Create a temporary source file with a more accurate implementation of ___chkstk_ms
 TMP_DIR=$(mktemp -d)
@@ -147,14 +139,8 @@ echo "Compiling ${TMP_C_FILE} to ${MINGW_CHKSTK_OBJ}..."
   -fno-strict-aliasing -mno-stack-arg-probe
 COMPILE_RESULT=$?
 
-# Verify the compiled object file
-if command -v llvm-nm &>/dev/null; then
-  echo "Analyzing compiled chkstk_mingw_ms.obj symbols with llvm-nm:"
-  llvm-nm "${MINGW_CHKSTK_OBJ}" || echo "Failed to analyze symbols"
-elif command -v nm &>/dev/null; then
-  echo "Analyzing compiled chkstk_mingw_ms.obj symbols with nm:"
-  nm "${MINGW_CHKSTK_OBJ}" || echo "Failed to analyze symbols"
-fi
+# Verify the compiled object file exists
+test -f "${MINGW_CHKSTK_OBJ}" || echo "Warning: Compiled chkstk object not found"
 
 # Clean up temporary files
 rm -rf "${TMP_DIR}"
