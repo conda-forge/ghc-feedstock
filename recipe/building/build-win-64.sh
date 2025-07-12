@@ -389,8 +389,8 @@ export CABAL_EXE="${_BUILD_PREFIX}/bin/cabal-ultimate.exe"
 echo "Set CABAL_EXE to: ${CABAL_EXE}"
 
 # Critical: Ensure CABAL environment variable is set for Windows batch scripts
-# Use our ultimate wrapper which now handles no-args case correctly
-CABAL_WIN_PATH=$(cygpath -w "${_BUILD_PREFIX}/bin/cabal-ultimate.exe")
+# Use our hadrian-specific wrapper that passes validation but uses our Clock wrapper
+CABAL_WIN_PATH=$(cygpath -w "${_BUILD_PREFIX}/bin/cabal-hadrian.bat")
 export CABAL="${CABAL_WIN_PATH}"
 echo "Set CABAL (Windows path) to: ${CABAL}"
 

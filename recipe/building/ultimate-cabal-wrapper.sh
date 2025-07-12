@@ -162,6 +162,23 @@ EOF
 
 chmod +x "${_BUILD_PREFIX}/bin/cabal-ultimate.exe"
 
+# Create a Windows-native cabal wrapper for hadrian's CABAL environment variable
+# This needs to be a batch script that passes hadrian's validation but uses our wrapper
+cat > "${_BUILD_PREFIX}/bin/cabal-hadrian.bat" << 'HADRIAN_EOF'
+@echo off
+REM Windows batch wrapper specifically for hadrian's CABAL environment variable
+REM Returns exit code 1 when called with no arguments (for hadrian validation)
+REM Delegates to our ultimate wrapper for all actual commands
+
+REM If no arguments, return exit code 1 (what hadrian expects for validation)
+if "%*"=="" exit /b 1
+
+REM For all other arguments, delegate to our ultimate wrapper
+"%~dp0cabal-ultimate.exe" %*
+exit /b %errorlevel%
+HADRIAN_EOF
+
+chmod +x "${_BUILD_PREFIX}/bin/cabal-hadrian.bat"
 
 # Replace all cabal references with our wrapper
 export CABAL="${_BUILD_PREFIX}/bin/cabal-ultimate.exe"
