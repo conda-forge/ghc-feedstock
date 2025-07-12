@@ -245,21 +245,9 @@ if [[ "${SKIP_CLOCK_STUB:-0}" != "1" ]]; then
         export PATH="${_BUILD_PREFIX}/bin:${PATH}"
         echo "CABAL wrapper activated: ${CABAL}"
         
-        # Ensure cabal is findable in PATH by creating additional symlinks
-        echo "*** Ensuring cabal is in PATH ***"
-        which cabal || echo "cabal not found in PATH before symlinks"
+        # Create symlinks for cabal discovery
         ln -sf "${_BUILD_PREFIX}/bin/cabal-ultimate.exe" "${_BUILD_PREFIX}/bin/cabal" 2>/dev/null || true
         ln -sf "${_BUILD_PREFIX}/bin/cabal-ultimate.exe" "${_BUILD_PREFIX}/bin/cabal.exe" 2>/dev/null || true
-        
-        # Verify cabal is now findable
-        echo "PATH contains: ${PATH}"
-        echo "Checking cabal availability:"
-        which cabal || echo "cabal still not found"
-        ls -la "${_BUILD_PREFIX}/bin/cabal"* || echo "No cabal files in bin"
-        
-        # Test cabal wrapper execution
-        echo "Testing cabal wrapper:"
-        "${_BUILD_PREFIX}/bin/cabal-ultimate.exe" --version || echo "Wrapper test failed"
     fi
     # Test the Clock installation as backup
     bash "${RECIPE_DIR}/building/test-clock-install.sh" || echo "Clock install test completed"
@@ -350,43 +338,9 @@ bash "${RECIPE_DIR}/building/aggressive-hsc-prevention.sh" || echo "HSC preventi
 echo "*** Building stage1 GHC ***"
 
 # Ensure cabal wrapper is in PATH for hadrian
-echo "*** Final cabal PATH verification before hadrian build ***"
+echo "*** Final cabal PATH verification ***"
 export PATH="${_BUILD_PREFIX}/bin:${PATH}"
-if [[ -f "${_BUILD_PREFIX}/bin/cabal-ultimate.exe" ]]; then
-    export CABAL="${_BUILD_PREFIX}/bin/cabal-ultimate.exe"
-    echo "CABAL set to: ${CABAL}"
-fi
-echo "PATH: ${PATH}"
-which cabal || echo "WARNING: cabal not found in PATH"
-echo "Cabal executable test:"
-cabal --version || echo "WARNING: cabal --version failed"
-
-# Ensure hadrian can find cabal by testing in the same way hadrian would
-echo "Testing hadrian's cabal access method:"
-cmd /c "cabal --version" || echo "WARNING: cmd /c cabal --version failed"
-cmd /c "where cabal" || echo "WARNING: cmd /c where cabal failed"
-
-# Test batch wrappers specifically
-echo "Testing Windows batch wrappers:"
-if [[ -f "${_BUILD_PREFIX}/bin/cabal.bat" ]]; then
-    echo "Found cabal.bat wrapper"
-    cmd /c "cabal.bat --version" || echo "WARNING: cabal.bat test failed"
-else
-    echo "WARNING: cabal.bat not found"
-fi
-
-if [[ -f "${SRC_DIR}/bootstrap-cabal/cabal.bat" ]]; then
-    echo "Found bootstrap cabal.bat wrapper"
-    # Fix Windows path for cmd execution
-    WIN_CABAL_BAT=$(cygpath -w "${SRC_DIR}/bootstrap-cabal/cabal.bat")
-    cmd /c "\"${WIN_CABAL_BAT}\" --version" || echo "WARNING: bootstrap cabal.bat test failed"
-else
-    echo "WARNING: bootstrap cabal.bat not found"
-fi
-
-# Set the Windows environment variable for batch scripts
-export CABAL_EXE="${_BUILD_PREFIX}/bin/cabal-ultimate.exe"
-echo "Set CABAL_EXE to: ${CABAL_EXE}"
+which cabal > /dev/null || echo "WARNING: cabal not found in PATH"
 
 # Critical: Ensure CABAL environment variable is set for Windows batch scripts
 # Use our hadrian-specific wrapper that passes validation but uses our Clock wrapper
@@ -394,89 +348,16 @@ CABAL_WIN_PATH=$(cygpath -w "${_BUILD_PREFIX}/bin/cabal-hadrian.bat")
 export CABAL="${CABAL_WIN_PATH}"
 echo "Set CABAL (Windows path) to: ${CABAL}"
 
-# Also ensure Windows can find this path by setting a fully resolved path
-CABAL_RESOLVED=$(cygpath -w "${_BUILD_PREFIX}/bin/cabal-hadrian.bat")
-echo "Testing resolved CABAL path: ${CABAL_RESOLVED}"
-if [[ -f "${_BUILD_PREFIX}/bin/cabal-hadrian.bat" ]]; then
-    echo "✓ cabal-hadrian.bat exists at expected location"
-else
-    echo "✗ cabal-hadrian.bat missing at expected location"
-fi
+# Verify CABAL environment variable is working
+echo "CABAL set to: ${CABAL}"
 
-# Also test if Windows batch can now find cabal
-echo "Testing Windows batch CABAL variable:"
-cmd /c "echo CABAL=%CABAL%" || echo "WARNING: cmd CABAL test failed"
-cmd /c "if defined CABAL echo CABAL is defined: %CABAL%" || echo "WARNING: cmd CABAL definition test failed"
-
-# Debug PATH and verify hadrian can find cabal wrappers
-echo "Final PATH verification for hadrian:"
-echo "Bootstrap-cabal in PATH: $(echo "$PATH" | grep -o bootstrap-cabal || echo "NOT FOUND")"
-echo "Testing PATH order for cabal discovery:"
-echo "  which cabal: $(which cabal 2>/dev/null || echo "NOT FOUND")"
-echo "  where cabal in cmd: $(cmd /c "where cabal" 2>/dev/null || echo "NOT FOUND")"
-
-# Check binary directory where hadrian expects cabal
-BINARY_DIR="${SRC_DIR}/../binary/bin"
-echo "Checking binary directory for hadrian: ${BINARY_DIR}"
-if [[ -d "${BINARY_DIR}" ]]; then
-    echo "  Binary directory exists"
-    echo "  Contents: $(ls -la "${BINARY_DIR}"/cabal* 2>/dev/null || echo "No cabal files found")"
-else
-    echo "  Binary directory does not exist"
-fi
-
-# Test if hadrian's working directory affects cabal discovery
-echo "Testing cabal from hadrian's working directory:"
-cd "${SRC_DIR}"
-echo "  pwd: $(pwd)"
-echo "  which cabal from SRC_DIR: $(which cabal 2>/dev/null || echo "NOT FOUND")"
-echo "  cmd where cabal from SRC_DIR: $(cmd /c "where cabal" 2>/dev/null || echo "NOT FOUND")"
-
-# Test the new native batch wrappers
-echo "Testing native batch wrapper directly:"
-if [[ -f "${BINARY_DIR}/cabal.bat" ]]; then
-    echo "  Testing cabal.bat from binary directory:"
-    WIN_BINARY_DIR=$(cygpath -w "${BINARY_DIR}")
-    cmd /c "\"${WIN_BINARY_DIR}\\cabal.bat\" --version" || echo "  FAILED: cabal.bat test"
-else
-    echo "  cabal.bat not found in binary directory"
-fi
-
-# Test if Windows can find cabal.exe specifically
-echo "Testing Windows executable discovery:"
-echo "Windows PATH for executable discovery:"
-cmd /c "echo %PATH%" 2>/dev/null | head -1 || echo "  Failed to get Windows PATH"
-cmd /c "where cabal.exe" 2>/dev/null || echo "  cabal.exe not found by Windows"
-cmd /c "where cabal.bat" 2>/dev/null || echo "  cabal.bat not found by Windows"
-cmd /c "where cabal.cmd" 2>/dev/null || echo "  cabal.cmd not found by Windows"
-
-# Critical test: Can hadrian's method find our cabal?
-echo "Testing hadrian's exact cabal discovery method:"
-echo "CABAL environment variable test:"
-cmd /c "if defined CABAL (echo CABAL is defined as: %CABAL%) else (echo CABAL is not defined)" 2>/dev/null || echo "  CABAL test failed"
-cmd /c "if exist \"%CABAL%\" (echo CABAL executable exists) else (echo CABAL executable missing)" 2>/dev/null || echo "  CABAL existence test failed"
-
-# Test cabal execution like hadrian does
-echo "Testing cabal execution like hadrian build-cabal.bat:"
-echo "CABAL variable contains: ${CABAL}"
-echo "Testing direct execution of cabal-hadrian.bat:"
-WIN_BAT_PATH=$(cygpath -w "${_BUILD_PREFIX}/bin/cabal-hadrian.bat")
-cmd /c "\"${WIN_BAT_PATH}\" 2>nul" 2>/dev/null
-DIRECT_TEST_EXIT=$?
-echo "Direct cabal-hadrian.bat test exit code: ${DIRECT_TEST_EXIT} (should be 1)"
-
-echo "Testing via CABAL variable:"
+# Test hadrian cabal validation
 cmd /c "\"%CABAL%\" 2>nul" 2>/dev/null
 CABAL_TEST_EXIT=$?
-echo "CABAL variable test exit code: ${CABAL_TEST_EXIT} (hadrian expects 1)"
-
 if [[ ${CABAL_TEST_EXIT} -eq 1 ]]; then
-    echo "✅ Cabal test matches hadrian expectation"
+    echo "✅ Cabal validation: PASS"
 else
-    echo "❌ Cabal test differs from hadrian expectation (expected 1, got ${CABAL_TEST_EXIT})"
-    echo "Investigating issue..."
-    echo "File exists: $(test -f "${_BUILD_PREFIX}/bin/cabal-hadrian.bat" && echo "YES" || echo "NO")"
-    echo "File permissions: $(ls -la "${_BUILD_PREFIX}/bin/cabal-hadrian.bat" 2>/dev/null || echo "FILE NOT FOUND")"
+    echo "❌ Cabal validation: FAIL (got ${CABAL_TEST_EXIT}, expected 1)"
 fi
 
 "${_hadrian_build[@]}" stage1:exe:ghc-bin -VV \

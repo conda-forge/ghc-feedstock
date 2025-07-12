@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -eu
 
-echo "=== Stubbing HSC tools to prevent crashes ==="
+echo "=== Stubbing HSC tools ==="
 
 # Function to create a stub batch file
 create_stub() {

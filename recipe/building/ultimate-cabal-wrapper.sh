@@ -274,7 +274,4 @@ fi
 # Also ensure our wrapper is first in PATH
 export PATH="${_BUILD_PREFIX}/bin:${SRC_DIR}/bootstrap-cabal:${BINARY_DIR}:${PATH}"
 
-echo "Ultimate cabal wrapper installed at: ${_BUILD_PREFIX}/bin/cabal-ultimate.exe"
-echo "Windows batch wrappers created: cabal.bat and cabal.cmd"
-echo "All cabal commands will now be intercepted and Clock builds prevented"
-echo "CABAL environment variable set to: ${CABAL}"
+echo "Ultimate cabal wrapper installed successfully"
