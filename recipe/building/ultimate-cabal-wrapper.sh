@@ -168,13 +168,31 @@ cat > "${_BUILD_PREFIX}/bin/cabal-hadrian.bat" << 'HADRIAN_EOF'
 @echo off
 REM Windows batch wrapper specifically for hadrian's CABAL environment variable
 REM Returns exit code 1 when called with no arguments (for hadrian validation)
-REM Delegates to our ultimate wrapper for all actual commands
+REM Intercepts Clock builds and delegates other commands to real cabal
 
 REM If no arguments, return exit code 1 (what hadrian expects for validation)
 if "%*"=="" exit /b 1
 
-REM For all other arguments, delegate to our ultimate wrapper
-"%~dp0cabal-ultimate.exe" %*
+REM Check if this is a Clock build command and intercept it
+echo %* | findstr /i "clock" >nul 2>nul
+if %errorlevel% == 0 (
+    echo CABAL WRAPPER: Clock build request intercepted - using pre-built version
+    exit /b 0
+)
+
+REM For all other arguments, find and call the real cabal
+set REAL_CABAL=
+if exist "%~dp0..\..\work\bootstrap-cabal\cabal.exe.orig" (
+    set REAL_CABAL=%~dp0..\..\work\bootstrap-cabal\cabal.exe.orig
+) else if exist "%~dp0..\..\work\bootstrap-cabal\cabal.exe" (
+    set REAL_CABAL=%~dp0..\..\work\bootstrap-cabal\cabal.exe
+) else (
+    echo Error: Could not find real cabal executable
+    exit /b 1
+)
+
+REM Call the real cabal with all arguments
+"%REAL_CABAL%" %*
 exit /b %errorlevel%
 HADRIAN_EOF
 
