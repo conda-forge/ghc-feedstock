@@ -171,7 +171,9 @@ REM Returns exit code 1 when called with no arguments (for hadrian validation)
 REM Intercepts Clock builds and delegates other commands to real cabal
 
 REM If no arguments, return exit code 1 (what hadrian expects for validation)
-if "%*"=="" exit /b 1
+if "%*"=="" (
+    exit /b 1
+)
 
 REM Check if this is a Clock build command and intercept it
 echo %* | findstr /i "clock" >nul 2>nul
