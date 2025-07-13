@@ -330,7 +330,16 @@ which cabal > /dev/null || echo "WARNING: cabal not found in PATH"
 
 # Critical: Ensure CABAL environment variable is set for Windows batch scripts
 # Use our hadrian-specific wrapper that passes validation but uses our Clock wrapper
-CABAL_WIN_PATH=$(cygpath -w "${_BUILD_PREFIX}/bin/cabal-hadrian.bat")
+CABAL_UNIX_PATH="${_BUILD_PREFIX}/bin/cabal-hadrian.bat"
+echo "Debug: Unix path: ${CABAL_UNIX_PATH}"
+
+# Convert to Windows path format
+CABAL_WIN_PATH=$(cygpath -w "${CABAL_UNIX_PATH}" 2>/dev/null)
+if [[ -z "${CABAL_WIN_PATH}" ]]; then
+    # Fallback if cygpath fails
+    CABAL_WIN_PATH="${CABAL_UNIX_PATH//\//\\}"
+fi
+
 export CABAL="${CABAL_WIN_PATH}"
 echo "Set CABAL (Windows path) to: ${CABAL}"
 
@@ -338,8 +347,29 @@ echo "Set CABAL (Windows path) to: ${CABAL}"
 echo "CABAL set to: ${CABAL}"
 
 # Test hadrian cabal validation
-cmd /c "\"%CABAL%\" 2>nul" 2>/dev/null
+echo "Debug: CABAL environment variable is: ${CABAL}"
+echo "Debug: Testing cabal validation with cmd /c..."
+
+# Convert to Windows path and test
+CABAL_WIN_PATH_EXPANDED=$(cygpath -w "${CABAL}" 2>/dev/null || echo "${CABAL}")
+echo "Debug: Expanded Windows path: ${CABAL_WIN_PATH_EXPANDED}"
+
+# Test the batch file directly first
+if [[ -f "${CABAL}" ]]; then
+    echo "Debug: Cabal batch file exists at: ${CABAL}"
+    echo "Debug: Testing batch file directly..."
+    "${CABAL}" 2>/dev/null
+    DIRECT_EXIT=$?
+    echo "Debug: Direct batch execution exit code: ${DIRECT_EXIT}"
+else
+    echo "Debug: Cabal batch file NOT found at: ${CABAL}"
+fi
+
+# Now test with cmd /c
+cmd /c "\"%CABAL_WIN_PATH_EXPANDED%\" 2>nul" 2>/dev/null
 CABAL_TEST_EXIT=$?
+echo "Debug: cmd /c execution exit code: ${CABAL_TEST_EXIT}"
+
 if [[ ${CABAL_TEST_EXIT} -eq 1 ]]; then
     echo "✅ Cabal validation: PASS"
 else
