@@ -332,12 +332,18 @@ which cabal > /dev/null || echo "WARNING: cabal not found in PATH"
 # Use our hadrian-specific wrapper that passes validation but uses our Clock wrapper
 CABAL_UNIX_PATH="${_BUILD_PREFIX}/bin/cabal-hadrian.bat"
 echo "Debug: Unix path: ${CABAL_UNIX_PATH}"
+echo "Debug: _BUILD_PREFIX is: ${_BUILD_PREFIX}"
 
-# Convert to Windows path format
+# Convert to Windows path format using the actual resolved path
 CABAL_WIN_PATH=$(cygpath -w "${CABAL_UNIX_PATH}" 2>/dev/null)
-if [[ -z "${CABAL_WIN_PATH}" ]]; then
-    # Fallback if cygpath fails
-    CABAL_WIN_PATH="${CABAL_UNIX_PATH//\//\\}"
+echo "Debug: cygpath -w result: '${CABAL_WIN_PATH}'"
+
+if [[ -z "${CABAL_WIN_PATH}" ]] || [[ "${CABAL_WIN_PATH}" == *"%"* ]]; then
+    # Fallback: manually convert the resolved path
+    RESOLVED_PATH="${CABAL_UNIX_PATH}"
+    # Convert forward slashes to backslashes and fix drive letter
+    CABAL_WIN_PATH=$(echo "${RESOLVED_PATH}" | sed 's|^/c/|C:\\|' | sed 's|/|\\|g')
+    echo "Debug: Manual conversion result: '${CABAL_WIN_PATH}'"
 fi
 
 export CABAL="${CABAL_WIN_PATH}"
@@ -350,23 +356,31 @@ echo "CABAL set to: ${CABAL}"
 echo "Debug: CABAL environment variable is: ${CABAL}"
 echo "Debug: Testing cabal validation with cmd /c..."
 
-# Convert to Windows path and test
-CABAL_WIN_PATH_EXPANDED=$(cygpath -w "${CABAL}" 2>/dev/null || echo "${CABAL}")
-echo "Debug: Expanded Windows path: ${CABAL_WIN_PATH_EXPANDED}"
+# The CABAL variable should now contain the proper Windows path
 
-# Test the batch file directly first
-if [[ -f "${CABAL}" ]]; then
-    echo "Debug: Cabal batch file exists at: ${CABAL}"
-    echo "Debug: Testing batch file directly..."
-    "${CABAL}" 2>/dev/null
+# Test the batch file directly first - but with a timeout to prevent hangs
+CABAL_UNIX_CHECK="${CABAL//\\//}"  # Convert back to Unix path for existence check
+CABAL_UNIX_CHECK="${CABAL_UNIX_CHECK//C:/c}"
+echo "Debug: Checking existence at Unix path: ${CABAL_UNIX_CHECK}"
+
+if [[ -f "${CABAL_UNIX_CHECK}" ]]; then
+    echo "Debug: Cabal batch file exists at: ${CABAL_UNIX_CHECK}"
+    echo "Debug: Testing batch file directly with 10 second timeout..."
+    timeout 10s "${CABAL_UNIX_CHECK}" 2>/dev/null || true
     DIRECT_EXIT=$?
     echo "Debug: Direct batch execution exit code: ${DIRECT_EXIT}"
 else
-    echo "Debug: Cabal batch file NOT found at: ${CABAL}"
+    echo "Debug: Cabal batch file NOT found at: ${CABAL_UNIX_CHECK}"
+    # List directory contents to debug
+    CABAL_DIR=$(dirname "${CABAL_UNIX_CHECK}")
+    echo "Debug: Directory contents of ${CABAL_DIR}:"
+    ls -la "${CABAL_DIR}" 2>/dev/null || echo "Directory not found"
+    DIRECT_EXIT=127
 fi
 
-# Now test with cmd /c
-cmd /c "\"%CABAL_WIN_PATH_EXPANDED%\" 2>nul" 2>/dev/null
+# Now test with cmd /c but with a timeout
+echo "Debug: Testing with cmd /c and timeout..."
+timeout 10s cmd /c "\"%CABAL%\" 2>nul" 2>/dev/null || true
 CABAL_TEST_EXIT=$?
 echo "Debug: cmd /c execution exit code: ${CABAL_TEST_EXIT}"
 
