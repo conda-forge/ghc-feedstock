@@ -1,0 +1,24 @@
+c_compiler:
+- clang
+c_compiler_version:
+- '19'
+c_stdlib:
+- vs
+channel_sources:
+- conda-forge
+channel_targets:
+- conda-forge main
+cxx_compiler:
+- clangxx
+cxx_compiler_version:
+- '19'
+gmp:
+- '6'
+libffi:
+- '3.4'
+libiconv:
+- '1'
+target_platform:
+- win-64
+zstd:
+- '1.5'
