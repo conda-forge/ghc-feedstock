@@ -109,15 +109,7 @@ requirements:
       then:
         - ncurses
   run:
-    - ${{ compiler('c') }}
-    - gmp
-    - libffi
-    - if: aarch64
-      then: libiconv
-    - if: unix
-      then:
-        - ${{ stdlib('c') }}
-        - ncurses
+    - c_compiler
 
 tests:
   - package_contents:
@@ -149,12 +141,17 @@ tests:
         - lib/ghc-${{ version }}/lib/template-hsc.h
         - lib/ghc-${{ version }}/lib/*-ghc-${{ version }}-inplace/*-inplace/*-inplace.a
 
-  - script: ghc --version
-
-  - script:
-      - echo 'main = putStrLn "Hello conda-forge"' > hello.hs
-      - ghc hello.hs
-      - ./hello
+  - script: |
+      ghc --version
+      echo 'main = putStrLn "Hello conda-forge"' > hello.hs
+      ghc hello.hs
+      ./hello
+    requirements:
+      run:
+        - ${{ compiler('c') }}
+        - if: unix
+          then:
+            - ${{ stdlib('c') }}
 
 about:
   homepage: https://haskell.org/ghc/

@@ -6,10 +6,13 @@ _log_index=0
 source "${RECIPE_DIR}"/building/common.sh
 
 _build_alias=${build_alias}
+_build_version="${build_alias##*darwin}"
 _host_alias=${host_alias}
+_host_version="${host_alias##*darwin}"
+_ghc_host="x86_64-apple-darwin"
 
-export build_alias=x86_64-apple-darwin
-export host_alias=x86_64-apple-darwin
+export build_alias="${_ghc_host}"
+export host_alias="${_ghc_host}"
 export BUILD=${build_alias}
 export HOST=${host_alias}
 
@@ -28,18 +31,20 @@ pushd bootstrap-ghc
   LDFLAGS_LD=${LDFLAGS_LD//$PREFIX/$BUILD_PREFIX/} \
   bash configure \
     --prefix="${SRC_DIR}"/binary \
-    --build=x86_64-apple-darwin13.4.0 \
-    --host=x86_64-apple-darwin13.4.0 \
-    --target=x86_64-apple-darwin13.4.0
+    --build="${_build_alias}" \
+    --host="${_build_alias}" \
+    --target="${_build_alias}"
 
   perl -pi -e 's#($ENV{BUILD_PREFIX}|$ENV{PREFIX})/bin/##' default.target
   run_and_log "bs-make-install" make install
 
   # Correct GHC settings (odd)
   perl -pi -e 's/(LLVM llvm-as command", ").+?"/$1llvm-as"/' "${SRC_DIR}/binary/lib/ghc-${BOOT_VERSION}/lib/settings"
-  perl -pi -e 's#((C++ compiler flags|C compiler link flags)", ")#$1--target=x86_64-apple-darwin #' "${SRC_DIR}/binary/lib/ghc-${BOOT_VERSION}/lib/settings"
-  perl -pi -e 's/arm64-apple-darwin/x86_64-apple-darwin/g; s/20.0.0/13.4.0/g' "${SRC_DIR}"/binary/lib/ghc-"${BOOT_VERSION}"/lib/settings
-  perl -pi -e 's/aarch64/x86_64/;s/ArchAArch64/ArchX86_64/' "${SRC_DIR}/binary/lib/ghc-${BOOT_VERSION}/lib/settings"
+  if [[ "${_build_alias}" != "${_host_alias}" ]]; then
+    perl -pi -e "s#((C++ compiler flags|C compiler link flags)", ")#\$1--target=${_ghc_host} #" "${SRC_DIR}/binary/lib/ghc-${BOOT_VERSION}/lib/settings"
+    perl -pi -e "s/arm64-apple-darwin/${_ghc_host}/g; s/${_host_version}/${_build_version}/g" "${SRC_DIR}"/binary/lib/ghc-"${BOOT_VERSION}"/lib/settings
+    perl -pi -e 's/aarch64/x86_64/;s/ArchAArch64/ArchX86_64/' "${SRC_DIR}/binary/lib/ghc-${BOOT_VERSION}/lib/settings"
+  fi
 popd
 
 # Update cabal package database
@@ -47,13 +52,18 @@ run_and_log "cabal-update" cabal v2-update
 
 # Configure and build GHC
 SYSTEM_CONFIG=(
-  --build="x86_64-apple-darwin13.4.0"
-  --host="x86_64-apple-darwin13.4.0"
-  --target="arm64-apple-darwin20.0.0"
+  --prefix="${PREFIX}"
 )
 
+if [[ "${_build_alias}" != "${_host_alias}" ]]; then
+  SYSTEM_CONFIG+=(
+    --build="${_build_alias}"
+    --host="${_build_alias}"
+    --target="${_host_alias}"
+  )
+fi
+
 CONFIGURE_ARGS=(
-  --prefix="${PREFIX}"
   --disable-numa
   --enable-ignore-build-platform-mismatch=yes
   # This creates conflicts downstream: --enable-ghc-toolchain=yes
@@ -84,10 +94,13 @@ RANLIB=${CONDA_TOOLCHAIN_BUILD}-ranlib \
 LDFLAGS=${LDFLAGS//$PREFIX/$BUILD_PREFIX/} \
 LDFLAGS_LD=${LDFLAGS_LD//$PREFIX/$BUILD_PREFIX/} \
 run_and_log "ghc-configure" bash configure "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}"
+
 perl -pi -e 's#($ENV{BUILD_PREFIX}|$ENV{PREFIX})/bin/##' "${SRC_DIR}"/hadrian/cfg/default.target
-perl -pi -e 's#"--target=[\w-]+"#"--target=aarch64-apple-darwin"#'  "${SRC_DIR}"/hadrian/cfg/default.target
-perl -pi -e 's#"--target=[\w-]+"#"--target=x86_64-apple-darwin"#'  "${SRC_DIR}"/hadrian/cfg/default.host.target
-perl -pi -e 's/aarch64/x86_64/;s/ArchAArch64/ArchX86_64/' "${SRC_DIR}"/hadrian/cfg/default.host.target
+if [[ "${_build_alias}" != "${_host_alias}" ]]; then
+  perl -pi -e 's#"--target=[\w-]+"#"--target=aarch64-apple-darwin"#'  "${SRC_DIR}"/hadrian/cfg/default.target
+  perl -pi -e 's#"--target=[\w-]+"#"--target=x86_64-apple-darwin"#'  "${SRC_DIR}"/hadrian/cfg/default.host.target
+  perl -pi -e 's/aarch64/x86_64/;s/ArchAArch64/ArchX86_64/' "${SRC_DIR}"/hadrian/cfg/default.host.target
+fi
 
 _hadrian_build=("${SRC_DIR}"/hadrian/build "-j${CPU_COUNT}")
 run_and_log "stage1_exe" "${_hadrian_build[@]}" stage1:exe:ghc-bin --flavour=release --docs=none --progress-info=none
@@ -113,9 +126,11 @@ CONFIGURE_ARGS=(
 # This will not generate ghc-toolchain-bin or the .ghc-toolchain (possibly due to x-platform)
 run_and_log "ghc-configure" bash configure "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}"
 perl -pi -e 's#($ENV{BUILD_PREFIX}|$ENV{PREFIX})/bin/##' "${SRC_DIR}"/hadrian/cfg/default.target
-perl -pi -e 's#"--target=[\w-]+"#"--target=aarch64-apple-darwin"#'  "${SRC_DIR}"/hadrian/cfg/default.target
-perl -pi -e 's#"--target=[\w-]+"#"--target=x86_64-apple-darwin"#'  "${SRC_DIR}"/hadrian/cfg/default.host.target
-perl -pi -e 's/aarch64/x86_64/;s/ArchAArch64/ArchX86_64/' "${SRC_DIR}"/hadrian/cfg/default.host.target
+if [[ "${_build_alias}" != "${_host_alias}" ]]; then
+  perl -pi -e 's#"--target=[\w-]+"#"--target=aarch64-apple-darwin"#'  "${SRC_DIR}"/hadrian/cfg/default.target
+  perl -pi -e 's#"--target=[\w-]+"#"--target=x86_64-apple-darwin"#'  "${SRC_DIR}"/hadrian/cfg/default.host.target
+  perl -pi -e 's/aarch64/x86_64/;s/ArchAArch64/ArchX86_64/' "${SRC_DIR}"/hadrian/cfg/default.host.target
+fi
 
 export DYLD_INSERT_LIBRARIES="${BUILD_PREFIX}/lib/libiconv.dylib:${BUILD_PREFIX}/lib/libffi.dylib${DYLD_INSERT_LIBRARIES:+:}${DYLD_INSERT_LIBRARIES:-}"
 run_and_log "stage1_lib" "${_hadrian_build[@]}" stage1:lib:ghc -VV --flavour=release --docs=none --progress-info=unicorn
