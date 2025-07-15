@@ -41,7 +41,7 @@ pushd bootstrap-ghc
   # Correct GHC settings (odd)
   perl -pi -e 's/(LLVM llvm-as command", ").+?"/$1llvm-as"/' "${SRC_DIR}/binary/lib/ghc-${BOOT_VERSION}/lib/settings"
   if [[ "${_build_alias}" != "${_host_alias}" ]]; then
-    perl -pi -e "s#((C++ compiler flags|C compiler link flags)", ")#\$1--target=${_ghc_host} #" "${SRC_DIR}/binary/lib/ghc-${BOOT_VERSION}/lib/settings"
+    perl -pi -e "s#((C++ compiler flags|C compiler link flags)\", \")#\$1--target=${_ghc_host} #" "${SRC_DIR}/binary/lib/ghc-${BOOT_VERSION}/lib/settings"
     perl -pi -e "s/arm64-apple-darwin/${_ghc_host}/g; s/${_host_version}/${_build_version}/g" "${SRC_DIR}"/binary/lib/ghc-"${BOOT_VERSION}"/lib/settings
     perl -pi -e 's/aarch64/x86_64/;s/ArchAArch64/ArchX86_64/' "${SRC_DIR}/binary/lib/ghc-${BOOT_VERSION}/lib/settings"
   fi

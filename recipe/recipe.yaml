@@ -108,8 +108,6 @@ requirements:
     - if: unix
       then:
         - ncurses
-  run:
-    - c_compiler
 
 tests:
   - package_contents:
@@ -143,15 +141,29 @@ tests:
 
   - script: |
       ghc --version
-      echo 'main = putStrLn "Hello conda-forge"' > hello.hs
-      ghc hello.hs
+      printf 'main = putStrLn "Hello conda-forge"\n' > hello.hs
+      ghc -v hello.hs
       ./hello
     requirements:
       run:
         - ${{ compiler('c') }}
         - if: unix
-          then:
-            - ${{ stdlib('c') }}
+          then: ${{ stdlib('c') }}
+
+  - script:
+      - printf 'import System.Posix.Signals\nmain = installHandler sigTERM Default Nothing >> putStrLn "Signal test"\n' > signal_test.hs
+      - if: unix
+        then: |
+          ghc -v signal_test.hs
+          ldd signal_test
+          ./signal_test
+        else: |
+          echo Skipping signal test on Windows
+    requirements:
+      run:
+        - ${{ compiler('c') }}
+        - if: unix
+          then: ${{ stdlib('c') }}
 
 about:
   homepage: https://haskell.org/ghc/
