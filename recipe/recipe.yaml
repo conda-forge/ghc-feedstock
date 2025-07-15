@@ -16,7 +16,6 @@ source:
         then:
           - patch-osname-macos.patch
 
-
   # Bootstrap GHC compilers
   - if: osx
     then:
@@ -70,7 +69,11 @@ requirements:
         - libffi
 
     - if: target_platform == "linux-aarch64"
-      then: sysroot_${{ build_platform }} >=2.28
+      then:
+        # Restrict to 2.43 (2.44 does not seem to have ld.gold and makes aarch64 build fail)
+        - binutils_impl_${{ build_platform }} <2.44
+        - binutils_${{ target_platform }} <2.44
+        - sysroot_${{ build_platform }} >=2.28
 
     - if: linux
       then:
@@ -106,24 +109,25 @@ requirements:
       then:
         - ncurses
   run:
-    - ${{ compiler('c') }}
-    - ${{ compiler('cxx') }}
-    # - c-compiler
-    - gmp
-    - libffi
-    - llvm-tools ${{ c_compiler_version }}.*
-    - if: unix
-      then:
-        - ncurses
+    - c_compiler
 
 tests:
   - package_contents:
+      bin:
+        - ghc
+        - ghc-pkg
+        - ghci
+        - hp2ps
+        - hsc2hs
+        - if: build_platform == target_platform
+          then:
+          - haddock
+          - hpc
+          - runghc
+          - runhaskell
       files:
         - etc/bash_completion.d/ghc
         - etc/conda/activate.d/ghc_activate.sh
-
-        # - lib/ghc-${{ version }}/lib/html/**
-        # - lib/ghc-${{ version }}/lib/latex/haddock.sty
         - lib/ghc-${{ version }}/lib/llvm-passes
         - lib/ghc-${{ version }}/lib/llvm-targets
         - lib/ghc-${{ version }}/lib/package.conf.d/**
@@ -135,52 +139,19 @@ tests:
         - lib/ghc-${{ version }}/lib/prelude.mjs
         - lib/ghc-${{ version }}/lib/settings
         - lib/ghc-${{ version }}/lib/template-hsc.h
-
-        # - share/doc/ghc-${{ version }}/html/**
-        # - share/man/man1/ghc.1
+        - lib/ghc-${{ version }}/lib/*-ghc-${{ version }}-inplace/*-inplace/*-inplace.a
 
   - script: |
       ghc --version
-
-  - script: |
       echo 'main = putStrLn "Hello conda-forge"' > hello.hs
       ghc hello.hs
       ./hello
-
-  # - script:
-  #     interpreter: python
-  #     content: |
-  #       import os, sys, pathlib
-  #       binaries = [
-  #         "ghc", "ghc-pkg", "ghci", "haddock", "hp2ps",
-  #         "hpc", "hsc2hs", "runghc", "runhaskell"
-  #       ]
-  #       all_files=[f'{b}' for b in binaries] + [f'{b}-${{ version }}' for b in binaries]
-  #       missing=[f for f in all_files if not pathlib.Path(os.environ['CONDA_PREFIX']).joinpath('bin', f).exists()]
-  #       exit(1) if missing else exit(0)
-
-  # - script:
-  #     interpreter: python
-  #     content: |
-  #       import os, sys, pathlib
-  #       binaries = [
-  #         "ghc", "ghc-pkg", "runghc", "runhaskell"
-  #       ]
-  #       all_files=[f'{b}' for b in binaries] + [f'{b}-${{ version }}' for b in binaries]
-  #       missing=[f for f in all_files if not pathlib.Path(os.environ['CONDA_PREFIX']).joinpath('lib', 'ghc-${{ version }}', 'bin', f).exists()]
-  #       exit(1) if missing else exit(0)
-
-  # - script:
-  #     interpreter: python
-  #     content: |
-  #       import os, sys, pathlib
-  #       binaries = [
-  #         "ghc-iserv", "ghc-iserv-dyn", "ghc-iserv-prof", "unlit",
-  #         "ghc-toolchain-bin","haddock", "hp2ps", "hpc", "hsc2hs",
-  #       ]
-  #       all_files=[f'{b}' for b in binaries] + [f'{b}-ghc-${{ version }}' for b in binaries]
-  #       missing=[f for f in all_files if not pathlib.Path(os.environ['CONDA_PREFIX']).joinpath('lib', 'ghc-${{ version }}', 'bin', f).exists()]
-  #       exit(1) if missing else exit(0)
+    requirements:
+      run:
+        - ${{ compiler('c') }}
+        - if: unix
+          then:
+            - ${{ stdlib('c') }}
 
 about:
   homepage: https://haskell.org/ghc/
