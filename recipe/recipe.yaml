@@ -155,7 +155,6 @@ tests:
       - if: unix
         then: |
           ghc -v signal_test.hs
-          ldd signal_test
           ./signal_test
         else: |
           echo Skipping signal test on Windows
