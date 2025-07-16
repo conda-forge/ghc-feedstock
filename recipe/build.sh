@@ -12,8 +12,8 @@ export M4=${BUILD_PREFIX}/bin/m4
 export PYTHON=${BUILD_PREFIX}/bin/python
 export PATH=$PWD/binary/bin:$PATH
 
-# Install cabal-install
-cp bootstrap-cabal/cabal* binary/bin/
+# # Install cabal-install
+# cp bootstrap-cabal/cabal* binary/bin/
 
 "${RECIPE_DIR}"/building/build-"${target_platform}.sh"
 

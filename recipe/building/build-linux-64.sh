@@ -6,25 +6,29 @@ _log_index=0
 source "${RECIPE_DIR}"/building/common.sh
 
 # Install bootstrap GHC - Set conda platform moniker
-pushd "${SRC_DIR}"/bootstrap-ghc
-  run_and_log "bs-configure" bash configure --prefix="${SRC_DIR}"/binary
-  perl -pi -e 's#($ENV{BUILD_PREFIX}|$ENV{PREFIX})/bin/##' default.target
-  run_and_log "bs-make-install" make install
+# pushd "${SRC_DIR}"/bootstrap-ghc
+#   run_and_log "bs-configure" bash configure --prefix="${SRC_DIR}"/binary
+#   perl -pi -e 's#($ENV{BUILD_PREFIX}|$ENV{PREFIX})/bin/##' default.target
+#   run_and_log "bs-make-install" make install
+#
+#   # CLANG: workaround to GHC not adding gmp to its needed library paths
+#   perl -pi -e 's#(link flags", "(--target=x86_64-unknown-linux|-Wl,--no-as-needed))#$1 -Wl,-L$ENV{BUILD_PREFIX}/lib#' "${SRC_DIR}"/binary/lib/ghc-"${BOOT_VERSION}"/lib/settings
+#   perl -pi -e 's#($ENV{BUILD_PREFIX}|$ENV{PREFIX})/bin/##' "${SRC_DIR}"/binary/lib/ghc-"${BOOT_VERSION}"/lib/settings
+#
+#   # Update rpath of bootstrap HShaskeline and HSterminfo
+#   find "${SRC_DIR}/binary/lib" -type f \( -name "*HShaskeline*.so" -o -name "*HSterminfo*.so" -o -name "ghc-${BOOT_VERSION}" \) | while read -r lib; do
+#     current_rpath=$(patchelf --print-rpath "$lib")
+#     patchelf --set-rpath "${BUILD_PREFIX}/lib" "${lib}"
+#     if [[ -n "${current_rpath}" ]]; then
+#       patchelf --add-rpath "${current_rpath}" "${lib}"
+#     fi
+#     patchelf --replace-needed libtinfo.so.6 "${BUILD_PREFIX}"/lib/libtinfo.so.6 "${lib}"
+#   done
+# popd
 
-  # CLANG: workaround to GHC not adding gmp to its needed library paths
-  perl -pi -e 's#(link flags", "(--target=x86_64-unknown-linux|-Wl,--no-as-needed))#$1 -Wl,-L$ENV{BUILD_PREFIX}/lib#' "${SRC_DIR}"/binary/lib/ghc-"${BOOT_VERSION}"/lib/settings
-  perl -pi -e 's#($ENV{BUILD_PREFIX}|$ENV{PREFIX})/bin/##' "${SRC_DIR}"/binary/lib/ghc-"${BOOT_VERSION}"/lib/settings
-
-  # Update rpath of bootstrap HShaskeline and HSterminfo
-  find "${SRC_DIR}/binary/lib" -type f \( -name "*HShaskeline*.so" -o -name "*HSterminfo*.so" -o -name "ghc-${BOOT_VERSION}" \) | while read -r lib; do
-    current_rpath=$(patchelf --print-rpath "$lib")
-    patchelf --set-rpath "${BUILD_PREFIX}/lib" "${lib}"
-    if [[ -n "${current_rpath}" ]]; then
-      patchelf --add-rpath "${current_rpath}" "${lib}"
-    fi
-    patchelf --replace-needed libtinfo.so.6 "${BUILD_PREFIX}"/lib/libtinfo.so.6 "${lib}"
-  done
-popd
+export GHC=${BUILD_PREFIX}/ghc-bootstrap/bin/ghc
+export GHC_PKG=${BUILD_PREFIX}/ghc-bootstrap/bin/ghc-pkg
+export PATH="${SRC_DIR}"/binary/bin:"${BUILD_PREFIX}"/ghc-bootstrap/bin"${PATH:+:}${PATH:-}"
 
 # Update cabal package database
 run_and_log "cabal-update" cabal v2-update
