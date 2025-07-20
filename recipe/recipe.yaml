@@ -1,6 +1,5 @@
 context:
   version: "9.12.2"
-  boot_version: "9.10.1"
   cabal_version: "3.14.2.0"
 
 package:
@@ -15,23 +14,6 @@ source:
       - if: osx and arm64
         then:
           - patch-osname-macos.patch
-
-  # Bootstrap GHC compilers
-  - if: osx
-    then:
-      url: https://downloads.haskell.org/~ghc/${{ boot_version }}/ghc-${{ boot_version }}-x86_64-apple-darwin.tar.xz
-      sha256: 8cf22188930e10d7ac5270d425e21a3dab606af73a655493639345200c650be9
-      target_directory: bootstrap-ghc
-  - if: linux
-    then:
-      url: https://downloads.haskell.org/~ghc/${{ boot_version }}/ghc-${{ boot_version }}-x86_64-ubuntu20_04-linux.tar.xz
-      sha256: ae3be406fdb73bd2b0c22baada77a8ff2f8cde6220dd591dc24541cfe9d895eb
-      target_directory: bootstrap-ghc
-  - if: not unix
-    then:
-      url: https://downloads.haskell.org/~ghc/${{ boot_version }}/ghc-${{ boot_version }}-x86_64-unknown-mingw32.tar.gz
-      sha256: 76847b0125547e975791fdbb9b9c963961aa81d833299d75a37ca48338fcc232
-      target_directory: bootstrap-ghc
 
   # Cabal install
   - if: osx
@@ -53,15 +35,13 @@ source:
 build:
   number: 0
   skip: not unix or ppc64le
-  script:
-    env:
-      BOOT_VERSION: ${{ boot_version }}
 
 requirements:
   build:
     - ${{ compiler('c') }}
     - ${{ compiler('cxx') }}
     - ${{ stdlib('c') }}
+    - ghc-bootstrap ==9.10.1
 
     - if: build_platform != target_platform
       then:

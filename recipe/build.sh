@@ -10,7 +10,7 @@ mkdir -p "${PREFIX}"/etc/bash_completion.d
 export MergeObjsCmd=${LD_GOLD:-${LD}}
 export M4=${BUILD_PREFIX}/bin/m4
 export PYTHON=${BUILD_PREFIX}/bin/python
-export PATH=$PWD/binary/bin:$PATH
+export PATH=$PWD/binary/bin:${BUILD_PREFIX}/ghc-bootstrap/bin${PATH:+:}${PATH:-}
 
 # Install cabal-install
 cp bootstrap-cabal/cabal* binary/bin/

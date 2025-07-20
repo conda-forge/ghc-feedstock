@@ -9,15 +9,6 @@ source "${RECIPE_DIR}"/building/common.sh
 unset build_alias
 unset host_alias
 
-# Install bootstrap GHC - Set conda platform moniker
-pushd bootstrap-ghc
-  run_and_log "bs-configure" bash configure \
-    --prefix="${SRC_DIR}"/binary \
-    --enable-ghc-toolchain
-  cp default.target.ghc-toolchain default.target
-  run_and_log "bs-make-install" make install
-popd
-
 # Update cabal package database
 run_and_log "cabal-update" cabal v2-update --allow-newer --minimize-conflict-set
 

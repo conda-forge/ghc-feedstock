@@ -16,37 +16,6 @@ export host_alias="${_ghc_host}"
 export BUILD=${build_alias}
 export HOST=${host_alias}
 
-# Install bootstrap GHC - Set conda platform moniker
-pushd bootstrap-ghc
-  touch default.target.ghc-toolchain
-  uname -a
-  MergeCmdObj=${MergeCmdObj:-${CONDA_TOOLCHAIN_BUILD}-ld} \
-  AR=${CONDA_TOOLCHAIN_BUILD}-ar \
-  AS=${CONDA_TOOLCHAIN_BUILD}-as \
-  CC=${CC_FOR_BUILD} \
-  CXX=${CXX_FOR_BUILD} \
-  NM=${CONDA_TOOLCHAIN_BUILD}-nm \
-  RANLIB=${CONDA_TOOLCHAIN_BUILD}-ranlib \
-  LDFLAGS=${LDFLAGS//$PREFIX/$BUILD_PREFIX/} \
-  LDFLAGS_LD=${LDFLAGS_LD//$PREFIX/$BUILD_PREFIX/} \
-  bash configure \
-    --prefix="${SRC_DIR}"/binary \
-    --build="${_build_alias}" \
-    --host="${_build_alias}" \
-    --target="${_build_alias}"
-
-  perl -pi -e 's#($ENV{BUILD_PREFIX}|$ENV{PREFIX})/bin/##' default.target
-  run_and_log "bs-make-install" make install
-
-  # Correct GHC settings (odd)
-  perl -pi -e 's/(LLVM llvm-as command", ").+?"/$1llvm-as"/' "${SRC_DIR}/binary/lib/ghc-${BOOT_VERSION}/lib/settings"
-  if [[ "${_build_alias}" != "${_host_alias}" ]]; then
-    perl -pi -e "s#((C++ compiler flags|C compiler link flags)\", \")#\$1--target=${_ghc_host} #" "${SRC_DIR}/binary/lib/ghc-${BOOT_VERSION}/lib/settings"
-    perl -pi -e "s/arm64-apple-darwin/${_ghc_host}/g; s/${_host_version}/${_build_version}/g" "${SRC_DIR}"/binary/lib/ghc-"${BOOT_VERSION}"/lib/settings
-    perl -pi -e 's/aarch64/x86_64/;s/ArchAArch64/ArchX86_64/' "${SRC_DIR}/binary/lib/ghc-${BOOT_VERSION}/lib/settings"
-  fi
-popd
-
 # Update cabal package database
 run_and_log "cabal-update" cabal v2-update
 
