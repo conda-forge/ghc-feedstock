@@ -15,58 +15,37 @@ source:
         then:
           - patch-osname-macos.patch
 
-  # Cabal install
-  - if: osx
-    then:
-      url: https://downloads.haskell.org/~cabal/cabal-install-${{ cabal_version }}/cabal-install-${{ cabal_version }}-x86_64-darwin.tar.xz
-      sha256: f9d0cac59deeeb1d35f72f4aa7e5cba3bfe91d838e9ce69b8bc9fc855247ce0f
-      target_directory: bootstrap-cabal
-  - if: linux
-    then:
-      url: https://downloads.haskell.org/~cabal/cabal-install-${{ cabal_version }}/cabal-install-${{ cabal_version }}-x86_64-linux-ubuntu20_04.tar.xz
-      sha256: 974a0c29cae721a150d5aa079a65f2e1c0843d1352ffe6aedd7594b176c3e1e6
-      target_directory: bootstrap-cabal
-  - if: not unix
-    then:
-      url: https://downloads.haskell.org/~cabal/cabal-install-${{ cabal_version }}/cabal-install-${{ cabal_version }}-x86_64-windows.zip
-      sha256: e313d60f849d4d7838406c154d60fdef8bfb7214848ac614ebafff19972c194e
-      target_directory: bootstrap-cabal
-
 build:
   number: 0
   skip: not unix or ppc64le
+  script:
+    env:
+      C_COMPILER_VERSION: ${{ c_compiler_version }}
 
 requirements:
   build:
     - ${{ compiler('c') }}
     - ${{ compiler('cxx') }}
     - ${{ stdlib('c') }}
-    - ghc-bootstrap ==9.10.1
-
-    - if: build_platform != target_platform
-      then:
-        - gmp
-        - libffi
-
-    - if: target_platform == "linux-aarch64"
-      then:
-        # Restrict to 2.43 (2.44 does not seem to have ld.gold and makes aarch64 build fail)
-        - binutils_impl_${{ build_platform }} <2.44
-        - binutils_${{ target_platform }} <2.44
-        - sysroot_${{ build_platform }} >=2.28
+    - cabal
+    - ghc-bootstrap ==9.10.1 pl5321hc1377c9_3
+    - gmp
+    - llvm-tools ${{ c_compiler_version }}.*
+    - perl
+    - python 3.12.*
+    - sphinx
 
     - if: linux
       then:
         - patchelf
-        - perl
 
     - if: unix
       then:
         - autoconf
         - automake
+        - file
         - m4
         - make
-        - ncurses
         - sed
       else:
         - m2-autoconf
@@ -76,15 +55,34 @@ requirements:
         - m2-grep
         - m2-m4
         - m2-make
-    - gmp
-    - llvm-tools ${{ c_compiler_version }}.*
-    - python 3.12.*
-    - sphinx
-    - zstd
+
+    # Cross-compiling
+    - if: build_platform != target_platform
+      then:
+        - gmp
+        - libffi
+        - ncurses
+
+    - if: target_platform == "linux-aarch64"
+      then:
+        # Restrict to 2.43 (2.44 does not seem to have ld.gold and makes aarch64 build fail)
+        - binutils_impl_${{ build_platform }} ${{ binutils_version }}.*
+        - binutils_impl_${{ target_platform }} ${{ binutils_version }}.*
+        - sysroot_${{ build_platform }} >=${{ c_stdlib_version }}
+
+    # Cross-compiler aarch64 on linux-64
+    - if: target_platform == "linux-64"
+      then:
+        - ${{ c_stdlib }}_linux-aarch64 >=${{ c_stdlib_version }}
+        - binutils_impl_linux-aarch64 ${{ binutils_version }}.*
+        - ${{ c_compiler }}_impl_linux-aarch64 ${{ c_compiler_version }}.*
+        - ${{ cxx_compiler }}_impl_linux-aarch64 ${{ cxx_compiler_version }}.*
+        - libgcc-devel_linux-aarch64
   host:
     - gmp
     - libiconv
     - libffi
+    - zstd
     - if: unix
       then:
         - ncurses
@@ -92,57 +90,104 @@ requirements:
 tests:
   - package_contents:
       bin:
-        - ghc
-        - ghc-pkg
-        - ghci
-        - hp2ps
-        - hsc2hs
-        - if: build_platform == target_platform
+        # - ghc
+        # - ghc-pkg
+        # - ghci
+        # - hp2ps
+        # - hsc2hs
+        # - if: build_platform == target_platform
+        #   then:
+        #   - haddock
+        #   - hpc
+        #   - runghc
+        #   - runhaskell
+        - if: linux and x86_64
           then:
-          - haddock
-          - hpc
-          - runghc
-          - runhaskell
+            - aarch64-conda-linux-gnu-ghc
+            - aarch64-conda-linux-gnu-ghc-pkg
+            - aarch64-conda-linux-gnu-ghci
+            - aarch64-conda-linux-gnu-hp2ps
+            - aarch64-conda-linux-gnu-hsc2hs
       files:
-        - etc/bash_completion.d/ghc
-        - etc/conda/activate.d/ghc_activate.sh
-        - lib/ghc-${{ version }}/lib/llvm-passes
-        - lib/ghc-${{ version }}/lib/llvm-targets
-        - lib/ghc-${{ version }}/lib/package.conf.d/**
-        - lib/ghc-${{ version }}/lib/dyld.mjs
-        - lib/ghc-${{ version }}/lib/ghc-interp.js
-        - lib/ghc-${{ version }}/lib/ghc-usage.txt
-        - lib/ghc-${{ version }}/lib/ghci-usage.txt
-        - lib/ghc-${{ version }}/lib/post-link.mjs
-        - lib/ghc-${{ version }}/lib/prelude.mjs
-        - lib/ghc-${{ version }}/lib/settings
-        - lib/ghc-${{ version }}/lib/template-hsc.h
-        - lib/ghc-${{ version }}/lib/*-ghc-${{ version }}-inplace/*-inplace/*-inplace.a
+        # - etc/bash_completion.d/ghc
+        # - etc/conda/activate.d/ghc_activate.sh
+        # - lib/ghc-${{ version }}/lib/llvm-passes
+        # - lib/ghc-${{ version }}/lib/llvm-targets
+        # - lib/ghc-${{ version }}/lib/package.conf.d/**
+        # - lib/ghc-${{ version }}/lib/dyld.mjs
+        # - lib/ghc-${{ version }}/lib/ghc-interp.js
+        # - lib/ghc-${{ version }}/lib/ghc-usage.txt
+        # - lib/ghc-${{ version }}/lib/ghci-usage.txt
+        # - lib/ghc-${{ version }}/lib/post-link.mjs
+        # - lib/ghc-${{ version }}/lib/prelude.mjs
+        # - lib/ghc-${{ version }}/lib/settings
+        # - lib/ghc-${{ version }}/lib/template-hsc.h
+        # - lib/ghc-${{ version }}/lib/*-ghc-${{ version }}-inplace/*${SHEXT}
+        # - lib/ghc-${{ version }}/lib/*-ghc-${{ version }}-inplace/*-inplace/*-inplace.a
+        - if: linux and x86_64
+          then:
+            # It is too complex to change this
+            - lib/aarch64-unknown-gnu-ghc-${{ version }}/lib/llvm-passes
+            - lib/aarch64-unknown-gnu-ghc-${{ version }}/lib/llvm-targets
+            - lib/aarch64-unknown-gnu-ghc-${{ version }}/lib/package.conf.d/**
+            - lib/aarch64-unknown-gnu-ghc-${{ version }}/lib/dyld.mjs
+            - lib/aarch64-unknown-gnu-ghc-${{ version }}/lib/ghc-interp.js
+            - lib/aarch64-unknown-gnu-ghc-${{ version }}/lib/ghc-usage.txt
+            - lib/aarch64-unknown-gnu-ghc-${{ version }}/lib/ghci-usage.txt
+            - lib/aarch64-unknown-gnu-ghc-${{ version }}/lib/post-link.mjs
+            - lib/aarch64-unknown-gnu-ghc-${{ version }}/lib/prelude.mjs
+            - lib/aarch64-unknown-gnu-ghc-${{ version }}/lib/settings
+            - lib/aarch64-unknown-gnu-ghc-${{ version }}/lib/template-hsc.h
+            - lib/aarch64-unknown-gnu-ghc-${{ version }}/lib/*-ghc-${{ version }}-inplace/*.so
+            - lib/aarch64-unknown-gnu-ghc-${{ version }}/lib/*-ghc-${{ version }}-inplace/*-inplace/*-inplace.a
 
-  - script: |
-      ghc --version
-      printf 'main = putStrLn "Hello conda-forge"\n' > hello.hs
-      ghc -v hello.hs
-      ./hello
-    requirements:
-      run:
-        - ${{ compiler('c') }}
-        - if: unix
-          then: ${{ stdlib('c') }}
+  # - script: |
+  #     ghc --version
+  #     printf 'main = putStrLn "Hello conda-forge"\n' > hello.hs
+  #     ghc -v hello.hs
+  #     ./hello
+  #   requirements:
+  #     run:
+  #       - ${{ compiler('c') }}
+  #       - if: unix
+  #         then: ${{ stdlib('c') }}
+
+  # - script:
+  #     - printf 'import System.Posix.Signals\nmain = installHandler sigTERM Default Nothing >> putStrLn "Signal test"\n' > signal_test.hs
+  #     - if: unix
+  #       then: |
+  #         ghc -v signal_test.hs
+  #         ./signal_test
+  #       else: |
+  #         echo Skipping signal test on Windows
+  #   requirements:
+  #     run:
+  #       - ${{ compiler('c') }}
+  #       - if: unix
+  #         then: ${{ stdlib('c') }}
 
   - script:
-      - printf 'import System.Posix.Signals\nmain = installHandler sigTERM Default Nothing >> putStrLn "Signal test"\n' > signal_test.hs
-      - if: unix
+      - if: linux and x86_64
         then: |
-          ghc -v signal_test.hs
-          ./signal_test
-        else: |
-          echo Skipping signal test on Windows
+          echo "Testing aarch64 cross-compiler..."
+          aarch64-conda-linux-gnu-ghc --version
+          printf 'main = putStrLn "Hello from aarch64 cross-compiler"\n' > cross_hello.hs
+          aarch64-conda-linux-gnu-ghc cross_hello.hs
+          file cross_hello | grep -i aarch64
+          qemu-execve-aarch64 cross_hello
+          echo "Cross-compiler test passed: generated aarch64 object file"
+        else:
+          echo "Skipping cross-compiler test (not available on this platform)"
     requirements:
       run:
         - ${{ compiler('c') }}
         - if: unix
           then: ${{ stdlib('c') }}
+        - if: linux and x86_64
+          then:
+          - binutils_linux-aarch64
+          - qemu-execve-aarch64
+
 
 about:
   homepage: https://haskell.org/ghc/

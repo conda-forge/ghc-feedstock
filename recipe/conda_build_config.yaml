@@ -1,3 +1,6 @@
+binutils_version:               # [linux]
+  - 2.43                        # [linux]
+
 c_stdlib:                       # [not osx]
   - sysroot                     # [linux]
   - m2w64-sysroot               # [not unix]
@@ -12,6 +15,7 @@ c_compiler:
 c_compiler_version:
   - 19                          # [unix]
   - 15                          # [not unix]
+
 cxx_compiler:
   - clangxx                     # [unix]
   - gxx                         # [not unix]

@@ -16,10 +16,10 @@ run_and_log "cabal-update" cabal v2-update --allow-newer --minimize-conflict-set
 SYSTEM_CONFIG=(
   --build="x86_64-apple-darwin13.4.0"
   --host="x86_64-apple-darwin13.4.0"
+  --prefix="${PREFIX}"
 )
 
 CONFIGURE_ARGS=(
-  --prefix="${PREFIX}"
   --disable-numa
   --enable-ignore-build-platform-mismatch=yes
   --with-system-libffi=yes
@@ -34,5 +34,8 @@ CONFIGURE_ARGS=(
 )
 
 run_and_log "ghc-configure" bash configure "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}"
+
+export DYLD_INSERT_LIBRARIES=$(find ${PREFIX} -name libtinfow.dylib)
 _hadrian_build=("${SRC_DIR}"/hadrian/build "-j${CPU_COUNT}")
+
 run_and_log "install" "${_hadrian_build[@]}" install --prefix="${PREFIX}" --flavour=release --docs=none --progress-info=none

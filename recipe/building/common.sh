@@ -64,3 +64,34 @@ run_and_log() {
   let "_log_index += 1"
   return $exit_code
 }
+
+# Function to calculate relative path from one directory to another
+calculate_relative_path() {
+    local from_path="$1"
+    local to_path="$2"
+
+    # Convert to absolute paths
+    from_path=$(realpath "$from_path")
+    to_path=$(realpath "$to_path")
+
+    # Use Python to calculate relative path (most reliable)
+    python3 -c "
+import os
+print(os.path.relpath('$to_path', '$from_path'))
+"
+}
+
+# Function to convert relative path to $ORIGIN-based rpath
+calculate_origin_rpath() {
+    local binary_path="$1"
+    local target_lib_path="$2"
+
+    # Get directory containing the binary
+    local binary_dir=$(dirname "$binary_path")
+
+    # Calculate relative path from binary dir to target lib
+    local rel_path=$(calculate_relative_path "$binary_dir" "$target_lib_path")
+
+    # Convert to $ORIGIN syntax
+    echo "\$ORIGIN/$rel_path"
+}
