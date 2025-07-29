@@ -28,6 +28,7 @@ requirements:
     - ${{ compiler('cxx') }}
     - ${{ stdlib('c') }}
     - cabal
+    # This specific version worked for local linux build, let's at least get linux to pass then change
     - ghc-bootstrap ==9.10.1 pl5321hc1377c9_3
     - gmp
     - llvm-tools ${{ c_compiler_version }}.*
@@ -90,17 +91,17 @@ requirements:
 tests:
   - package_contents:
       bin:
-        # - ghc
-        # - ghc-pkg
-        # - ghci
-        # - hp2ps
-        # - hsc2hs
-        # - if: build_platform == target_platform
-        #   then:
-        #   - haddock
-        #   - hpc
-        #   - runghc
-        #   - runhaskell
+        - ghc
+        - ghc-pkg
+        - ghci
+        - hp2ps
+        - hsc2hs
+        - if: build_platform == target_platform
+          then:
+          - haddock
+          - hpc
+          - runghc
+          - runhaskell
         - if: linux and x86_64
           then:
             - aarch64-conda-linux-gnu-ghc
@@ -109,62 +110,62 @@ tests:
             - aarch64-conda-linux-gnu-hp2ps
             - aarch64-conda-linux-gnu-hsc2hs
       files:
-        # - etc/bash_completion.d/ghc
-        # - etc/conda/activate.d/ghc_activate.sh
-        # - lib/ghc-${{ version }}/lib/llvm-passes
-        # - lib/ghc-${{ version }}/lib/llvm-targets
-        # - lib/ghc-${{ version }}/lib/package.conf.d/**
-        # - lib/ghc-${{ version }}/lib/dyld.mjs
-        # - lib/ghc-${{ version }}/lib/ghc-interp.js
-        # - lib/ghc-${{ version }}/lib/ghc-usage.txt
-        # - lib/ghc-${{ version }}/lib/ghci-usage.txt
-        # - lib/ghc-${{ version }}/lib/post-link.mjs
-        # - lib/ghc-${{ version }}/lib/prelude.mjs
-        # - lib/ghc-${{ version }}/lib/settings
-        # - lib/ghc-${{ version }}/lib/template-hsc.h
-        # - lib/ghc-${{ version }}/lib/*-ghc-${{ version }}-inplace/*${SHEXT}
-        # - lib/ghc-${{ version }}/lib/*-ghc-${{ version }}-inplace/*-inplace/*-inplace.a
+        - etc/bash_completion.d/ghc
+        - etc/conda/activate.d/ghc_activate.sh
+        - lib/ghc-${{ version }}/lib/llvm-passes
+        - lib/ghc-${{ version }}/lib/llvm-targets
+        - lib/ghc-${{ version }}/lib/package.conf.d/**
+        - lib/ghc-${{ version }}/lib/dyld.mjs
+        - lib/ghc-${{ version }}/lib/ghc-interp.js
+        - lib/ghc-${{ version }}/lib/ghc-usage.txt
+        - lib/ghc-${{ version }}/lib/ghci-usage.txt
+        - lib/ghc-${{ version }}/lib/post-link.mjs
+        - lib/ghc-${{ version }}/lib/prelude.mjs
+        - lib/ghc-${{ version }}/lib/settings
+        - lib/ghc-${{ version }}/lib/template-hsc.h
+        - lib/ghc-${{ version }}/lib/*-ghc-${{ version }}-inplace/*${SHEXT}
+        - lib/ghc-${{ version }}/lib/*-ghc-${{ version }}-inplace/*-inplace/*-inplace.a
         - if: linux and x86_64
           then:
-            # It is too complex to change this
-            - lib/aarch64-unknown-gnu-ghc-${{ version }}/lib/llvm-passes
-            - lib/aarch64-unknown-gnu-ghc-${{ version }}/lib/llvm-targets
-            - lib/aarch64-unknown-gnu-ghc-${{ version }}/lib/package.conf.d/**
-            - lib/aarch64-unknown-gnu-ghc-${{ version }}/lib/dyld.mjs
-            - lib/aarch64-unknown-gnu-ghc-${{ version }}/lib/ghc-interp.js
-            - lib/aarch64-unknown-gnu-ghc-${{ version }}/lib/ghc-usage.txt
-            - lib/aarch64-unknown-gnu-ghc-${{ version }}/lib/ghci-usage.txt
-            - lib/aarch64-unknown-gnu-ghc-${{ version }}/lib/post-link.mjs
-            - lib/aarch64-unknown-gnu-ghc-${{ version }}/lib/prelude.mjs
-            - lib/aarch64-unknown-gnu-ghc-${{ version }}/lib/settings
-            - lib/aarch64-unknown-gnu-ghc-${{ version }}/lib/template-hsc.h
-            - lib/aarch64-unknown-gnu-ghc-${{ version }}/lib/*-ghc-${{ version }}-inplace/*.so
-            - lib/aarch64-unknown-gnu-ghc-${{ version }}/lib/*-ghc-${{ version }}-inplace/*-inplace/*-inplace.a
+            # It is too complex to change 'aarch64-unknown-ghc'
+            - lib/aarch64-unknown-ghc-${{ version }}/lib/llvm-passes
+            - lib/aarch64-unknown-ghc-${{ version }}/lib/llvm-targets
+            - lib/aarch64-unknown-ghc-${{ version }}/lib/package.conf.d/**
+            - lib/aarch64-unknown-ghc-${{ version }}/lib/dyld.mjs
+            - lib/aarch64-unknown-ghc-${{ version }}/lib/ghc-interp.js
+            - lib/aarch64-unknown-ghc-${{ version }}/lib/ghc-usage.txt
+            - lib/aarch64-unknown-ghc-${{ version }}/lib/ghci-usage.txt
+            - lib/aarch64-unknown-ghc-${{ version }}/lib/post-link.mjs
+            - lib/aarch64-unknown-ghc-${{ version }}/lib/prelude.mjs
+            - lib/aarch64-unknown-ghc-${{ version }}/lib/settings
+            - lib/aarch64-unknown-ghc-${{ version }}/lib/template-hsc.h
+            - lib/aarch64-unknown-ghc-${{ version }}/lib/*-ghc-${{ version }}-inplace/*${SHEXT}
+            - lib/aarch64-unknown-ghc-${{ version }}/lib/*-ghc-${{ version }}-inplace/*-inplace/*-inplace.a
 
-  # - script: |
-  #     ghc --version
-  #     printf 'main = putStrLn "Hello conda-forge"\n' > hello.hs
-  #     ghc -v hello.hs
-  #     ./hello
-  #   requirements:
-  #     run:
-  #       - ${{ compiler('c') }}
-  #       - if: unix
-  #         then: ${{ stdlib('c') }}
+  - script: |
+      ghc --version
+      printf 'main = putStrLn "Hello conda-forge"\n' > hello.hs
+      ghc -v hello.hs
+      ./hello
+    requirements:
+      run:
+        - ${{ compiler('c') }}
+        - if: unix
+          then: ${{ stdlib('c') }}
 
-  # - script:
-  #     - printf 'import System.Posix.Signals\nmain = installHandler sigTERM Default Nothing >> putStrLn "Signal test"\n' > signal_test.hs
-  #     - if: unix
-  #       then: |
-  #         ghc -v signal_test.hs
-  #         ./signal_test
-  #       else: |
-  #         echo Skipping signal test on Windows
-  #   requirements:
-  #     run:
-  #       - ${{ compiler('c') }}
-  #       - if: unix
-  #         then: ${{ stdlib('c') }}
+  - script:
+      - printf 'import System.Posix.Signals\nmain = installHandler sigTERM Default Nothing >> putStrLn "Signal test"\n' > signal_test.hs
+      - if: unix
+        then: |
+          ghc -v signal_test.hs
+          ./signal_test
+        else: |
+          echo Skipping signal test on Windows
+    requirements:
+      run:
+        - ${{ compiler('c') }}
+        - if: unix
+          then: ${{ stdlib('c') }}
 
   - script:
       - if: linux and x86_64

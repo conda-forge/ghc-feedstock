@@ -159,7 +159,7 @@ find "${PREFIX}/bin" -name "*ghc*" -type f | grep "aarch64" | while read -r wrap
     perl -i -pe 's#bindir="[^"]*"#bindir="\$( cd "\$( dirname "\$0" )" \&\& pwd )"#g' "$wrapper"
     perl -i -pe 's#libdir="[^"]*"#libdir="\$( cd "\$( dirname "\$0" )/../lib/aarch64-unknown-linux-ghc-'"${PKG_VERSION}"'/lib" \&\& pwd )"#g' "$wrapper"
     perl -i -pe 's#includedir="[^"]*"#includedir="\$( cd "\$( dirname "\$0" )/../include" \&\& pwd )"#g' "$wrapper"
-    perl -i -pe 's#docdir="[^"]*"#docdir="\$( cd "\$( dirname "\$0" )/../share/doc/ghc-'"${PKG_VERSION}"'" \&\& pwd )"#g' "$wrapper"
+    perl -i -pe 's#docdir="[^"]*"#docdir="\$( cd "\$( dirname "\$0" )/../share/doc/aarch64-unknown-linux-ghc-'"${PKG_VERSION}"'" \&\& pwd )"#g' "$wrapper"
     perl -i -pe 's#mandir="[^"]*"#mandir="\$( cd "\$( dirname "\$0" )/../share/man" \&\& pwd )"#g' "$wrapper"
     perl -i -pe 's#datadir="[^"]*"#datadir="\$( cd "\$( dirname "\$0" )/../share" \&\& pwd )"#g' "$wrapper"
     echo "Fixed: $wrapper"
