@@ -38,7 +38,10 @@ run_and_log "ghc-configure" bash configure "${SYSTEM_CONFIG[@]}" "${CONFIGURE_AR
 _hadrian_build=("${SRC_DIR}"/hadrian/build "-j${CPU_COUNT}")
 
 export DYLD_INSERT_LIBRARIES=$(find ${PREFIX} -name libtinfow.dylib)
-export LDFLAGS="${LDFLAGS} -Wl,-undefined,dynamic_lookup"
+settings_file=$(find "${PREFIX}"/ghc-bootstrap -name settings | head -1)
+if [[ "${target_platform}" == "osx-"* ]] && [[ -n "${SDKROOT}" ]]; then
+  perl -i -pe 's#("C compiler link flags", ")([^"]*)"#\1\2 -L$ENV{SDKROOT}/usr/lib"#g' "${settings_file}"
+fi
 "${_hadrian_build[@]}" stage1:exe:ghc-bin -vv --progress-info=unicorn
 
 run_and_log "install" "${_hadrian_build[@]}" install --prefix="${PREFIX}" --flavour=release --docs=none --progress-info=none
