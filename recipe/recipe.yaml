@@ -28,8 +28,7 @@ requirements:
     - ${{ compiler('cxx') }}
     - ${{ stdlib('c') }}
     - cabal
-    # This specific version worked for local linux build, let's at least get linux to pass then change
-    - ghc-bootstrap ==9.10.1 pl5321hc1377c9_3
+    - ghc-bootstrap
     - gmp
     - llvm-tools ${{ c_compiler_version }}.*
     - perl
@@ -123,7 +122,7 @@ tests:
         - lib/ghc-${{ version }}/lib/prelude.mjs
         - lib/ghc-${{ version }}/lib/settings
         - lib/ghc-${{ version }}/lib/template-hsc.h
-        - lib/ghc-${{ version }}/lib/*-ghc-${{ version }}-inplace/*${SHEXT}
+        - lib/ghc-${{ version }}/lib/*-ghc-${{ version }}-inplace/*${SHLIB_EXT}
         - lib/ghc-${{ version }}/lib/*-ghc-${{ version }}-inplace/*-inplace/*-inplace.a
         - if: linux and x86_64
           then:
@@ -139,7 +138,7 @@ tests:
             - lib/aarch64-unknown-ghc-${{ version }}/lib/prelude.mjs
             - lib/aarch64-unknown-ghc-${{ version }}/lib/settings
             - lib/aarch64-unknown-ghc-${{ version }}/lib/template-hsc.h
-            - lib/aarch64-unknown-ghc-${{ version }}/lib/*-ghc-${{ version }}-inplace/*${SHEXT}
+            - lib/aarch64-unknown-ghc-${{ version }}/lib/*-ghc-${{ version }}-inplace/*${SHLIB_EXT}
             - lib/aarch64-unknown-ghc-${{ version }}/lib/*-ghc-${{ version }}-inplace/*-inplace/*-inplace.a
 
   - script: |
