@@ -38,7 +38,7 @@ run_and_log "ghc-configure" bash configure "${SYSTEM_CONFIG[@]}" "${CONFIGURE_AR
 _hadrian_build=("${SRC_DIR}"/hadrian/build "-j${CPU_COUNT}")
 
 export DYLD_INSERT_LIBRARIES=$(find ${PREFIX} -name libtinfow.dylib)
-settings_file=$(find "${PREFIX}"/ghc-bootstrap -name settings | head -1)
+settings_file=$(find "${BUILD_PREFIX}"/ghc-bootstrap -name settings | head -1)
 if [[ -n "${SDKROOT}" ]]; then
   perl -i -pe 's#("C compiler link flags", ")([^"]*)"#\1\2 -L$ENV{SDKROOT}/usr/lib"#g' "${settings_file}"
 fi

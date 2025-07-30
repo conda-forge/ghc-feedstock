@@ -122,7 +122,6 @@ tests:
         - lib/ghc-${{ version }}/lib/prelude.mjs
         - lib/ghc-${{ version }}/lib/settings
         - lib/ghc-${{ version }}/lib/template-hsc.h
-        - lib/ghc-${{ version }}/lib/*-ghc-${{ version }}-inplace/*${SHLIB_EXT}
         - lib/ghc-${{ version }}/lib/*-ghc-${{ version }}-inplace/*-inplace/*-inplace.a
         - if: linux and x86_64
           then:
@@ -138,7 +137,6 @@ tests:
             - lib/aarch64-unknown-ghc-${{ version }}/lib/prelude.mjs
             - lib/aarch64-unknown-ghc-${{ version }}/lib/settings
             - lib/aarch64-unknown-ghc-${{ version }}/lib/template-hsc.h
-            - lib/aarch64-unknown-ghc-${{ version }}/lib/*-ghc-${{ version }}-inplace/*${SHLIB_EXT}
             - lib/aarch64-unknown-ghc-${{ version }}/lib/*-ghc-${{ version }}-inplace/*-inplace/*-inplace.a
 
   - script: |
