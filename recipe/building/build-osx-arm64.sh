@@ -77,7 +77,8 @@ settings_file=$(find "${PREFIX}"/ghc-bootstrap -name settings | head -1)
 if [[ -n "${SDKROOT}" ]]; then
   perl -i -pe 's#("C compiler link flags", ")([^"]*)"#\1\2 -L$ENV{SDKROOT}/usr/lib"#g' "${settings_file}"
 fi
-"${_hadrian_build[@]}" stage1:exe:ghc-bin -vv --progress-info=unicorn
+cabal configure -v3
+"${_hadrian_build[@]}" stage1:exe:ghc-bin -V --progress-info=unicorn
 
 "${SRC_DIR}"/_build/stage0/bin/arm64-apple-darwin20.0.0-ghc --version || { echo "Stage0 GHC failed to report version"; exit 1; }
 
