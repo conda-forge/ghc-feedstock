@@ -28,7 +28,7 @@ requirements:
     - ${{ compiler('cxx') }}
     - ${{ stdlib('c') }}
     - cabal
-    - ghc-bootstrap
+    - ghc-bootstrap ==9.10.1
     - gmp
     - llvm-tools ${{ c_compiler_version }}.*
     - perl
