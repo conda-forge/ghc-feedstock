@@ -35,5 +35,5 @@ run_and_log "ghc-configure" bash configure "${SYSTEM_CONFIG[@]}" "${CONFIGURE_AR
 export LD_PRELOAD="${PREFIX}/lib/libiconv.so.2 ${PREFIX}/lib/libgmp.so.10 ${PREFIX}/lib/libffi.so.8 ${PREFIX}/lib/libtinfow.so.6 ${PREFIX}/lib/libtinfo.so.6 ${LD_PRELOAD:-}"
 run_and_log "install" "${_hadrian_build[@]}" install --prefix="${PREFIX}" --flavour=release --docs=none
 
-# Build cross-compiler for aarch64
-"${RECIPE_DIR}"/building/cross-build-linux-aarch64.sh
+# Build cross-compiler for aarch64 - desabled
+# Disable x-compiler: "${RECIPE_DIR}"/building/cross-build-linux-aarch64.sh

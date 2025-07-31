@@ -73,10 +73,12 @@ fi
 
 _hadrian_build=("${SRC_DIR}"/hadrian/build "-j${CPU_COUNT}")
 
-settings_file=$(find "${BUILD_PREFIX}"/ghc-bootstrap -name settings | head -1)
-if [[ -n "${SDKROOT}" ]]; then
-  perl -i -pe 's#("C compiler link flags", ")([^"]*)"#\1\2 -L$ENV{SDKROOT}/usr/lib"#g' "${settings_file}"
-fi
+# Should be corrected in ghc-bootstrap
+#settings_file=$(find "${BUILD_PREFIX}"/ghc-bootstrap -name settings | head -1)
+#if [[ -n "${SDKROOT}" ]]; then
+#  perl -i -pe 's#("C compiler link flags", ")([^"]*)"#\1\2 -L$ENV{SDKROOT}/usr/lib"#g' "${settings_file}"
+#fi
+
 "${_hadrian_build[@]}" stage1:exe:ghc-bin -V --flavour=release --progress-info=unicorn
 
 "${SRC_DIR}"/_build/stage0/bin/arm64-apple-darwin20.0.0-ghc --version || { echo "Stage0 GHC failed to report version"; exit 1; }
