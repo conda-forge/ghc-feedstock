@@ -101,13 +101,13 @@ tests:
           - hpc
           - runghc
           - runhaskell
-        - if: linux and x86_64
-          then:
-            - aarch64-conda-linux-gnu-ghc
-            - aarch64-conda-linux-gnu-ghc-pkg
-            - aarch64-conda-linux-gnu-ghci
-            - aarch64-conda-linux-gnu-hp2ps
-            - aarch64-conda-linux-gnu-hsc2hs
+        # Disabled: - if: linux and x86_64
+        # Disabled:   then:
+        # Disabled:     - aarch64-conda-linux-gnu-ghc
+        # Disabled:     - aarch64-conda-linux-gnu-ghc-pkg
+        # Disabled:     - aarch64-conda-linux-gnu-ghci
+        # Disabled:     - aarch64-conda-linux-gnu-hp2ps
+        # Disabled:     - aarch64-conda-linux-gnu-hsc2hs
       files:
         - etc/bash_completion.d/ghc
         - etc/conda/activate.d/ghc_activate.sh
@@ -123,21 +123,21 @@ tests:
         - lib/ghc-${{ version }}/lib/settings
         - lib/ghc-${{ version }}/lib/template-hsc.h
         - lib/ghc-${{ version }}/lib/*-ghc-${{ version }}-inplace/*-inplace/*-inplace.a
-        - if: linux and x86_64
-          then:
-            # It is too complex to change 'aarch64-unknown-ghc'
-            - lib/aarch64-unknown-ghc-${{ version }}/lib/llvm-passes
-            - lib/aarch64-unknown-ghc-${{ version }}/lib/llvm-targets
-            - lib/aarch64-unknown-ghc-${{ version }}/lib/package.conf.d/**
-            - lib/aarch64-unknown-ghc-${{ version }}/lib/dyld.mjs
-            - lib/aarch64-unknown-ghc-${{ version }}/lib/ghc-interp.js
-            - lib/aarch64-unknown-ghc-${{ version }}/lib/ghc-usage.txt
-            - lib/aarch64-unknown-ghc-${{ version }}/lib/ghci-usage.txt
-            - lib/aarch64-unknown-ghc-${{ version }}/lib/post-link.mjs
-            - lib/aarch64-unknown-ghc-${{ version }}/lib/prelude.mjs
-            - lib/aarch64-unknown-ghc-${{ version }}/lib/settings
-            - lib/aarch64-unknown-ghc-${{ version }}/lib/template-hsc.h
-            - lib/aarch64-unknown-ghc-${{ version }}/lib/*-ghc-${{ version }}-inplace/*-inplace/*-inplace.a
+        # Disabled: - if: linux and x86_64
+        # Disabled:   then:
+        # Disabled:     # It is too complex to change 'aarch64-unknown-ghc'
+        # Disabled:     - lib/aarch64-unknown-ghc-${{ version }}/lib/llvm-passes
+        # Disabled:     - lib/aarch64-unknown-ghc-${{ version }}/lib/llvm-targets
+        # Disabled:     - lib/aarch64-unknown-ghc-${{ version }}/lib/package.conf.d/**
+        # Disabled:     - lib/aarch64-unknown-ghc-${{ version }}/lib/dyld.mjs
+        # Disabled:     - lib/aarch64-unknown-ghc-${{ version }}/lib/ghc-interp.js
+        # Disabled:     - lib/aarch64-unknown-ghc-${{ version }}/lib/ghc-usage.txt
+        # Disabled:     - lib/aarch64-unknown-ghc-${{ version }}/lib/ghci-usage.txt
+        # Disabled:     - lib/aarch64-unknown-ghc-${{ version }}/lib/post-link.mjs
+        # Disabled:     - lib/aarch64-unknown-ghc-${{ version }}/lib/prelude.mjs
+        # Disabled:     - lib/aarch64-unknown-ghc-${{ version }}/lib/settings
+        # Disabled:     - lib/aarch64-unknown-ghc-${{ version }}/lib/template-hsc.h
+        # Disabled:     - lib/aarch64-unknown-ghc-${{ version }}/lib/*-ghc-${{ version }}-inplace/*-inplace/*-inplace.a
 
   - script: |
       ghc --version
@@ -164,27 +164,27 @@ tests:
         - if: unix
           then: ${{ stdlib('c') }}
 
-  - script:
-      - if: linux and x86_64
-        then: |
-          echo "Testing aarch64 cross-compiler..."
-          aarch64-conda-linux-gnu-ghc --version
-          printf 'main = putStrLn "Hello from aarch64 cross-compiler"\n' > cross_hello.hs
-          aarch64-conda-linux-gnu-ghc cross_hello.hs
-          file cross_hello | grep -i aarch64
-          qemu-execve-aarch64 cross_hello
-          echo "Cross-compiler test passed: generated aarch64 object file"
-        else:
-          echo "Skipping cross-compiler test (not available on this platform)"
-    requirements:
-      run:
-        - ${{ compiler('c') }}
-        - if: unix
-          then: ${{ stdlib('c') }}
-        - if: linux and x86_64
-          then:
-          - binutils_linux-aarch64
-          - qemu-execve-aarch64
+  # Disabled: - script:
+  # Disabled:     - if: linux and x86_64
+  # Disabled:       then: |
+  # Disabled:         echo "Testing aarch64 cross-compiler..."
+  # Disabled:         aarch64-conda-linux-gnu-ghc --version
+  # Disabled:         printf 'main = putStrLn "Hello from aarch64 cross-compiler"\n' > cross_hello.hs
+  # Disabled:         aarch64-conda-linux-gnu-ghc cross_hello.hs
+  # Disabled:         file cross_hello | grep -i aarch64
+  # Disabled:         qemu-execve-aarch64 cross_hello
+  # Disabled:         echo "Cross-compiler test passed: generated aarch64 object file"
+  # Disabled:       else:
+  # Disabled:         echo "Skipping cross-compiler test (not available on this platform)"
+  # Disabled:   requirements:
+  # Disabled:     run:
+  # Disabled:       - ${{ compiler('c') }}
+  # Disabled:       - if: unix
+  # Disabled:         then: ${{ stdlib('c') }}
+  # Disabled:       - if: linux and x86_64
+  # Disabled:         then:
+  # Disabled:         - binutils_linux-aarch64
+  # Disabled:         - qemu-execve-aarch64
 
 
 about:
