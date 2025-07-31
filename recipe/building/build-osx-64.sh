@@ -43,6 +43,6 @@ if [[ -n "${SDKROOT}" ]]; then
   perl -i -pe 's#("C compiler link flags", ")([^"]*)"#\1\2 -L$ENV{SDKROOT}/usr/lib"#g' "${settings_file}"
 fi
 cabal configure -v3
-"${_hadrian_build[@]}" stage1:exe:ghc-bin -V --progress-info=unicorn
+"${_hadrian_build[@]}" stage1:exe:ghc-bin -V --flavour=release --progress-info=unicorn
 
 run_and_log "install" "${_hadrian_build[@]}" install --prefix="${PREFIX}" --flavour=release --docs=none --progress-info=none
