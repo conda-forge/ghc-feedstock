@@ -21,9 +21,9 @@ _hadrian_build=("${SRC_DIR}"/hadrian/build "-j${CPU_COUNT}")
 
 # Configure and build GHC
 SYSTEM_CONFIG=(
-  --build="x86_64-conda-linux-gnu"
-  --host="x86_64-conda-linux-gnu"
-  --target="aarch64-conda-linux-gnu"
+  --build="x86_64-unknown-linux-gnu"
+  --host="x86_64-unknown-linux-gnu"
+  --target="aarch64-unknown-linux-gnu"
   --prefix="${PREFIX}"
 )
 
@@ -72,7 +72,7 @@ if [[ -n "${BINDIST_DIR}" ]]; then
     pushd "${BINDIST_DIR}"
     
     # Configure the binary distribution with proper cross-compilation settings
-    ./configure --prefix="${PREFIX}" --build=x86_64-conda-linux-gnu --host=x86_64-conda-linux-gnu --target=aarch64-conda-linux-gnu
+    ./configure --prefix="${PREFIX}" --build=x86_64-unknown-linux-gnu --host=x86_64-unknown-linux-gnu --target=aarch64-unknown-linux-gnu
     
     # Install
     make install

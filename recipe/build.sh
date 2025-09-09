@@ -57,7 +57,7 @@ arch="${arch#*-}"
 arch="${arch//arm64/aarch64}"
 
 # 9.6.7
-pushd "${PREFIX}/share/doc/ghc-${PKG_VERSION}-inplace" || true
+pushd "${PREFIX}/share/doc/ghc-${PKG_VERSION}" || true
 # 9.12+
 # pushd "${PREFIX}/share/doc/${arch}-${target_platform%%-*}-ghc-${PKG_VERSION}-inplace" || true
   for file in */LICENSE; do

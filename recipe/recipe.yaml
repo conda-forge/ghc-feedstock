@@ -47,6 +47,10 @@ requirements:
       then:
         - patchelf
 
+    - if: osx
+      then:
+        - libcxx
+
     - if: unix
       then:
         - autoconf
