@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -eux
+set -eu
 
 _log_index=0
 
@@ -33,7 +33,9 @@ CONFIGURE_ARGS=(
   --with-iconv-libraries="${PREFIX}"/lib
 )
 
+echo "wtf"
 find ${BUILD_PREFIX} ${PREFIX} /Applications/ -name "iostream.*"
+echo "wtf"
 
 run_and_log "ghc-configure" bash configure "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}"
 
