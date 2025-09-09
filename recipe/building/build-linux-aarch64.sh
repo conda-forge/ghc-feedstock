@@ -22,7 +22,7 @@ _hadrian_build=("${SRC_DIR}"/hadrian/build "-j${CPU_COUNT}")
 # Configure and build GHC
 SYSTEM_CONFIG=(
   --build="x86_64-unknown-linux-gnu"
-  --host="x86_64-unknown-linux-gnu"
+  --host="aarch64-unknown-linux-gnu"
   --target="aarch64-unknown-linux-gnu"
   --prefix="${PREFIX}"
 )
@@ -39,10 +39,11 @@ CONFIGURE_ARGS=(
   --with-gmp-libraries="${PREFIX}"/lib
   --with-iconv-includes="${PREFIX}"/include
   --with-iconv-libraries="${PREFIX}"/lib
+  ac_cv_lib_ffi_ffi_call=yes
 )
 
 # env
-find ${BUILD_PREFIX} ${PREFIX} -name "libffi.*"
+# find ${BUILD_PREFIX} ${PREFIX} -name "libffi.*"
 
 MergeObjsCmd=aarch64-conda-linux-gnu-ld.gold \
 AR=aarch64-conda-linux-gnu-ar \
@@ -54,10 +55,12 @@ RANLIB=aarch64-conda-linux-gnu-ranlib \
 LDFLAGS="-L${PREFIX}/lib ${LDFLAGS:-}" \
 run_and_log "ghc-configure" bash configure "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}"
 
+ls -lrt "${SRC_DIR}"/hadrian/cfg/
+
 # Fix host configuration to use x86_64, target aarch64
-perl -pi -e 's#"--target=[\w-]+"#"--target=x86_64-unknown-linux","--sysroot=$ENV{BUILD_PREFIX}/x86_64-conda-linux-gnu/sysroot"#'  "${SRC_DIR}"/hadrian/cfg/default.host.target
-perl -pi -e 's/aarch64/x86_64/;s/ArchAArch64/ArchX86_64/' "${SRC_DIR}"/hadrian/cfg/default.host.target
-perl -pi -e 's#"--target=[\w-]+"#"--target=aarch64-unknown-linux","--sysroot=$ENV{BUILD_PREFIX}/aarch64-conda-linux-gnu/sysroot"#'  "${SRC_DIR}"/hadrian/cfg/default.target
+#perl -pi -e 's#"--target=[\w-]+"#"--target=x86_64-unknown-linux","--sysroot=$ENV{BUILD_PREFIX}/x86_64-conda-linux-gnu/sysroot"#'  "${SRC_DIR}"/hadrian/cfg/default.host.target
+#perl -pi -e 's/aarch64/x86_64/;s/ArchAArch64/ArchX86_64/' "${SRC_DIR}"/hadrian/cfg/default.host.target
+#perl -pi -e 's#"--target=[\w-]+"#"--target=aarch64-unknown-linux","--sysroot=$ENV{BUILD_PREFIX}/aarch64-conda-linux-gnu/sysroot"#'  "${SRC_DIR}"/hadrian/cfg/default.target
 
 run_and_log "stage1_exe" "${_hadrian_build[@]}" stage1:exe:ghc-bin --flavour=release --docs=none --progress-info=none
 perl -pi -e 's#($ENV{BUILD_PREFIX}|$ENV{PREFIX})/bin/##' "${SRC_DIR}"/_build/stage0/lib/settings
