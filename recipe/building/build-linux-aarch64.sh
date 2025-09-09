@@ -42,7 +42,7 @@ CONFIGURE_ARGS=(
 )
 
 # env
-# cat $(find ${BUILD_PREFIX} -name settings -type f)
+find ${BUILD_PREFIX} ${PREFIX} -name "libffi.*"
 
 MergeObjsCmd=aarch64-conda-linux-gnu-ld.gold \
 AR=aarch64-conda-linux-gnu-ar \
@@ -51,6 +51,7 @@ CC=aarch64-conda-linux-gnu-clang \
 CXX=aarch64-conda-linux-gnu-clang++ \
 NM=aarch64-conda-linux-gnu-nm \
 RANLIB=aarch64-conda-linux-gnu-ranlib \
+LDFLAGS="-L${PREFIX}/lib ${LDFLAGS:-}" \
 run_and_log "ghc-configure" bash configure "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}"
 
 # Fix host configuration to use x86_64, target aarch64

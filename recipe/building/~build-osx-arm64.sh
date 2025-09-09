@@ -54,7 +54,7 @@ export HOST=${host_alias}
 
 # Bug in ghc-bootstrap for libiconv2
 if [[ "${target_platform}" == osx-arm64 ]]; then
-  perl -pi -e "s#${SDKROOT/usr/lib/libiconv2.tbd##" "${BUILD_PREFIX}"/ghc-bootstrap/lib/ghc-"${PKG_VERSION}"/lib/settings
+  perl -pi -e "s#${SDKROOT}/usr/lib/libiconv2.tbd##" "${BUILD_PREFIX}"/ghc-bootstrap/lib/ghc-"${PKG_VERSION}"/lib/settings
 fi 
 
 # This will not generate ghc-toolchain-bin or the .ghc-toolchain (possibly due to x-platform)
