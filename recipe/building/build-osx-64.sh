@@ -33,7 +33,7 @@ CONFIGURE_ARGS=(
   --with-iconv-libraries="${PREFIX}"/lib
 )
 
-echo $(find ${BUILD_PREFIX} ${PREFIX} -name "iostream.*")
+find ${BUILD_PREFIX} ${PREFIX} /Applications/ -name "iostream.*"
 
 run_and_log "ghc-configure" bash configure "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}"
 
