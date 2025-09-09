@@ -49,7 +49,7 @@ requirements:
 
     - if: osx
       then:
-        - libcxx
+        - libcxx-devel
 
     - if: unix
       then:
