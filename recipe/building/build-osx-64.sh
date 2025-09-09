@@ -33,7 +33,7 @@ CONFIGURE_ARGS=(
   --with-iconv-libraries="${PREFIX}"/lib
 )
 
-echo $(find ${BUILD_PREFIX} ${PREFIX} -name "iostream.*")
+CFLAGS="-I${SDKROOT}/Xcode_16.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.13.sdk/usr/include/c++/4.2.1/backward/ ${CFLAGS:-}"
 
 run_and_log "ghc-configure" bash configure "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}"
 
