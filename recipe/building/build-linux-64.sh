@@ -5,21 +5,29 @@ _log_index=0
 
 source "${RECIPE_DIR}"/building/common.sh
 
+# Install cabal in its own environment to maintain GLIBC 2.17 for GHC
+# if conda create -n cabal_env -y -c conda-forge cabal; then
+#   export CABAL="conda run -n cabal_env cabal"
+# else
+#   echo "Conda cabal install failed"
+#   exit 1
+# fi
+
+export CABAL="${BUILD_PREFIX}/bin/cabal"
+
 # Update cabal package database
-run_and_log "cabal-update" cabal v2-update
+run_and_log "cabal-update" "${CABAL}" v2-update
 
 _hadrian_build=("${SRC_DIR}"/hadrian/build "-j${CPU_COUNT}")
 
 # Configure and build GHC
 SYSTEM_CONFIG=(
-  --build="x86_64-conda-linux-gnu"
-  --host="x86_64-conda-linux-gnu"
+  --build="x86_64-unknown-linux"
+  --host="x86_64-unknown-linux"
   --prefix="${PREFIX}"
 )
 
 CONFIGURE_ARGS=(
-  --enable-ignore-build-platform-mismatch=yes
-  --disable-numa
   --with-system-libffi=yes
   --with-curses-includes="${PREFIX}"/include
   --with-curses-libraries="${PREFIX}"/lib
@@ -32,8 +40,15 @@ CONFIGURE_ARGS=(
 )
 run_and_log "ghc-configure" bash configure "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}"
 
-export LD_PRELOAD="${PREFIX}/lib/libiconv.so.2 ${PREFIX}/lib/libgmp.so.10 ${PREFIX}/lib/libffi.so.8 ${PREFIX}/lib/libtinfow.so.6 ${PREFIX}/lib/libtinfo.so.6 ${LD_PRELOAD:-}"
-run_and_log "install" "${_hadrian_build[@]}" install --prefix="${PREFIX}" --flavour=release --docs=none
+run_and_log "stage1_exe" "${_hadrian_build[@]}" stage1:exe:ghc-bin
+perl -pi -e 's#(C compiler link flags", "--target=x86_64-unknown-linux)#$1 -L\$topdir/../../../../lib#' "${SRC_DIR}"/_build/stage0/lib/settings
+perl -pi -e 's#(ld flags", ")#$1 -L\$topdir/../../../../lib #' "${SRC_DIR}"/_build/stage0/lib/settings
 
-# Build cross-compiler for aarch64 - desabled
-# Disable x-compiler: "${RECIPE_DIR}"/building/cross-build-linux-aarch64.sh
+export LD_LIBRARY_PATH="${BUILD_PREFIX}"/lib:${LD_LIBRARY_PATH:-}
+export LIBRARY_PATH="${BUILD_PREFIX}"/lib:${LIBRARY_PATH:-}
+export LDFLAGS="-L${BUILD_PREFIX}/lib -L${PREFIX}/lib ${LDFLAGS:-}"
+run_and_log "stage1_lib" "${_hadrian_build[@]}" stage1:lib:ghc
+perl -pi -e 's#(C compiler link flags", "--target=x86_64-unknown-linux)#$1 -L\$topdir/../../../../lib#' "${SRC_DIR}"/_build/stage0/lib/settings
+perl -pi -e 's#(ld flags", ")#$1 -L\$topdir/../../../../lib #' "${SRC_DIR}"/_build/stage0/lib/settings
+
+run_and_log "install" "${_hadrian_build[@]}" install --prefix="${PREFIX}" --flavour=release --docs=none

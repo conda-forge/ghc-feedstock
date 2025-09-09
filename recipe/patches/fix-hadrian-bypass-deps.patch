@@ -1,0 +1,36 @@
+--- a/hadrian/cabal.project
++++ b/hadrian/cabal.project
+@@ -1,9 +1,31 @@
+ packages: ./
+ 
+ -- This essentially freezes the build plan for hadrian
+-index-state: 2025-01-08T09:21:31Z
++-- Use older index state that works with Cabal 2.4.1.0
++index-state: 2023-12-01T00:00:00Z
++
++-- Allow any version to work around compatibility issues
++allow-newer: *:*
++allow-older: *:*
++
++-- Force specific working versions of problematic packages
++constraints:
++  clock ==0.8.3,
++  file-io ==0.1.4,
++  heaps ==0.4,
++  js-dgtable ==0.5.2,
++  js-flot ==0.8.3,
++  js-jquery ==3.3.1,
++  os-string ==2.0.6,
++  primitive ==0.8.0.0,
++  splitmix ==0.1.0.5,
++  utf8-string ==1.0.2,
++  directory ==1.3.8.0,
++  hashable ==1.4.3.0,
++  random ==1.2.1.1,
++  process ==1.6.18.0
+ 
+ -- N.B. Compile with -O0 since this is not a performance-critical executable
+ -- and the Cabal takes nearly twice as long to build with -O1. See #16817.
+ package Cabal
+   optimization: False
++  documentation: False

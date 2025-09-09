@@ -1,6 +1,5 @@
 context:
-  version: "9.12.2"
-  cabal_version: "3.14.2.0"
+  version: "9.6.7"
 
 package:
   name: ghc
@@ -8,12 +7,20 @@ package:
 
 source:
   - url: https://downloads.haskell.org/~ghc/${{ version }}/ghc-${{ version }}-src.tar.xz
-    sha256: 0e49cd5dde43f348c5716e5de9a5d7a0f8d68d945dc41cf75dfdefe65084f933
-    patches:
-      - patch-rpath-macos.patch
-      - if: osx and arm64
-        then:
-          - patch-osname-macos.patch
+    sha256: d053bf6ce1d588a75cfe8c9316269486e9d8fb89dcdf6fd92836fa2e3df61305
+  # - if: linux
+  #   then:
+  #     url: https://downloads.haskell.org/~ghc/${{ version }}/ghc-${{ version }}-x86_64-alpine3_12-linux-static-int_native.tar.xz
+  #     sha256: 7c411cf5285f32c977bf1ed66e2cf7b54f59af2056ed1d125b93c62a724844be
+  #     target_directory: ghc-bootstrap
+    
+    # patches:
+    #  - patches/fix-hadrian-build-cabal.patch
+    #  - patches/fix-hadrian-bypass-deps.patch
+    #  - patch-rpath-macos.patch
+    #  - if: osx and arm64
+    #    then:
+    #      - patch-osname-macos.patch
 
 build:
   number: 0
@@ -27,12 +34,13 @@ requirements:
     - ${{ compiler('c') }}
     - ${{ compiler('cxx') }}
     - ${{ stdlib('c') }}
-    - cabal
-    - ghc-bootstrap ==9.10.1
+    - binutils
+    - cabal ==3.10.3.0
+    - ghc-bootstrap ==9.6.7
     - gmp
+    - libiconv
     - llvm-tools ${{ c_compiler_version }}.*
-    - perl
-    - python 3.12.*
+    - python 3.10.*
     - sphinx
 
     - if: linux
@@ -61,6 +69,7 @@ requirements:
       then:
         - gmp
         - libffi
+        - libiconv
         - ncurses
 
     - if: target_platform == "linux-aarch64"
@@ -71,13 +80,13 @@ requirements:
         - sysroot_${{ build_platform }} >=${{ c_stdlib_version }}
 
     # Cross-compiler aarch64 on linux-64
-    - if: target_platform == "linux-64"
-      then:
-        - ${{ c_stdlib }}_linux-aarch64 >=${{ c_stdlib_version }}
-        - binutils_impl_linux-aarch64 ${{ binutils_version }}.*
-        - ${{ c_compiler }}_impl_linux-aarch64 ${{ c_compiler_version }}.*
-        - ${{ cxx_compiler }}_impl_linux-aarch64 ${{ cxx_compiler_version }}.*
-        - libgcc-devel_linux-aarch64
+    # Disabled: - if: target_platform == "linux-64"
+    # Disabled:   then:
+    # Disabled:     - ${{ c_stdlib }}_linux-aarch64 >=${{ c_stdlib_version }}
+    # Disabled:     - binutils_impl_linux-aarch64 ${{ binutils_version }}.*
+    # Disabled:     - ${{ c_compiler }}_impl_linux-aarch64 ${{ c_compiler_version }}.*
+    # Disabled:     - ${{ cxx_compiler }}_impl_linux-aarch64 ${{ cxx_compiler_version }}.*
+    # Disabled:     - libgcc-devel_linux-aarch64
   host:
     - gmp
     - libiconv

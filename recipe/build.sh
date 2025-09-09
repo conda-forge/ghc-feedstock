@@ -33,10 +33,16 @@ cp "${RECIPE_DIR}/activate.sh" "${PREFIX}/etc/conda/activate.d/${PKG_NAME}_activ
 
 # Cleanup potential hard-coded build env paths
 if [[ -f "${PREFIX}"/lib/ghc-"${PKG_VERSION}"/lib/settings ]]; then
-  perl -pi -e 's#($ENV{BUILD_PREFIX}|$ENV{PREFIX})/bin/##g' "${PREFIX}"/lib/ghc-"${PKG_VERSION}"/lib/settings
+  python -c "
+import os, re
+f = '${PREFIX}/lib/ghc-${PKG_VERSION}/lib/settings'
+with open(f, 'r') as file: content = file.read()
+content = re.sub(rf'({re.escape(os.environ.get(\"BUILD_PREFIX\", \"\"))}|{re.escape(os.environ.get(\"PREFIX\", \"\"))})/bin/', '', content)
+with open(f, 'w') as file: file.write(content)
+"
 fi
 
-# Find all the .dylib libs with the '-ghc9.12.2' extension and link them to non-'-ghc9.12.2'
+# Find all the .dylib libs with the '-ghc<version>' extension and link them to non-'-ghc<version>'
 find "${PREFIX}/lib" -name "*-ghc${PKG_VERSION}.dylib" -o -name "*-ghc${PKG_VERSION}.so" | while read -r lib; do
   base_lib="${lib//-ghc${PKG_VERSION}./.}"
   if [[ ! -e "$base_lib" ]]; then
@@ -49,7 +55,11 @@ arch="-${target_platform#*-}"
 arch="${arch//-64/-x86_64}"
 arch="${arch#*-}"
 arch="${arch//arm64/aarch64}"
-pushd "${PREFIX}/share/doc/${arch}-${target_platform%%-*}-ghc-${PKG_VERSION}-inplace" || true
+
+# 9.6.7
+pushd "${PREFIX}/share/doc/ghc-${PKG_VERSION}-inplace" || true
+# 9.12+
+# pushd "${PREFIX}/share/doc/${arch}-${target_platform%%-*}-ghc-${PKG_VERSION}-inplace" || true
   for file in */LICENSE; do
     cp "${file///-}" "${SRC_DIR}"/license_files
   done
