@@ -42,12 +42,12 @@ export CXXFLAGS="-isystem ${BUILD_PREFIX}/include/c++/v1 ${CXXFLAGS:-}"
 export CXX="${CXX:-clang++} -stdlib=libc++ -v -isystem ${BUILD_PREFIX}/include/c++/v1 -isysroot $(xcrun --show-sdk-path)"
 export CPP="${CXX:-clang++} -stdlib=libc++ -isystem ${BUILD_PREFIX}/include/c++/v1 -isysroot $(xcrun --show-sdk-path) -E"
 export ac_cv_cxx_stdlib_flavour="c++"
-sed -i.bak 's/if ! "\$CXX" -E actest.cpp -o actest.out; then/if ! "\$CXX" -stdlib=libc++ -isystem '"${BUILD_PREFIX//\//\\/}"'\/include\/c++\/v1 -isysroot $(xcrun --show-sdk-path) -E actest.cpp -o actest.out; then/' configure
-sed -i.bak3 '/mkdir -p actest.tmp/,/rm -f actest.cpp actest.out/c\
-  echo "C++ detection bypassed - setting libc++"\
+  sed -i.bak4 '/mkdir -p actest.tmp/,/^fi$/c\
+  echo "C++ detection completely bypassed"\
   CXX_STD_LIB_FLAVOUR="c++"\
   CXX_STD_LIB_LIBS=""' configure
-run_and_log "ghc-configure" bash configure "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}"
+run_and_log "ghc-configure" bash configure -v "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}"
+cat config.log
 
 _hadrian_build=("${SRC_DIR}"/hadrian/build "-j${CPU_COUNT}")
 
