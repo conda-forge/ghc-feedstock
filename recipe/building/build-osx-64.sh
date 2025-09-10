@@ -33,7 +33,7 @@ CONFIGURE_ARGS=(
   --with-iconv-libraries="${PREFIX}"/lib
 )
 
-CFLAGS="-isystem ${SDKROOT}/usr/include/c++/4.2.1/backward ${CFLAGS:-}" \
+CXXFLAGS="-isystem ${SDKROOT}/usr/include/c++/4.2.1/backward ${CXXFLAGS:-}" \
 run_and_log "ghc-configure" bash configure "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}"
 
 _hadrian_build=("${SRC_DIR}"/hadrian/build "-j${CPU_COUNT}")
