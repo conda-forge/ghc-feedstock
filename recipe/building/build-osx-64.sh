@@ -33,11 +33,11 @@ CONFIGURE_ARGS=(
   --with-iconv-libraries="${PREFIX}"/lib
 )
 
-ls "${PREFIX}"/include/c++/v1
+ls "${BUILD_PREFIX}"/include/c++/v1
 export CXX_STD_LIB_FLAVOUR="c++"
 export CXXFLAGS="-stdlib=libc++ ${CXXFLAGS:-}"
 export CXXFLAGS="-isysroot $(xcrun --show-sdk-path) ${CXXFLAGS:-}"
-export CXXFLAGS="-isystem ${PREFIX}/include/c++/v1 ${CXXFLAGS:-}"
+export CXXFLAGS="-isystem ${BUILD_PREFIX}/include/c++/v1 ${CXXFLAGS:-}"
 run_and_log "ghc-configure" bash configure "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}"
 
 _hadrian_build=("${SRC_DIR}"/hadrian/build "-j${CPU_COUNT}")
