@@ -42,6 +42,7 @@ export CXXFLAGS="-isystem ${BUILD_PREFIX}/include/c++/v1 ${CXXFLAGS:-}"
 export CXX="${CXX:-clang++} -stdlib=libc++ -v -isystem ${BUILD_PREFIX}/include/c++/v1 -isysroot $(xcrun --show-sdk-path)"
 export CPP="${CXX:-clang++} -stdlib=libc++ -isystem ${BUILD_PREFIX}/include/c++/v1 -isysroot $(xcrun --show-sdk-path) -E"
 export ac_cv_cxx_stdlib_flavour="c++"
+sed -i.bak 's/if ! "\$CXX" -E actest.cpp -o actest.out; then/if ! "\$CXX" -stdlib=libc++ -isystem '"${BUILD_PREFIX//\//\\/}"'\/include\/c++\/v1 -isysroot $(xcrun --show-sdk-path) -E actest.cpp -o actest.out; then/' configure
 run_and_log "ghc-configure" bash configure "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}"
 
 _hadrian_build=("${SRC_DIR}"/hadrian/build "-j${CPU_COUNT}")
