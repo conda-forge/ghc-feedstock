@@ -33,10 +33,7 @@ CONFIGURE_ARGS=(
   --with-iconv-libraries="${PREFIX}"/lib
 )
 
-echo "wtf"
-find ${BUILD_PREFIX} ${PREFIX} /Applications/ -name "iostream.*"
-echo "wtf"
-
+CXXFLAGS="${SDKROOT}/usr/include/c++/4.2.1/backward ${CXXFLAGS:-}" \
 run_and_log "ghc-configure" bash configure "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}"
 
 _hadrian_build=("${SRC_DIR}"/hadrian/build "-j${CPU_COUNT}")
