@@ -39,7 +39,7 @@ CONFIGURE_ARGS=(
 # export CXXFLAGS="-stdlib=libc++ ${CXXFLAGS:-}"
 # export CXXFLAGS="-isysroot $(xcrun --show-sdk-path) ${CXXFLAGS:-}"
 # export CXXFLAGS="-isystem ${BUILD_PREFIX}/include/c++/v1 ${CXXFLAGS:-}"
-# export CXX="${CXX:-clang++} -stdlib=libc++ -v -isystem ${BUILD_PREFIX}/include/c++/v1 -isysroot $(xcrun --show-sdk-path)"
+export CXX="echo"
 # export CPP="${CXX:-clang++} -stdlib=libc++ -isystem ${BUILD_PREFIX}/include/c++/v1 -isysroot $(xcrun --show-sdk-path) -E"
 # export ac_cv_cxx_stdlib_flavour="c++"
 sed -i.bak '/mkdir -p actest.tmp/,/rm -f actest.cpp actest.out/s/^/#/' configure
