@@ -21,7 +21,6 @@ SYSTEM_CONFIG=(
 
 CONFIGURE_ARGS=(
   --disable-numa
-  --enable-ignore-build-platform-mismatch=yes
   --with-system-libffi=yes
   --with-curses-includes="${PREFIX}"/include
   --with-curses-libraries="${PREFIX}"/lib
@@ -43,7 +42,7 @@ export CXX="echo"
 # export CPP="${CXX:-clang++} -stdlib=libc++ -isystem ${BUILD_PREFIX}/include/c++/v1 -isysroot $(xcrun --show-sdk-path) -E"
 # export ac_cv_cxx_stdlib_flavour="c++"
 sed -i.bak '/mkdir -p actest.tmp/,/rm -f actest.cpp actest.out/s/^/#/' configure
-./configure -v "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}"
+run_and_log "configure" bash -x ./configure -v "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}"
 cat config.log
 
 _hadrian_build=("${SRC_DIR}"/hadrian/build "-j${CPU_COUNT}")
