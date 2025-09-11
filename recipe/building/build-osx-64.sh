@@ -42,7 +42,7 @@ CONFIGURE_ARGS=(
 # export CPP="${CXX:-clang++} -stdlib=libc++ -isystem ${BUILD_PREFIX}/include/c++/v1 -isysroot $(xcrun --show-sdk-path) -E"
 # export ac_cv_cxx_stdlib_flavour="c++"
 # sed -i.bak '/mkdir -p actest.tmp/,/rm -f actest.cpp actest.out/s/^/#/' configure
-export PATH="${BUILD_PREFIX}/bin:${PREFIX}/bin:/usr/bin:/bin"
+export PATH="${BUILD_PREFIX}/bin:${PREFIX}/bin:${PREFIX}/ghc-bootstrap/bin:/usr/bin:/bin"
 export ac_cv_prog_CC="x86_64-apple-darwin13.4.0-clang"
 export ac_cv_path_CC="x86_64-apple-darwin13.4.0-clang"
 export ac_cv_prog_CXX="x86_64-apple-darwin13.4.0-clang++"
