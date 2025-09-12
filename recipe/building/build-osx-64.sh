@@ -52,6 +52,10 @@ export ac_cv_path_CXX="x86_64-apple-darwin13.4.0-clang++"
 export ac_cv_path_ac_pt_CC=""
 export ac_cv_path_ac_pt_CXX=""
 export GHC="${BUILD_PREFIX}/ghc-bootstrap/bin/ghc"
+printf 'import System.Posix.Signals\nmain = installHandler sigTERM Default Nothing >> putStrLn "Signal test"\n' > signal_test.hs
+${BUILD_PREFIX}/ghc-bootstrap/bin/ghc --version
+${BUILD_PREFIX}/ghc-bootstrap/bin/ghc -v signal_test.hs
+
 # Force specific tools
 export ac_cv_prog_ac_ct_CC=""
 export ac_cv_prog_ac_ct_CXX=""
