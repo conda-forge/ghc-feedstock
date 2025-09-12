@@ -33,9 +33,10 @@ CONFIGURE_ARGS=(
 )
 
 # Temporary: ghc-bootstrap is being re-worked
-if [[ -f "${SDKROOT}"/usr/lib/libiconv.2.tbd ]]; then
-  sed -i -E "s#[^ ]*/usr/lib/libiconv.2.tbd#${SDKROOT}/usr/lib/libiconv.2.tbd#" "${BUILD_PREFIX}"/ghc-bootstrap/lib/ghc-*/lib/settings
-fi
+sed -i -E "s#/Application[^ ]*#${SDKROOT}#" "${BUILD_PREFIX}"/ghc-bootstrap/lib/ghc-*/lib/settings
+#if [[ -f "${SDKROOT}"/usr/lib/libiconv.2.tbd ]]; then
+#  sed -i -E "s#[^ ]*/usr/lib/libiconv.2.tbd#${SDKROOT}/usr/lib/libiconv.2.tbd#" "${BUILD_PREFIX}"/ghc-bootstrap/lib/ghc-*/lib/settings
+#fi
 
 # Remove LTO
 if [[ -f "${SDKROOT}"/usr/lib/libLTO.dylib ]]; then
@@ -61,7 +62,8 @@ printf 'import System.Posix.Signals\nmain = installHandler sigTERM Default Nothi
 ${BUILD_PREFIX}/ghc-bootstrap/bin/ghc --version
 ${BUILD_PREFIX}/ghc-bootstrap/bin/ghc signal_test.hs
 
-bash ./configure -v "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}"
+bash ./configure -v "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}" || true
+cat config.log && exit 1
 
 _hadrian_build=("${SRC_DIR}"/hadrian/build "-j${CPU_COUNT}")
 
