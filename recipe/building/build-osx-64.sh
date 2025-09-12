@@ -41,6 +41,8 @@ fi
 if [[ -f "${SDKROOT}"/usr/lib/libLTO.dylib ]]; then
   export LDFLAGS="-Wl,-lto_library,${SDKROOT}/usr/lib/libLTO.dylib${LDFLAGS:-}"
 else
+  export CFLAGS="${CFLAGS//-flto/}"
+  export CXXFLAGS="${CXXFLAGS//-flto/}"
   export LDFLAGS="-Wl,-no_lto_library ${LDFLAGS:-}"
 fi
 
@@ -57,7 +59,7 @@ export ac_cv_path_ac_pt_CXX=""
 # Verify ghc-bootstrap configuration
 printf 'import System.Posix.Signals\nmain = installHandler sigTERM Default Nothing >> putStrLn "Signal test"\n' > signal_test.hs
 ${BUILD_PREFIX}/ghc-bootstrap/bin/ghc --version
-${BUILD_PREFIX}/ghc-bootstrap/bin/ghc -v signal_test.hs
+${BUILD_PREFIX}/ghc-bootstrap/bin/ghc signal_test.hs
 
 bash ./configure -v "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}"
 
