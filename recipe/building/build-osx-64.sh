@@ -33,8 +33,8 @@ CONFIGURE_ARGS=(
 )
 
 # Temporary: ghc-bootstrap is being re-worked
-if [[ ! -f "${SDKROOT}"/usr/lib/libiconv.2.tbd ]]; then
-  sed -i -E "s#[^ ]*/usr/lib/libiconv.2.tbd##" "${BUILD_PREFIX}"/ghc-bootstrap/lib/ghc-*/lib/settings
+if [[ -f "${SDKROOT}"/usr/lib/libiconv.2.tbd ]]; then
+  sed -i -E "s#[^ ]*/usr/lib/libiconv.2.tbd#${SDKROOT}/usr/lib/libiconv.2.tbd#" "${BUILD_PREFIX}"/ghc-bootstrap/lib/ghc-*/lib/settings
 fi
 
 # Remove LTO
@@ -53,7 +53,6 @@ export ac_cv_path_CXX="x86_64-apple-darwin13.4.0-clang++"
 # Prevent autoconf from finding system compilers
 export ac_cv_path_ac_pt_CC=""
 export ac_cv_path_ac_pt_CXX=""
-
 
 # Verify ghc-bootstrap configuration
 printf 'import System.Posix.Signals\nmain = installHandler sigTERM Default Nothing >> putStrLn "Signal test"\n' > signal_test.hs
