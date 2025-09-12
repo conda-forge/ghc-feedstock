@@ -51,7 +51,7 @@ export ac_cv_path_CXX="x86_64-apple-darwin13.4.0-clang++"
 # Prevent autoconf from finding system compilers
 export ac_cv_path_ac_pt_CC=""
 export ac_cv_path_ac_pt_CXX=""
-
+export GHC="${BUILD_PREFIX}/ghc-bootstrap/bin/ghc -v1"
 # Force specific tools
 export ac_cv_prog_ac_ct_CC=""
 export ac_cv_prog_ac_ct_CXX=""
