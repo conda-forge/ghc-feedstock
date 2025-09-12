@@ -32,36 +32,35 @@ CONFIGURE_ARGS=(
   --with-iconv-libraries="${PREFIX}"/lib
 )
 
-# ls "${BUILD_PREFIX}"/include/c++/v1
-# export CXX_STD_LIB_LIBS=""
-# export CXX_STD_LIB_FLAVOUR="c++"
-# export CXXFLAGS="-stdlib=libc++ ${CXXFLAGS:-}"
-# export CXXFLAGS="-isysroot $(xcrun --show-sdk-path) ${CXXFLAGS:-}"
-# export CXXFLAGS="-isystem ${BUILD_PREFIX}/include/c++/v1 ${CXXFLAGS:-}"
-# export CXX="echo"
-# export CPP="${CXX:-clang++} -stdlib=libc++ -isystem ${BUILD_PREFIX}/include/c++/v1 -isysroot $(xcrun --show-sdk-path) -E"
-# export ac_cv_cxx_stdlib_flavour="c++"
-# sed -i.bak '/mkdir -p actest.tmp/,/rm -f actest.cpp actest.out/s/^/#/' configure
-sed -i -E "s#[^ ]*/usr/lib/libiconv.2.tbd##" "${BUILD_PREFIX}"/ghc-bootstrap/lib/ghc-*/lib/settings
+# Temporary: ghc-bootstrap is being re-worked
+if [[ ! -f "${SDKROOT}"/usr/lib/libiconv.2.tbd ]]; then
+  sed -i -E "s#[^ ]*/usr/lib/libiconv.2.tbd##" "${BUILD_PREFIX}"/ghc-bootstrap/lib/ghc-*/lib/settings
+fi
 
-export PATH="${BUILD_PREFIX}/bin:${PREFIX}/bin:${BUILD_PREFIX}/ghc-bootstrap/bin:/usr/bin:/bin"
+# Remove LTO
+if [[ -f "${SDKROOT}"/usr/lib/libLTO.dylib ]]; then
+  export LDFLAGS="-Wl,-lto_library,${SDKROOT}/usr/lib/libLTO.dylib${LDFLAGS:-}"
+else
+  export LDFLAGS="-Wl,-no_lto_library ${LDFLAGS:-}"
+fi
+
+# configure detect the wrong CC/CXX (unknown why)
 export ac_cv_prog_CC="x86_64-apple-darwin13.4.0-clang"
 export ac_cv_path_CC="x86_64-apple-darwin13.4.0-clang"
 export ac_cv_prog_CXX="x86_64-apple-darwin13.4.0-clang++"
 export ac_cv_path_CXX="x86_64-apple-darwin13.4.0-clang++"
+
 # Prevent autoconf from finding system compilers
 export ac_cv_path_ac_pt_CC=""
 export ac_cv_path_ac_pt_CXX=""
-export GHC="${BUILD_PREFIX}/ghc-bootstrap/bin/ghc"
+
+
+# Verify ghc-bootstrap configuration
 printf 'import System.Posix.Signals\nmain = installHandler sigTERM Default Nothing >> putStrLn "Signal test"\n' > signal_test.hs
 ${BUILD_PREFIX}/ghc-bootstrap/bin/ghc --version
 ${BUILD_PREFIX}/ghc-bootstrap/bin/ghc -v signal_test.hs
 
-# Force specific tools
-export ac_cv_prog_ac_ct_CC=""
-export ac_cv_prog_ac_ct_CXX=""
-bash ./configure -v "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}" || true
-cat config.log
+bash ./configure -v "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}"
 
 _hadrian_build=("${SRC_DIR}"/hadrian/build "-j${CPU_COUNT}")
 
