@@ -33,7 +33,8 @@ CONFIGURE_ARGS=(
 )
 
 # Temporary: ghc-bootstrap is being re-worked
-sed -i -E "s#/Applications[^ ]*#${SDKROOT}#" "${BUILD_PREFIX}"/ghc-bootstrap/lib/ghc-*/lib/settings
+grep Applications "${BUILD_PREFIX}"/ghc-bootstrap/lib/ghc-*/lib/settings
+sed -i -E "s#/Applications[^ ]*#${SDKROOT}#g" "${BUILD_PREFIX}"/ghc-bootstrap/lib/ghc-*/lib/settings
 grep Applications "${BUILD_PREFIX}"/ghc-bootstrap/lib/ghc-*/lib/settings
 #if [[ -f "${SDKROOT}"/usr/lib/libiconv.2.tbd ]]; then
 #  sed -i -E "s#[^ ]*/usr/lib/libiconv.2.tbd#${SDKROOT}/usr/lib/libiconv.2.tbd#" "${BUILD_PREFIX}"/ghc-bootstrap/lib/ghc-*/lib/settings
