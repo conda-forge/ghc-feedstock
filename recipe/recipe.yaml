@@ -27,12 +27,13 @@ requirements:
     - ${{ compiler('c') }}
     - ${{ compiler('cxx') }}
     - ${{ stdlib('c') }}
-    - cabal
-    - ghc-bootstrap ==9.10.1
+    - binutils
+    - cabal ==3.10.3.0
+    - ghc-bootstrap ==9.6.7
     - gmp
+    - libiconv
     - llvm-tools ${{ c_compiler_version }}.*
-    - perl
-    - python 3.12.*
+    - python 3.10.*
     - sphinx
 
     - if: linux
@@ -61,6 +62,7 @@ requirements:
       then:
         - gmp
         - libffi
+        - libiconv
         - ncurses
 
     - if: target_platform == "linux-aarch64"
@@ -71,13 +73,13 @@ requirements:
         - sysroot_${{ build_platform }} >=${{ c_stdlib_version }}
 
     # Cross-compiler aarch64 on linux-64
-    - if: target_platform == "linux-64"
-      then:
-        - ${{ c_stdlib }}_linux-aarch64 >=${{ c_stdlib_version }}
-        - binutils_impl_linux-aarch64 ${{ binutils_version }}.*
-        - ${{ c_compiler }}_impl_linux-aarch64 ${{ c_compiler_version }}.*
-        - ${{ cxx_compiler }}_impl_linux-aarch64 ${{ cxx_compiler_version }}.*
-        - libgcc-devel_linux-aarch64
+    # Disabled: - if: target_platform == "linux-64"
+    # Disabled:   then:
+    # Disabled:     - ${{ c_stdlib }}_linux-aarch64 >=${{ c_stdlib_version }}
+    # Disabled:     - binutils_impl_linux-aarch64 ${{ binutils_version }}.*
+    # Disabled:     - ${{ c_compiler }}_impl_linux-aarch64 ${{ c_compiler_version }}.*
+    # Disabled:     - ${{ cxx_compiler }}_impl_linux-aarch64 ${{ cxx_compiler_version }}.*
+    # Disabled:     - libgcc-devel_linux-aarch64
   host:
     - gmp
     - libiconv
