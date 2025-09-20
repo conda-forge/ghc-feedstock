@@ -65,13 +65,13 @@ export ac_cv_path_ac_pt_CXX=""
 
 bash ./configure -v "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}" || true
 
-echo "."; echo "."; echo "."; echo ".";
-cat config.log && exit 1
-echo "."; echo "."; echo "."; echo ".";
+# echo "."; echo "."; echo "."; echo ".";
+# cat config.log && exit 1
+# echo "."; echo "."; echo "."; echo ".";
 
 _hadrian_build=("${SRC_DIR}"/hadrian/build "-j${CPU_COUNT}")
 
-export DYLD_INSERT_LIBRARIES=$(find ${PREFIX} -name libtinfow.dylib)
+# export DYLD_INSERT_LIBRARIES=$(find ${PREFIX} -name libtinfow.dylib)
 
 # Should be corrected in ghc-bootstrap
 #settings_file=$(find "${BUILD_PREFIX}"/ghc-bootstrap -name settings | head -1)
