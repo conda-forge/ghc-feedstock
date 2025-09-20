@@ -32,8 +32,8 @@ CONFIGURE_ARGS=(
   --with-iconv-libraries="${PREFIX}"/lib
 )
 
-CPPFLAGS="-isystem ${SDKROOT}/usr/include/c++/4.2.1/backward ${CPPFLAGS:-}" \
-CXXFLAGS="-isystem ${SDKROOT}/usr/include/c++/4.2.1/backward ${CXXFLAGS:-}" \
+export ac_cv_path_ac_pt_CC=""
+export ac_cv_path_ac_pt_CXX=""
 run_and_log "configure" bash configure "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}" || true
 
 cat config.log || true
