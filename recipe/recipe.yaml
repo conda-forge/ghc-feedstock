@@ -42,6 +42,7 @@ requirements:
     - llvm-tools ${{ c_compiler_version }}.*
     - python 3.10.*
     - sphinx
+    - zstd
 
     - if: linux
       then:

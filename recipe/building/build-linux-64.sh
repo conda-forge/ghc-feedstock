@@ -5,14 +5,6 @@ _log_index=0
 
 source "${RECIPE_DIR}"/building/common.sh
 
-# Install cabal in its own environment to maintain GLIBC 2.17 for GHC
-# if conda create -n cabal_env -y -c conda-forge cabal; then
-#   export CABAL="conda run -n cabal_env cabal"
-# else
-#   echo "Conda cabal install failed"
-#   exit 1
-# fi
-
 export CABAL="${BUILD_PREFIX}/bin/cabal"
 
 # Update cabal package database

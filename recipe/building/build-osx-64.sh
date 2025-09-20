@@ -21,7 +21,6 @@ SYSTEM_CONFIG=(
 
 CONFIGURE_ARGS=(
   --disable-numa
-  --enable-ignore-build-platform-mismatch=yes
   --with-system-libffi=yes
   --with-curses-includes="${PREFIX}"/include
   --with-curses-libraries="${PREFIX}"/lib
@@ -35,12 +34,16 @@ CONFIGURE_ARGS=(
 
 CPPFLAGS="-isystem ${SDKROOT}/usr/include/c++/4.2.1/backward ${CPPFLAGS:-}" \
 CXXFLAGS="-isystem ${SDKROOT}/usr/include/c++/4.2.1/backward ${CXXFLAGS:-}" \
-run_and_log "ghc-configure" bash configure "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}"
+run_and_log "configure" bash configure "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}" || true
+
+cat config.log || true
 
 _hadrian_build=("${SRC_DIR}"/hadrian/build "-j${CPU_COUNT}")
 
 export DYLD_INSERT_LIBRARIES=$(find ${PREFIX} -name libtinfow.dylib)
-
-"${_hadrian_build[@]}" stage1:exe:ghc-bin -V --flavour=release --progress-info=unicorn
+run_and_log "stage1_exe" "${_hadrian_build[@]}" stage1:exe:ghc-bin
+run_and_log "stage1_lib" "${_hadrian_build[@]}" stage1:lib:ghc
+run_and_log "stage2_exe" "${_hadrian_build[@]}" stage2:exe:ghc-bin
+run_and_log "stage2_lib" "${_hadrian_build[@]}" stage2:lib:ghc
 
 run_and_log "install" "${_hadrian_build[@]}" install --prefix="${PREFIX}" --flavour=release --docs=none --progress-info=none
