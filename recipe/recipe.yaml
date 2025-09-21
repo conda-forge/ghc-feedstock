@@ -132,7 +132,7 @@ tests:
         - lib/ghc-${{ version }}/lib/ghci-usage.txt
         - lib/ghc-${{ version }}/lib/settings
         - lib/ghc-${{ version }}/lib/template-hsc.h
-        - if: ${{ version }} != "9.6.7"
+        - if: version != "9.6.7"
           then:
             - lib/ghc-${{ version }}/lib/ghc-interp.js
             - lib/ghc-${{ version }}/lib/post-link.mjs
