@@ -22,8 +22,6 @@ SYSTEM_CONFIG=(
 CONFIGURE_ARGS=(
   --disable-numa
   --enable-ignore-build-platform-mismatch=yes
-  --enable-shared
-  --disable-static
   --with-system-libffi=yes
   --with-curses-includes="${PREFIX}"/include
   --with-curses-libraries="${PREFIX}"/lib
@@ -36,6 +34,8 @@ CONFIGURE_ARGS=(
 )
 
 run_and_log "ghc-configure" bash configure "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}"
+perl -i -pe 's#x86_64-apple-darwin13.4.0-ar#/usr/bin/ar"#g' "${SRC_DIR}"/hadrian/cfg/default.target
+perl -i -pe 's#x86_64-apple-darwin13.4.0-ranlib#/usr/bin/ranlib"#g' "${SRC_DIR}"/hadrian/cfg/default.target
 
 _hadrian_build=("${SRC_DIR}"/hadrian/build "-j${CPU_COUNT}")
 

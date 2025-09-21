@@ -19,8 +19,6 @@ SYSTEM_CONFIG=(
 
 CONFIGURE_ARGS=(
   --enable-ignore-build-platform-mismatch=yes
-  --enable-shared
-  --disable-static
   --disable-numa
   --with-system-libffi=yes
   --with-curses-includes="${PREFIX}"/include
@@ -33,14 +31,14 @@ CONFIGURE_ARGS=(
   --with-iconv-libraries="${PREFIX}"/lib
 )
 
-CFLAGS="${CFLAGS} -Wl,--allow-multiple-definition" \
-LDFLAGS="${LDFLAGS} -Wl,--no-as-needed -Wl,--allow-multiple-definition -optl-Wl,--allow-multiple-definition" \
 run_and_log "ghc-configure" bash configure "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}"
 
-perl -i -pe 's#("C compiler link flags", ")([^"]*)"#\1\2 -Wl,--allow-multiple-definition"#g' "${BUILD_PREFIX}"/ghc-bootstrap/lib/ghc-*/settings
-perl -i -pe 's#("ld flags", ")([^"]*)"#\1\2 -Wl,--allow-multiple-definition"#g' "${BUILD_PREFIX}"/ghc-bootstrap/lib/ghc-*/settings
-run_and_log "stage1_exe" "${_hadrian_build[@]}" stage1:exe:ghc-bin --flavour=quickest --arg="-optl-Wl,--allow-multiple-definition"
-run_and_log "stage1_lib" "${_hadrian_build[@]}" stage1:lib:ghc --flavour=quickest --arg="-optl-Wl,--allow-multiple-definition"
+settings_file=$(find "${BUILD_PREFIX}"/ghc-bootstrap -name settings -type f)
+perl -i -pe 's#("C compiler link flags", ")([^"]*)"#\1\2 -Wl,--allow-multiple-definition"#g' "${settings_file}"
+perl -i -pe 's#("ld flags", ")([^"]*)"#\1\2 --allow-multiple-definition"#g' "${settings_file}"
+
+run_and_log "stage1_exe" "${_hadrian_build[@]}" stage1:exe:ghc-bin --flavour=quickest
+run_and_log "stage1_lib" "${_hadrian_build[@]}" stage1:lib:ghc --flavour=quickest
 
 export LD_PRELOAD="${PREFIX}/lib/libiconv.so.2 ${PREFIX}/lib/libgmp.so.10 ${PREFIX}/lib/libffi.so.8 ${PREFIX}/lib/libtinfow.so.6 ${PREFIX}/lib/libtinfo.so.6 ${LD_PRELOAD:-}"
 run_and_log "install" "${_hadrian_build[@]}" install --prefix="${PREFIX}" --flavour=release --docs=none
