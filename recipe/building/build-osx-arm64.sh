@@ -71,6 +71,9 @@ if [[ "${_build_alias}" != "${_host_alias}" ]]; then
   perl -pi -e 's/aarch64/x86_64/;s/ArchAArch64/ArchX86_64/' "${SRC_DIR}"/hadrian/cfg/default.host.target
 fi
 
+cat "${SRC_DIR}"/hadrian/cfg/default.target
+cat "${SRC_DIR}"/hadrian/cfg/default.host.target
+
 _hadrian_build=("${SRC_DIR}"/hadrian/build "-j${CPU_COUNT}")
 
 # We seem to have a difficult issue with library being ar/ranlib with toolchain when ld seem to need system ar/ranlib

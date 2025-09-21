@@ -63,7 +63,7 @@ perl -pi -e 's#"--target=[\w-]+"#"--target=aarch64-unknown-linux","--sysroot=$EN
 
 perl -i -pe 's#("C compiler link flags", ")([^"]*)"#\1\2 -Wl,--allow-multiple-definition"#g' "${BUILD_PREFIX}"/ghc-bootstrap/lib/ghc-*/settings
 perl -i -pe 's#("ld flags", ")([^"]*)"#\1\2 -Wl,--allow-multiple-definition"#g' "${BUILD_PREFIX}"/ghc-bootstrap/lib/ghc-*/settings
-run_and_log "stage1_exe" "${_hadrian_build[@]}" stage1:exe:ghc-bin --flavour=quickest
+run_and_log "stage1_exe" "${_hadrian_build[@]}" stage1:exe:ghc-bin --flavour=quickest --arg="-optl-Wl,--allow-multiple-definition"
 perl -pi -e 's#($ENV{BUILD_PREFIX}|$ENV{PREFIX})/bin/##' "${SRC_DIR}"/_build/stage0/lib/settings
 
 # GHC build ghc-pkg with '-fno-use-rpaths' but it requires libiconv.so.2
