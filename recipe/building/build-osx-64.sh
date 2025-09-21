@@ -34,21 +34,20 @@ CONFIGURE_ARGS=(
 
 export ac_cv_path_ac_pt_CC=""
 export ac_cv_path_ac_pt_CXX=""
-run_and_log "configure" bash configure "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}" || true
-
-cat config.log || true
+run_and_log "configure" bash configure "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}"
 
 _hadrian_build=("${SRC_DIR}"/hadrian/build "-j${CPU_COUNT}")
 
-export DYLD_INSERT_LIBRARIES=$(find ${PREFIX} -name libtinfow.dylib)
 run_and_log "stage1_exe" "${_hadrian_build[@]}" stage1:exe:ghc-bin
-perl -pi -e 's#(C compiler link flags", "[^"]*)#$1 -L\$topdir/../../../../lib#' "${SRC_DIR}"/_build/stage0/lib/settings
-perl -pi -e 's#(ld flags", "[^"]*)#$1 -L\$topdir/../../../../lib #' "${SRC_DIR}"/_build/stage0/lib/settings
+perl -pi -e 's#(C compiler link flags", "[^"]*)#$1 -Wl,-L\$topdir/../../../../lib -Wl,-rpath,\$topdir/../../../../lib#' "${SRC_DIR}"/_build/stage0/lib/settings
+perl -pi -e 's#(ld flags", "[^"]*)#$1 -L\$topdir/../../../../lib -rpath \$topdir/../../../../lib#' "${SRC_DIR}"/_build/stage0/lib/settings
 run_and_log "stage1_lib" "${_hadrian_build[@]}" stage1:lib:ghc
-perl -pi -e 's#(C compiler link flags", "[^"]*)#$1 -L\$topdir/../../../../lib#' "${SRC_DIR}"/_build/stage0/lib/settings
-perl -pi -e 's#(ld flags", "[^"]*)#$1 -L\$topdir/../../../../lib #' "${SRC_DIR}"/_build/stage0/lib/settings
+perl -pi -e 's#(C compiler link flags", "[^"]*)#$1 -Wl,-L\$topdir/../../../../lib -Wl,-rpath,\$topdir/../../../../lib#' "${SRC_DIR}"/_build/stage0/lib/settings
+perl -pi -e 's#(ld flags", "[^"]*)#$1 -L\$topdir/../../../../lib -rpath \$topdir/../../../../lib#' "${SRC_DIR}"/_build/stage0/lib/settings
 
 run_and_log "stage2_exe" "${_hadrian_build[@]}" stage2:exe:ghc-bin
 run_and_log "stage2_lib" "${_hadrian_build[@]}" stage2:lib:ghc
+perl -pi -e 's#(C compiler link flags", "[^"]*)#$1 -Wl,-L\$topdir/../../../../lib -Wl,-rpath,\$topdir/../../../../lib#' "${SRC_DIR}"/_build/stage1/lib/settings
+perl -pi -e 's#(ld flags", "[^"]*)#$1 -L\$topdir/../../../../lib -rpath \$topdir/../../../../lib#' "${SRC_DIR}"/_build/stage1/lib/settings
 
 run_and_log "install" "${_hadrian_build[@]}" install --prefix="${PREFIX}" --flavour=release --docs=none --progress-info=none
