@@ -33,9 +33,8 @@ CONFIGURE_ARGS=(
 run_and_log "ghc-configure" bash configure "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}"
 
 run_and_log "stage1_exe" "${_hadrian_build[@]}" stage1:exe:ghc-bin
-# export LD_LIBRARY_PATH="${BUILD_PREFIX}"/lib:${LD_LIBRARY_PATH:-}
-# export LIBRARY_PATH="${BUILD_PREFIX}"/lib:${LIBRARY_PATH:-}
-# export LDFLAGS="-L${BUILD_PREFIX}/lib -L${PREFIX}/lib ${LDFLAGS:-}"
 run_and_log "stage1_lib" "${_hadrian_build[@]}" stage1:lib:ghc
-export LD_PRELOAD="${PREFIX}"/lib/libiconv.so.2
+# export LD_PRELOAD="${PREFIX}"/lib/libiconv.so.2
+perl -pi -e 's#(C compiler link flags", "[^"]*)#$1 -Wl,-L\$topdir/../../../../lib -Wl,-rpath,\$topdir/../../../../lib#' "${SRC_DIR}"/_build/stage0/lib/settings
+perl -pi -e 's#(ld flags", "[^"]*)#$1 -L\$topdir/../../../../lib -rpath \$topdir/../../../../lib#' "${SRC_DIR}"/_build/stage0/lib/settings
 run_and_log "install" "${_hadrian_build[@]}" install --prefix="${PREFIX}" --flavour=release --docs=none
