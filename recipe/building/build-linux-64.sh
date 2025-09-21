@@ -38,6 +38,7 @@ LDFLAGS="${LDFLAGS} -Wl,--no-as-needed -Wl,--allow-multiple-definition" \
 run_and_log "ghc-configure" bash configure "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}"
 
 perl -i -pe 's#("C compiler link flags", ")([^"]*)"#\1\2 -Wl,--allow-multiple-definition"#g' "${BUILD_PREFIX}"/ghc-bootstrap/lib/ghc-*/settings
+perl -i -pe 's#("ld flags", ")([^"]*)"#\1\2 -Wl,--allow-multiple-definition"#g' "${BUILD_PREFIX}"/ghc-bootstrap/lib/ghc-*/settings
 run_and_log "stage1_exe" "${_hadrian_build[@]}" stage1:exe:ghc-bin --flavour=quickest
 run_and_log "stage1_lib" "${_hadrian_build[@]}" stage1:lib:ghc --flavour=quickest
 

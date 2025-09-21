@@ -73,9 +73,12 @@ fi
 
 _hadrian_build=("${SRC_DIR}"/hadrian/build "-j${CPU_COUNT}")
 
-# Should be corrected in ghc-bootstrap
+# We seem to have a difficult issue with library being ar/ranlib with toolchain when ld seem to need system ar/ranlib
+# [109 of 109] Linking $SRC_DIR/hadrian/dist-newstyle/build/x86_64-osx/ghc-9.6.7/hadrian-0.1.0.0/x/hadrian/build/hadrian/hadrian
+# ld: warning: ignoring file /Users/runner/.local/state/cabal/store/ghc-9.6.7/tf8-strng-1.0.2-7159478e/lib/libHStf8-strng-1.0.2-7159478e.a, building for macOS-x86_64 but attempting to link with file built for unknown-unsupported file format ( 0x21 0x3C 0x61 0x72 0x63 0x68 0x3E 0x0A 0x2F 0x20 0x20 0x20 0x20 0x20 0x20 0x20 )
 settings_file=$(find "${BUILD_PREFIX}"/ghc-bootstrap -name settings | head -1)
 perl -i -pe 's#("ar command", ")([^"]*)"#\1 x86_64-apple-darwin13.4.0-ar"#g' "${settings_file}"
+perl -i -pe 's#("ar flags", ")([^"]*)"#\1rc"#g' "${settings_file}"
 perl -i -pe 's#("ranlib command", ")([^"]*)"#\1 x86_64-apple-darwin13.4.0-ranlib"#g' "${settings_file}"
 
 "${_hadrian_build[@]}" stage1:exe:ghc-bin -V --flavour=quickest --progress-info=unicorn

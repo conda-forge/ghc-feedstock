@@ -62,6 +62,7 @@ perl -pi -e 's/aarch64/x86_64/;s/ArchAArch64/ArchX86_64/' "${SRC_DIR}"/hadrian/c
 perl -pi -e 's#"--target=[\w-]+"#"--target=aarch64-unknown-linux","--sysroot=$ENV{BUILD_PREFIX}/aarch64-conda-linux-gnu/sysroot"#'  "${SRC_DIR}"/hadrian/cfg/default.target
 
 perl -i -pe 's#("C compiler link flags", ")([^"]*)"#\1\2 -Wl,--allow-multiple-definition"#g' "${BUILD_PREFIX}"/ghc-bootstrap/lib/ghc-*/settings
+perl -i -pe 's#("ld flags", ")([^"]*)"#\1\2 -Wl,--allow-multiple-definition"#g' "${BUILD_PREFIX}"/ghc-bootstrap/lib/ghc-*/settings
 run_and_log "stage1_exe" "${_hadrian_build[@]}" stage1:exe:ghc-bin --flavour=quickest
 perl -pi -e 's#($ENV{BUILD_PREFIX}|$ENV{PREFIX})/bin/##' "${SRC_DIR}"/_build/stage0/lib/settings
 
