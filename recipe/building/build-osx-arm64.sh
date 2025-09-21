@@ -74,10 +74,9 @@ fi
 _hadrian_build=("${SRC_DIR}"/hadrian/build "-j${CPU_COUNT}")
 
 # Should be corrected in ghc-bootstrap
-#settings_file=$(find "${BUILD_PREFIX}"/ghc-bootstrap -name settings | head -1)
-#if [[ -n "${SDKROOT}" ]]; then
-#  perl -i -pe 's#("C compiler link flags", ")([^"]*)"#\1\2 -L$ENV{SDKROOT}/usr/lib"#g' "${settings_file}"
-#fi
+settings_file=$(find "${BUILD_PREFIX}"/ghc-bootstrap -name settings | head -1)
+perl -i -pe 's#("ar command", ")([^"]*)"#\1 x86_64-apple-darwin13.4.0-ar"#g' "${settings_file}"
+perl -i -pe 's#("ranlib command", ")([^"]*)"#\1 x86_64-apple-darwin13.4.0-ranlib"#g' "${settings_file}"
 
 "${_hadrian_build[@]}" stage1:exe:ghc-bin -V --flavour=quickest --progress-info=unicorn
 
