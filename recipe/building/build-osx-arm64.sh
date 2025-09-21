@@ -69,10 +69,11 @@ if [[ "${_build_alias}" != "${_host_alias}" ]]; then
   perl -pi -e 's#"--target=[\w-]+"#"--target=aarch64-apple-darwin"#'  "${SRC_DIR}"/hadrian/cfg/default.target
   perl -pi -e 's#"--target=[\w-]+"#"--target=x86_64-apple-darwin"#'  "${SRC_DIR}"/hadrian/cfg/default.host.target
   perl -pi -e 's/aarch64/x86_64/;s/ArchAArch64/ArchX86_64/' "${SRC_DIR}"/hadrian/cfg/default.host.target
-fi
 
-cat "${SRC_DIR}"/hadrian/cfg/default.target
-cat "${SRC_DIR}"/hadrian/cfg/default.host.target
+  perl -i -pe 's#x86_64-apple-darwin13.4.0-ar#/usr/bin/ar#g' "${SRC_DIR}"/hadrian/cfg/default.host.target
+  perl -i -pe 's#prgFlags = ["q"]#prgFlags = ["q"]#g' "${SRC_DIR}"/hadrian/cfg/default.host.target
+  perl -i -pe 's#x86_64-apple-darwin13.4.0-ranlib#/usr/bin/ranlib#g' "${SRC_DIR}"/hadrian/cfg/default.host.target
+fi
 
 _hadrian_build=("${SRC_DIR}"/hadrian/build "-j${CPU_COUNT}")
 
