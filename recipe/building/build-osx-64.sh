@@ -38,16 +38,15 @@ run_and_log "configure" bash configure "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@
 
 _hadrian_build=("${SRC_DIR}"/hadrian/build "-j${CPU_COUNT}")
 
-run_and_log "stage1_exe" "${_hadrian_build[@]}" stage1:exe:ghc-bin
+run_and_log "stage1_exe" "${_hadrian_build[@]}" stage1:exe:ghc-bin flavour=quickest
 perl -pi -e 's#(C compiler link flags", "[^"]*)#$1 -L\$topdir/../../../../lib#' "${SRC_DIR}"/_build/stage0/lib/settings
 perl -pi -e 's#(ld flags", "[^"]*)#$1 -L\$topdir/../../../../lib #' "${SRC_DIR}"/_build/stage0/lib/settings
-run_and_log "stage1_lib" "${_hadrian_build[@]}" stage1:lib:ghc
+run_and_log "stage1_lib" "${_hadrian_build[@]}" stage1:lib:ghc flavour=quickest
 perl -pi -e 's#(C compiler link flags", "[^"]*)#$1  -Wl,-L\$topdir/../../../../lib#' "${SRC_DIR}"/_build/stage0/lib/settings
 perl -pi -e 's#(ld flags", "[^"]*)#$1 -L\$topdir/../../../../lib#' "${SRC_DIR}"/_build/stage0/lib/settings
 
-run_and_log "stage2_exe" "${_hadrian_build[@]}" stage2:exe:ghc-bin
-run_and_log "stage2_lib" "${_hadrian_build[@]}" stage2:lib:ghc
-perl -pi -e 's#(C compiler link flags", "[^"]*)#$1 -Wl,-L\$topdir/../../../../lib -Wl,-rpath,\$topdir/../../../../lib#' "${SRC_DIR}"/_build/stage1/lib/settings
-perl -pi -e 's#(ld flags", "[^"]*)#$1 -L\$topdir/../../../../lib -rpath \$topdir/../../../../lib#' "${SRC_DIR}"/_build/stage1/lib/settings
+run_and_log "stage2_exe" "${_hadrian_build[@]}" stage2:exe:ghc-bin flavour=quickest
+export DYLD_LIBRARY_PATH="${PREFIX}/lib:${BUILD_PREFIX}/lib:${DYLD_LIBRARY_PATH:-}"
+run_and_log "stage2_lib" "${_hadrian_build[@]}" stage2:lib:ghc flavour=quickest
 
 run_and_log "install" "${_hadrian_build[@]}" install --prefix="${PREFIX}" --flavour=release --docs=none --progress-info=none
