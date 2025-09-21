@@ -42,11 +42,11 @@ _hadrian_build=("${SRC_DIR}"/hadrian/build "-j${CPU_COUNT}")
 
 export DYLD_INSERT_LIBRARIES=$(find ${PREFIX} -name libtinfow.dylib)
 run_and_log "stage1_exe" "${_hadrian_build[@]}" stage1:exe:ghc-bin
-perl -pi -e 's#(C compiler link flags", "--target=x86_64-unknown-linux)#$1 -L\$topdir/../../../../lib#' "${SRC_DIR}"/_build/stage0/lib/settings
-perl -pi -e 's#(ld flags", ")#$1 -L\$topdir/../../../../lib #' "${SRC_DIR}"/_build/stage0/lib/settings
+perl -pi -e 's#(C compiler link flags", "[^"]*)#$1 -L\$topdir/../../../../lib#' "${SRC_DIR}"/_build/stage0/lib/settings
+perl -pi -e 's#(ld flags", "[^"]*)#$1 -L\$topdir/../../../../lib #' "${SRC_DIR}"/_build/stage0/lib/settings
 run_and_log "stage1_lib" "${_hadrian_build[@]}" stage1:lib:ghc
-perl -pi -e 's#(C compiler link flags", "--target=x86_64-unknown-linux)#$1 -L\$topdir/../../../../lib#' "${SRC_DIR}"/_build/stage0/lib/settings
-perl -pi -e 's#(ld flags", ")#$1 -L\$topdir/../../../../lib #' "${SRC_DIR}"/_build/stage0/lib/settings
+perl -pi -e 's#(C compiler link flags", "[^"]*)#$1 -L\$topdir/../../../../lib#' "${SRC_DIR}"/_build/stage0/lib/settings
+perl -pi -e 's#(ld flags", "[^"]*)#$1 -L\$topdir/../../../../lib #' "${SRC_DIR}"/_build/stage0/lib/settings
 
 run_and_log "stage2_exe" "${_hadrian_build[@]}" stage2:exe:ghc-bin
 run_and_log "stage2_lib" "${_hadrian_build[@]}" stage2:lib:ghc
