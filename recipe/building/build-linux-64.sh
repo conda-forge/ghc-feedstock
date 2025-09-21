@@ -32,8 +32,8 @@ CONFIGURE_ARGS=(
 )
 run_and_log "ghc-configure" bash configure "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}"
 
-run_and_log "stage1_exe" "${_hadrian_build[@]}" stage1:exe:ghc-bin flavour=quickest
-run_and_log "stage1_lib" "${_hadrian_build[@]}" stage1:lib:ghc flavour=quickest
+run_and_log "stage1_exe" "${_hadrian_build[@]}" stage1:exe:ghc-bin
+run_and_log "stage1_lib" "${_hadrian_build[@]}" stage1:lib:ghc
 
 # $topdir expansion will not work for _build/bindist/... binaries, use LD_PRELOAD hack
 export LD_PRELOAD="${PREFIX}"/lib/libiconv.so.2
