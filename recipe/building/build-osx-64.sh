@@ -9,8 +9,8 @@ source "${RECIPE_DIR}"/building/common.sh
 unset build_alias
 unset host_alias
 
-# Update cabal package database
-run_and_log "cabal-update" cabal v2-update --allow-newer --minimize-conflict-set
+export CABAL="${BUILD_PREFIX}/bin/cabal"
+run_and_log "cabal-update" "${CABAL}" v2-update
 
 # Configure and build GHC
 SYSTEM_CONFIG=(

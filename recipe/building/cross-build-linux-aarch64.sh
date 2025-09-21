@@ -5,8 +5,8 @@ _log_index=0
 
 source "${RECIPE_DIR}"/building/common.sh
 
-# Update cabal package database
-run_and_log "cabal-update" cabal v2-update
+export CABAL="${BUILD_PREFIX}/bin/cabal"
+run_and_log "cabal-update" "${CABAL}" v2-update
 
 _hadrian_build=("${SRC_DIR}"/hadrian/build "-j${CPU_COUNT}")
 

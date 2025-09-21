@@ -14,8 +14,8 @@ export host_alias="${_ghc_host}"
 export BUILD=${build_alias}
 export HOST=${host_alias}
 
-# Update cabal package database
-run_and_log "cabal-update" cabal v2-update
+export CABAL="${BUILD_PREFIX}/bin/cabal"
+run_and_log "cabal-update" "${CABAL}" v2-update
 
 _hadrian_build=("${SRC_DIR}"/hadrian/build "-j${CPU_COUNT}")
 

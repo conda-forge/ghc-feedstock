@@ -35,6 +35,7 @@ requirements:
     - llvm-tools ${{ c_compiler_version }}.*
     - python 3.10.*
     - sphinx
+    - zstd
 
     - if: linux
       then:
@@ -65,12 +66,12 @@ requirements:
         - libiconv
         - ncurses
 
-    - if: target_platform == "linux-aarch64"
+    - if: aarch64
       then:
         # Restrict to 2.43 (2.44 does not seem to have ld.gold and makes aarch64 build fail)
         - binutils_impl_${{ build_platform }} ${{ binutils_version }}.*
         - binutils_impl_${{ target_platform }} ${{ binutils_version }}.*
-        - sysroot_${{ build_platform }} >=${{ c_stdlib_version }}
+        - sysroot_${{ build_platform }} ==${{ c_stdlib_version }}
 
     # Cross-compiler aarch64 on linux-64
     # Disabled: - if: target_platform == "linux-64"
