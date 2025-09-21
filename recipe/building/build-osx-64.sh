@@ -22,6 +22,8 @@ SYSTEM_CONFIG=(
 CONFIGURE_ARGS=(
   --disable-numa
   --enable-ignore-build-platform-mismatch=yes
+  --enable-shared
+  --disable-static
   --with-system-libffi=yes
   --with-curses-includes="${PREFIX}"/include
   --with-curses-libraries="${PREFIX}"/lib
@@ -45,6 +47,7 @@ export DYLD_INSERT_LIBRARIES=$(find ${PREFIX} -name libtinfow.dylib)
 #  perl -i -pe 's#("C compiler link flags", ")([^"]*)"#\1\2 -L$ENV{SDKROOT}/usr/lib"#g' "${settings_file}"
 #fi
 
-"${_hadrian_build[@]}" stage1:exe:ghc-bin -V --flavour=release --progress-info=unicorn
+run_and_log "stage1_exe" "${_hadrian_build[@]}" stage1:exe:ghc-bin --flavour=dynamic
+run_and_log "stage1_lib" "${_hadrian_build[@]}" stage1:lib --flavour=dynamic
 
 run_and_log "install" "${_hadrian_build[@]}" install --prefix="${PREFIX}" --flavour=release --docs=none --progress-info=none
