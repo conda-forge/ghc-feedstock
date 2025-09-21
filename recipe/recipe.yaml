@@ -128,13 +128,18 @@ tests:
         - lib/ghc-${{ version }}/lib/llvm-passes
         - lib/ghc-${{ version }}/lib/llvm-targets
         - lib/ghc-${{ version }}/lib/package.conf.d/**
-        - lib/ghc-${{ version }}/lib/ghc-interp.js
         - lib/ghc-${{ version }}/lib/ghc-usage.txt
         - lib/ghc-${{ version }}/lib/ghci-usage.txt
-        - lib/ghc-${{ version }}/lib/post-link.mjs
         - lib/ghc-${{ version }}/lib/settings
         - lib/ghc-${{ version }}/lib/template-hsc.h
-        - lib/ghc-${{ version }}/lib/*-ghc-${{ version }}/*-inplace/*-inplace.a
+        - if: ${{ PKG_VERSION }} != "9.6.7"
+          then:
+            - lib/ghc-${{ version }}/lib/ghc-interp.js
+            - lib/ghc-${{ version }}/lib/post-link.mjs
+            - lib/ghc-${{ version }}/lib/*-ghc-${{ version }}/*-inplace/*-inplace.a
+          else:
+            - lib/ghc-${{ version }}/lib/*-ghc-${{ version }}/**
+
         # Disabled: - if: linux and x86_64
         # Disabled:   then:
         # Disabled:     # It is too complex to change 'aarch64-unknown-ghc'
