@@ -46,12 +46,11 @@ export LD_LIBRARY_PATH="${BUILD_PREFIX}"/lib:${LD_LIBRARY_PATH:-}
 export LIBRARY_PATH="${BUILD_PREFIX}"/lib:${LIBRARY_PATH:-}
 export LDFLAGS="-L${BUILD_PREFIX}/lib -L${PREFIX}/lib ${LDFLAGS:-}"
 run_and_log "stage1_lib" "${_hadrian_build[@]}" stage1:lib:ghc
-perl -pi -e 's#(C compiler link flags", "[^"]*)#$1 -Wl,-L$ENV{PREFIX}/lib -Wl,-L\$topdir/../../../../lib -Wl,-rpath,\$topdir/../../../../lib#' "${SRC_DIR}"/_build/stage0/lib/settings
-perl -pi -e 's#(ld flags", "[^"]*)#$1 -L$ENV{BUILD_PREFIX}/lib -L\$topdir/../../../../lib -rpath \$topdir/../../../../lib#' "${SRC_DIR}"/_build/stage0/lib/settings
+# perl -pi -e 's#(C compiler link flags", "[^"]*)#$1 -Wl,-L$ENV{PREFIX}/lib -Wl,-L\$topdir/../../../../lib -Wl,-rpath,\$topdir/../../../../lib#' "${SRC_DIR}"/_build/stage0/lib/settings
+# perl -pi -e 's#(ld flags", "[^"]*)#$1 -L$ENV{BUILD_PREFIX}/lib -L\$topdir/../../../../lib -rpath \$topdir/../../../../lib#' "${SRC_DIR}"/_build/stage0/lib/settings
 
 run_and_log "stage2_exe" "${_hadrian_build[@]}" stage2:exe:ghc-bin
+export DYLD_LIBRARY_PATH="${PREFIX}"/lib:${DYLD_LIBRARY_PATH:-}
 run_and_log "stage2_lib" "${_hadrian_build[@]}" stage2:lib:ghc
-perl -pi -e 's#(C compiler link flags", "[^"]*)#$1 -Wl,-L\$topdir/../../../../lib -Wl,-rpath,\$topdir/../../../../lib#' "${SRC_DIR}"/_build/stage1/lib/settings
-perl -pi -e 's#(ld flags", "[^"]*)#$1 -L\$topdir/../../../../lib -rpath \$topdir/../../../../lib#' "${SRC_DIR}"/_build/stage1/lib/settings
 
 run_and_log "install" "${_hadrian_build[@]}" install --prefix="${PREFIX}" --flavour=release --docs=none --progress-info=none
