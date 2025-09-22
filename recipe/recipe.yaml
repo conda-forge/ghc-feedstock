@@ -146,12 +146,10 @@ tests:
         # Disabled:     - lib/aarch64-unknown-ghc-${{ version }}/lib/llvm-passes
         # Disabled:     - lib/aarch64-unknown-ghc-${{ version }}/lib/llvm-targets
         # Disabled:     - lib/aarch64-unknown-ghc-${{ version }}/lib/package.conf.d/**
-        # Disabled:     - lib/aarch64-unknown-ghc-${{ version }}/lib/dyld.mjs
         # Disabled:     - lib/aarch64-unknown-ghc-${{ version }}/lib/ghc-interp.js
         # Disabled:     - lib/aarch64-unknown-ghc-${{ version }}/lib/ghc-usage.txt
         # Disabled:     - lib/aarch64-unknown-ghc-${{ version }}/lib/ghci-usage.txt
         # Disabled:     - lib/aarch64-unknown-ghc-${{ version }}/lib/post-link.mjs
-        # Disabled:     - lib/aarch64-unknown-ghc-${{ version }}/lib/prelude.mjs
         # Disabled:     - lib/aarch64-unknown-ghc-${{ version }}/lib/settings
         # Disabled:     - lib/aarch64-unknown-ghc-${{ version }}/lib/template-hsc.h
         # Disabled:     - lib/aarch64-unknown-ghc-${{ version }}/lib/*-ghc-${{ version }}-inplace/*-inplace/*-inplace.a
