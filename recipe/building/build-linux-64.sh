@@ -32,11 +32,11 @@ CONFIGURE_ARGS=(
 )
 run_and_log "ghc-configure" bash configure "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}"
 
-run_and_log "stage1_exe" "${_hadrian_build[@]}" stage1:exe:ghc-bin
-run_and_log "stage1_lib" "${_hadrian_build[@]}" stage1:lib:ghc
+run_and_log "stage1_exe" "${_hadrian_build[@]}" stage1:exe:ghc-bin --flavour=quickest
+run_and_log "stage1_lib" "${_hadrian_build[@]}" stage1:lib:ghc --flavour=quickest
 
 # $topdir expansion will not work for _build/bindist/... binaries, use LD_PRELOAD hack
 export LD_PRELOAD="${PREFIX}"/lib/libiconv.so.2
 perl -pi -e 's#(C compiler link flags", "[^"]*)#$1 -Wl,-L\$topdir/../../../../lib -Wl,-rpath,\$topdir/../../../../lib#' "${SRC_DIR}"/_build/stage0/lib/settings
 perl -pi -e 's#(ld flags", "[^"]*)#$1 -L\$topdir/../../../../lib -rpath \$topdir/../../../../lib#' "${SRC_DIR}"/_build/stage0/lib/settings
-run_and_log "install" "${_hadrian_build[@]}" install --prefix="${PREFIX}" --flavour=release --docs=none
+run_and_log "install" "${_hadrian_build[@]}" install --prefix="${PREFIX}" --flavour=quickest --docs=none
