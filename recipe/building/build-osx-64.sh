@@ -54,6 +54,9 @@ run_and_log "stage1_lib" "${_hadrian_build[@]}" stage1:lib:ghc --flavour=quickes
 perl -pi -e 's#(C compiler link flags", "[^"]*)#$1  -Wl,-L\$topdir/../../../../lib#' "${settings_file}"
 perl -pi -e 's#(ld flags", "[^"]*)#$1 -L\$topdir/../../../../lib#' "${settings_file}"
 
+echo "*"; echo "*"; echo "*"; echo "*"
+cat "${settings_file}"
+echo "*"; echo "*"; echo "*"; echo "*"
 run_and_log "stage2_exe" "${_hadrian_build[@]}" stage2:exe:ghc-bin --flavour=quickest
 
 export DYLD_LIBRARY_PATH="${PREFIX}/lib:${BUILD_PREFIX}/lib:${DYLD_LIBRARY_PATH:-}"
