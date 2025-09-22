@@ -35,24 +35,31 @@ CONFIGURE_ARGS=(
 export ac_cv_path_ac_pt_CC=""
 export ac_cv_path_ac_pt_CXX=""
 run_and_log "configure" bash configure "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}"
-perl -i -pe 's#x86_64-apple-darwin13.4.0-ar#x86_64-apple-darwin13.4.0-ar#g' "${SRC_DIR}"/hadrian/cfg/default.target
-perl -i -pe 's#x86_64-apple-darwin13.4.0-ranlib#x86_64-apple-darwin13.4.0-ranlib#g' "${SRC_DIR}"/hadrian/cfg/default.target
+
+settings_file="${SRC_DIR}"/hadrian/cfg/default.host.target
+perl -i -pe 's#/usr/bin/ar("[^"]*"q)cls#x86_64-apple-darwin13.4.0-ar${1}s#g' "${settings_file}"
+perl -i -pe 's#((arIsGnu|arSupportsAtFile) = )False#$1True#g' "${settings_file}"
+perl -i -pe 's#(arNeedsRanlib = )True#$1False#g' "${settings_file}"
+
+settings_file="${SRC_DIR}"/hadrian/cfg/default.target
+perl -i -pe 's#/usr/bin/ar("[^"]*"q)cls#x86_64-apple-darwin13.4.0-ar${1}s#g' "${settings_file}"
+perl -i -pe 's#((arIsGnu|arSupportsAtFile) = )False#$1True#g' "${settings_file}"
+perl -i -pe 's#(arNeedsRanlib = )True#$1False#g' "${settings_file}"
 
 echo "*"; echo "*"; echo "*"; echo "*"
-cat "${SRC_DIR}"/hadrian/cfg/default.target
-echo "*"; echo "*"; echo "*"; echo "*"
-cat "${SRC_DIR}"/hadrian/cfg/default.host.target
+cat "${settings_file}"
 echo "*"; echo "*"; echo "*"; echo "*"
 
 _hadrian_build=("${SRC_DIR}"/hadrian/build "-j${CPU_COUNT}")
 
 run_and_log "stage1_exe" "${_hadrian_build[@]}" stage1:exe:ghc-bin --flavour=quickest
 settings_file="${SRC_DIR}"/_build/stage0/lib/settings
-perl -pi -e 's#(C compiler link flags", "[^"]*)#$1 -L\$topdir/../../../../lib#' "${settings_file}"
-perl -pi -e 's#(ld flags", "[^"]*)#$1 -L\$topdir/../../../../lib #' "${settings_file}"
+perl -pi -e 's#(C compiler link flags", "[^"]*)#$1 -v -Wl,-L$ENV{PREFIX}/lib -Wl,-L\$topdir/../../../../lib -Wl,-rpath,\$topdir/../../../../lib#' "${settings_file}"
+perl -pi -e 's#(ld flags", "[^"]*)#$1 -v -L$ENV{BUILD_REFIX}/lib -L\$topdir/../../../../lib -rpath \$topdir/../../../../lib#' "${settings_file}"
+
 run_and_log "stage1_lib" "${_hadrian_build[@]}" stage1:lib:ghc --flavour=quickest
-perl -pi -e 's#(C compiler link flags", "[^"]*)#$1  -Wl,-L\$topdir/../../../../lib#' "${settings_file}"
-perl -pi -e 's#(ld flags", "[^"]*)#$1 -L\$topdir/../../../../lib#' "${settings_file}"
+perl -i -pe "s#(C compiler link flags\", \")([^\"]*)#\1\2 -v -Wl,-L\$ENV{PREFIX}/lib -Wl,-L\\\$topdir/../../../../lib -Wl,-rpath,\\\$topdir/../../../../lib ${iconv_aliases} -liconv#" "${settings_file}"
+perl -i -pe "s#(ld flags\", \")([^\"]*)#\1\2 -L\$ENV{PREFIX}/lib -L\\\$topdir/../../../../lib ${iconv_aliases} -liconv#" "${settings_file}"
 
 echo "*"; echo "*"; echo "*"; echo "*"
 cat "${settings_file}"
