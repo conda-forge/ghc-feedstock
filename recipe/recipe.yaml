@@ -37,8 +37,8 @@ requirements:
     - binutils
     - cabal ==3.10.3.0
     - ghc-bootstrap ==9.6.7
-    - gmp
-    - libiconv
+    # - gmp
+    # - libiconv
     - llvm-tools ${{ c_compiler_version }}.*
     - python 3.10.*
     - sphinx
