@@ -84,9 +84,6 @@ cat "${SRC_DIR}"/hadrian/cfg/default.host.target
 echo "*"; echo "*"; echo "*"; echo "*"; 
 cat "${SRC_DIR}"/hadrian/cfg/default.target
 echo "*"; echo "*"; echo "*"; echo "*"; 
-echo "*"; echo "*"; echo "*"; echo "*";
-cat "${BUILD_PREFIX}"/hadrian/cfg/default.target
-echo "*"; echo "*"; echo "*"; echo "*";
 
 _hadrian_build=("${SRC_DIR}"/hadrian/build "-j${CPU_COUNT}")
 
