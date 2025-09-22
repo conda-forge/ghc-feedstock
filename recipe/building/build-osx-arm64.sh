@@ -84,6 +84,9 @@ cat "${SRC_DIR}"/hadrian/cfg/default.host.target
 echo "*"; echo "*"; echo "*"; echo "*"; 
 cat "${SRC_DIR}"/hadrian/cfg/default.target
 echo "*"; echo "*"; echo "*"; echo "*"; 
+echo "*"; echo "*"; echo "*"; echo "*";
+cat "${BUILD_PREFIX}"/hadrian/cfg/default.target
+echo "*"; echo "*"; echo "*"; echo "*";
 
 _hadrian_build=("${SRC_DIR}"/hadrian/build "-j${CPU_COUNT}")
 
@@ -97,7 +100,7 @@ perl -i -pe 's#("ranlib command", ")([^"]*)"#\1 x86_64-apple-darwin13.4.0-ranlib
 
 cat "${settings_file}"
 
-"${_hadrian_build[@]}" stage1:exe:ghc-bin -V --flavour=quickest --progress-info=unicorn
+"${_hadrian_build[@]}" stage1:exe:ghc-bin -V --flavour=release --progress-info=unicorn
 
 "${SRC_DIR}"/_build/stage0/bin/arm64-apple-darwin20.0.0-ghc --version || { echo "Stage0 GHC failed to report version"; exit 1; }
 

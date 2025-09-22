@@ -55,14 +55,14 @@ settings_file="${SRC_DIR}"/_build/stage0/lib/settings
 perl -i -pe 's#("ar command", ")([^"]*)"#\1 x86_64-apple-darwin13.4.0-ar"#g' "${settings_file}"
 perl -i -pe 's#("ar flags", ")([^"]*)"#\1qs"#g' "${settings_file}"
 perl -i -pe 's#("ranlib command", ")([^"]*)"#\1 x86_64-apple-darwin13.4.0-ranlib"#g' "${settings_file}"
-run_and_log "stage1_exe" "${_hadrian_build[@]}" stage1:exe:ghc-bin --flavour=quickest
-run_and_log "stage1_lib" "${_hadrian_build[@]}" stage1:lib:ghc --flavour=quickest
+run_and_log "stage1_exe" "${_hadrian_build[@]}" stage1:exe:ghc-bin --flavour=release
+run_and_log "stage1_lib" "${_hadrian_build[@]}" stage1:lib:ghc --flavour=release
 settings_file="${SRC_DIR}"/_build/stage0/lib/settings
 perl -i -pe 's#("ar command", ")([^"]*)"#\1 x86_64-apple-darwin13.4.0-ar"#g' "${settings_file}"
 perl -i -pe 's#("ar flags", ")([^"]*)"#\1qs"#g' "${settings_file}"
 perl -i -pe 's#("ranlib command", ")([^"]*)"#\1 x86_64-apple-darwin13.4.0-ranlib"#g' "${settings_file}"
 
-run_and_log "stage2_exe" "${_hadrian_build[@]}" stage2:exe:ghc-bin --flavour=quickest
-run_and_log "stage2_lib" "${_hadrian_build[@]}" stage2:lib:ghc --flavour=quickest
+run_and_log "stage2_exe" "${_hadrian_build[@]}" stage2:exe:ghc-bin --flavour=release
+run_and_log "stage2_lib" "${_hadrian_build[@]}" stage2:lib:ghc --flavour=release
 
-run_and_log "install" "${_hadrian_build[@]}" install --prefix="${PREFIX}" --flavour=quickest --docs=none --progress-info=none
+run_and_log "install" "${_hadrian_build[@]}" install --prefix="${PREFIX}" --flavour=release --docs=none --progress-info=none
