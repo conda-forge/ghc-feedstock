@@ -37,4 +37,4 @@ run_and_log "stage1_lib" "${_hadrian_build[@]}" stage1:lib:ghc --flavour=quickes
 perl -pi -e 's#(C compiler link flags", "--target=x86_64-unknown-linux)#$1 -L\$topdir/../../../../lib#' "${SRC_DIR}"/_build/stage0/lib/settings
 perl -pi -e 's#(ld flags", ")#$1 -L\$topdir/../../../../lib #' "${SRC_DIR}"/_build/stage0/lib/settings
 
-run_and_log "install" "${_hadrian_build[@]}" install --prefix="${PREFIX}" --flavour=release --docs=none
+run_and_log "install" "${_hadrian_build[@]}" install --prefix="${PREFIX}" --flavour=quickest --docs=none

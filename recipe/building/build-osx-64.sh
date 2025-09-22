@@ -38,16 +38,16 @@ run_and_log "configure" bash configure "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@
 
 _hadrian_build=("${SRC_DIR}"/hadrian/build "-j${CPU_COUNT}")
 
-run_and_log "stage1_exe" "${_hadrian_build[@]}" stage1:exe:ghc-bin
+run_and_log "stage1_exe" "${_hadrian_build[@]}" stage1:exe:ghc-bin --flavour=quickest
 perl -pi -e 's#(C compiler link flags", "[^"]*)#$1 -Wl,-L$ENV{BUILD_PREFIX}/lib -Wl,-L\$topdir/../../../../lib -Wl,-rpath,\$topdir/../../../../lib#' "${SRC_DIR}"/_build/stage0/lib/settings
 perl -pi -e 's#(ld flags", "[^"]*)#$1 -L$ENV{BUILD_PREFIX}/lib -L\$topdir/../../../../lib -rpath \$topdir/../../../../lib#' "${SRC_DIR}"/_build/stage0/lib/settings
 
 export LD_LIBRARY_PATH="${BUILD_PREFIX}"/lib:${LD_LIBRARY_PATH:-}
 export LIBRARY_PATH="${BUILD_PREFIX}"/lib:${LIBRARY_PATH:-}
 export LDFLAGS="-L${BUILD_PREFIX}/lib -L${PREFIX}/lib ${LDFLAGS:-}"
-run_and_log "stage1_lib" "${_hadrian_build[@]}" stage1:lib:ghc
+run_and_log "stage1_lib" "${_hadrian_build[@]}" stage1:lib:ghc --flavour=quickest
 
-run_and_log "stage2_exe" "${_hadrian_build[@]}" stage2:exe:ghc-bin
+run_and_log "stage2_exe" "${_hadrian_build[@]}" stage2:exe:ghc-bin --flavour=quickest
 
 export DYLD_LIBRARY_PATH="${PREFIX}/lib:${BUILD_PREFIX}/lib:${DYLD_LIBRARY_PATH:-}"
 settings_file="${SRC_DIR}"/_build/stage1/lib/settings
@@ -56,6 +56,6 @@ iconv_aliases="${iconv_aliases} -Wl,-alias,_libiconv_open,_iconv_open"
 iconv_aliases="${iconv_aliases} -Wl,-alias,_libiconv_close,_iconv_close"
 perl -i -pe "s#(C compiler link flags\", \")([^\"]*)#\1\2 -L\\\$topdir/../../../../lib -Wl,-rpath,\\\$topdir/../../../../lib ${iconv_aliases} -liconv#" "${settings_file}"
 perl -i -pe "s#(ld flags\", \")([^\"]*)#\1\2 -L\\\$topdir/../../../../lib ${iconv_aliases} -liconv#" "${settings_file}"
-run_and_log "stage2_lib" "${_hadrian_build[@]}" stage2:lib:ghc
+run_and_log "stage2_lib" "${_hadrian_build[@]}" stage2:lib:ghc --flavour=quickest
 
-run_and_log "install" "${_hadrian_build[@]}" install --prefix="${PREFIX}" --flavour=release --docs=none --progress-info=none
+run_and_log "install" "${_hadrian_build[@]}" install --prefix="${PREFIX}" --flavour=quickest --docs=none --progress-info=none
