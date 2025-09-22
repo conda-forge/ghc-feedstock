@@ -34,7 +34,7 @@ run_and_log "ghc-configure" bash configure "${SYSTEM_CONFIG[@]}" "${CONFIGURE_AR
 
 run_and_log "stage1_exe" "${_hadrian_build[@]}" stage1:exe:ghc-bin --flavour=quickest
 run_and_log "stage1_lib" "${_hadrian_build[@]}" stage1:lib:ghc --flavour=quickest
-perl -pi -e 's#(C compiler link flags", "--target=x86_64-unknown-linux)#$1 -L\$topdir/../../../../lib#' "${SRC_DIR}"/_build/stage0/lib/settings
+perl -pi -e 's#(C compiler link flags", "--target=x86_64-unknown-linux)#$1 -Wl,-L\$topdir/../../../../lib#' "${SRC_DIR}"/_build/stage0/lib/settings
 perl -pi -e 's#(ld flags", ")#$1 -L\$topdir/../../../../lib #' "${SRC_DIR}"/_build/stage0/lib/settings
 
 run_and_log "install" "${_hadrian_build[@]}" install --prefix="${PREFIX}" --flavour=quickest --docs=none
