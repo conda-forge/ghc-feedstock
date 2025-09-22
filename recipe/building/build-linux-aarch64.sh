@@ -57,9 +57,9 @@ cat "${SRC_DIR}"/hadrian/cfg/default.target
 cat "${SRC_DIR}"/hadrian/cfg/default.host.target
 
 # Fix host configuration to use x86_64, target aarch64
-perl -pi -e 's#"--target=[\w-]+"#"--target=x86_64-unknown-linux","--sysroot=$ENV{BUILD_PREFIX}/x86_64-conda-linux-gnu/sysroot"#'  "${SRC_DIR}"/hadrian/cfg/default.host.target
-perl -pi -e 's/aarch64/x86_64/;s/ArchAArch64/ArchX86_64/' "${SRC_DIR}"/hadrian/cfg/default.host.target
-perl -pi -e 's#"--target=[\w-]+"#"--target=aarch64-unknown-linux","--sysroot=$ENV{BUILD_PREFIX}/aarch64-conda-linux-gnu/sysroot"#'  "${SRC_DIR}"/hadrian/cfg/default.target
+# perl -pi -e 's#"--target=[\w-]+"#"--target=x86_64-unknown-linux","--sysroot=$ENV{BUILD_PREFIX}/x86_64-conda-linux-gnu/sysroot"#'  "${SRC_DIR}"/hadrian/cfg/default.host.target
+# perl -pi -e 's/aarch64/x86_64/;s/ArchAArch64/ArchX86_64/' "${SRC_DIR}"/hadrian/cfg/default.host.target
+# perl -pi -e 's#"--target=[\w-]+"#"--target=aarch64-unknown-linux","--sysroot=$ENV{BUILD_PREFIX}/aarch64-conda-linux-gnu/sysroot"#'  "${SRC_DIR}"/hadrian/cfg/default.target
 
 settings_file=$(find "${BUILD_PREFIX}"/ghc-bootstrap -name settings -type f)
 perl -i -pe 's#("C compiler link flags", ")([^"]*)"#\1\2 -Wl,--allow-multiple-definition"#g' "${settings_file}"
@@ -76,18 +76,14 @@ run_and_log "bindist" "${_hadrian_build[@]}" binary-dist --prefix="${PREFIX}" --
 # Now manually install from the bindist with correct configure arguments
 BINDIST_DIR=$(find "${SRC_DIR}"/_build/bindist -name "ghc-*-aarch64-conda-linux-gnu" -type d | head -1)
 if [[ -n "${BINDIST_DIR}" ]]; then
-    pushd "${BINDIST_DIR}"
-    
+  pushd "${BINDIST_DIR}"
     # Configure the binary distribution with proper cross-compilation settings
     ./configure --prefix="${PREFIX}" --build=x86_64-conda-linux-gnu --host=x86_64-conda-linux-gnu --target=aarch64-conda-linux-gnu
-    
-    # Install
     make install
-    
-    popd
+  popd
 else
-    echo "Error: Could not find binary distribution directory"
-    exit 1
+  echo "Error: Could not find binary distribution directory"
+  exit 1
 fi
 
 # Create links of aarch64-conda-linux-gnu-xxx to xxx
