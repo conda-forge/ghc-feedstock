@@ -38,21 +38,27 @@ run_and_log "ghc-configure" bash configure "${SYSTEM_CONFIG[@]}" "${CONFIGURE_AR
 # perl -i -pe 's#prgFlags = ["q"]#prgFlags = ["qcls"]#g' "${SRC_DIR}"/hadrian/cfg/default.target
 # perl -i -pe 's#x86_64-apple-darwin13.4.0-ranlib#/usr/bin/ranlib#g' "${SRC_DIR}"/hadrian/cfg/default.target
 
-perl -i -pe 's#x86_64-apple-darwin13.4.0-ar#x86_64-apple-darwin13.4.0-ar#g' "${SRC_DIR}"/hadrian/cfg/default.target
-perl -i -pe 's#prgFlags = ["q"]#prgFlags = ["r"]#g' "${SRC_DIR}"/hadrian/cfg/default.target
-perl -i -pe 's#x86_64-apple-darwin13.4.0-ranlib#x86_64-apple-darwin13.4.0-ranlib#g' "${SRC_DIR}"/hadrian/cfg/default.target
+settings_file="${SRC_DIR}"/hadrian/cfg/default.host.target
+perl -i -pe 's#/usr/bin/ar("[^"]*"q)cls#x86_64-apple-darwin13.4.0-ar$1#g' "${settings_file}"
+perl -i -pe 's#((arIsGnu|arSupportsAtFile) = )False#$1True#g' "${settings_file}"
+perl -i -pe 's#(arNeedsRanlib = )True#$1False#g' "${settings_file}"
+
+settings_file="${SRC_DIR}"/hadrian/cfg/default.target
+perl -i -pe 's#/usr/bin/ar("[^"]*"q)cls#x86_64-apple-darwin13.4.0-ar$1#g' "${settings_file}"
+perl -i -pe 's#((arIsGnu|arSupportsAtFile) = )False#$1True#g' "${settings_file}"
+perl -i -pe 's#(arNeedsRanlib = )True#$1False#g' "${settings_file}"
 
 _hadrian_build=("${SRC_DIR}"/hadrian/build "-j${CPU_COUNT}")
 
-export DYLD_INSERT_LIBRARIES=$(find ${PREFIX} -name libtinfow.dylib)
-
-# Should be corrected in ghc-bootstrap
-#settings_file=$(find "${BUILD_PREFIX}"/ghc-bootstrap -name settings | head -1)
-#if [[ -n "${SDKROOT}" ]]; then
-#  perl -i -pe 's#("C compiler link flags", ")([^"]*)"#\1\2 -L$ENV{SDKROOT}/usr/lib"#g' "${settings_file}"
-#fi
-
+export DYLD_INSERT_LIBRARIES=$(find "${PREFIX}" -name libtinfow.dylib)
 run_and_log "stage1_exe" "${_hadrian_build[@]}" stage1:exe:ghc-bin --flavour=quickest
 run_and_log "stage1_lib" "${_hadrian_build[@]}" stage1:lib:ghc --flavour=quickest
+settings_file="${SRC_DIR}"/_build/stage0/lib/settings
+perl -i -pe 's#("ar command", ")([^"]*)"#\1 x86_64-apple-darwin13.4.0-ar"#g' "${settings_file}"
+perl -i -pe 's#("ar flags", ")([^"]*)"#\1q"#g' "${settings_file}"
+perl -i -pe 's#("ranlib command", ")([^"]*)"#\1 x86_64-apple-darwin13.4.0-ranlib"#g' "${settings_file}"
+
+run_and_log "stage2_exe" "${_hadrian_build[@]}" stage2:exe:ghc-bin --flavour=quickest
+run_and_log "stage2_lib" "${_hadrian_build[@]}" stage2:lib:ghc --flavour=quickest
 
 run_and_log "install" "${_hadrian_build[@]}" install --prefix="${PREFIX}" --flavour=quickest --docs=none --progress-info=none
