@@ -100,8 +100,6 @@ requirements:
     - if: unix
       then:
         - ncurses
-    - if: osx
-      then: libcups
 
 tests:
   - package_contents:
