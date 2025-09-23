@@ -25,9 +25,6 @@ source:
 build:
   number: 0
   skip: not unix or ppc64le
-  script:
-    env:
-      C_COMPILER_VERSION: ${{ c_compiler_version }}
 
 requirements:
   build:
@@ -37,8 +34,6 @@ requirements:
     - binutils
     - cabal ==3.10.3.0
     - ghc-bootstrap ==9.6.7
-    # - gmp
-    # - libiconv
     - llvm-tools ${{ c_compiler_version }}.*
     - python 3.10.*
     - sphinx
@@ -47,10 +42,6 @@ requirements:
     - if: linux
       then:
         - patchelf
-
-    - if: osx
-      then:
-        - libcxx-devel
 
     - if: unix
       then:
