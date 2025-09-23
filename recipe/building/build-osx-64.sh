@@ -49,13 +49,14 @@ set_macos_conda_ar_ranlib "${SRC_DIR}"/hadrian/cfg/default.target "${CONDA_TOOLC
 _hadrian_build=("${SRC_DIR}"/hadrian/build "-j${CPU_COUNT}")
 
 # Why does it use this linker? Damn, stubborn GHC...
-ls -l /Users/runner/miniforge3/bin/ld || true
-ls -l "${BUILD_PREFIX}"/bin/ld || true
-/Users/runner/miniforge3/bin/ld -v || true
-"${BUILD_PREFIX}"/bin/"${CONDA_TOOLCHAIN_BUILD}"-ld -v || true
+ls -l /Users/runner/miniforge3/bin || true
+"${BUILD_PREFIX}"/bin/"${CONDA_TOOLCHAIN_BUILD}"-as --help || true
+"${BUILD_PREFIX}"/bin/"${CONDA_TOOLCHAIN_BUILD}"-ld --help || true
 
-rm -f /Users/runner/miniforge3/bin/ld
+rm -f /Users/runner/miniforge3/bin/{as,ranlin,ld}
+ln -s "${BUILD_PREFIX}"/bin/"${CONDA_TOOLCHAIN_BUILD}"-as /Users/runner/miniforge3/bin/as
 ln -s "${BUILD_PREFIX}"/bin/"${CONDA_TOOLCHAIN_BUILD}"-ld /Users/runner/miniforge3/bin/ld
+ln -s "${BUILD_PREFIX}"/bin/"${CONDA_TOOLCHAIN_BUILD}"-ranlib /Users/runner/miniforge3/bin/ranlib
 
 "${_hadrian_build[@]}" -V stage1:exe:ghc-bin --flavour=quickest
 settings_file="${SRC_DIR}"/_build/stage0/lib/settings

@@ -124,13 +124,13 @@ set_macos_conda_ar_ranlib() {
 
   if [[ -f "$settings_file" ]]; then
     if [[ "$(basename "${settings_file}")" == "default."* ]]; then
-      perl -i -pe "s#(arMkArchive\s*=\s*).*#\$1Program {prgPath = \"${toolchain}-ar\", prgFlags = [\"qcsS\"]}#g" "${settings_file}"
+      perl -i -pe "s#(arMkArchive\s*=\s*).*#\$1Program {prgPath = \"${toolchain}-ar\", prgFlags = [\"qcs\"]}#g" "${settings_file}"
       perl -i -pe 's#((arIsGnu|arSupportsAtFile)\s*=\s*).*#$1True#g' "${settings_file}"
       perl -i -pe 's#(arNeedsRanlib\s*=\s*).*#$1False#g' "${settings_file}"
       perl -i -pe "s#(tgtRanlib\s*=\s*).*#\$1Just (Ranlib {ranlibProgram = Program {prgPath = \"${toolchain}-ranlib\", prgFlags = []}})#g" "${settings_file}"
     else
       perl -i -pe "s#(\"ar command\", \")[^\"]*#\$1${toolchain}-ar#g" "${settings_file}"
-      perl -i -pe "s#(\"ar flags\", \")[^\"]*#\$1qcsS#g" "${settings_file}"
+      perl -i -pe "s#(\"ar flags\", \")[^\"]*#\$1qcs#g" "${settings_file}"
       perl -i -pe "s#(\"ranlib command\", \")[^\"]*#\$1${toolchain}-ranlib#g" "${settings_file}"
     fi
   else
