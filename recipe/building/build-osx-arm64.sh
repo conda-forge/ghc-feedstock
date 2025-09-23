@@ -90,14 +90,14 @@ _hadrian_build=("${SRC_DIR}"/hadrian/build "-j${CPU_COUNT}")
 # We seem to have a difficult issue with library being ar/ranlib with toolchain when ld seem to need system ar/ranlib
 # [109 of 109] Linking $SRC_DIR/hadrian/dist-newstyle/build/x86_64-osx/ghc-9.6.7/hadrian-0.1.0.0/x/hadrian/build/hadrian/hadrian
 # ld: warning: ignoring file /Users/runner/.local/state/cabal/store/ghc-9.6.7/tf8-strng-1.0.2-7159478e/lib/libHStf8-strng-1.0.2-7159478e.a, building for macOS-x86_64 but attempting to link with file built for unknown-unsupported file format ( 0x21 0x3C 0x61 0x72 0x63 0x68 0x3E 0x0A 0x2F 0x20 0x20 0x20 0x20 0x20 0x20 0x20 )
-settings_file=$(find "${BUILD_PREFIX}"/ghc-bootstrap -name settings | head -1)
-perl -i -pe 's#("ar command", ")([^"]*)"#\1 x86_64-apple-darwin13.4.0-ar"#g' "${settings_file}"
-perl -i -pe 's#("ar flags", ")([^"]*)"#\1qs"#g' "${settings_file}"
-perl -i -pe 's#("ranlib command", ")([^"]*)"#\1 x86_64-apple-darwin13.4.0-ranlib"#g' "${settings_file}"
+settings_file=$(find "${BUILD_PREFIX}"/ghc-bootstrap -name settings | head -n 1)
+perl -i -pe 's#/usr/bin/(ar|ranlib)#x86_64-apple-darwin13.4.0-$1#g' "${settings_file}"
+perl -i -pe 's#qcls#qs#g' "${settings_file}"
+perl -i -pe 's#(ar supports at file", ")[^"]*#$1YES#g' "${settings_file}"
 
 cat "${settings_file}"
 
-"${_hadrian_build[@]}" stage1:exe:ghc-bin -V --flavour=release --progress-info=unicorn
+"${_hadrian_build[@]}" stage1:exe:ghc-bin -V --flavour=quickest --progress-info=unicorn
 
 "${SRC_DIR}"/_build/stage0/bin/arm64-apple-darwin20.0.0-ghc --version || { echo "Stage0 GHC failed to report version"; exit 1; }
 
@@ -127,11 +127,11 @@ if [[ "${_build_alias}" != "${_host_alias}" ]]; then
 fi
 
 export DYLD_INSERT_LIBRARIES="${BUILD_PREFIX}/lib/libiconv.dylib:${BUILD_PREFIX}/lib/libffi.dylib${DYLD_INSERT_LIBRARIES:+:}${DYLD_INSERT_LIBRARIES:-}"
-run_and_log "stage1_lib" "${_hadrian_build[@]}" stage1:lib:ghc -VV --flavour=release --docs=none --progress-info=unicorn
-run_and_log "stage2_exe" "${_hadrian_build[@]}" stage2:exe:ghc-bin --flavour=release --freeze1 --docs=none --progress-info=none
-run_and_log "build_all" "${_hadrian_build[@]}" --flavour=release --freeze1 --freeze2 --docs=no-sphinx-pdfs --progress-info=none
+run_and_log "stage1_lib" "${_hadrian_build[@]}" stage1:lib:ghc -VV --flavour=quickest --docs=none --progress-info=unicorn
+run_and_log "stage2_exe" "${_hadrian_build[@]}" stage2:exe:ghc-bin --flavour=quickest --freeze1 --docs=none --progress-info=none
+run_and_log "build_all" "${_hadrian_build[@]}" --flavour=quickest --freeze1 --freeze2 --docs=no-sphinx-pdfs --progress-info=none
 
-run_and_log "install" "${_hadrian_build[@]}" install --prefix="${PREFIX}" --flavour=release --freeze1 --freeze2 --docs=none --progress-info=none || true
+run_and_log "install" "${_hadrian_build[@]}" install --prefix="${PREFIX}" --flavour=quickest --freeze1 --freeze2 --docs=none --progress-info=none || true
 
 # Create links of aarch64-conda-linux-gnu-xxx to xxx
 pushd "${PREFIX}"/bin
