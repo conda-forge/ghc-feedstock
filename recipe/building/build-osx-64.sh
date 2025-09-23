@@ -48,6 +48,10 @@ set_macos_system_ar_ranlib "${SRC_DIR}"/hadrian/cfg/default.target "${CONDA_TOOL
 _hadrian_build=("${SRC_DIR}"/hadrian/build "-j${CPU_COUNT}")
 
 # Why does it use this linker? Damn, stubborn GHC...
+echo "${PATH}"
+which ld
+ls -l /Applications/Xcode_16.4.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/
+
 rm -f /Users/runner/miniforge3/bin/{as,ranlib,ld}
 ln -s "${BUILD_PREFIX}"/bin/"${CONDA_TOOLCHAIN_BUILD}"-as /Users/runner/miniforge3/bin/as
 ln -s "${BUILD_PREFIX}"/bin/"${CONDA_TOOLCHAIN_BUILD}"-ld /Users/runner/miniforge3/bin/ld
@@ -60,6 +64,9 @@ perl -pi -e 's#(C compiler link flags", "[^"]*)#$1 -v -Wl,-L$ENV{PREFIX}/lib -Wl
 perl -pi -e 's#(ld flags", "[^"]*)#$1 -v -L$ENV{PREFIX}/lib -L\$topdir/../../../../lib -rpath \$topdir/../../../../lib#' "${settings_file}"
 
 run_and_log "stage1_lib" "${_hadrian_build[@]}" stage1:lib:ghc --flavour=quickest
+iconv_aliases="-L${PREFIX}/lib -Wl,-alias,_libiconv,_iconv"
+iconv_aliases="${iconv_aliases} -Wl,-alias,_libiconv_open,_iconv_open"
+iconv_aliases="${iconv_aliases} -Wl,-alias,_libiconv_close,_iconv_close"
 perl -i -pe "s#(C compiler link flags\", \")([^\"]*)#\1\2 -v -Wl,-L\$ENV{PREFIX}/lib -Wl,-L\\\$topdir/../../../../lib -Wl,-rpath,\\\$topdir/../../../../lib ${iconv_aliases} -liconv#" "${settings_file}"
 perl -i -pe "s#(ld flags\", \")([^\"]*)#\1\2 -L\$ENV{PREFIX}/lib -L\\\$topdir/../../../../lib ${iconv_aliases} -liconv#" "${settings_file}"
 
@@ -67,9 +74,6 @@ run_and_log "stage2_exe" "${_hadrian_build[@]}" stage2:exe:ghc-bin --flavour=qui
 
 export DYLD_LIBRARY_PATH="${PREFIX}/lib:${BUILD_PREFIX}/lib:${DYLD_LIBRARY_PATH:-}"
 settings_file="${SRC_DIR}"/_build/stage1/lib/settings
-iconv_aliases="-L${PREFIX}/lib -Wl,-alias,_libiconv,_iconv"
-iconv_aliases="${iconv_aliases} -Wl,-alias,_libiconv_open,_iconv_open"
-iconv_aliases="${iconv_aliases} -Wl,-alias,_libiconv_close,_iconv_close"
 perl -i -pe "s#(C compiler link flags\", \")([^\"]*)#\1\2 -L\\\$topdir/../../../../lib -Wl,-rpath,\\\$topdir/../../../../lib ${iconv_aliases} -liconv#" "${settings_file}"
 perl -i -pe "s#(ld flags\", \")([^\"]*)#\1\2 -L\\\$topdir/../../../../lib ${iconv_aliases} -liconv#" "${settings_file}"
 run_and_log "stage2_lib" "${_hadrian_build[@]}" stage2:lib:ghc --flavour=quickest
