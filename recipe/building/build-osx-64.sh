@@ -20,7 +20,8 @@ SYSTEM_CONFIG=(
 )
 
 CONFIGURE_ARGS=(
-  --disable-numa
+  # default is auto: --disable-numa
+  # --disable-ld-override
   --with-system-libffi=yes
   --with-curses-includes="${PREFIX}"/include
   --with-curses-libraries="${PREFIX}"/lib
@@ -35,10 +36,8 @@ CONFIGURE_ARGS=(
 export ac_cv_path_ac_pt_CC=""
 export ac_cv_path_ac_pt_CXX=""
 
-./configure --help
-
 settings_file=$(find "${BUILD_PREFIX}"/ghc-bootstrap -name settings | head -n 1)
-perl -pi -e 's#(C compiler link flags", "[^"]*)#$1 -v -Wl,-v -Wl,-L$ENV{PREFIX}/lib -B$ENV{BUILD_PREFIX}/bin#' "${settings_file}"
+perl -pi -e 's#(C compiler link flags", "[^"]*)#$1 -v -Wl,-v -Wl,-L$ENV{PREFIX}/lib#' "${settings_file}"
 perl -pi -e 's#(ld flags", "[^"]*)#$1 -v -L$ENV{PREFIX}/lib#' "${settings_file}"
 set_macos_system_ar_ranlib "${settings_file}" "${CONDA_TOOLCHAIN_BUILD}"
 run_and_log "configure" ./configure "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}"
@@ -54,9 +53,7 @@ ln -s "${BUILD_PREFIX}"/bin/"${CONDA_TOOLCHAIN_BUILD}"-as /Users/runner/miniforg
 ln -s "${BUILD_PREFIX}"/bin/"${CONDA_TOOLCHAIN_BUILD}"-ld /Users/runner/miniforge3/bin/ld
 ln -s "${BUILD_PREFIX}"/bin/"${CONDA_TOOLCHAIN_BUILD}"-ranlib /Users/runner/miniforge3/bin/ranlib
 
-"${_hadrian_build[@]}" -v3 stage1:exe:ghc-bin --flavour=quickest || true
-set_macos_system_ar_ranlib "${settings_file}"
-"${_hadrian_build[@]}" -v3 stage1:exe:ghc-bin --flavour=quickest
+"${_hadrian_build[@]}" -V stage1:exe:ghc-bin --flavour=quickest
 
 settings_file="${SRC_DIR}"/_build/stage0/lib/settings
 perl -pi -e 's#(C compiler link flags", "[^"]*)#$1 -v -Wl,-L$ENV{PREFIX}/lib -Wl,-L\$topdir/../../../../lib -Wl,-rpath,\$topdir/../../../../lib#' "${settings_file}"
