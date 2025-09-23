@@ -37,6 +37,8 @@ export ac_cv_path_ac_pt_CXX=""
 run_and_log "configure" bash configure "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}"
 
 _hadrian_build=("${SRC_DIR}"/hadrian/build "-j${CPU_COUNT}")
+export CABFLAGS="--enable-shared --disable-static"
+export CABAL_ARGS="--enable-shared --disable-static"
 
 run_and_log "stage1_exe" "${_hadrian_build[@]}" stage1:exe:ghc-bin --flavour=release
 iconv_aliases="-L${PREFIX}/lib -Wl,-alias,_libiconv,_iconv"
