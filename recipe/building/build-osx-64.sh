@@ -38,21 +38,11 @@ export ac_cv_path_ac_pt_CXX=""
 settings_file=$(find "${BUILD_PREFIX}"/ghc-bootstrap -name settings | head -n 1)
 perl -pi -e 's#(C compiler link flags", "[^"]*)#$1 -v -Wl,-L$ENV{PREFIX}/lib -Wl,-L\$topdir/../../../../lib -Wl,-rpath,\$topdir/../../../../lib#' "${settings_file}"
 perl -pi -e 's#(ld flags", "[^"]*)#$1 -v -L$ENV{PREFIX}/lib -L\$topdir/../../../../lib -rpath \$topdir/../../../../lib#' "${settings_file}"
-perl -i -pe 's#/usr/bin/(ar|ranlib)#x86_64-apple-darwin13.4.0-$1#g' "${settings_file}"
-perl -i -pe 's#qcls#qs#g' "${settings_file}"
-perl -i -pe 's#(ar supports at file", ")[^"]*#$1Yes#g' "${settings_file}"
-cat "${settings_file}"
+set_macos_conda_ar_ranlib "${settings_file}" "${CONDA_TOOLCHAIN_BUILD}"
 run_and_log "configure" bash configure "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}"
 
-settings_file="${SRC_DIR}"/hadrian/cfg/default.host.target
-perl -i -pe 's#/usr/bin/ar("[^"]*"q)cls#x86_64-apple-darwin13.4.0-ar${1}s#g' "${settings_file}"
-perl -i -pe 's#((arIsGnu|arSupportsAtFile) = )False#$1True#g' "${settings_file}"
-perl -i -pe 's#(arNeedsRanlib = )True#$1False#g' "${settings_file}"
-
-settings_file="${SRC_DIR}"/hadrian/cfg/default.target
-perl -i -pe 's#/usr/bin/ar("[^"]*"q)cls#x86_64-apple-darwin13.4.0-ar${1}s#g' "${settings_file}"
-perl -i -pe 's#((arIsGnu|arSupportsAtFile) = )False#$1True#g' "${settings_file}"
-perl -i -pe 's#(arNeedsRanlib = )True#$1False#g' "${settings_file}"
+set_macos_conda_ar_ranlib "${SRC_DIR}"/hadrian/cfg/default.host.target "${CONDA_TOOLCHAIN_BUILD}"
+set_macos_conda_ar_ranlib "${SRC_DIR}"/hadrian/cfg/default.target "${CONDA_TOOLCHAIN_BUILD}"
 
 _hadrian_build=("${SRC_DIR}"/hadrian/build "-j${CPU_COUNT}")
 

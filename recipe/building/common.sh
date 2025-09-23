@@ -95,3 +95,46 @@ calculate_origin_rpath() {
     # Convert to $ORIGIN syntax
     echo "\$ORIGIN/$rel_path"
 }
+
+# Function to set the system ar/ranlib for OSX
+set_macos_system_ar_ranlib() {
+  local settings_file="$1"
+
+  if [[ -f "$settings_file" ]]; then
+    if [[ "$(basename "${settings_file}")" == "default."* ]]; then
+      perl -i -pe "s#(arMkArchive\s*=\s*).*#\$1Program {prgPath = \"/usr/bin/ar\", prgFlags = [\"qcls\"]}#g" "${settings_file}"
+      perl -i -pe 's#((arIsGnu|arSupportsAtFile)\s*=\s*).*#$1False#g' "${settings_file}"
+      perl -i -pe 's#(arNeedsRanlib\s*=\s*).*#$1True#g' "${settings_file}"
+      perl -i -pe "s#(tgtRanlib\s*=\s*).*#\$1Just (Ranlib {ranlibProgram = Program {prgPath = \"/usr/bin/ranlib\", prgFlags = []}})#g" "${settings_file}"
+    else
+      perl -i -pe "s#(\"ar command\", \")[^\"]*#\$1/usr/bin/ar#g" "${settings_file}"
+      perl -i -pe "s#(\"ar flags\", \")[^\"]*#\$1qcls#g" "${settings_file}"
+      perl -i -pe "s#(\"ranlib command\", \")[^\"]*#\$1/usr/bin/ranlib#g" "${settings_file}"
+    fi
+  else
+    echo "Error: $settings_file not found!"
+    exit 1
+  fi
+}
+
+# Function to set the conda ar/ranlib for OSX
+set_macos_conda_ar_ranlib() {
+  local settings_file="$1"
+  local toolchain="${2:-x86_64-apple-darwin13.4.0}"
+
+  if [[ -f "$settings_file" ]]; then
+    if [[ "$(basename "${settings_file}")" == "default."* ]]; then
+      perl -i -pe "s#(arMkArchive\s*=\s*).*#\$1Program {prgPath = \"${toolchain}-ar\", prgFlags = [\"qcsS\"]}#g" "${settings_file}"
+      perl -i -pe 's#((arIsGnu|arSupportsAtFile)\s*=\s*).*#$1True#g' "${settings_file}"
+      perl -i -pe 's#(arNeedsRanlib\s*=\s*).*#$1False#g' "${settings_file}"
+      perl -i -pe "s#(tgtRanlib\s*=\s*).*#\$1Just (Ranlib {ranlibProgram = Program {prgPath = \"${toolchain}-ranlib\", prgFlags = []}})#g" "${settings_file}"
+    else
+      perl -i -pe "s#(\"ar command\", \")[^\"]*#\$1${toolchain}-ar#g" "${settings_file}"
+      perl -i -pe "s#(\"ar flags\", \")[^\"]*#\$1qcsS#g" "${settings_file}"
+      perl -i -pe "s#(\"ranlib command\", \")[^\"]*#\$1${toolchain}-ranlib#g" "${settings_file}"
+    fi
+  else
+    echo "Error: $settings_file not found!"
+    exit 1
+  fi
+}
