@@ -35,6 +35,11 @@ CONFIGURE_ARGS=(
 
 export ac_cv_path_ac_pt_CC=""
 export ac_cv_path_ac_pt_CXX=""
+export ac_cv_prog_AR="${AR}"
+export ac_cv_prog_RANLIB="${RANLIB}"
+export ac_cv_path_AR="${AR}"
+export ac_cv_path_RANLIB="${RANLIB}"
+export DEVELOPER_DIR=""
 
 settings_file=$(find "${BUILD_PREFIX}"/ghc-bootstrap -name settings | head -n 1)
 perl -pi -e 's#(C compiler link flags", "[^"]*)#$1 -v -Wl,-v -Wl,-L$ENV{PREFIX}/lib#' "${settings_file}"
@@ -50,6 +55,8 @@ _hadrian_build=("${SRC_DIR}"/hadrian/build "-j${CPU_COUNT}")
 # Why does it use this linker? Damn, stubborn GHC...
 echo "${PATH}"
 which ld
+ls -l "${SDKROOT}"/../../../../Toolchains/XcodeDefault.xctoolchain/
+ls -l "${SDKROOT}"/../../../../Toolchains/XcodeDefault.xctoolchain/usr/bin/
 ls -l /Applications/Xcode_16.4.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/
 
 rm -f /Users/runner/miniforge3/bin/{as,ranlib,ld}
@@ -57,7 +64,7 @@ ln -s "${BUILD_PREFIX}"/bin/"${CONDA_TOOLCHAIN_BUILD}"-as /Users/runner/miniforg
 ln -s "${BUILD_PREFIX}"/bin/"${CONDA_TOOLCHAIN_BUILD}"-ld /Users/runner/miniforge3/bin/ld
 ln -s "${BUILD_PREFIX}"/bin/"${CONDA_TOOLCHAIN_BUILD}"-ranlib /Users/runner/miniforge3/bin/ranlib
 
-"${_hadrian_build[@]}" -V stage1:exe:ghc-bin --flavour=quickest
+"${_hadrian_build[@]}" stage1:exe:ghc-bin --flavour=quickest
 
 settings_file="${SRC_DIR}"/_build/stage0/lib/settings
 perl -pi -e 's#(C compiler link flags", "[^"]*)#$1 -v -Wl,-L$ENV{PREFIX}/lib -Wl,-L\$topdir/../../../../lib -Wl,-rpath,\$topdir/../../../../lib#' "${settings_file}"
