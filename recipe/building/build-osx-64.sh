@@ -5,6 +5,8 @@ _log_index=0
 
 source "${RECIPE_DIR}"/building/common.sh
 
+export CABAL="${BUILD_PREFIX}/bin/cabal"
+
 # This is needed as in seems to interfere with configure scripts
 unset build_alias
 unset host_alias
