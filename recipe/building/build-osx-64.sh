@@ -55,8 +55,8 @@ _hadrian_build=("${SRC_DIR}"/hadrian/build "-j${CPU_COUNT}")
 # Why does it use this linker? Damn, stubborn GHC...
 echo "${PATH}"
 which ld
-ls -l "${SDKROOT}"/../../../../Toolchains/XcodeDefault.xctoolchain/
-ls -l "${SDKROOT}"/../../../../Toolchains/XcodeDefault.xctoolchain/usr/bin/
+ls -l "${SDKROOT}"/../../../../../Toolchains/XcodeDefault.xctoolchain/
+ls -l "${SDKROOT}"/../../../../../Toolchains/XcodeDefault.xctoolchain/usr/bin/
 ls -l /Applications/Xcode_16.4.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/
 
 rm -f /Users/runner/miniforge3/bin/{as,ranlib,ld}
