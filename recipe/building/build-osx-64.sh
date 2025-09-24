@@ -46,7 +46,13 @@ set_macos_conda_ar_ranlib "${SRC_DIR}"/_build/stage0/lib/settings "${CONDA_TOOLC
 run_and_log "stage1_lib" "${_hadrian_build[@]}" stage1:lib:ghc --flavour=quickest
 set_macos_conda_ar_ranlib "${SRC_DIR}"/_build/stage0/lib/settings "${CONDA_TOOLCHAIN_BUILD}"
 
+iconv_aliases="-L${PREFIX}/lib -Wl,-alias,_libiconv,_iconv"
+iconv_aliases="${iconv_aliases} -Wl,-alias,_libiconv_open,_iconv_open"
+iconv_aliases="${iconv_aliases} -Wl,-alias,_libiconv_close,_iconv_close"
 run_and_log "stage2_exe" "${_hadrian_build[@]}" stage2:exe:ghc-bin --flavour=quickest
+settings_file="${SRC_DIR}"/_build/stage1/lib/settings
+perl -pi -e 's#(C compiler link flags", "[^"]*)#$1 -v -Wl,-L$ENV{PREFIX}/lib -Wl,-L\$topdir/../../../../lib -Wl,-rpath,\$topdir/../../../../lib#' "${settings_file}"
+perl -pi -e 's#(ld flags", "[^"]*)#$1 -v -L$ENV{BUILD_REFIX}/lib -L\$topdir/../../../../lib -rpath \$topdir/../../../../lib#' "${settings_file}"
 run_and_log "stage2_lib" "${_hadrian_build[@]}" stage2:lib:ghc --flavour=quickest
 
 run_and_log "install" "${_hadrian_build[@]}" install --prefix="${PREFIX}" --flavour=quickest --docs=none --progress-info=none
