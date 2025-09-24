@@ -89,4 +89,4 @@ run_and_log "install" "${_hadrian_build[@]}" install --prefix="${PREFIX}" --flav
 
 settings_file=$(find "${PREFIX}" -name settings | head -n 1)
 perl -i -pe "s#(C compiler link flags\", \")([^\"]*)#\1\2 -lto_library \\\$topdir/../../../../lib/libLTO.19.1.dylib -Wl,-L\\\$topdir/../../../../lib -Wl,-rpath,\\\$topdir/../../../../lib ${iconv_aliases} -liconv#" "${settings_file}"
-perl -i -pe "s#(ld flags\", \")([^\"]*)#\1\2 -fno-lto -L\\\$topdir/../../../../lib ${iconv_aliases} -liconv#" "${settings_file}"
+perl -i -pe "s#(ld flags\", \")([^\"]*)#\1\2 -lto_library \\\$topdir/../../../../lib/libLTO.19.1.dylib -L\\\$topdir/../../../../lib ${iconv_aliases} -liconv#" "${settings_file}"
