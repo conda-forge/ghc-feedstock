@@ -8,14 +8,8 @@ package:
 source:
   - url: https://downloads.haskell.org/~ghc/${{ version }}/ghc-${{ version }}-src.tar.xz
     sha256: d053bf6ce1d588a75cfe8c9316269486e9d8fb89dcdf6fd92836fa2e3df61305
-  # - if: linux
-  #   then:
-  #     url: https://downloads.haskell.org/~ghc/${{ version }}/ghc-${{ version }}-x86_64-alpine3_12-linux-static-int_native.tar.xz
-  #     sha256: 7c411cf5285f32c977bf1ed66e2cf7b54f59af2056ed1d125b93c62a724844be
-  #     target_directory: ghc-bootstrap
-    
-    # patches:
-    #  - patches/fix-hadrian-build-cabal.patch
+    patches:
+      - patches/update-Release.hs.patch
     #  - patches/fix-hadrian-bypass-deps.patch
     #  - patch-rpath-macos.patch
     #  - if: osx and arm64

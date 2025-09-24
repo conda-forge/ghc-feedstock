@@ -1,0 +1,31 @@
+--- a/hadrian/src/Settings/Flavours/Release.hs
++++ b/hadrian/src/Settings/Flavours/Release.hs
+@@ -1,7 +1,27 @@
+ module Settings.Flavours.Release where
+
++import qualified Data.Set as Set
++import Expression
++import Flavour
++import Oracles.Flag
+ import Settings.Flavours.Performance
+-import Flavour
+
++-- Modified release flavour: vanilla for Stage0, dynamic-only for Stage1+
+ releaseFlavour :: Flavour
+-releaseFlavour = enableHaddock performanceFlavour { name = "release" }
++releaseFlavour = enableHaddock performanceFlavour
++    { name = "release"
++    , libraryWays = Set.fromList <$>
++                    mconcat
++                    [ stage0 ? pure [vanilla]                    -- Stage0: static (bootstrap requirement)
++                    , notStage0 ? platformSupportsSharedLibs ? pure [dynamic]  -- Stage1+: dynamic only
++                    ]
++    , rtsWays = Set.fromList <$>
++                mconcat
++                [ stage0 ? pure [vanilla]                       -- Stage0: static RTS
++                , notStage0 ? platformSupportsSharedLibs ? pure [dynamic]  -- Stage1+: dynamic RTS only
++                , targetSupportsThreadedRts ? stage0 ? pure [threaded]     -- Stage0: threaded if supported
++                , targetSupportsThreadedRts ? notStage0 ? platformSupportsSharedLibs ? pure [threadedDynamic]  -- Stage1+: threaded dynamic
++                ]
++    }
++
