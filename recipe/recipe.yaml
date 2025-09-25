@@ -10,6 +10,7 @@ source:
     sha256: d053bf6ce1d588a75cfe8c9316269486e9d8fb89dcdf6fd92836fa2e3df61305
     patches:
       - patches/update-Release.hs.patch
+      - patches/update-Rts.hs.patch
     #  - patches/fix-hadrian-bypass-deps.patch
     #  - patch-rpath-macos.patch
     #  - if: osx and arm64

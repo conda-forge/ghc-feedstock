@@ -1,0 +1,16 @@
+--- a/hadrian/src/Rules/Rts.hs
++++ b/hadrian/src/Rules/Rts.hs
+@@ -24,6 +24,13 @@ rtsRules = priority 3 $ do
+       |%> \ rtsLibFilePath' -> createFileLink
+             (addRtsDummyVersion $ takeFileName rtsLibFilePath')
+             rtsLibFilePath'
++
++    -- Create static library symlinks to dynamic libraries when static libraries
++    -- are not built (dynamic-only mode). This prevents cabal copy failures.
++    [ root -/- "**/libHSrts-*.a" ] |%> \ staticLibPath -> do
++        let dynamicLibPath = replaceExtension staticLibPath "so" ++ "-ghc9.6.7"
++        dynamicExists <- doesFileExist dynamicLibPath
++        when dynamicExists $ createFileLink (takeFileName dynamicLibPath) staticLibPath
+
+     -- Libffi
+     forM_ [Stage1, Stage2, Stage3 ] $ \ stage -> do
