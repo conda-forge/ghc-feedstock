@@ -6,8 +6,8 @@ _log_index=0
 source "${RECIPE_DIR}"/building/common.sh
 
 export CABAL="${BUILD_PREFIX}/bin/cabal"
-
-# Update cabal package database
+export CABAL_DIR="${SRC_DIR}/.cabal"
+mkdir -p "${CABAL_DIR}" && "${CABAL}" user-config init
 run_and_log "cabal-update" "${CABAL}" v2-update
 
 _hadrian_build=("${SRC_DIR}"/hadrian/build "-j${CPU_COUNT}")
@@ -67,7 +67,9 @@ perl -pi -e 's#(C compiler link flags", "[^"]*)#$1 -v -Wl,-L$ENV{PREFIX}/lib -Wl
 perl -pi -e 's#(ld flags", "[^"]*)#$1 -v -L$ENV{PREFIX}/lib -L\$topdir/../../../../lib -rpath \$topdir/../../../../lib#' "${settings_file}"
 rm -rf "${BUILD_PREFIX}"/ghc-bootstrap
 export GHC="${SRC_DIR}"/_build/ghc-stage1
-run_and_log "stage2_exe" "${_hadrian_build[@]}" stage2:exe:ghc-bin -V --flavour=release
-run_and_log "stage2_lib" "${_hadrian_build[@]}" stage2:lib:ghc --flavour=release
+export PATH="${SRC_DIR}"/_build/stage0/bin:"${SRC_DIR}"/_build/stageBoot/bin:"${PATH}"
+(cd  "${SRC_DIR}"/hadrian/ && ${CABAL} v2-build "${CABFLAGS[@]}" -v2 --ghc-options="-dynamic -shared -fPIC -optl-dynamic -optl-Wl,-rpath,${PREFIX}/lib -optl-L${PREFIX}/lib -optl-liconv -optl-lffi -optl-lgmp -optl-ltinfo -optl-ltinfow" primitive)
+run_and_log "stage2_exe" "${_hadrian_build[@]}" stage2:exe:ghc-bin -V --flavour=release --freeze1
+run_and_log "stage2_lib" "${_hadrian_build[@]}" stage2:lib:ghc --flavour=release --freeze1
 
 run_and_log "install" "${_hadrian_build[@]}" install --prefix="${PREFIX}" --flavour=release --docs=none
