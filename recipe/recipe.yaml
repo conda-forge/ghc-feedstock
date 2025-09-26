@@ -156,6 +156,7 @@ tests:
 
   - script: |
       ghc --version
+      ls ${PREFIX}/lib/*LTO* || true
       printf 'main = putStrLn "Hello conda-forge"\n' > hello.hs
       ghc -v hello.hs
       ./hello
