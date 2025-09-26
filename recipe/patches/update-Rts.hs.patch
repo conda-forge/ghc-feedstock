@@ -1,35 +1,11 @@
 --- a/hadrian/src/Rules/Rts.hs
 +++ b/hadrian/src/Rules/Rts.hs
-@@ -3,6 +3,7 @@
- module Rules.Rts (rtsRules, needRtsLibffiTargets, needRtsSymLinks) where
-
- import qualified Data.Set as Set
-+import Data.List (isInfixOf)
-
- import Packages (rts, rtsBuildPath, libffiBuildPath, rtsContext)
- import Rules.Libffi
-@@ -20,10 +21,25 @@ rtsRules = priority 3 $ do
-     [ root -/- "**/libHSrts_*-ghc*.so",
-       root -/- "**/libHSrts_*-ghc*.dylib",
-       root -/- "**/libHSrts-ghc*.so",
--      root -/- "**/libHSrts-ghc*.dylib"]
--      |%> \ rtsLibFilePath' -> createFileLink
-+      root -/- "**/libHSrts-ghc*.dylib",
-+      root -/- "**/libHSrts-1.0.2-ghc*.so",
-+      root -/- "**/libHSrts-1.0.2_thr-ghc*.so"]
-+      |%> \ rtsLibFilePath' -> do
-+        createFileLink
+@@ -25,6 +25,8 @@ rtsRules = priority 3 $ do
              (addRtsDummyVersion $ takeFileName rtsLibFilePath')
              rtsLibFilePath'
-+        -- Create static library symlinks immediately after dynamic library symlinks
-+        let rtsDir = takeDirectory rtsLibFilePath'
-+            dynamicLib = takeFileName rtsLibFilePath'
-+            staticLib = if "_thr-ghc" `isInfixOf` rtsLibFilePath'
-+                       then rtsDir -/- "libHSrts-1.0.2_thr.a"
-+                       else rtsDir -/- "libHSrts-1.0.2.a"
-+        putBuild $ "DEBUG: Creating static symlink " ++ staticLib ++ " -> " ++ dynamicLib
-+        cmd "ln" ["-sf", dynamicLib, staticLib]
-+        putBuild $ "DEBUG: Successfully created static library symlink"
 
++    -- TEST: Minimal change to verify compilation
++
      -- Libffi
      forM_ [Stage1, Stage2, Stage3 ] $ \ stage -> do
+         let buildPath = root -/- buildDir (rtsContext stage)
