@@ -1,16 +1,57 @@
 --- a/hadrian/src/Rules/Rts.hs
 +++ b/hadrian/src/Rules/Rts.hs
-@@ -24,6 +24,13 @@ rtsRules = priority 3 $ do
+@@ -24,6 +24,37 @@ rtsRules = priority 3 $ do
        |%> \ rtsLibFilePath' -> createFileLink
              (addRtsDummyVersion $ takeFileName rtsLibFilePath')
              rtsLibFilePath'
-+
+
 +    -- Create static library symlinks to dynamic libraries when static libraries
 +    -- are not built (dynamic-only mode). This prevents cabal copy failures.
-+    [ root -/- "**/libHSrts-*.a" ] |%> \ staticLibPath -> do
-+        let dynamicLibPath = replaceExtension staticLibPath "so" ++ "-ghc9.6.7"
-+        dynamicExists <- doesFileExist dynamicLibPath
-+        when dynamicExists $ createFileLink (takeFileName dynamicLibPath) staticLibPath
++    [ root -/- "**/libHSrts-1.0.2.a",
++      root -/- "**/libHSrts-1.0.2_thr.a" ] |%> \ staticLibPath -> do
++        putInfo $ "DEBUG: ===== STATIC LIBRARY SYMLINK CREATION ====="
++        putInfo $ "DEBUG: Creating static library symlink for: " ++ staticLibPath
++        let baseName = takeBaseName staticLibPath
++            staticDir = takeDirectory staticLibPath
++        putInfo $ "DEBUG: Base name: " ++ baseName
++        putInfo $ "DEBUG: Static directory: " ++ staticDir
++
++        -- List all .so files in the directory to see what's actually there
++        soFiles <- getDirectoryFiles staticDir ["*.so"]
++        putInfo $ "DEBUG: Found .so files in directory: " ++ show soFiles
++
++        let isThreaded = "_thr" `isSuffixOf` baseName
++            dynamicPattern = if isThreaded then "*thr*.so" else "libHSrts-1.0.2-*.so"
++        putInfo $ "DEBUG: Is threaded: " ++ show isThreaded
++        putInfo $ "DEBUG: Looking for dynamic pattern: " ++ dynamicPattern
++
++        matchingSoFiles <- getDirectoryFiles staticDir [dynamicPattern]
++        putInfo $ "DEBUG: Matching .so files: " ++ show matchingSoFiles
++
++        case matchingSoFiles of
++            [] -> do
++                putInfo $ "ERROR: No matching dynamic library found for " ++ staticLibPath
++                putInfo $ "ERROR: Available .so files: " ++ show soFiles
++            (dynamicLib:_) -> do
++                putInfo $ "DEBUG: Using dynamic library: " ++ dynamicLib
++                putInfo $ "DEBUG: Creating symlink: ln -sf " ++ dynamicLib ++ " " ++ staticLibPath
++                cmd "ln" ["-sf", dynamicLib, staticLibPath]
 
      -- Libffi
      forM_ [Stage1, Stage2, Stage3 ] $ \ stage -> do
+@@ -164,6 +195,15 @@ needRtsSymLinks :: Stage -> Set.Set Way -> Action ()
+     = forM_ (Set.filter (wayUnit Dynamic) rtsWays) $ \ way -> do
+         let ctx = Context stage rts way Final
+         libPath     <- libPath ctx
+         distDir     <- distDir stage
+         rtsLibFile  <- takeFileName <$> pkgLibraryFile ctx
+         need [removeRtsDummyVersion (libPath </> distDir </> rtsLibFile)]
++
++    -- Also need the .a symlinks when building dynamic libraries in dynamic-only mode
++    rtsPath <- rtsBuildPath stage
++    putInfo $ "DEBUG: ===== NEEDRTSSYMLINKS FUNCTION ====="
++    putInfo $ "DEBUG: needRtsSymLinks - Stage: " ++ show stage
++    putInfo $ "DEBUG: needRtsSymLinks - RTS path: " ++ rtsPath
++    putInfo $ "DEBUG: needRtsSymLinks - Requesting static library symlinks"
++    need [ rtsPath -/- "libHSrts-1.0.2.a"
++         , rtsPath -/- "libHSrts-1.0.2_thr.a" ]
