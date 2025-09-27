@@ -7,26 +7,30 @@
 +    -- Create static library symlinks for dynamic-only builds
 +    [ root -/- "**/libHSrts-1.0.2.a",
 +      root -/- "**/libHSrts-1.0.2_thr.a" ] |%> \ staticLibPath -> do
-+        putProgressInfo $ "DEBUG: Creating symlink for " ++ staticLibPath
++        putBuild $ "DEBUG: Creating symlink for " ++ staticLibPath
 +        let dynamicLib = if "thr" `elem` words staticLibPath
 +                        then "libHSrts-1.0.2_thr-ghc9.6.7.so"
 +                        else "libHSrts-1.0.2-ghc9.6.7.so"
-+        putProgressInfo $ "DEBUG: Linking " ++ staticLibPath ++ " -> " ++ dynamicLib
-+        cmd "ln" ["-sf", dynamicLib, staticLibPath]
++        putBuild $ "DEBUG: Linking " ++ staticLibPath ++ " -> " ++ dynamicLib
++        cmd "ln" ["-sf", dynamicLib, staticLibPath] :: Action ()
 +
 +    -- Force creation of .a symlinks when .so files exist (broader pattern)
 +    [ root -/- "**/*rts*/**/libHSrts-*.a" ] |%> \ staticLibPath -> do
-+        putProgressInfo $ "DEBUG: FALLBACK: Creating .a symlink via fallback rule"
++        putBuild $ "DEBUG: FALLBACK: Creating .a symlink via fallback rule"
 +        let dynamicLib = if "thr" `elem` words staticLibPath then "libHSrts-1.0.2_thr-ghc9.6.7.so" else "libHSrts-1.0.2-ghc9.6.7.so"
-+        cmd "ln" ["-sf", dynamicLib, staticLibPath]
++        cmd "ln" ["-sf", dynamicLib, staticLibPath] :: Action ()
 +
      -- Libffi
      forM_ [Stage1, Stage2, Stage3 ] $ \ stage -> do
 @@ -160,2 +174,7 @@ needRtsLibffiTargets stage = do
          need [removeRtsDummyVersion (libPath </> distDir </> rtsLibFile)]
-+        putProgressInfo $ "DEBUG: needRtsSymLinks called for stage " ++ show stage
++        putBuild $ "DEBUG: needRtsSymLinks called for stage " ++ show stage
 +        rtsPath <- rtsBuildPath stage
-+        putProgressInfo $ "DEBUG: RTS path: " ++ rtsPath
++        putBuild $ "DEBUG: RTS path: " ++ rtsPath
++        -- Proactively create .a symlinks before copy operation
++        putBuild $ "DEBUG: Creating .a symlinks proactively"
++        cmd "ln" ["-sf", "libHSrts-1.0.2-ghc9.6.7.so", rtsPath -/- "libHSrts-1.0.2.a"] :: Action ()
++        cmd "ln" ["-sf", "libHSrts-1.0.2_thr-ghc9.6.7.so", rtsPath -/- "libHSrts-1.0.2_thr.a"] :: Action ()
 +        need [ rtsPath -/- "libHSrts-1.0.2.a"
 +             , rtsPath -/- "libHSrts-1.0.2_thr.a" ]
  
