@@ -1,11 +1,29 @@
 --- a/hadrian/src/Rules/Rts.hs
 +++ b/hadrian/src/Rules/Rts.hs
-@@ -25,6 +25,8 @@ rtsRules = priority 3 $ do
+@@ -25,6 +25,14 @@ rtsRules = priority 3 $ do
              (addRtsDummyVersion $ takeFileName rtsLibFilePath')
              rtsLibFilePath'
 
-+    -- TEST: Minimal change to verify compilation
++    -- Create static library symlinks for dynamic-only builds
++    [ root -/- "**/libHSrts-1.0.2.a",
++      root -/- "**/libHSrts-1.0.2_thr.a" ] |%> \ staticLibPath -> do
++        let dynamicLib = if "thr" `elem` words staticLibPath
++                        then "libHSrts-1.0.2_thr-ghc9.6.7.so"
++                        else "libHSrts-1.0.2-ghc9.6.7.so"
++        cmd "ln" ["-sf", dynamicLib, staticLibPath]
 +
      -- Libffi
      forM_ [Stage1, Stage2, Stage3 ] $ \ stage -> do
          let buildPath = root -/- buildDir (rtsContext stage)
+@@ -158,6 +166,11 @@ needRtsSymLinks :: Stage -> Set.Set Way -> Action ()
+         libPath     <- libPath ctx
+         distDir     <- distDir stage
+         rtsLibFile  <- takeFileName <$> pkgLibraryFile ctx
+         need [removeRtsDummyVersion (libPath </> distDir </> rtsLibFile)]
++
++    -- Request static library symlinks for dynamic-only builds
++    rtsPath <- rtsBuildPath stage
++    need [ rtsPath -/- "libHSrts-1.0.2.a"
++         , rtsPath -/- "libHSrts-1.0.2_thr.a" ]
+
+ prefix, versionlessPrefix :: String
