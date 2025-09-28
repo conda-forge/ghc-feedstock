@@ -1,36 +1,42 @@
 --- a/hadrian/src/Rules/Rts.hs
 +++ b/hadrian/src/Rules/Rts.hs
-@@ -25,5 +25,21 @@ rtsRules = priority 3 $ do
+@@ -25,6 +25,12 @@ rtsRules = priority 3 $ do
              (addRtsDummyVersion $ takeFileName rtsLibFilePath')
              rtsLibFilePath'
 
-+    -- Create static library symlinks for dynamic-only builds
++    -- Backup: ensure .a files exist if Library.hs patch didn't work
 +    [ root -/- "**/libHSrts-1.0.2.a",
-+      root -/- "**/libHSrts-1.0.2_thr.a" ] |%> \ staticLibPath -> do
-+        putBuild $ "DEBUG: Creating symlink for " ++ staticLibPath
-+        let dynamicLib = if "thr" `elem` words staticLibPath
-+                        then "libHSrts-1.0.2_thr-ghc9.6.7.so"
-+                        else "libHSrts-1.0.2-ghc9.6.7.so"
-+        putBuild $ "DEBUG: Linking " ++ staticLibPath ++ " -> " ++ dynamicLib
-+        cmd "ln" ["-sf", dynamicLib, staticLibPath] :: Action ()
++      root -/- "**/libHSrts-1.0.2_thr.a" ] |%> \ staticPath -> do
++        let soFile = if "thr" `isInfixOf` staticPath then "libHSrts-1.0.2_thr-ghc9.6.7.so" else "libHSrts-1.0.2-ghc9.6.7.so"
++        cmd ["ln", "-sf", soFile, staticPath]
 +
-+    -- Force creation of .a symlinks when .so files exist (broader pattern)
-+    [ root -/- "**/*rts*/**/libHSrts-*.a" ] |%> \ staticLibPath -> do
-+        putBuild $ "DEBUG: FALLBACK: Creating .a symlink via fallback rule"
-+        let dynamicLib = if "thr" `elem` words staticLibPath then "libHSrts-1.0.2_thr-ghc9.6.7.so" else "libHSrts-1.0.2-ghc9.6.7.so"
-+        cmd "ln" ["-sf", dynamicLib, staticLibPath] :: Action ()
++    -- Create .o symlinks for dynamic-only builds (fixes dependency analysis)
++    [ root -/- "**/*.o" ] |%> \ objPath -> do
++        let dynObj = replaceExtension objPath "dyn_o"
++        dynObjExists <- doesFileExist dynObj
++        when dynObjExists $ do
++            putBuild $ "OBJ-SYMLINK: Creating .o symlink: " ++ objPath ++ " -> " ++ takeFileName dynObj
++            cmd ["ln", "-sf", takeFileName dynObj, objPath] :: Action ()
 +
      -- Libffi
      forM_ [Stage1, Stage2, Stage3 ] $ \ stage -> do
-@@ -160,2 +174,7 @@ needRtsLibffiTargets stage = do
-         need [removeRtsDummyVersion (libPath </> distDir </> rtsLibFile)]
-+        putBuild $ "DEBUG: needRtsSymLinks called for stage " ++ show stage
-+        rtsPath <- rtsBuildPath stage
-+        putBuild $ "DEBUG: RTS path: " ++ rtsPath
-+        -- Proactively create .a symlinks before copy operation
-+        putBuild $ "DEBUG: Creating .a symlinks proactively"
-+        cmd "ln" ["-sf", "libHSrts-1.0.2-ghc9.6.7.so", rtsPath -/- "libHSrts-1.0.2.a"] :: Action ()
-+        cmd "ln" ["-sf", "libHSrts-1.0.2_thr-ghc9.6.7.so", rtsPath -/- "libHSrts-1.0.2_thr.a"] :: Action ()
-+        need [ rtsPath -/- "libHSrts-1.0.2.a"
-+             , rtsPath -/- "libHSrts-1.0.2_thr.a" ]
- 
+         let buildPath = root -/- buildDir (rtsContext stage)
+--- a/hadrian/src/Rules/Library.hs
++++ b/hadrian/src/Rules/Library.hs
+@@ -95,6 +95,16 @@ buildDynamicLib root suffix dynlibpath = do
+     build $ target context (Ghc LinkHs $ Context.stage context) objs [dynlibpath]
+
++    -- IMMEDIATE: Create .a symlinks for ALL dynamic libraries after linkage
++    let dir = takeDirectory dynlibpath
++    let isRts = package context == rts
++    let isThreaded = "thr" `isInfixOf` dynlibpath
++    when isRts $ do
++        let staticFile = if isThreaded then "libHSrts-1.0.2_thr.a" else "libHSrts-1.0.2.a"
++        let staticPath = dir </> staticFile
++        putBuild $ "LINKHS-POST: Creating RTS .a symlink immediately: " ++ staticPath ++ " -> " ++ takeFileName dynlibpath
++        cmd ["ln", "-sf", takeFileName dynlibpath, staticPath] :: Action ()
++        putBuild $ "LINKHS-POST: Symlink created successfully"
++
+ -- | Build a "GHCi library" ('LibGhci') under the given build root, with the
+ -- complete path of the file to build is given as the second argument.
+ -- See Note [Merging object files for GHCi] in GHC.Driver.Pipeline.
