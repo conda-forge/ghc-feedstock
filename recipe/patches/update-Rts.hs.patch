@@ -10,23 +10,16 @@
 +        let soFile = if "thr" `isInfixOf` staticPath then "libHSrts-1.0.2_thr-ghc9.6.7.so" else "libHSrts-1.0.2-ghc9.6.7.so"
 +        cmd ["ln", "-sf", soFile, staticPath]
 +
-+    -- Create .o symlinks for dynamic-only builds (fixes dependency analysis)
-+    [ root -/- "**/*.o" ] |%> \ objPath -> do
-+        let dynObj = replaceExtension objPath "dyn_o"
-+        dynObjExists <- doesFileExist dynObj
-+        when dynObjExists $ do
-+            putBuild $ "OBJ-SYMLINK: Creating .o symlink: " ++ objPath ++ " -> " ++ takeFileName dynObj
-+            cmd ["ln", "-sf", takeFileName dynObj, objPath] :: Action ()
-+
      -- Libffi
      forM_ [Stage1, Stage2, Stage3 ] $ \ stage -> do
          let buildPath = root -/- buildDir (rtsContext stage)
 --- a/hadrian/src/Rules/Library.hs
 +++ b/hadrian/src/Rules/Library.hs
-@@ -95,6 +95,16 @@ buildDynamicLib root suffix dynlibpath = do
+@@ -94,6 +94,16 @@ buildDynamicLib root suffix dynlibpath = do
+     objs <- libraryObjects context
      build $ target context (Ghc LinkHs $ Context.stage context) objs [dynlibpath]
 
-+    -- IMMEDIATE: Create .a symlinks for ALL dynamic libraries after linkage
++    -- IMMEDIATE: Create .a symlinks for dynamic libraries (RTS only)
 +    let dir = takeDirectory dynlibpath
 +    let isRts = package context == rts
 +    let isThreaded = "thr" `isInfixOf` dynlibpath
@@ -40,3 +33,44 @@
  -- | Build a "GHCi library" ('LibGhci') under the given build root, with the
  -- complete path of the file to build is given as the second argument.
  -- See Note [Merging object files for GHCi] in GHC.Driver.Pipeline.
+--- a/hadrian/src/Rules/Dependencies.hs
++++ b/hadrian/src/Rules/Dependencies.hs
+@@ -3,6 +3,8 @@ module Rules.Dependencies (buildPackageDependencies) where
+ import Data.Bifunctor
+ import Data.Function
+ import qualified Data.List.NonEmpty as NE
++import Data.List (isSuffixOf)
++import System.FilePath (replaceExtension)
+
+ import Base
+ import Context
+@@ -64,11 +66,30 @@ buildPackageDependencies rs = do
+         removeFile $ mk <.> "bak"
+
+     root -/- "**/.dependencies" %> \deps -> do
++        -- Parse .dependencies.mk file
+         mkDeps <- readFile' (deps <.> "mk")
++        let parsedDeps = parseMakefile mkDeps
++        -- For dynamic-only builds, create both .dyn_o and .o dependency entries
++        let duplicatedDeps = concatMap duplicateForDynamicOnly parsedDeps
+         writeFileChanged deps . unlines
+                               . map (\(src, deps) -> unwords $ src : deps)
+                               . map (bimap unifyPath (map unifyPath))
+                               . map (bimap NE.head concat . NE.unzip)
+                               . NE.groupAllWith fst
+-                              $ parseMakefile mkDeps
++                              $ duplicatedDeps
++
++-- | For dynamic-only builds, duplicate .dyn_o entries as .o entries
++-- This ensures dependency tracking works when Hadrian expects .o files
++duplicateForDynamicOnly :: (String, [String]) -> [(String, [String])]
++duplicateForDynamicOnly entry@(target, deps)
++    | ".dyn_o" `isSuffixOf` target =
++        [ entry  -- Keep original .dyn_o entry
++        , (replaceExtension target "o", map convertDynDep deps)  -- Add .o entry
++        ]
++    | otherwise = [entry]
++  where
++    convertDynDep dep
++        | ".dyn_hi" `isSuffixOf` dep = replaceExtension dep "hi"
++        | otherwise = dep
