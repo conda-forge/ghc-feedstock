@@ -37,8 +37,8 @@ requirements:
     - automake
     - autoconf
     - libtool
+    - xz-tools
   host:
-    - xz
     - gmp
     - ncurses
     - libffi
