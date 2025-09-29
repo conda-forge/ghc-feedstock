@@ -36,7 +36,6 @@ requirements:
     - automake
     - autoconf
     - libtool
-    - llvmdev 9.*  # [aarch64]
   host:
     - xz
     - gmp
@@ -45,7 +44,6 @@ requirements:
     - cffi
   run:
     - {{ c_compiler }}_{{ target_platform }} >={{ c_compiler_version }}
-    - llvm-tools 9.*  # [aarch64]
 
 test:
   files:
