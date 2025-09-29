@@ -11,6 +11,8 @@ source:
     patches:
       - patches/update-Release.hs.patch
       - patches/update-Rts.hs.patch
+      - patches/library-rts-symlinks.patch
+      - patches/update-Compile.hs.patch
     #  - patches/fix-hadrian-bypass-deps.patch
     #  - patch-rpath-macos.patch
     #  - if: osx and arm64
