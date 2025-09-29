@@ -13,6 +13,8 @@ source:
       - patches/update-Rts.hs.patch
       - patches/library-rts-symlinks.patch
       - patches/update-Compile.hs.patch
+      - patches/fix-dynamic-interface-tags.patch
+      - patches/fix-wired-in-package-unit-ids.patch
     #  - patches/fix-hadrian-bypass-deps.patch
     #  - patch-rpath-macos.patch
     #  - if: osx and arm64
