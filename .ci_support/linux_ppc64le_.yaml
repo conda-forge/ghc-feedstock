@@ -23,7 +23,7 @@ ncurses:
 perl:
 - 5.32.1
 target_platform:
-- linux-aarch64
+- linux-ppc64le
 xz:
 - '5'
 zip_keys:
