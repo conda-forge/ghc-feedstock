@@ -1,0 +1,22 @@
+--- a/hadrian/src/Rules/Library.hs
++++ b/hadrian/src/Rules/Library.hs
+@@ -93,6 +93,16 @@ buildDynamicLib root suffix dynlibpath = do
+     registerPackages deps
+     objs <- libraryObjects context
+     build $ target context (Ghc LinkHs $ Context.stage context) objs [dynlibpath]
++
++    -- IMMEDIATE: Create .a symlinks for ALL Stage1 dynamic libraries after linkage
++    when (stage context == Stage1) $ do
++        let dir = takeDirectory dynlibpath
++        let soFileName = takeFileName dynlibpath
++        -- Extract library name from .so filename (e.g., libHSghc-prim-0.10.0-ghc9.6.7.so -> libHSghc-prim-0.10.0.a)
++        -- Remove "-ghc9.6.7.so" suffix to get "libHSghc-prim-0.10.0", then add ".a"
++        let staticFile = case stripSuffix "-ghc9.6.7" (dropExtension soFileName) of
++                Just base -> base ++ ".a"
++                Nothing -> soFileName -<.> "a"  -- fallback
++        let staticPath = dir </> staticFile
++        putBuild $ "LINKHS-POST: Creating Stage1 .a symlink: " ++ staticPath ++ " -> " ++ soFileName
++        cmd ["ln", "-sf", soFileName, staticPath] :: Action ()
++        putBuild $ "LINKHS-POST: Stage1 symlink created successfully"
+
+ -- | Build a "GHCi library" ('LibGhci') under the given build root, with the

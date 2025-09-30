@@ -1,0 +1,33 @@
+--- a/hadrian/src/Settings/Builders/Ghc.hs
++++ b/hadrian/src/Settings/Builders/Ghc.hs
+@@ -92,6 +92,7 @@ ghcLinkArgs = builder (Ghc LinkHs) ? do
+     pkg     <- getPackage
+     libs    <- getContextData extraLibs
+     libDirs <- getContextData extraLibDirs
++    depIds  <- getContextData depIds
+     fmwks   <- getContextData frameworks
+     way     <- getWay
+
+@@ -136,6 +137,14 @@ ghcLinkArgs = builder (Ghc LinkHs) ? do
+             ]
+
+         -- This is the -rpath argument that is required for the bindist scenario
++        -- FIX for dynamic-only builds: Explicitly link RTS library when needed
++        -- In dynamic-only builds, -no-auto-link-packages prevents automatic RTS linking
++        hasRtsDep = any ("rts-1.0.2" `isInfixOf`) depIds
++        rtsLinkArgs = hasRtsDep ?
++                      dynamic ?
++                      isLibrary pkg ?
++                      arg "-lHSrts-1.0.2"
++        -- This is the -rpath argument that is required for the bindist scenario
+         -- to work. Indeed, when you install a bindist, the actual executables
+         -- end up nested somewhere under $libdir, with the wrapper scripts
+         -- taking their place in $bindir, and 'rpath' therefore doesn't seem
+@@ -162,6 +173,7 @@ ghcLinkArgs = builder (Ghc LinkHs) ? do
+             ,       nonHsMainPackage pkg  ? arg "-no-hs-main"
+             , (not (nonHsMainPackage pkg) && not (isLibrary pkg)) ? arg "-rtsopts"
+             , pure [ "-l" ++ lib    | lib    <- libs    ]
++            , rtsLinkArgs
+             , pure [ "-L" ++ libDir | libDir <- libDirs ]
+             , rtsFfiArg
+             , osxTarget ? pure (concat [ ["-framework", fmwk] | fmwk <- fmwks ])

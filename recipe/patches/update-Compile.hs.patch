@@ -1,0 +1,49 @@
+--- a/hadrian/src/Rules/Compile.hs
++++ b/hadrian/src/Rules/Compile.hs
+@@ -77,6 +77,15 @@ compilePackage rs = do
+                  [] -> compileHsObjectAndHi rs dyn_o
+                  _  -> pure ()
+
++               -- DYNAMIC-ONLY FIX: Create .dyn_o/.dyn_hi from .o/.hi files
++               -- In dynamic-only builds, GHC produces .o/.hi but Shake expects .dyn_o/.dyn_hi
++               do
++                 root <- buildRoot
++                 b@(BuildPath _root stage _path _o) <- parsePath (parseBuildObject root) "<dyn object parser>" dyn_o
++                 when (stage == Stage1) $ do
++                   let vanillaObj = dyn_o -<.> "o"
++                       vanillaHi = dyn_o -<.> "hi"
++                   -- Check if GHC produced .o/.hi instead of expected .dyn_o/.dyn_hi
++                   objExists <- doesFileExist vanillaObj
++                   hiExists <- doesFileExist vanillaHi
++                   dynObjExists <- doesFileExist dyn_o
++                   dynHiExists <- doesFileExist (dyn_o -<.> "dyn_hi")
++                   -- If vanilla files exist but dynamic files don't, create symlinks
++                   when (objExists && not dynObjExists) $
++                     cmd ["ln", "-sf", takeFileName vanillaObj, dyn_o] :: Action ()
++                   when (hiExists && not dynHiExists) $
++                     cmd ["ln", "-sf", takeFileName vanillaHi, dyn_o -<.> "dyn_hi"] :: Action ()
++
+            else compileHsObjectAndHi rs dyn_o
+
+       forM_ ((,) <$> hsExts <*> wayPats) $ \ ((oExt, hiExt), wayPat) ->
+@@ -225,6 +234,18 @@ compileHsObjectAndHi rs objpath = do
+              ]
+
+   buildWithResources rs $ target ctx (Ghc CompileHs stage) [src] [objpath]
++
++  -- DYNAMIC-ONLY BUILD FIX: Handle profile tag issues
++  -- In dynamic-only builds, .hi files may have wrong profile tags
++  when (stage == Stage1) $ do
++    if ".dyn_o" `isSuffixOf` objpath
++      then do
++        let vanillaObj = take (length objpath - 6) objpath ++ ".o"
++        objExists <- doesFileExist vanillaObj
++        unless objExists $ cmd ["ln", "-sf", takeFileName objpath, vanillaObj] :: Action ()
++      else when (".dyn_hi" `isSuffixOf` objpath) $ do
++        let vanillaHi = take (length objpath - 6) objpath ++ ".hi"
++        hiExists <- doesFileExist vanillaHi
++        unless hiExists $ cmd ["ln", "-sf", takeFileName objpath, vanillaHi] :: Action ()
++
+
+ compileNonHsObject :: [(Resource, Int)] -> SourceLang -> FilePath -> Action ()
+ compileNonHsObject rs lang path = do

@@ -1,0 +1,18 @@
+--- a/hadrian/build.sh
++++ b/hadrian/build.sh
+@@ -0,0 +1,15 @@
++#!/bin/bash
++# Post-build hook to create .a symlinks for dynamic-only builds
++
++RTS_BUILD_DIR="_build/stage1/rts/build"
++
++if [ -f "$RTS_BUILD_DIR/libHSrts-1.0.2-ghc9.6.7.so" ] && [ ! -f "$RTS_BUILD_DIR/libHSrts-1.0.2.a" ]; then
++    echo "Creating symlink: libHSrts-1.0.2.a -> libHSrts-1.0.2-ghc9.6.7.so"
++    ln -sf libHSrts-1.0.2-ghc9.6.7.so "$RTS_BUILD_DIR/libHSrts-1.0.2.a"
++fi
++
++if [ -f "$RTS_BUILD_DIR/libHSrts-1.0.2_thr-ghc9.6.7.so" ] && [ ! -f "$RTS_BUILD_DIR/libHSrts-1.0.2_thr.a" ]; then
++    echo "Creating symlink: libHSrts-1.0.2_thr.a -> libHSrts-1.0.2_thr-ghc9.6.7.so"
++    ln -sf libHSrts-1.0.2_thr-ghc9.6.7.so "$RTS_BUILD_DIR/libHSrts-1.0.2_thr.a"
++fi
++
