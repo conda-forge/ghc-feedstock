@@ -39,8 +39,9 @@ done
 
 run_and_log "stage1_exe" "${_hadrian_build[@]}" stage1:exe:ghc-bin --flavour=release
 settings_file="${SRC_DIR}"/_build/stage0/lib/settings
-perl -pi -e 's#(C compiler link flags", "[^"]*)#$1 -v -Wl,-L$ENV{PREFIX}/lib -Wl,-L\$topdir/../../../../lib -Wl,-rpath,\$topdir/../../../../lib#' "${settings_file}"
-perl -pi -e 's#(ld flags", "[^"]*)#$1 -v -L$ENV{PREFIX}/lib -L\$topdir/../../../../lib -rpath \$topdir/../../../../lib#' "${settings_file}"
+# Fix settings file to add library paths and link flags BEFORE stage1_lib
+perl -pi -e 's#("C compiler link flags", "[^"]*)("#$1 -v -Wl,-L$ENV{BUILD_PREFIX}/lib -Wl,-L$ENV{PREFIX}/lib -Wl,-L\$topdir/../../../../lib -Wl,-rpath,\$topdir/../../../../lib -liconv -lgmp -lffi"#' "${settings_file}"
+perl -pi -e 's#("ld flags", "[^"]*)("#$1 -v -L$ENV{BUILD_PREFIX}/lib -L$ENV{PREFIX}/lib -L\$topdir/../../../../lib -rpath \$topdir/../../../../lib -liconv -lgmp -lffi"#' "${settings_file}"
 
 run_and_log "stage1_lib" "${_hadrian_build[@]}" stage1:lib:ghc --flavour=release || true
 run_and_log "stage1_lib" "${_hadrian_build[@]}" stage1:lib:ghc -V --flavour=release --progress-info=unicorn
