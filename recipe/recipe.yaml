@@ -167,6 +167,8 @@ tests:
         - ${{ compiler('c') }}
         - if: unix
           then: ${{ stdlib('c') }}
+        - if: osx
+          then: libiconv
 
   - script:
       - ln -s ${PREFIX}/lib/libLTO.19.1.dylib ${PREFIX}/lib/libLTO.dylib || true
@@ -182,6 +184,8 @@ tests:
         - ${{ compiler('c') }}
         - if: unix
           then: ${{ stdlib('c') }}
+        - if: osx
+          then: libiconv
 
   # Disabled: - script:
   # Disabled:     - if: linux and x86_64
