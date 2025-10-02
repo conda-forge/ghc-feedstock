@@ -42,7 +42,7 @@ export ac_cv_path_RANLIB="${RANLIB}"
 export DEVELOPER_DIR=""
 
 settings_file=$(find "${BUILD_PREFIX}"/ghc-bootstrap -name settings | head -n 1)
-perl -pi -e 's#(C compiler link flags", "[^"]*)#$1 -v -Wl,-v -Wl,-L$ENV{PREFIX}/lib#' "${settings_file}"
+perl -pi -e 's#(C compiler link flags", "[^"]*)#$1 -v -Wl,-L$ENV{PREFIX}/lib#' "${settings_file}"
 perl -pi -e 's#(ld flags", "[^"]*)#$1 -v -L$ENV{PREFIX}/lib#' "${settings_file}"
 set_macos_system_ar_ranlib "${settings_file}" "${CONDA_TOOLCHAIN_BUILD}"
 run_and_log "configure" ./configure "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}"
@@ -58,13 +58,7 @@ ln -s "${BUILD_PREFIX}"/bin/"${CONDA_TOOLCHAIN_BUILD}"-as /Users/runner/miniforg
 ln -s "${BUILD_PREFIX}"/bin/"${CONDA_TOOLCHAIN_BUILD}"-ld /Users/runner/miniforge3/bin/ld
 ln -s "${BUILD_PREFIX}"/bin/"${CONDA_TOOLCHAIN_BUILD}"-ranlib /Users/runner/miniforge3/bin/ranlib
 
-"${_hadrian_build[@]}" stage1:exe:ghc-bin --flavour=quickest
-
-settings_file="${SRC_DIR}"/_build/stage0/lib/settings
-perl -pi -e 's#(C compiler link flags", "[^"]*)#$1 -v -Wl,-L$ENV{PREFIX}/lib -Wl,-L\$topdir/../../../../lib -Wl,-rpath,\$topdir/../../../../lib#' "${settings_file}"
-perl -pi -e 's#(ld flags", "[^"]*)#$1 -v -L$ENV{PREFIX}/lib -L\$topdir/../../../../lib -rpath \$topdir/../../../../lib#' "${settings_file}"
-
-run_and_log "stage1_lib" "${_hadrian_build[@]}" stage1:lib:ghc --flavour=quickest
+"${_hadrian_build[@]}" stage1:exe:ghc-bin --flavour=release
 
 # Create wrapper to export both _iconv* and _libiconv* symbols
 # This satisfies both GHC (uses _libiconv*) and system libs (use _iconv*)
@@ -87,8 +81,14 @@ echo "=== Verifying iconv compatibility symbols ==="
 nm /tmp/libiconv_compat.a | grep iconv || true
 echo "=============================================="
 
+settings_file="${SRC_DIR}"/_build/stage0/lib/settings
+perl -pi -e 's#(C compiler link flags", "[^"]*)#$1 -v -Wl,-L$ENV{PREFIX}/lib -Wl,-L\$topdir/../../../../lib -Wl,-rpath,\$topdir/../../../../lib -Wl,-liconv /tmp/libiconv_compat.a#' "${settings_file}"
+perl -pi -e 's#(ld flags", "[^"]*)#$1 -v -L$ENV{PREFIX}/lib -L\$topdir/../../../../lib -rpath \$topdir/../../../../lib -liconv /tmp/libiconv_compat.a#' "${settings_file}"
+
+run_and_log "stage1_lib" "${_hadrian_build[@]}" stage1:lib:ghc --flavour=release
+
 perl -i -pe "s#(C compiler link flags\", \")([^\"]*)#\1\2 -v -Wl,-L\$ENV{PREFIX}/lib -Wl,-L\\\$topdir/../../../../lib -Wl,-rpath,\\\$topdir/../../../../lib -Wl,-liconv /tmp/libiconv_compat.a#" "${settings_file}"
-perl -i -pe "s#(ld flags\", \")([^\"]*)#\1\2 -L\$ENV{PREFIX}/lib -L\\\$topdir/../../../../lib -liconv /tmp/libiconv_compat.a#" "${settings_file}"
+perl -i -pe "s#(ld flags\", \")([^\"]*)#\1\2 -v -L\$ENV{PREFIX}/lib -L\\\$topdir/../../../../lib -liconv /tmp/libiconv_compat.a#" "${settings_file}"
 
 "${_hadrian_build[@]}" stage2:exe:ghc-bin --flavour=quickest
 
