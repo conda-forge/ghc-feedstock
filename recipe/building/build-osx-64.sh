@@ -82,10 +82,15 @@ EOFC
 ${CC} -c /tmp/iconv_compat.c -o /tmp/iconv_compat.o
 ${AR} rcs /tmp/libiconv_compat.a /tmp/iconv_compat.o
 
+# Verify symbols in the compatibility library
+echo "=== Verifying iconv compatibility symbols ==="
+nm /tmp/libiconv_compat.a | grep iconv || true
+echo "=============================================="
+
 perl -i -pe "s#(C compiler link flags\", \")([^\"]*)#\1\2 -v -Wl,-L\$ENV{PREFIX}/lib -Wl,-L\\\$topdir/../../../../lib -Wl,-rpath,\\\$topdir/../../../../lib -Wl,-liconv /tmp/libiconv_compat.a#" "${settings_file}"
 perl -i -pe "s#(ld flags\", \")([^\"]*)#\1\2 -L\$ENV{PREFIX}/lib -L\\\$topdir/../../../../lib -liconv /tmp/libiconv_compat.a#" "${settings_file}"
 
-run_and_log "stage2_exe" "${_hadrian_build[@]}" stage2:exe:ghc-bin --flavour=quickest
+"${_hadrian_build[@]}" stage2:exe:ghc-bin --flavour=quickest
 
 export DYLD_LIBRARY_PATH="${BUILD_PREFIX}/lib:${PREFIX}/lib:${DYLD_LIBRARY_PATH:-}"
 settings_file="${SRC_DIR}"/_build/stage1/lib/settings
