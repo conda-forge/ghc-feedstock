@@ -5,8 +5,9 @@
      objs <- libraryObjects context
      build $ target context (Ghc LinkHs $ Context.stage context) objs [dynlibpath]
 +
-+    -- IMMEDIATE: Create .a symlinks for ALL Stage1 dynamic libraries after linkage
-+    when (stage context == Stage1) $ do
++    -- IMMEDIATE: Create .a symlinks for ALL Stage1+Stage2 dynamic libraries after linkage
++    when (stage context `elem` [Stage1, Stage2]) $ do
++        let stageName = show (stage context)
 +        let dir = takeDirectory dynlibpath
 +        let soFileName = takeFileName dynlibpath
 +        -- Extract library name from .so filename (e.g., libHSghc-prim-0.10.0-ghc9.6.7.so -> libHSghc-prim-0.10.0.a)
@@ -15,13 +16,13 @@
 +                Just base -> base ++ ".a"
 +                Nothing -> soFileName -<.> "a"  -- fallback
 +        let staticPath = dir </> staticFile
-+        putBuild $ "LINKHS-POST: Creating Stage1 .a symlink: " ++ staticPath ++ " -> " ++ soFileName
++        putBuild $ "LINKHS-POST: Creating " ++ stageName ++ " .a symlink: " ++ staticPath ++ " -> " ++ soFileName
 +        cmd ["ln", "-sf", soFileName, staticPath] :: Action ()
-+        putBuild $ "LINKHS-POST: Stage1 symlink created successfully"
++        putBuild $ "LINKHS-POST: " ++ stageName ++ " symlink created successfully"
 +
 +        -- CRITICAL: Create .o/.hi symlinks from .dyn_o/.dyn_hi for cabal-copy
 +        -- cabal-copy expects vanilla .hi files but dynamic-only builds produce .dyn_hi
-+        putBuild $ "LINKHS-POST: Creating .o/.hi symlinks for Stage1 library objects"
++        putBuild $ "LINKHS-POST: Creating .o/.hi symlinks for " ++ stageName ++ " library objects"
 +        let buildDir = dir  -- Same directory as the library
 +        dynHiFiles <- liftIO $ getDirectoryFilesIO buildDir ["//*.dyn_hi"]
 +        dynOFiles <- liftIO $ getDirectoryFilesIO buildDir ["//*.dyn_o"]

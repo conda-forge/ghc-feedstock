@@ -16,11 +16,10 @@ source:
       - patches/fix-dynamic-interface-tags.patch
       - patches/fix-wired-in-package-unit-ids.patch
       - patches/fix-rts-linking.patch
-    #  - patches/fix-hadrian-bypass-deps.patch
-    #  - patch-rpath-macos.patch
-    #  - if: osx and arm64
-    #    then:
-    #      - patch-osname-macos.patch
+      - if: osx and arm64
+        then:
+          - patches/patch-rpath-macos.patch
+          - patches/patch-osname-macos.patch
 
 build:
   number: 0

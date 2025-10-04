@@ -9,16 +9,16 @@
 -               changed <- needHasChanged [dyn_o -<.> "o", dyn_o -<.> "hi"]
 -
 -               -- If for some reason a previous Hadrian execution has been
-+               -- DYNAMIC-ONLY BUILD FIX: Skip vanilla object dependency check for Stage1
++               -- DYNAMIC-ONLY BUILD FIX: Skip vanilla object dependency check for Stage1+Stage2
 +               -- In dynamic-only builds, vanilla .o/.hi files don't exist and shouldn't
 +               -- be required. The needHasChanged check causes Shake to attempt static
 +               -- compilation which fails with "hidden package" errors.
 +               root <- buildRoot
 +               b@(BuildPath _root stage _path _o) <- parsePath (parseBuildObject root) "<dyn object parser>" dyn_o
 +
-+               changed <- if stage == Stage1
++               changed <- if stage `elem` [Stage1, Stage2]
 +                 then do
-+                   -- For Stage1, we're doing dynamic-only builds
++                   -- For Stage1+Stage2, we're doing dynamic-only builds
 +                   -- Don't check for vanilla .o/.hi files as they won't exist
 +                   pure []
 +                 else do
@@ -27,7 +27,7 @@
 +                   -- and builds ".dyn_o/.dyn_hi" too.
 +                   needHasChanged [dyn_o -<.> "o", dyn_o -<.> "hi"]
 +
-+               -- Note: In Stage1 dynamic-only builds, we skip the vanilla object check
++               -- Note: In Stage1+Stage2 dynamic-only builds, we skip the vanilla object check
 +               -- above and proceed directly to building dynamic objects.
 +
 +               -- If for some reason a previous Hadrian execution has been

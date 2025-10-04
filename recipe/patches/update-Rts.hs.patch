@@ -20,9 +20,9 @@
      deps <- contextDependencies context
      registerPackages deps
 +
-+    -- EMERGENCY FIX: For Stage1 dynamic-only builds, force compile missing .dyn_o files
++    -- EMERGENCY FIX: For Stage1+Stage2 dynamic-only builds, force compile missing .dyn_o files
 +    -- This bypasses the broken Rules/Compile.hs logic that we cannot patch
-+    when (Context.stage context == Stage1) $ do
++    when (Context.stage context `elem` [Stage1, Stage2]) $ do
 +        putBuild $ "EMERGENCY: Forcing dynamic compilation for " ++ show (package context)
 +        -- Force creation of .dyn_o files by explicitly needing them
 +        allObjs <- libraryObjects context
