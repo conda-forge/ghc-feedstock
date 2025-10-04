@@ -129,9 +129,8 @@ set_macos_conda_ar_ranlib() {
       perl -i -pe 's#(arNeedsRanlib\s*=\s*).*#$1False#g' "${settings_file}"
       perl -i -pe "s#(tgtRanlib\s*=\s*).*#\$1Just (Ranlib {ranlibProgram = Program {prgPath = \"${toolchain}-ranlib\", prgFlags = []}})#g" "${settings_file}"
     else
-      perl -i -pe "s#(\"ar command\", \")[^\"]*#\$1${toolchain}-ar#g" "${settings_file}"
       perl -i -pe "s#(\"ar flags\", \")[^\"]*#\$1qcs#g" "${settings_file}"
-      perl -i -pe "s#(\"ranlib command\", \")[^\"]*#\$1${toolchain}-ranlib#g" "${settings_file}"
+      perl -i -pe "s#(\"(clang|llc|opt|ar|ranlib) command\", \")[^\"]*#\$1${toolchain}-\$2#g" "${settings_file}"
     fi
   else
     echo "Error: $settings_file not found!"
