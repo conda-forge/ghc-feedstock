@@ -21,12 +21,25 @@ EOFC
 # Build both static and dynamic versions
 ${CC} -c /tmp/iconv_compat.c -o /tmp/iconv_compat.o
 
-# Debug: Check what ar we're using
-echo "=== AR Debug Info ==="
+# Debug: Check what ar AND ld we're using
+echo "=== Toolchain Debug Info ==="
 echo "AR=${AR}"
 which "${AR}" || echo "AR not in PATH"
 "${AR}" --version || "${AR}" -V || echo "Cannot get ar version"
-echo "===================="
+echo ""
+echo "LD=${LD}"
+which "${LD}" || echo "LD not in PATH"
+"${LD}" -v || "${LD}" --version || echo "Cannot get ld version"
+echo ""
+echo "Testing ar format compatibility:"
+echo "Creating test archive with ${AR}..."
+echo "int test_func() { return 42; }" > /tmp/test.c
+${CC} -c /tmp/test.c -o /tmp/test.o
+${AR} rcs /tmp/test.a /tmp/test.o
+file /tmp/test.a
+echo "Trying to link with ${LD}..."
+${CC} -o /tmp/test_binary /tmp/test.o 2>&1 | head -20
+echo "=============================="
 
 # Create archive with explicit format for LLVM ar compatibility
 ${AR} rcs /tmp/libiconv_compat.a /tmp/iconv_compat.o
