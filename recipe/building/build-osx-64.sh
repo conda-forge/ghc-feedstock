@@ -159,3 +159,13 @@ perl -i -pe "s#(ld flags\", \")([^\"]*)#\1\2 -v -L\\\$topdir/../../../../lib -fo
 set_macos_conda_ar_ranlib "${settings_file}" "${CONDA_TOOLCHAIN_BUILD}"
 
 cat "${settings_file}"
+
+# Add debugging to verify archive format after build completes
+echo "=== Post-build archive format check ==="
+echo "Checking a cabal-built archive format:"
+find /Users/runner/.local/state/cabal/store/ghc-9.6.7/ -name "*.a" -type f | head -3 | while read f; do
+  echo "File: $f"
+  file "$f"
+  head -c 20 "$f" | od -An -tx1
+done
+echo "=========================================="
