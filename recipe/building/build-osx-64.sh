@@ -18,8 +18,9 @@ size_t iconv(iconv_t a, char** b, size_t* c, char** d, size_t* e) { return libic
 int iconv_close(iconv_t a) { return libiconv_close(a); }
 EOFC
 
-# Build both static and dynamic versions
-${CC} -c /tmp/iconv_compat.c -o /tmp/iconv_compat.o
+# Build both static and dynamic versions with explicit SDK version for compatibility
+# This ensures the object file matches the SDK version used during GHC linking
+${CC} -c /tmp/iconv_compat.c -o /tmp/iconv_compat.o -mmacosx-version-min=10.13
 
 # Debug: Check what ar AND ld we're using
 echo "=== Toolchain Debug Info ==="
@@ -44,10 +45,18 @@ echo "=============================="
 # Create archive with explicit format for LLVM ar compatibility
 ${AR} rcs /tmp/libiconv_compat.a /tmp/iconv_compat.o
 
-# Verify the archive
+# Verify the archive and object file metadata
 echo "=== Archive verification ==="
 file /tmp/libiconv_compat.a
 ${AR} -t /tmp/libiconv_compat.a
+echo ""
+echo "Object file metadata:"
+file /tmp/iconv_compat.o
+otool -l /tmp/iconv_compat.o | grep -A 3 "LC_VERSION_MIN\|LC_BUILD_VERSION" || echo "No version info found"
+echo ""
+echo "Checking if ld can read the archive:"
+${AR} -x /tmp/libiconv_compat.a
+file iconv_compat.o
 echo "============================"
 
 # Create dylib for runtime preloading with absolute paths
