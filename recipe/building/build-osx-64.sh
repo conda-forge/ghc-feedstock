@@ -51,7 +51,7 @@ export DEVELOPER_DIR=""
 # Prepend BUILD_PREFIX to avoid picking up old libtapi from other locations
 export DYLD_LIBRARY_PATH="${BUILD_PREFIX}/lib:${DYLD_LIBRARY_PATH:-}"
 
-# Create wrapper to export both _iconv* and _libiconv* symbols
+# Create wrapper dylib to export both _iconv* and _libiconv* symbols
 # This satisfies both GHC (uses _libiconv*) and system libs (use _iconv*)
 cat > /tmp/iconv_compat.c << 'EOFC'
 #include <stddef.h>
@@ -64,13 +64,25 @@ size_t iconv(iconv_t a, char** b, size_t* c, char** d, size_t* e) { return libic
 int iconv_close(iconv_t a) { return libiconv_close(a); }
 EOFC
 
+# Build both static and dynamic versions
 ${CC} -c /tmp/iconv_compat.c -o /tmp/iconv_compat.o
 ${AR} rcs /tmp/libiconv_compat.a /tmp/iconv_compat.o
 
-# Verify symbols in the compatibility library
+# Create dylib for runtime preloading
+${CC} -dynamiclib -o /tmp/libiconv_compat.dylib /tmp/iconv_compat.c \
+    -L"${PREFIX}/lib" -liconv \
+    -install_name "@rpath/libiconv_compat.dylib"
+
+# Verify symbols in both libraries
 echo "=== Verifying iconv compatibility symbols ==="
+echo "Static library:"
 nm /tmp/libiconv_compat.a | grep iconv || true
+echo "Dynamic library:"
+nm -gU /tmp/libiconv_compat.dylib | grep iconv || true
 echo "=============================================="
+
+# Preload the dylib for all subsequent commands
+export DYLD_INSERT_LIBRARIES="/tmp/libiconv_compat.dylib${DYLD_INSERT_LIBRARIES:+:}${DYLD_INSERT_LIBRARIES:-}"
 
 settings_file=$(find "${BUILD_PREFIX}"/ghc-bootstrap -name settings | head -n 1)
 perl -pi -e 's#(C compiler link flags", "[^"]*)#$1 -v -Wl,-L$ENV{PREFIX}/lib -Wl,-liconv /tmp/libiconv_compat.a#' "${settings_file}"
