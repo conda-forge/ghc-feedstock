@@ -20,7 +20,22 @@ EOFC
 
 # Build both static and dynamic versions
 ${CC} -c /tmp/iconv_compat.c -o /tmp/iconv_compat.o
+
+# Debug: Check what ar we're using
+echo "=== AR Debug Info ==="
+echo "AR=${AR}"
+which "${AR}" || echo "AR not in PATH"
+"${AR}" --version || "${AR}" -V || echo "Cannot get ar version"
+echo "===================="
+
+# Create archive with explicit format for LLVM ar compatibility
 ${AR} rcs /tmp/libiconv_compat.a /tmp/iconv_compat.o
+
+# Verify the archive
+echo "=== Archive verification ==="
+file /tmp/libiconv_compat.a
+${AR} -t /tmp/libiconv_compat.a
+echo "============================"
 
 # Create dylib for runtime preloading with absolute paths
 ${CC} -dynamiclib -o /tmp/libiconv_compat.dylib /tmp/iconv_compat.c \
