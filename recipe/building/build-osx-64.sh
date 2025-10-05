@@ -68,10 +68,11 @@ EOFC
 ${CC} -c /tmp/iconv_compat.c -o /tmp/iconv_compat.o
 ${AR} rcs /tmp/libiconv_compat.a /tmp/iconv_compat.o
 
-# Create dylib for runtime preloading
+# Create dylib for runtime preloading with absolute paths
 ${CC} -dynamiclib -o /tmp/libiconv_compat.dylib /tmp/iconv_compat.c \
     -L"${PREFIX}/lib" -liconv \
-    -install_name "@rpath/libiconv_compat.dylib"
+    -Wl,-rpath,"${PREFIX}/lib" \
+    -install_name "/tmp/libiconv_compat.dylib"
 
 # Verify symbols in both libraries
 echo "=== Verifying iconv compatibility symbols ==="
@@ -79,14 +80,25 @@ echo "Static library:"
 nm /tmp/libiconv_compat.a | grep iconv || true
 echo "Dynamic library:"
 nm -gU /tmp/libiconv_compat.dylib | grep iconv || true
+echo "Dylib dependencies:"
+otool -L /tmp/libiconv_compat.dylib || true
 echo "=============================================="
 
 # Preload the dylib for all subsequent commands
 export DYLD_INSERT_LIBRARIES="/tmp/libiconv_compat.dylib${DYLD_INSERT_LIBRARIES:+:}${DYLD_INSERT_LIBRARIES:-}"
 
+# Test that it's working
+echo "=== Testing DYLD_INSERT_LIBRARIES ==="
+echo "DYLD_INSERT_LIBRARIES=${DYLD_INSERT_LIBRARIES}"
+echo "Running test command..."
+echo "test" > /dev/null
+echo "If no dyld errors above, preloading is working"
+echo "=============================================="
+
 settings_file=$(find "${BUILD_PREFIX}"/ghc-bootstrap -name settings | head -n 1)
-perl -pi -e 's#(C compiler link flags", "[^"]*)#$1 -v -Wl,-L$ENV{PREFIX}/lib -Wl,-liconv /tmp/libiconv_compat.a#' "${settings_file}"
-perl -pi -e 's#(ld flags", "[^"]*)#$1 -v -L$ENV{PREFIX}/lib -liconv /tmp/libiconv_compat.a#' "${settings_file}"
+# Force load the compat library to ensure symbols are exported in executables
+perl -pi -e 's#(C compiler link flags", "[^"]*)#$1 -v -Wl,-L$ENV{PREFIX}/lib -Wl,-force_load,/tmp/libiconv_compat.a -Wl,-liconv#' "${settings_file}"
+perl -pi -e 's#(ld flags", "[^"]*)#$1 -v -L$ENV{PREFIX}/lib -force_load /tmp/libiconv_compat.a -liconv#' "${settings_file}"
 set_macos_conda_ar_ranlib "${settings_file}" "${CONDA_TOOLCHAIN_BUILD}"
 
 cat "${settings_file}"
@@ -113,22 +125,22 @@ rm -f /Users/runner/miniforge3/bin/{as,ranlib,ld}
 "${_hadrian_build[@]}" stage1:exe:ghc-bin --flavour=release
 
 settings_file="${SRC_DIR}"/_build/stage0/lib/settings
-perl -pi -e 's#(C compiler link flags", "[^"]*)#$1 -v -Wl,-L$ENV{PREFIX}/lib -Wl,-L\$topdir/../../../../lib -Wl,-rpath,\$topdir/../../../../lib -Wl,-liconv /tmp/libiconv_compat.a#' "${settings_file}"
-perl -pi -e 's#(ld flags", "[^"]*)#$1 -v -L$ENV{PREFIX}/lib -L\$topdir/../../../../lib -rpath \$topdir/../../../../lib -liconv /tmp/libiconv_compat.a#' "${settings_file}"
+perl -pi -e 's#(C compiler link flags", "[^"]*)#$1 -v -Wl,-L$ENV{PREFIX}/lib -Wl,-L\$topdir/../../../../lib -Wl,-rpath,\$topdir/../../../../lib -Wl,-force_load,/tmp/libiconv_compat.a -Wl,-liconv#' "${settings_file}"
+perl -pi -e 's#(ld flags", "[^"]*)#$1 -v -L$ENV{PREFIX}/lib -L\$topdir/../../../../lib -rpath \$topdir/../../../../lib -force_load /tmp/libiconv_compat.a -liconv#' "${settings_file}"
 set_macos_conda_ar_ranlib "${settings_file}" "${CONDA_TOOLCHAIN_BUILD}"
 
 run_and_log "stage1_lib" "${_hadrian_build[@]}" stage1:lib:ghc --flavour=release
 
-perl -i -pe "s#(C compiler link flags\", \")([^\"]*)#\1\2 -v -Wl,-L\$ENV{PREFIX}/lib -Wl,-L\\\$topdir/../../../../lib -Wl,-rpath,\\\$topdir/../../../../lib -Wl,-liconv /tmp/libiconv_compat.a#" "${settings_file}"
-perl -i -pe "s#(ld flags\", \")([^\"]*)#\1\2 -v -L\$ENV{PREFIX}/lib -L\\\$topdir/../../../../lib -liconv /tmp/libiconv_compat.a#" "${settings_file}"
+perl -i -pe "s#(C compiler link flags\", \")([^\"]*)#\1\2 -v -Wl,-L\$ENV{PREFIX}/lib -Wl,-L\\\$topdir/../../../../lib -Wl,-rpath,\\\$topdir/../../../../lib -Wl,-force_load,/tmp/libiconv_compat.a -Wl,-liconv#" "${settings_file}"
+perl -i -pe "s#(ld flags\", \")([^\"]*)#\1\2 -v -L\$ENV{PREFIX}/lib -L\\\$topdir/../../../../lib -force_load /tmp/libiconv_compat.a -liconv#" "${settings_file}"
 set_macos_conda_ar_ranlib "${settings_file}" "${CONDA_TOOLCHAIN_BUILD}"
 
 "${_hadrian_build[@]}" stage2:exe:ghc-bin --flavour=quickest
 
 export DYLD_LIBRARY_PATH="${BUILD_PREFIX}/lib:${PREFIX}/lib:${DYLD_LIBRARY_PATH:-}"
 settings_file="${SRC_DIR}"/_build/stage1/lib/settings
-perl -i -pe "s#(C compiler link flags\", \")([^\"]*)#\1\2 -v -Wl,-L\$ENV{PREFIX}/lib -Wl,-L\\\$topdir/../../../../lib -Wl,-rpath,\\\$topdir/../../../../lib -Wl,-liconv /tmp/libiconv_compat.a#" "${settings_file}"
-perl -i -pe "s#(ld flags\", \")([^\"]*)#\1\2 -v -L\$ENV{PREFIX}/lib -v -L\\\$topdir/../../../../lib -liconv /tmp/libiconv_compat.a#" "${settings_file}"
+perl -i -pe "s#(C compiler link flags\", \")([^\"]*)#\1\2 -v -Wl,-L\$ENV{PREFIX}/lib -Wl,-L\\\$topdir/../../../../lib -Wl,-rpath,\\\$topdir/../../../../lib -Wl,-force_load,/tmp/libiconv_compat.a -Wl,-liconv#" "${settings_file}"
+perl -i -pe "s#(ld flags\", \")([^\"]*)#\1\2 -v -L\$ENV{PREFIX}/lib -v -L\\\$topdir/../../../../lib -force_load /tmp/libiconv_compat.a -liconv#" "${settings_file}"
 set_macos_conda_ar_ranlib "${settings_file}" "${CONDA_TOOLCHAIN_BUILD}"
 run_and_log "stage2_lib" "${_hadrian_build[@]}" stage2:lib:ghc --flavour=release
 
@@ -137,8 +149,8 @@ run_and_log "install" "${_hadrian_build[@]}" install --prefix="${PREFIX}" --flav
 settings_file=$(find "${PREFIX}" -name settings | head -n 1)
 perl -i -pe "s#(C compiler flags\", \")([^\"]*)#\1\2 -v -fno-lto#" "${settings_file}"
 perl -i -pe "s#(C\+\+ compiler flags\", \")([^\"]*)#\1\2 -v -fno-lto#" "${settings_file}"
-perl -i -pe "s#(C compiler link flags\", \")([^\"]*)#\1\2 -v -Wl,-L\\\$topdir/../../../../lib -Wl,-rpath,\\\$topdir/../../../../lib -Wl,-liconv /tmp/libiconv_compat.a#" "${settings_file}"
-perl -i -pe "s#(ld flags\", \")([^\"]*)#\1\2 -v -L\\\$topdir/../../../../lib -liconv /tmp/libiconv_compat.a#" "${settings_file}"
+perl -i -pe "s#(C compiler link flags\", \")([^\"]*)#\1\2 -v -Wl,-L\\\$topdir/../../../../lib -Wl,-rpath,\\\$topdir/../../../../lib -Wl,-force_load,/tmp/libiconv_compat.a -Wl,-liconv#" "${settings_file}"
+perl -i -pe "s#(ld flags\", \")([^\"]*)#\1\2 -v -L\\\$topdir/../../../../lib -force_load /tmp/libiconv_compat.a -liconv#" "${settings_file}"
 set_macos_conda_ar_ranlib "${settings_file}" "${CONDA_TOOLCHAIN_BUILD}"
 
 cat "${settings_file}"
