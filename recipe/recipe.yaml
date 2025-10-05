@@ -152,6 +152,7 @@ tests:
     requirements:
       run:
         - ${{ compiler('c') }}
+        - libiconv
         - if: unix
           then: ${{ stdlib('c') }}
 
@@ -166,6 +167,7 @@ tests:
     requirements:
       run:
         - ${{ compiler('c') }}
+        - libiconv
         - if: unix
           then: ${{ stdlib('c') }}
 
