@@ -37,37 +37,19 @@ export ac_cv_path_ac_pt_CC=""
 export ac_cv_path_ac_pt_CXX=""
 export ac_cv_prog_AR="${AR}"
 export ac_cv_prog_CC="${CC}"
+export ac_cv_prog_CXX="${CXX}"
 export ac_cv_prog_LD="${LD}"
 export ac_cv_prog_RANLIB="${RANLIB}"
 export ac_cv_path_AR="${AR}"
 export ac_cv_path_CC="${CC}"
+export ac_cv_path_CXX="${CXX}"
 export ac_cv_path_LD="${LD}"
 export ac_cv_path_RANLIB="${RANLIB}"
 export DEVELOPER_DIR=""
 
-settings_file=$(find "${BUILD_PREFIX}"/ghc-bootstrap -name settings | head -n 1)
-perl -pi -e 's#(C compiler link flags", "[^"]*)#$1 -v -Wl,-L$ENV{PREFIX}/lib#' "${settings_file}"
-perl -pi -e 's#(ld flags", "[^"]*)#$1 -v -L$ENV{PREFIX}/lib#' "${settings_file}"
-set_macos_conda_ar_ranlib "${settings_file}" "${CONDA_TOOLCHAIN_BUILD}"
-
-cat "${settings_file}"
-
-run_and_log "configure" ./configure "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}"
-
-cat config.log
-
-set_macos_conda_ar_ranlib "${SRC_DIR}"/hadrian/cfg/default.host.target "${CONDA_TOOLCHAIN_BUILD}"
-set_macos_conda_ar_ranlib "${SRC_DIR}"/hadrian/cfg/default.target "${CONDA_TOOLCHAIN_BUILD}"
-
-_hadrian_build=("${SRC_DIR}"/hadrian/build "-j${CPU_COUNT}")
-
-# GHC selection of tools seems to fail to use conda-forge toolchain tools
-rm -f /Users/runner/miniforge3/bin/{as,ranlib,ld}
-ln -s "${BUILD_PREFIX}"/bin/"${CONDA_TOOLCHAIN_BUILD}"-as /Users/runner/miniforge3/bin/as
-ln -s "${BUILD_PREFIX}"/bin/"${CONDA_TOOLCHAIN_BUILD}"-ld /Users/runner/miniforge3/bin/ld
-ln -s "${BUILD_PREFIX}"/bin/"${CONDA_TOOLCHAIN_BUILD}"-ranlib /Users/runner/miniforge3/bin/ranlib
-
-"${_hadrian_build[@]}" stage1:exe:ghc-bin --flavour=release
+# Ensure conda-forge ld can find its libtapi.dylib
+# Prepend BUILD_PREFIX to avoid picking up old libtapi from other locations
+export DYLD_LIBRARY_PATH="${BUILD_PREFIX}/lib:${DYLD_LIBRARY_PATH:-}"
 
 # Create wrapper to export both _iconv* and _libiconv* symbols
 # This satisfies both GHC (uses _libiconv*) and system libs (use _iconv*)
@@ -89,6 +71,30 @@ ${AR} rcs /tmp/libiconv_compat.a /tmp/iconv_compat.o
 echo "=== Verifying iconv compatibility symbols ==="
 nm /tmp/libiconv_compat.a | grep iconv || true
 echo "=============================================="
+
+settings_file=$(find "${BUILD_PREFIX}"/ghc-bootstrap -name settings | head -n 1)
+perl -pi -e 's#(C compiler link flags", "[^"]*)#$1 -v -Wl,-L$ENV{PREFIX}/lib -Wl,-liconv /tmp/libiconv_compat.a#' "${settings_file}"
+perl -pi -e 's#(ld flags", "[^"]*)#$1 -v -L$ENV{PREFIX}/lib -liconv /tmp/libiconv_compat.a#' "${settings_file}"
+set_macos_conda_ar_ranlib "${settings_file}" "${CONDA_TOOLCHAIN_BUILD}"
+
+cat "${settings_file}"
+
+run_and_log "configure" ./configure "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}"
+
+cat config.log
+
+set_macos_conda_ar_ranlib "${SRC_DIR}"/hadrian/cfg/default.host.target "${CONDA_TOOLCHAIN_BUILD}"
+set_macos_conda_ar_ranlib "${SRC_DIR}"/hadrian/cfg/default.target "${CONDA_TOOLCHAIN_BUILD}"
+
+_hadrian_build=("${SRC_DIR}"/hadrian/build "-j${CPU_COUNT}")
+
+# GHC selection of tools seems to fail to use conda-forge toolchain tools
+rm -f /Users/runner/miniforge3/bin/{as,ranlib,ld}
+ln -s "${BUILD_PREFIX}"/bin/"${CONDA_TOOLCHAIN_BUILD}"-as /Users/runner/miniforge3/bin/as
+ln -s "${BUILD_PREFIX}"/bin/"${CONDA_TOOLCHAIN_BUILD}"-ld /Users/runner/miniforge3/bin/ld
+ln -s "${BUILD_PREFIX}"/bin/"${CONDA_TOOLCHAIN_BUILD}"-ranlib /Users/runner/miniforge3/bin/ranlib
+
+"${_hadrian_build[@]}" stage1:exe:ghc-bin --flavour=release
 
 settings_file="${SRC_DIR}"/_build/stage0/lib/settings
 perl -pi -e 's#(C compiler link flags", "[^"]*)#$1 -v -Wl,-L$ENV{PREFIX}/lib -Wl,-L\$topdir/../../../../lib -Wl,-rpath,\$topdir/../../../../lib -Wl,-liconv /tmp/libiconv_compat.a#' "${settings_file}"
