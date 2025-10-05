@@ -5,6 +5,33 @@ _log_index=0
 
 source "${RECIPE_DIR}"/building/common.sh
 
+# Create iconv compatibility wrapper FIRST, before any commands run
+# This must happen before cabal, ghc-bootstrap, or any other tool executes
+cat > /tmp/iconv_compat.c << 'EOFC'
+#include <stddef.h>
+typedef void* iconv_t;
+extern iconv_t libiconv_open(const char*, const char*);
+extern size_t libiconv(iconv_t, char**, size_t*, char**, size_t*);
+extern int libiconv_close(iconv_t);
+iconv_t iconv_open(const char* a, const char* b) { return libiconv_open(a, b); }
+size_t iconv(iconv_t a, char** b, size_t* c, char** d, size_t* e) { return libiconv(a,b,c,d,e); }
+int iconv_close(iconv_t a) { return libiconv_close(a); }
+EOFC
+
+# Build both static and dynamic versions
+${CC} -c /tmp/iconv_compat.c -o /tmp/iconv_compat.o
+${AR} rcs /tmp/libiconv_compat.a /tmp/iconv_compat.o
+
+# Create dylib for runtime preloading with absolute paths
+${CC} -dynamiclib -o /tmp/libiconv_compat.dylib /tmp/iconv_compat.c \
+    -L"${PREFIX}/lib" -liconv \
+    -Wl,-rpath,"${PREFIX}/lib" \
+    -install_name "/tmp/libiconv_compat.dylib"
+
+# Preload the dylib for ALL commands from now on
+export DYLD_INSERT_LIBRARIES="/tmp/libiconv_compat.dylib"
+export DYLD_LIBRARY_PATH="${BUILD_PREFIX}/lib:${PREFIX}/lib:${DYLD_LIBRARY_PATH:-}"
+
 # This is needed as in seems to interfere with configure scripts
 unset build_alias
 unset host_alias
@@ -47,34 +74,7 @@ export ac_cv_path_LD="${LD}"
 export ac_cv_path_RANLIB="${RANLIB}"
 export DEVELOPER_DIR=""
 
-# Ensure conda-forge ld can find its libtapi.dylib
-# Prepend BUILD_PREFIX to avoid picking up old libtapi from other locations
-export DYLD_LIBRARY_PATH="${BUILD_PREFIX}/lib:${DYLD_LIBRARY_PATH:-}"
-
-# Create wrapper dylib to export both _iconv* and _libiconv* symbols
-# This satisfies both GHC (uses _libiconv*) and system libs (use _iconv*)
-cat > /tmp/iconv_compat.c << 'EOFC'
-#include <stddef.h>
-typedef void* iconv_t;
-extern iconv_t libiconv_open(const char*, const char*);
-extern size_t libiconv(iconv_t, char**, size_t*, char**, size_t*);
-extern int libiconv_close(iconv_t);
-iconv_t iconv_open(const char* a, const char* b) { return libiconv_open(a, b); }
-size_t iconv(iconv_t a, char** b, size_t* c, char** d, size_t* e) { return libiconv(a,b,c,d,e); }
-int iconv_close(iconv_t a) { return libiconv_close(a); }
-EOFC
-
-# Build both static and dynamic versions
-${CC} -c /tmp/iconv_compat.c -o /tmp/iconv_compat.o
-${AR} rcs /tmp/libiconv_compat.a /tmp/iconv_compat.o
-
-# Create dylib for runtime preloading with absolute paths
-${CC} -dynamiclib -o /tmp/libiconv_compat.dylib /tmp/iconv_compat.c \
-    -L"${PREFIX}/lib" -liconv \
-    -Wl,-rpath,"${PREFIX}/lib" \
-    -install_name "/tmp/libiconv_compat.dylib"
-
-# Verify symbols in both libraries
+# Verify the iconv compatibility libraries were created
 echo "=== Verifying iconv compatibility symbols ==="
 echo "Static library:"
 nm /tmp/libiconv_compat.a | grep iconv || true
@@ -82,17 +82,7 @@ echo "Dynamic library:"
 nm -gU /tmp/libiconv_compat.dylib | grep iconv || true
 echo "Dylib dependencies:"
 otool -L /tmp/libiconv_compat.dylib || true
-echo "=============================================="
-
-# Preload the dylib for all subsequent commands
-export DYLD_INSERT_LIBRARIES="/tmp/libiconv_compat.dylib${DYLD_INSERT_LIBRARIES:+:}${DYLD_INSERT_LIBRARIES:-}"
-
-# Test that it's working
-echo "=== Testing DYLD_INSERT_LIBRARIES ==="
 echo "DYLD_INSERT_LIBRARIES=${DYLD_INSERT_LIBRARIES}"
-echo "Running test command..."
-echo "test" > /dev/null
-echo "If no dyld errors above, preloading is working"
 echo "=============================================="
 
 settings_file=$(find "${BUILD_PREFIX}"/ghc-bootstrap -name settings | head -n 1)
