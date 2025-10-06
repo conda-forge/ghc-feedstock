@@ -115,6 +115,61 @@ echo "===================================================="
 # Update cabal package database
 run_and_log "cabal-update" cabal v2-update --allow-newer --minimize-conflict-set
 
+# Debug hook: When the build fails with "ignoring file" warnings,
+# this script will be called to analyze the problematic archives
+cat > /tmp/analyze_archives.sh << 'EOFSCRIPT'
+#!/bin/bash
+echo "=== Analyzing archive format differences ==="
+echo ""
+echo "Searching for .a files in cabal store..."
+archives=$(find /Users/runner/.local/state/cabal/store/ghc-9.6.7/ -name "*.a" -type f 2>/dev/null | head -20)
+
+if [ -z "$archives" ]; then
+    echo "No archives found yet"
+    exit 0
+fi
+
+echo "Found archives, analyzing first 10:"
+echo "$archives" | head -10 | while read archive; do
+    echo ""
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "Archive: $(basename $archive)"
+    echo "Full path: $archive"
+
+    # Check archive format
+    echo "Format signature:"
+    head -c 20 "$archive" | od -An -tx1
+
+    # Check if it's a thin archive
+    if head -c 20 "$archive" | grep -q "!<thin>"; then
+        echo "⚠️  THIN ARCHIVE detected"
+    else
+        echo "✓ Regular archive"
+    fi
+
+    # Extract and check first object file
+    tmpdir=$(mktemp -d)
+    cd "$tmpdir"
+    ar -x "$archive" 2>/dev/null
+    first_obj=$(ls *.o 2>/dev/null | head -1)
+
+    if [ -n "$first_obj" ]; then
+        echo "First object file: $first_obj"
+        file "$first_obj"
+        echo "Object file load commands:"
+        otool -l "$first_obj" 2>/dev/null | grep -A 5 "LC_VERSION\|LC_BUILD" | head -20
+    else
+        echo "❌ Could not extract object files from archive"
+    fi
+
+    cd /tmp
+    rm -rf "$tmpdir"
+done
+echo ""
+echo "=========================================="
+EOFSCRIPT
+chmod +x /tmp/analyze_archives.sh
+
 # Configure and build GHC
 SYSTEM_CONFIG=(
   --build="x86_64-apple-darwin13.4.0"
@@ -200,6 +255,11 @@ rm -f /Users/runner/miniforge3/bin/{as,ranlib,ld}
 #ln -s "${BUILD_PREFIX}"/bin/"${CONDA_TOOLCHAIN_BUILD}"-as /Users/runner/miniforge3/bin/as
 #ln -s "${BUILD_PREFIX}"/bin/"${CONDA_TOOLCHAIN_BUILD}"-ld /Users/runner/miniforge3/bin/ld
 #ln -s "${BUILD_PREFIX}"/bin/"${CONDA_TOOLCHAIN_BUILD}"-ranlib /Users/runner/miniforge3/bin/ranlib
+
+# Before building, analyze any archives that exist to understand format differences
+echo "=== Pre-build archive analysis ==="
+/tmp/analyze_archives.sh || echo "Archive analysis skipped (no archives yet)"
+echo "==================================="
 
 "${_hadrian_build[@]}" stage1:exe:ghc-bin --flavour=release
 
