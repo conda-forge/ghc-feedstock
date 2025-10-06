@@ -32,21 +32,6 @@ echo "LD=${LD}"
 which "${LD}" || echo "LD not in PATH"
 "${LD}" -v || "${LD}" --version || echo "Cannot get ld version"
 echo ""
-
-echo "=== SDK Verification ==="
-echo "SDKROOT=${SDKROOT:-not set}"
-if [ -n "$SDKROOT" ] && [ -d "$SDKROOT" ]; then
-    echo "✓ SDK exists at: $SDKROOT"
-    ls -la "$SDKROOT" | head -5
-else
-    echo "❌ SDK NOT FOUND at: ${SDKROOT:-<not set>}"
-fi
-echo ""
-echo "Available SDKs:"
-ls -la /Applications/Xcode*.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/ 2>/dev/null || echo "No Xcode SDKs found"
-echo "========================"
-echo ""
-
 echo "Testing ar format compatibility:"
 echo "Creating test archive with ${AR}..."
 echo "int test_func() { return 42; }" > /tmp/test.c
@@ -72,15 +57,6 @@ echo ""
 echo "Checking if ld can read the archive:"
 ${AR} -x /tmp/libiconv_compat.a
 file iconv_compat.o
-echo ""
-echo "Detailed object file analysis:"
-otool -l iconv_compat.o | grep -A 5 "LC_VERSION"
-echo ""
-echo "Test: Can ld actually link with this archive?"
-echo "int main() { return 0; }" > /tmp/test_main.c
-${CC} -c /tmp/test_main.c -o /tmp/test_main.o
-${CC} -o /tmp/test_link /tmp/test_main.o /tmp/libiconv_compat.a -L"${PREFIX}/lib" -liconv 2>&1 || echo "Link test FAILED"
-file /tmp/test_link 2>/dev/null && echo "Link test SUCCEEDED"
 echo "============================"
 
 # Create dylib for runtime preloading with absolute paths
@@ -89,138 +65,43 @@ ${CC} -dynamiclib -o /tmp/libiconv_compat.dylib /tmp/iconv_compat.c \
     -Wl,-rpath,"${PREFIX}/lib" \
     -install_name "/tmp/libiconv_compat.dylib"
 
-# DO NOT use DYLD_INSERT_LIBRARIES or DYLD_LIBRARY_PATH as they cause segfaults
-# Instead, we'll rely on -force_load at link time to embed the symbols
+# Preload the dylib for ALL commands from now on
+export DYLD_INSERT_LIBRARIES="/tmp/libiconv_compat.dylib"
+export DYLD_LIBRARY_PATH="${BUILD_PREFIX}/lib:${PREFIX}/lib:${DYLD_LIBRARY_PATH:-}"
 
 # This is needed as in seems to interfere with configure scripts
 unset build_alias
 unset host_alias
 
-# Debug: Verify which ar/ranlib ghc-bootstrap will actually use
-echo "=== Testing which ar ghc-bootstrap actually invokes ==="
-"${BUILD_PREFIX}"/ghc-bootstrap/bin/ghc --print-libdir
-"${BUILD_PREFIX}"/ghc-bootstrap/bin/ghc --info | grep -E "(ar command|ranlib command)"
-echo "===================================================="
+# CRITICAL: Configure ghc-bootstrap to use conda-forge ar/ranlib BEFORE cabal builds anything
+# This ensures all Haskell libraries in cabal store are built with conda-forge toolchain
+settings_file=$(find "${BUILD_PREFIX}"/ghc-bootstrap -name settings | head -n 1)
 
-# Create clang wrapper to filter problematic SDK paths before they reach ld
-cat > /tmp/clang-wrapper.sh << 'EOFCLANG'
-#!/bin/bash
-# Filter out problematic SDK paths from linker arguments
+# Debug: Show ghc-bootstrap's ORIGINAL ar/ranlib settings before modification
+echo "=== ghc-bootstrap ORIGINAL settings ==="
+grep -E "(ar command|ar flags|ranlib command)" "${settings_file}" || true
+echo "========================================"
 
-args=()
-i=1
-while [ $i -le $# ]; do
-    eval arg=\${$i}
+# Force load the compat library to ensure symbols are exported in executables
+perl -pi -e 's#(C compiler link flags", "[^"]*)#$1 -v -Wl,-L$ENV{PREFIX}/lib -Wl,-force_load,/tmp/libiconv_compat.a -Wl,-liconv#' "${settings_file}"
+perl -pi -e 's#(ld flags", "[^"]*)#$1 -v -L$ENV{PREFIX}/lib -force_load /tmp/libiconv_compat.a -liconv#' "${settings_file}"
+set_macos_conda_ar_ranlib "${settings_file}" "${CONDA_TOOLCHAIN_BUILD}"
 
-    # Check for -Wl,-rpath,/Library/.../MacOSX15.5.sdk/...
-    if [[ "$arg" == "-Wl,-rpath,"*"MacOSX15.5.sdk"* ]] || \
-       [[ "$arg" == "-Wl,-rpath,"*"CommandLineTools/SDKs/MacOSX.sdk"* ]]; then
-        # Skip this argument
-        ((i++))
-        continue
-    fi
+# Debug: Show UPDATED settings after conda-forge toolchain modification
+echo "=== ghc-bootstrap AFTER conda-forge ar/ranlib ==="
+grep -E "(ar command|ar flags|ranlib command)" "${settings_file}" || true
+echo "=================================================="
 
-    # Check for bare -rpath followed by problematic path (less common with clang)
-    if [ "$arg" = "-Wl,-rpath" ]; then
-        ((i++))
-        if [ $i -le $# ]; then
-            eval next=\${$i}
-            if [[ "$next" == *"MacOSX15.5.sdk"* ]] || \
-               [[ "$next" == *"CommandLineTools/SDKs/MacOSX.sdk"* ]]; then
-                # Skip both -rpath and the path
-                ((i++))
-                continue
-            else
-                # Keep both
-                args+=("$arg" "$next")
-                ((i++))
-                continue
-            fi
-        fi
-    fi
+cat "${settings_file}"
 
-    args+=("$arg")
-    ((i++))
-done
+# Clear cabal store to force rebuild with conda-forge toolchain
+# This ensures no BSD ar format archives from previous builds are used
+echo "=== Clearing cabal store for clean rebuild ==="
+rm -rf ~/.local/state/cabal/store/ghc-9.6.7/* || true
+echo "================================================"
 
-# Call real clang
-exec "${BUILD_PREFIX}/bin/x86_64-apple-darwin13.4.0-clang.real" "${args[@]}"
-EOFCLANG
-
-chmod +x /tmp/clang-wrapper.sh
-
-# Install clang wrapper
-if [ ! -f "${BUILD_PREFIX}/bin/x86_64-apple-darwin13.4.0-clang.real" ]; then
-    mv "${BUILD_PREFIX}/bin/x86_64-apple-darwin13.4.0-clang" "${BUILD_PREFIX}/bin/x86_64-apple-darwin13.4.0-clang.real"
-fi
-cp /tmp/clang-wrapper.sh "${BUILD_PREFIX}/bin/x86_64-apple-darwin13.4.0-clang"
-
-echo "=== Clang wrapper installed to filter SDK paths ==="
-echo "Real clang: ${BUILD_PREFIX}/bin/x86_64-apple-darwin13.4.0-clang.real"
-echo "Wrapper: ${BUILD_PREFIX}/bin/x86_64-apple-darwin13.4.0-clang"
-echo "===================================================="
-
-# Update cabal package database
+# Update cabal package database (now using conda-forge toolchain)
 run_and_log "cabal-update" cabal v2-update --allow-newer --minimize-conflict-set
-
-# Debug hook: When the build fails with "ignoring file" warnings,
-# this script will be called to analyze the problematic archives
-cat > /tmp/analyze_archives.sh << 'EOFSCRIPT'
-#!/bin/bash
-echo "=== Analyzing archive format differences ==="
-echo ""
-echo "Searching for .a files in cabal store..."
-archives=$(find /Users/runner/.local/state/cabal/store/ghc-9.6.7/ -name "*.a" -type f 2>/dev/null | head -20)
-
-if [ -z "$archives" ]; then
-    echo "No archives found yet"
-    exit 0
-fi
-
-echo "Found archives, analyzing first 10:"
-echo "$archives" | head -10 | while read archive; do
-    echo ""
-    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo "Archive: $(basename $archive)"
-    echo "Full path: $archive"
-
-    # Check archive format
-    echo "Format signature:"
-    head -c 20 "$archive" | od -An -tx1
-
-    # Check archive details
-    echo "Archive size: $(du -h "$archive" | cut -f1)"
-    echo "Number of objects: $(ar -t "$archive" 2>/dev/null | wc -l)"
-
-    # Check if it's a thin archive
-    if head -c 20 "$archive" | grep -q "!<thin>"; then
-        echo "⚠️  THIN ARCHIVE detected"
-    else
-        echo "✓ Regular archive"
-    fi
-
-    # Extract and check first object file
-    tmpdir=$(mktemp -d)
-    cd "$tmpdir"
-    ar -x "$archive" 2>/dev/null
-    first_obj=$(ls *.o 2>/dev/null | head -1)
-
-    if [ -n "$first_obj" ]; then
-        echo "First object file: $first_obj"
-        file "$first_obj"
-        echo "Object file load commands:"
-        otool -l "$first_obj" 2>/dev/null | grep -A 5 "LC_VERSION\|LC_BUILD" | head -20
-    else
-        echo "❌ Could not extract object files from archive"
-    fi
-
-    cd /tmp
-    rm -rf "$tmpdir"
-done
-echo ""
-echo "=========================================="
-EOFSCRIPT
-chmod +x /tmp/analyze_archives.sh
 
 # Configure and build GHC
 SYSTEM_CONFIG=(
@@ -259,38 +140,21 @@ export DEVELOPER_DIR=""
 
 # Verify the iconv compatibility libraries were created
 echo "=== Verifying iconv compatibility symbols ==="
-echo "Static library (all symbols):"
+echo "Static library:"
 nm /tmp/libiconv_compat.a | grep iconv || true
-echo ""
-echo "Dynamic library (exported symbols only):"
+echo "Dynamic library:"
 nm -gU /tmp/libiconv_compat.dylib | grep iconv || true
-echo ""
 echo "Dylib dependencies:"
 otool -L /tmp/libiconv_compat.dylib || true
-echo ""
-echo "NOTE: Not using DYLD_INSERT_LIBRARIES/DYLD_LIBRARY_PATH (causes segfaults)"
-echo "Using -force_load at link time instead"
+echo "DYLD_INSERT_LIBRARIES=${DYLD_INSERT_LIBRARIES}"
 echo "=============================================="
 
-settings_file=$(find "${BUILD_PREFIX}"/ghc-bootstrap -name settings | head -n 1)
+# Install ld wrapper to surgically remove MacOSX15.5.sdk rpath contamination
+mv "${BUILD_PREFIX}"/bin/"${CONDA_TOOLCHAIN_BUILD}"-ld "${BUILD_PREFIX}"/bin/"${CONDA_TOOLCHAIN_BUILD}"-ld.real
+cp "${RECIPE_DIR}"/building/ld-wrapper.sh "${BUILD_PREFIX}"/bin/"${CONDA_TOOLCHAIN_BUILD}"-ld
+chmod +x "${BUILD_PREFIX}"/bin/"${CONDA_TOOLCHAIN_BUILD}"-ld
 
-# Debug: Show ghc-bootstrap's ORIGINAL ar/ranlib settings before modification
-echo "=== ghc-bootstrap ORIGINAL settings ==="
-grep -E "(ar command|ar flags|ranlib command)" "${settings_file}" || true
-echo "========================================"
-
-# Force load the compat library to ensure symbols are exported in executables
-perl -pi -e 's#(C compiler link flags", "[^"]*)#$1 -v -Wl,-L$ENV{PREFIX}/lib -Wl,-force_load,/tmp/libiconv_compat.a -Wl,-liconv#' "${settings_file}"
-perl -pi -e 's#(ld flags", "[^"]*)#$1 -v -L$ENV{PREFIX}/lib -force_load /tmp/libiconv_compat.a -liconv#' "${settings_file}"
-set_macos_conda_ar_ranlib "${settings_file}" "${CONDA_TOOLCHAIN_BUILD}"
-
-# Debug: Show UPDATED settings after conda-forge toolchain modification
-echo "=== ghc-bootstrap AFTER conda-forge ar/ranlib ==="
-grep -E "(ar command|ar flags|ranlib command)" "${settings_file}" || true
-echo "=================================================="
-
-cat "${settings_file}"
-
+# Create symlinks for conda-forge toolchain (ghc-bootstrap is already configured above)
 ln -sf "${BUILD_PREFIX}"/bin/"${CONDA_TOOLCHAIN_BUILD}"-as "${BUILD_PREFIX}"/bin/as
 ln -sf "${BUILD_PREFIX}"/bin/"${CONDA_TOOLCHAIN_BUILD}"-ld "${BUILD_PREFIX}"/bin/ld
 ln -sf "${BUILD_PREFIX}"/bin/"${CONDA_TOOLCHAIN_BUILD}"-ranlib "${BUILD_PREFIX}"/bin/ranlib
@@ -310,40 +174,12 @@ rm -f /Users/runner/miniforge3/bin/{as,ranlib,ld}
 #ln -s "${BUILD_PREFIX}"/bin/"${CONDA_TOOLCHAIN_BUILD}"-ld /Users/runner/miniforge3/bin/ld
 #ln -s "${BUILD_PREFIX}"/bin/"${CONDA_TOOLCHAIN_BUILD}"-ranlib /Users/runner/miniforge3/bin/ranlib
 
-# Before building, analyze any archives that exist to understand format differences
-echo "=== Pre-build archive analysis ==="
-/tmp/analyze_archives.sh || echo "Archive analysis skipped (no archives yet)"
-echo "==================================="
-
-# Run the build but capture output to detect link warnings
-build_log="${SRC_DIR}/_logs/stage1_ghc_bin_build.log"
-"${_hadrian_build[@]}" stage1:exe:ghc-bin --flavour=release 2>&1 | tee "$build_log"
-build_exit_code=${PIPESTATUS[0]}
-
-# If we see "ignoring file" warnings, run detailed analysis
-if grep -q "ignoring file.*unknown-unsupported file format" "$build_log"; then
-    echo ""
-    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo "⚠️  Detected 'unknown-unsupported file format' warnings"
-    echo "Running detailed archive analysis..."
-    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    /tmp/analyze_archives.sh
-    echo ""
-fi
-
-# Propagate the build exit code
-if [ $build_exit_code -ne 0 ]; then
-    echo "Build failed with exit code $build_exit_code"
-    exit $build_exit_code
-fi
+"${_hadrian_build[@]}" stage1:exe:ghc-bin --flavour=release
 
 settings_file="${SRC_DIR}"/_build/stage0/lib/settings
 perl -pi -e 's#(C compiler link flags", "[^"]*)#$1 -v -Wl,-L$ENV{PREFIX}/lib -Wl,-L\$topdir/../../../../lib -Wl,-rpath,\$topdir/../../../../lib -Wl,-force_load,/tmp/libiconv_compat.a -Wl,-liconv#' "${settings_file}"
 perl -pi -e 's#(ld flags", "[^"]*)#$1 -v -L$ENV{PREFIX}/lib -L\$topdir/../../../../lib -rpath \$topdir/../../../../lib -force_load /tmp/libiconv_compat.a -liconv#' "${settings_file}"
 set_macos_conda_ar_ranlib "${settings_file}" "${CONDA_TOOLCHAIN_BUILD}"
-
-# Enable verbose linking to see actual ld commands
-export LDFLAGS="${LDFLAGS} -v"
 
 run_and_log "stage1_lib" "${_hadrian_build[@]}" stage1:lib:ghc --flavour=release
 
@@ -373,17 +209,10 @@ cat "${settings_file}"
 
 # Add debugging to verify archive format after build completes
 echo "=== Post-build archive format check ==="
-echo "Comparing ACCEPTED vs REJECTED archive formats:"
-echo ""
-echo "Our test archive (ACCEPTED in test, but IGNORED in actual link):"
-file /tmp/libiconv_compat.a
-head -c 20 /tmp/libiconv_compat.a | od -An -tx1
-echo ""
-echo "Checking cabal-built archives:"
-find /Users/runner/.local/state/cabal/store/ghc-9.6.7/ -name "*.a" -type f | head -5 | while read f; do
+echo "Checking a cabal-built archive format:"
+find /Users/runner/.local/state/cabal/store/ghc-9.6.7/ -name "*.a" -type f | head -3 | while read f; do
   echo "File: $f"
   file "$f"
   head -c 20 "$f" | od -An -tx1
-  echo ""
 done
 echo "=========================================="
