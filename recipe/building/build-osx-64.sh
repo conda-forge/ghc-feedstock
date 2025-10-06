@@ -57,6 +57,15 @@ echo ""
 echo "Checking if ld can read the archive:"
 ${AR} -x /tmp/libiconv_compat.a
 file iconv_compat.o
+echo ""
+echo "Detailed object file analysis:"
+otool -l iconv_compat.o | grep -A 5 "LC_VERSION"
+echo ""
+echo "Test: Can ld actually link with this archive?"
+echo "int main() { return 0; }" > /tmp/test_main.c
+${CC} -c /tmp/test_main.c -o /tmp/test_main.o
+${CC} -o /tmp/test_link /tmp/test_main.o /tmp/libiconv_compat.a -L"${PREFIX}/lib" -liconv 2>&1 || echo "Link test FAILED"
+file /tmp/test_link 2>/dev/null && echo "Link test SUCCEEDED"
 echo "============================"
 
 # Create dylib for runtime preloading with absolute paths
@@ -72,6 +81,12 @@ export DYLD_LIBRARY_PATH="${BUILD_PREFIX}/lib:${PREFIX}/lib:${DYLD_LIBRARY_PATH:
 # This is needed as in seems to interfere with configure scripts
 unset build_alias
 unset host_alias
+
+# Debug: Verify which ar/ranlib ghc-bootstrap will actually use
+echo "=== Testing which ar ghc-bootstrap actually invokes ==="
+"${BUILD_PREFIX}"/ghc-bootstrap/bin/ghc --print-libdir
+"${BUILD_PREFIX}"/ghc-bootstrap/bin/ghc --info | grep -E "(ar command|ranlib command)"
+echo "===================================================="
 
 # Update cabal package database
 run_and_log "cabal-update" cabal v2-update --allow-newer --minimize-conflict-set
@@ -113,10 +128,15 @@ export DEVELOPER_DIR=""
 
 # Verify the iconv compatibility libraries were created
 echo "=== Verifying iconv compatibility symbols ==="
-echo "Static library:"
+echo "Static library (all symbols):"
 nm /tmp/libiconv_compat.a | grep iconv || true
-echo "Dynamic library:"
+echo ""
+echo "Dynamic library (exported symbols only):"
 nm -gU /tmp/libiconv_compat.dylib | grep iconv || true
+echo ""
+echo "Checking for _iconv* symbol exports (should show T _iconv, T _iconv_open, T _iconv_close):"
+nm -gU /tmp/libiconv_compat.dylib | grep -E "^[0-9a-f]+ T " | grep iconv || echo "ERROR: No _iconv symbols exported!"
+echo ""
 echo "Dylib dependencies:"
 otool -L /tmp/libiconv_compat.dylib || true
 echo "DYLD_INSERT_LIBRARIES=${DYLD_INSERT_LIBRARIES}"
@@ -167,6 +187,9 @@ perl -pi -e 's#(C compiler link flags", "[^"]*)#$1 -v -Wl,-L$ENV{PREFIX}/lib -Wl
 perl -pi -e 's#(ld flags", "[^"]*)#$1 -v -L$ENV{PREFIX}/lib -L\$topdir/../../../../lib -rpath \$topdir/../../../../lib -force_load /tmp/libiconv_compat.a -liconv#' "${settings_file}"
 set_macos_conda_ar_ranlib "${settings_file}" "${CONDA_TOOLCHAIN_BUILD}"
 
+# Enable verbose linking to see actual ld commands
+export LDFLAGS="${LDFLAGS} -v"
+
 run_and_log "stage1_lib" "${_hadrian_build[@]}" stage1:lib:ghc --flavour=release
 
 perl -i -pe "s#(C compiler link flags\", \")([^\"]*)#\1\2 -v -Wl,-L\$ENV{PREFIX}/lib -Wl,-L\\\$topdir/../../../../lib -Wl,-rpath,\\\$topdir/../../../../lib -Wl,-force_load,/tmp/libiconv_compat.a -Wl,-liconv#" "${settings_file}"
@@ -195,10 +218,17 @@ cat "${settings_file}"
 
 # Add debugging to verify archive format after build completes
 echo "=== Post-build archive format check ==="
-echo "Checking a cabal-built archive format:"
-find /Users/runner/.local/state/cabal/store/ghc-9.6.7/ -name "*.a" -type f | head -3 | while read f; do
+echo "Comparing ACCEPTED vs REJECTED archive formats:"
+echo ""
+echo "Our test archive (ACCEPTED in test, but IGNORED in actual link):"
+file /tmp/libiconv_compat.a
+head -c 20 /tmp/libiconv_compat.a | od -An -tx1
+echo ""
+echo "Checking cabal-built archives:"
+find /Users/runner/.local/state/cabal/store/ghc-9.6.7/ -name "*.a" -type f | head -5 | while read f; do
   echo "File: $f"
   file "$f"
   head -c 20 "$f" | od -An -tx1
+  echo ""
 done
 echo "=========================================="
