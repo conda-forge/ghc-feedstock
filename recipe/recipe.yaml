@@ -9,13 +9,13 @@ source:
   - url: https://downloads.haskell.org/~ghc/${{ version }}/ghc-${{ version }}-src.tar.xz
     sha256: d053bf6ce1d588a75cfe8c9316269486e9d8fb89dcdf6fd92836fa2e3df61305
     patches:
-      - patches/update-Release.hs.patch
-      - patches/update-Rts.hs.patch
-      - patches/library-rts-symlinks.patch
-      - patches/update-Compile.hs.patch
-      - patches/fix-dynamic-interface-tags.patch
-      - patches/fix-wired-in-package-unit-ids.patch
-      - patches/fix-rts-linking.patch
+      # - patches/update-Release.hs.patch
+      # - patches/update-Rts.hs.patch
+      # - patches/library-rts-symlinks.patch
+      # - patches/update-Compile.hs.patch
+      # - patches/fix-dynamic-interface-tags.patch
+      # - patches/fix-wired-in-package-unit-ids.patch
+      # - patches/fix-rts-linking.patch
       - if: osx and arm64
         then:
           - patches/patch-rpath-macos.patch
@@ -147,7 +147,18 @@ tests:
   - script: |
       ghc --version
       printf 'main = putStrLn "Hello conda-forge"\n' > hello.hs
-      ghc -v hello.hs
+      ghc hello.hs
+      ./hello
+    requirements:
+      run:
+        - ${{ compiler('c') }}
+        - libiconv
+        - if: unix
+          then: ${{ stdlib('c') }}
+
+  - script: |
+      printf 'main = putStrLn "Hello conda-forge"\n' > hello.hs
+      ghc -dynamic hello.hs
       ./hello
     requirements:
       run:
@@ -160,7 +171,7 @@ tests:
       - printf 'import System.Posix.Signals\nmain = installHandler sigTERM Default Nothing >> putStrLn "Signal test"\n' > signal_test.hs
       - if: unix
         then: |
-          ghc -v signal_test.hs
+          ghc signal_test.hs
           ./signal_test
         else: |
           echo Skipping signal test on Windows
