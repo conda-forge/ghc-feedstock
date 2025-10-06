@@ -123,10 +123,21 @@ echo "DYLD_INSERT_LIBRARIES=${DYLD_INSERT_LIBRARIES}"
 echo "=============================================="
 
 settings_file=$(find "${BUILD_PREFIX}"/ghc-bootstrap -name settings | head -n 1)
+
+# Debug: Show ghc-bootstrap's ORIGINAL ar/ranlib settings before modification
+echo "=== ghc-bootstrap ORIGINAL settings ==="
+grep -E "(ar command|ar flags|ranlib command)" "${settings_file}" || true
+echo "========================================"
+
 # Force load the compat library to ensure symbols are exported in executables
 perl -pi -e 's#(C compiler link flags", "[^"]*)#$1 -v -Wl,-L$ENV{PREFIX}/lib -Wl,-force_load,/tmp/libiconv_compat.a -Wl,-liconv#' "${settings_file}"
 perl -pi -e 's#(ld flags", "[^"]*)#$1 -v -L$ENV{PREFIX}/lib -force_load /tmp/libiconv_compat.a -liconv#' "${settings_file}"
 set_macos_conda_ar_ranlib "${settings_file}" "${CONDA_TOOLCHAIN_BUILD}"
+
+# Debug: Show UPDATED settings after conda-forge toolchain modification
+echo "=== ghc-bootstrap AFTER conda-forge ar/ranlib ==="
+grep -E "(ar command|ar flags|ranlib command)" "${settings_file}" || true
+echo "=================================================="
 
 cat "${settings_file}"
 
