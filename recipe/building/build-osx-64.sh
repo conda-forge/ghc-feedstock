@@ -32,6 +32,21 @@ echo "LD=${LD}"
 which "${LD}" || echo "LD not in PATH"
 "${LD}" -v || "${LD}" --version || echo "Cannot get ld version"
 echo ""
+
+echo "=== SDK Verification ==="
+echo "SDKROOT=${SDKROOT:-not set}"
+if [ -n "$SDKROOT" ] && [ -d "$SDKROOT" ]; then
+    echo "✓ SDK exists at: $SDKROOT"
+    ls -la "$SDKROOT" | head -5
+else
+    echo "❌ SDK NOT FOUND at: ${SDKROOT:-<not set>}"
+fi
+echo ""
+echo "Available SDKs:"
+ls -la /Applications/Xcode*.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/ 2>/dev/null || echo "No Xcode SDKs found"
+echo "========================"
+echo ""
+
 echo "Testing ar format compatibility:"
 echo "Creating test archive with ${AR}..."
 echo "int test_func() { return 42; }" > /tmp/test.c
@@ -87,6 +102,54 @@ echo "=== Testing which ar ghc-bootstrap actually invokes ==="
 "${BUILD_PREFIX}"/ghc-bootstrap/bin/ghc --info | grep -E "(ar command|ranlib command)"
 echo "===================================================="
 
+# Create ld wrapper to filter out problematic SDK paths
+cat > /tmp/ld-wrapper.sh << 'EOFLD'
+#!/bin/bash
+# Wrapper to filter out MacOSX15.5.sdk from ld arguments
+
+# Collect all arguments, filtering out the problematic rpath
+args=()
+skip_next=false
+for arg in "$@"; do
+    if [ "$skip_next" = true ]; then
+        # Check if this is the MacOSX15.5.sdk path we want to skip
+        if [[ "$arg" == *"MacOSX15.5.sdk"* ]] || [[ "$arg" == *"MacOSX.sdk"* ]]; then
+            skip_next=false
+            continue
+        fi
+        skip_next=false
+    fi
+
+    # Skip -rpath arguments pointing to wrong SDK
+    if [ "$arg" = "-rpath" ]; then
+        skip_next=true
+        continue
+    fi
+
+    # Skip -L arguments pointing to wrong SDK
+    if [[ "$arg" == "-L/Library/Developer/CommandLineTools/SDKs/"* ]]; then
+        continue
+    fi
+
+    args+=("$arg")
+done
+
+# Call the real ld
+exec "${BUILD_PREFIX}/bin/x86_64-apple-darwin13.4.0-ld.real" "${args[@]}"
+EOFLD
+
+chmod +x /tmp/ld-wrapper.sh
+
+# Backup the real ld and replace with wrapper
+if [ ! -f "${BUILD_PREFIX}/bin/x86_64-apple-darwin13.4.0-ld.real" ]; then
+    mv "${BUILD_PREFIX}/bin/x86_64-apple-darwin13.4.0-ld" "${BUILD_PREFIX}/bin/x86_64-apple-darwin13.4.0-ld.real"
+    cp /tmp/ld-wrapper.sh "${BUILD_PREFIX}/bin/x86_64-apple-darwin13.4.0-ld"
+    echo "=== LD wrapper installed ==="
+    echo "Real ld: ${BUILD_PREFIX}/bin/x86_64-apple-darwin13.4.0-ld.real"
+    echo "Wrapper: ${BUILD_PREFIX}/bin/x86_64-apple-darwin13.4.0-ld"
+    echo "============================"
+fi
+
 # Update cabal package database
 run_and_log "cabal-update" cabal v2-update --allow-newer --minimize-conflict-set
 
@@ -114,6 +177,10 @@ echo "$archives" | head -10 | while read archive; do
     # Check archive format
     echo "Format signature:"
     head -c 20 "$archive" | od -An -tx1
+
+    # Check archive details
+    echo "Archive size: $(du -h "$archive" | cut -f1)"
+    echo "Number of objects: $(ar -t "$archive" 2>/dev/null | wc -l)"
 
     # Check if it's a thin archive
     if head -c 20 "$archive" | grep -q "!<thin>"; then
