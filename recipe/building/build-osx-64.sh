@@ -100,6 +100,11 @@ echo "=== Clearing cabal store for clean rebuild ==="
 rm -rf ~/.local/state/cabal/store/ghc-9.6.7/* || true
 echo "================================================"
 
+# Run ar/ld permutation tests to diagnose archive format issues
+echo "=== Running ar/ld permutation diagnostic ==="
+bash "${RECIPE_DIR}"/conda_build_env_setup.sh || true
+echo "=============================================="
+
 # Update cabal package database (now using conda-forge toolchain)
 run_and_log "cabal-update" cabal v2-update --allow-newer --minimize-conflict-set
 
