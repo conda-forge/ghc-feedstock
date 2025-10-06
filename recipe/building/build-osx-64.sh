@@ -113,11 +113,14 @@ skip_next=false
 for arg in "$@"; do
     if [ "$skip_next" = true ]; then
         # Check if this is the MacOSX15.5.sdk path we want to skip
-        if [[ "$arg" == *"MacOSX15.5.sdk"* ]] || [[ "$arg" == *"MacOSX.sdk"* ]]; then
+        if [[ "$arg" == *"MacOSX15.5.sdk"* ]] || [[ "$arg" == *"CommandLineTools/SDKs/MacOSX.sdk"* ]]; then
             skip_next=false
             continue
         fi
+        # Not a path to skip, keep it
+        args+=("$arg")
         skip_next=false
+        continue
     fi
 
     # Skip -rpath arguments pointing to wrong SDK
@@ -126,7 +129,7 @@ for arg in "$@"; do
         continue
     fi
 
-    # Skip -L arguments pointing to wrong SDK
+    # Skip -L arguments pointing to CommandLineTools SDKs
     if [[ "$arg" == "-L/Library/Developer/CommandLineTools/SDKs/"* ]]; then
         continue
     fi
@@ -143,12 +146,13 @@ chmod +x /tmp/ld-wrapper.sh
 # Backup the real ld and replace with wrapper
 if [ ! -f "${BUILD_PREFIX}/bin/x86_64-apple-darwin13.4.0-ld.real" ]; then
     mv "${BUILD_PREFIX}/bin/x86_64-apple-darwin13.4.0-ld" "${BUILD_PREFIX}/bin/x86_64-apple-darwin13.4.0-ld.real"
-    cp /tmp/ld-wrapper.sh "${BUILD_PREFIX}/bin/x86_64-apple-darwin13.4.0-ld"
-    echo "=== LD wrapper installed ==="
-    echo "Real ld: ${BUILD_PREFIX}/bin/x86_64-apple-darwin13.4.0-ld.real"
-    echo "Wrapper: ${BUILD_PREFIX}/bin/x86_64-apple-darwin13.4.0-ld"
-    echo "============================"
 fi
+# Always update the wrapper to get latest version
+cp /tmp/ld-wrapper.sh "${BUILD_PREFIX}/bin/x86_64-apple-darwin13.4.0-ld"
+echo "=== LD wrapper installed ==="
+echo "Real ld: ${BUILD_PREFIX}/bin/x86_64-apple-darwin13.4.0-ld.real"
+echo "Wrapper: ${BUILD_PREFIX}/bin/x86_64-apple-darwin13.4.0-ld"
+echo "============================"
 
 # Update cabal package database
 run_and_log "cabal-update" cabal v2-update --allow-newer --minimize-conflict-set
