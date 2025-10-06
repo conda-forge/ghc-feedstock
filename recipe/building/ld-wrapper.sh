@@ -13,27 +13,28 @@ fi
 
 # Filter out 15.5 SDK rpath
 filtered_args=()
-skip_next=false
+i=0
+args=("$@")
 
-for arg in "$@"; do
-    if [[ "$skip_next" == "true" ]]; then
-        # Check if this is the 15.5 SDK path we want to skip
-        if [[ "$arg" == *"MacOSX15.5.sdk"* ]] || [[ "$arg" == *"15.5"* ]]; then
-            # Skip this argument
-            skip_next=false
-            continue
-        else
-            # Keep this rpath, it's not the contaminated one
-            filtered_args+=("$arg")
-            skip_next=false
+while [[ $i -lt ${#args[@]} ]]; do
+    arg="${args[$i]}"
+
+    if [[ "$arg" == "-rpath" ]]; then
+        # Look ahead to see if next argument is the contaminated path
+        next_i=$((i + 1))
+        if [[ $next_i -lt ${#args[@]} ]]; then
+            next_arg="${args[$next_i]}"
+            if [[ "$next_arg" == *"MacOSX15.5.sdk"* ]] || [[ "$next_arg" == *"15.5"* ]]; then
+                # Skip both -rpath and the contaminated path
+                i=$((i + 2))
+                continue
+            fi
         fi
-    elif [[ "$arg" == "-rpath" ]]; then
-        # Next argument might be the 15.5 SDK path
-        filtered_args+=("$arg")
-        skip_next=true
-    else
-        filtered_args+=("$arg")
     fi
+
+    # Keep this argument
+    filtered_args+=("$arg")
+    i=$((i + 1))
 done
 
 # Execute real ld with filtered arguments
