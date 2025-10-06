@@ -102,67 +102,63 @@ echo "=== Testing which ar ghc-bootstrap actually invokes ==="
 "${BUILD_PREFIX}"/ghc-bootstrap/bin/ghc --info | grep -E "(ar command|ranlib command)"
 echo "===================================================="
 
-# Create ld wrapper to filter out problematic SDK paths
-cat > /tmp/ld-wrapper.sh << 'EOFLD'
+# Create clang wrapper to filter problematic SDK paths before they reach ld
+cat > /tmp/clang-wrapper.sh << 'EOFCLANG'
 #!/bin/bash
-# Wrapper to filter out MacOSX15.5.sdk from ld arguments
+# Filter out problematic SDK paths from linker arguments
 
-# Debug: log to /tmp/ld-wrapper.log
-# echo "LD wrapper called with: $@" >> /tmp/ld-wrapper.log
-
-# Collect all arguments, filtering out the problematic rpath
 args=()
-i=0
-while [ $i -lt $# ]; do
-    arg="${!i}"
-    ((i++))
+i=1
+while [ $i -le $# ]; do
+    eval arg=\${$i}
 
-    # Check if this is -rpath followed by a problematic path
-    if [ "$arg" = "-rpath" ] && [ $i -lt $# ]; then
-        next_arg_idx=$i
-        next_arg="${!next_arg_idx}"
-
-        # Skip if next arg is a problematic SDK path
-        if [[ "$next_arg" == *"MacOSX15.5.sdk"* ]] || [[ "$next_arg" == *"CommandLineTools/SDKs/MacOSX.sdk"* ]]; then
-            # echo "Skipping: -rpath $next_arg" >> /tmp/ld-wrapper.log
-            ((i++))  # Skip the next argument too
-            continue
-        fi
-
-        # Keep this -rpath and its argument
-        args+=("$arg")
-        args+=("$next_arg")
+    # Check for -Wl,-rpath,/Library/.../MacOSX15.5.sdk/...
+    if [[ "$arg" == "-Wl,-rpath,"*"MacOSX15.5.sdk"* ]] || \
+       [[ "$arg" == "-Wl,-rpath,"*"CommandLineTools/SDKs/MacOSX.sdk"* ]]; then
+        # Skip this argument
         ((i++))
         continue
     fi
 
-    # Skip -L arguments pointing to CommandLineTools SDKs
-    if [[ "$arg" == "-L/Library/Developer/CommandLineTools/SDKs/"* ]]; then
-        # echo "Skipping: $arg" >> /tmp/ld-wrapper.log
-        continue
+    # Check for bare -rpath followed by problematic path (less common with clang)
+    if [ "$arg" = "-Wl,-rpath" ]; then
+        ((i++))
+        if [ $i -le $# ]; then
+            eval next=\${$i}
+            if [[ "$next" == *"MacOSX15.5.sdk"* ]] || \
+               [[ "$next" == *"CommandLineTools/SDKs/MacOSX.sdk"* ]]; then
+                # Skip both -rpath and the path
+                ((i++))
+                continue
+            else
+                # Keep both
+                args+=("$arg" "$next")
+                ((i++))
+                continue
+            fi
+        fi
     fi
 
-    # Keep all other arguments
     args+=("$arg")
+    ((i++))
 done
 
-# echo "Calling real ld with: ${args[@]}" >> /tmp/ld-wrapper.log
-# Call the real ld
-exec "${BUILD_PREFIX}/bin/x86_64-apple-darwin13.4.0-ld.real" "${args[@]}"
-EOFLD
+# Call real clang
+exec "${BUILD_PREFIX}/bin/x86_64-apple-darwin13.4.0-clang.real" "${args[@]}"
+EOFCLANG
 
-chmod +x /tmp/ld-wrapper.sh
+chmod +x /tmp/clang-wrapper.sh
 
-# Backup the real ld and replace with wrapper
-if [ ! -f "${BUILD_PREFIX}/bin/x86_64-apple-darwin13.4.0-ld.real" ]; then
-    mv "${BUILD_PREFIX}/bin/x86_64-apple-darwin13.4.0-ld" "${BUILD_PREFIX}/bin/x86_64-apple-darwin13.4.0-ld.real"
+# Install clang wrapper
+if [ ! -f "${BUILD_PREFIX}/bin/x86_64-apple-darwin13.4.0-clang.real" ]; then
+    mv "${BUILD_PREFIX}/bin/x86_64-apple-darwin13.4.0-clang" "${BUILD_PREFIX}/bin/x86_64-apple-darwin13.4.0-clang.real"
 fi
-# Always update the wrapper to get latest version
-cp /tmp/ld-wrapper.sh "${BUILD_PREFIX}/bin/x86_64-apple-darwin13.4.0-ld"
-echo "=== LD wrapper installed ==="
-echo "Real ld: ${BUILD_PREFIX}/bin/x86_64-apple-darwin13.4.0-ld.real"
-echo "Wrapper: ${BUILD_PREFIX}/bin/x86_64-apple-darwin13.4.0-ld"
-echo "============================"
+cp /tmp/clang-wrapper.sh "${BUILD_PREFIX}/bin/x86_64-apple-darwin13.4.0-clang"
+
+echo "=== Clang wrapper installed to filter SDK paths ==="
+echo "Real clang: ${BUILD_PREFIX}/bin/x86_64-apple-darwin13.4.0-clang.real"
+echo "Wrapper: ${BUILD_PREFIX}/bin/x86_64-apple-darwin13.4.0-clang"
+echo "===================================================="
 
 # Update cabal package database
 run_and_log "cabal-update" cabal v2-update --allow-newer --minimize-conflict-set
