@@ -107,36 +107,46 @@ cat > /tmp/ld-wrapper.sh << 'EOFLD'
 #!/bin/bash
 # Wrapper to filter out MacOSX15.5.sdk from ld arguments
 
+# Debug: log to /tmp/ld-wrapper.log
+# echo "LD wrapper called with: $@" >> /tmp/ld-wrapper.log
+
 # Collect all arguments, filtering out the problematic rpath
 args=()
-skip_next=false
-for arg in "$@"; do
-    if [ "$skip_next" = true ]; then
-        # Check if this is the MacOSX15.5.sdk path we want to skip
-        if [[ "$arg" == *"MacOSX15.5.sdk"* ]] || [[ "$arg" == *"CommandLineTools/SDKs/MacOSX.sdk"* ]]; then
-            skip_next=false
+i=0
+while [ $i -lt $# ]; do
+    arg="${!i}"
+    ((i++))
+
+    # Check if this is -rpath followed by a problematic path
+    if [ "$arg" = "-rpath" ] && [ $i -lt $# ]; then
+        next_arg_idx=$i
+        next_arg="${!next_arg_idx}"
+
+        # Skip if next arg is a problematic SDK path
+        if [[ "$next_arg" == *"MacOSX15.5.sdk"* ]] || [[ "$next_arg" == *"CommandLineTools/SDKs/MacOSX.sdk"* ]]; then
+            # echo "Skipping: -rpath $next_arg" >> /tmp/ld-wrapper.log
+            ((i++))  # Skip the next argument too
             continue
         fi
-        # Not a path to skip, keep it
-        args+=("$arg")
-        skip_next=false
-        continue
-    fi
 
-    # Skip -rpath arguments pointing to wrong SDK
-    if [ "$arg" = "-rpath" ]; then
-        skip_next=true
+        # Keep this -rpath and its argument
+        args+=("$arg")
+        args+=("$next_arg")
+        ((i++))
         continue
     fi
 
     # Skip -L arguments pointing to CommandLineTools SDKs
     if [[ "$arg" == "-L/Library/Developer/CommandLineTools/SDKs/"* ]]; then
+        # echo "Skipping: $arg" >> /tmp/ld-wrapper.log
         continue
     fi
 
+    # Keep all other arguments
     args+=("$arg")
 done
 
+# echo "Calling real ld with: ${args[@]}" >> /tmp/ld-wrapper.log
 # Call the real ld
 exec "${BUILD_PREFIX}/bin/x86_64-apple-darwin13.4.0-ld.real" "${args[@]}"
 EOFLD
