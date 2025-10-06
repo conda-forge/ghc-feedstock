@@ -238,7 +238,27 @@ echo "=== Pre-build archive analysis ==="
 /tmp/analyze_archives.sh || echo "Archive analysis skipped (no archives yet)"
 echo "==================================="
 
-"${_hadrian_build[@]}" stage1:exe:ghc-bin --flavour=release
+# Run the build but capture output to detect link warnings
+build_log="${SRC_DIR}/_logs/stage1_ghc_bin_build.log"
+"${_hadrian_build[@]}" stage1:exe:ghc-bin --flavour=release 2>&1 | tee "$build_log"
+build_exit_code=${PIPESTATUS[0]}
+
+# If we see "ignoring file" warnings, run detailed analysis
+if grep -q "ignoring file.*unknown-unsupported file format" "$build_log"; then
+    echo ""
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "⚠️  Detected 'unknown-unsupported file format' warnings"
+    echo "Running detailed archive analysis..."
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    /tmp/analyze_archives.sh
+    echo ""
+fi
+
+# Propagate the build exit code
+if [ $build_exit_code -ne 0 ]; then
+    echo "Build failed with exit code $build_exit_code"
+    exit $build_exit_code
+fi
 
 settings_file="${SRC_DIR}"/_build/stage0/lib/settings
 perl -pi -e 's#(C compiler link flags", "[^"]*)#$1 -v -Wl,-L$ENV{PREFIX}/lib -Wl,-L\$topdir/../../../../lib -Wl,-rpath,\$topdir/../../../../lib -Wl,-force_load,/tmp/libiconv_compat.a -Wl,-liconv#' "${settings_file}"
