@@ -68,15 +68,39 @@ ${CC} -o /tmp/test_link /tmp/test_main.o /tmp/libiconv_compat.a -L"${PREFIX}/lib
 file /tmp/test_link 2>/dev/null && echo "Link test SUCCEEDED"
 echo "============================"
 
-# Create dylib for runtime preloading with absolute paths
-${CC} -dynamiclib -o /tmp/libiconv_compat.dylib /tmp/iconv_compat.c \
+# Create a COMPLETE libiconv replacement dylib that provides BOTH _iconv* and _libiconv* symbols
+# This will be placed in DYLD_LIBRARY_PATH to override both system and conda-forge libiconv
+cat > /tmp/libiconv_full.c << 'EOFC'
+#include <stddef.h>
+typedef void* iconv_t;
+
+// Import the actual libiconv functions from conda-forge
+extern iconv_t libiconv_open(const char*, const char*) __attribute__((weak_import));
+extern size_t libiconv(iconv_t, char**, size_t*, char**, size_t*) __attribute__((weak_import));
+extern int libiconv_close(iconv_t) __attribute__((weak_import));
+
+// Export both prefixed (for conda-forge) and unprefixed (for system libcups) versions
+iconv_t iconv_open(const char* a, const char* b) { return libiconv_open(a, b); }
+size_t iconv(iconv_t a, char** b, size_t* c, char** d, size_t* e) { return libiconv(a,b,c,d,e); }
+int iconv_close(iconv_t a) { return libiconv_close(a); }
+
+// Re-export the prefixed versions too for compatibility
+iconv_t libiconv_open_wrapper(const char* a, const char* b) __asm__("_libiconv_open");
+iconv_t libiconv_open_wrapper(const char* a, const char* b) { return libiconv_open(a, b); }
+size_t libiconv_wrapper(iconv_t a, char** b, size_t* c, char** d, size_t* e) __asm__("_libiconv");
+size_t libiconv_wrapper(iconv_t a, char** b, size_t* c, char** d, size_t* e) { return libiconv(a,b,c,d,e); }
+int libiconv_close_wrapper(iconv_t a) __asm__("_libiconv_close");
+int libiconv_close_wrapper(iconv_t a) { return libiconv_close(a); }
+EOFC
+
+${CC} -dynamiclib -o /tmp/libiconv.2.dylib /tmp/libiconv_full.c \
     -L"${PREFIX}/lib" -liconv \
     -Wl,-rpath,"${PREFIX}/lib" \
-    -install_name "/tmp/libiconv_compat.dylib"
+    -install_name "/tmp/libiconv.2.dylib" \
+    -compatibility_version 7.0.0 -current_version 7.0.0
 
-# Preload the dylib for ALL commands from now on
-export DYLD_INSERT_LIBRARIES="/tmp/libiconv_compat.dylib"
-export DYLD_LIBRARY_PATH="${BUILD_PREFIX}/lib:${PREFIX}/lib:${DYLD_LIBRARY_PATH:-}"
+# Put it in DYLD_LIBRARY_PATH so it's found BEFORE system libiconv
+export DYLD_LIBRARY_PATH="/tmp:${BUILD_PREFIX}/lib:${PREFIX}/lib:${DYLD_LIBRARY_PATH:-}"
 
 # This is needed as in seems to interfere with configure scripts
 unset build_alias
@@ -131,15 +155,12 @@ echo "=== Verifying iconv compatibility symbols ==="
 echo "Static library (all symbols):"
 nm /tmp/libiconv_compat.a | grep iconv || true
 echo ""
-echo "Dynamic library (exported symbols only):"
-nm -gU /tmp/libiconv_compat.dylib | grep iconv || true
-echo ""
-echo "Checking for _iconv* symbol exports (should show T _iconv, T _iconv_open, T _iconv_close):"
-nm -gU /tmp/libiconv_compat.dylib | grep -E "^[0-9a-f]+ T " | grep iconv || echo "ERROR: No _iconv symbols exported!"
+echo "Full replacement dylib (should export both _iconv* AND _libiconv*):"
+nm -gU /tmp/libiconv.2.dylib | grep -E "iconv" | head -20
 echo ""
 echo "Dylib dependencies:"
-otool -L /tmp/libiconv_compat.dylib || true
-echo "DYLD_INSERT_LIBRARIES=${DYLD_INSERT_LIBRARIES}"
+otool -L /tmp/libiconv.2.dylib || true
+echo "DYLD_LIBRARY_PATH=${DYLD_LIBRARY_PATH}"
 echo "=============================================="
 
 settings_file=$(find "${BUILD_PREFIX}"/ghc-bootstrap -name settings | head -n 1)
