@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 # ld wrapper to surgically remove MacOSX15.5.sdk rpath contamination
 
+# Debug: Log that wrapper is running
+echo "=== LD WRAPPER INVOKED ===" >&2
+
 # Find the real ld
 REAL_LD="${BUILD_PREFIX}/bin/x86_64-apple-darwin13.4.0-ld.real"
 if [[ ! -x "$REAL_LD" ]]; then
@@ -10,6 +13,8 @@ if [[ ! -x "$REAL_LD" ]]; then
     echo "ERROR: Cannot find real ld" >&2
     exit 1
 fi
+
+echo "REAL_LD=$REAL_LD" >&2
 
 # Filter out 15.5 SDK rpath AND LTO flags
 filtered_args=()
@@ -56,6 +61,14 @@ while [[ $i -lt ${#args[@]} ]]; do
     filtered_args+=("$arg")
     i=$((i + 1))
 done
+
+# Debug: Show what was filtered
+echo "FILTERED OUT:" >&2
+if [[ "$arg" == "-lto_library" ]] || [[ "$arg" == *"15.5"* ]]; then
+    echo "  LTO and 15.5 SDK flags were removed" >&2
+fi
+echo "EXECUTING: $REAL_LD with ${#filtered_args[@]} arguments" >&2
+echo "=== END LD WRAPPER ===" >&2
 
 # Execute real ld with filtered arguments
 exec "$REAL_LD" "${filtered_args[@]}"
