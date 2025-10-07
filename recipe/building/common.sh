@@ -124,13 +124,16 @@ set_macos_conda_ar_ranlib() {
 
   if [[ -f "$settings_file" ]]; then
     if [[ "$(basename "${settings_file}")" == "default."* ]]; then
-      perl -i -pe "s#(arMkArchive\s*=\s*).*#\$1Program {prgPath = \"${toolchain}-ar\", prgFlags = [\"qcs\"]}#g" "${settings_file}"
-      perl -i -pe 's#((arIsGnu|arSupportsAtFile)\s*=\s*).*#$1True#g' "${settings_file}"
+      # Use LLVM ar instead of GNU ar for compatibility with Apple ld64
+      perl -i -pe 's#(arMkArchive\s*=\s*).*#$1Program {prgPath = "llvm-ar", prgFlags = ["qcs"]}#g' "${settings_file}"
+      perl -i -pe 's#((arIsGnu|arSupportsAtFile)\s*=\s*).*#$1False#g' "${settings_file}"
       perl -i -pe 's#(arNeedsRanlib\s*=\s*).*#$1False#g' "${settings_file}"
-      perl -i -pe "s#(tgtRanlib\s*=\s*).*#\$1Just (Ranlib {ranlibProgram = Program {prgPath = \"${toolchain}-ranlib\", prgFlags = []}})#g" "${settings_file}"
+      perl -i -pe 's#(tgtRanlib\s*=\s*).*#$1Nothing#g' "${settings_file}"
     else
-      perl -i -pe "s#(\"ar flags\", \")[^\"]*#\$1qcs#g" "${settings_file}"
-      perl -i -pe "s#(\"(clang|llc|opt|ar|ranlib) command\", \")[^\"]*#\$1${toolchain}-\$2#g" "${settings_file}"
+      # Use LLVM ar instead of GNU ar for compatibility with Apple ld64
+      perl -i -pe 's#("ar command", ")[^"]*#$1llvm-ar#g' "${settings_file}"
+      perl -i -pe 's#("ar flags", ")[^"]*#$1qcs#g' "${settings_file}"
+      perl -i -pe "s#(\"(clang|llc|opt|ranlib) command\", \")[^\"]*#\$1${toolchain}-\$2#g" "${settings_file}"
     fi
   else
     echo "Error: $settings_file not found!"
