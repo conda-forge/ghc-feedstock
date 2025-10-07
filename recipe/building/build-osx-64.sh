@@ -150,6 +150,23 @@ otool -L /tmp/libiconv_compat.dylib || true
 echo "DYLD_INSERT_LIBRARIES=${DYLD_INSERT_LIBRARIES}"
 echo "=============================================="
 
+# Check what ar tools are available
+echo "=== Available ar tools ==="
+ls -la "${BUILD_PREFIX}"/bin/*ar* 2>&1 | grep -E "(llvm-ar|ranlib|ar)" || true
+echo "=========================="
+
+# Test llvm-ar compatibility with ld
+echo "=== Testing llvm-ar + ld compatibility ==="
+echo "int test_func() { return 42; }" > /tmp/llvm_test.c
+${CC} -c /tmp/llvm_test.c -o /tmp/llvm_test.o -mmacosx-version-min=10.13
+echo "Creating archive with llvm-ar..."
+"${BUILD_PREFIX}"/bin/llvm-ar rcs /tmp/llvm_test.a /tmp/llvm_test.o
+file /tmp/llvm_test.a
+echo "Linking with ld..."
+${CC} -o /tmp/llvm_test_binary /tmp/llvm_test.o -mmacosx-version-min=10.13 2>&1 | head -10 || true
+echo "Exit code: $?"
+echo "============================================"
+
 # Install ld wrapper to surgically remove MacOSX15.5.sdk rpath contamination
 mv "${BUILD_PREFIX}"/bin/"${CONDA_TOOLCHAIN_BUILD}"-ld "${BUILD_PREFIX}"/bin/"${CONDA_TOOLCHAIN_BUILD}"-ld.real
 cp "${RECIPE_DIR}"/building/ld-wrapper.sh "${BUILD_PREFIX}"/bin/"${CONDA_TOOLCHAIN_BUILD}"-ld
