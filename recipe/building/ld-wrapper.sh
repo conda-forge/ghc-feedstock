@@ -11,7 +11,7 @@ if [[ ! -x "$REAL_LD" ]]; then
     exit 1
 fi
 
-# Filter out 15.5 SDK rpath
+# Filter out 15.5 SDK rpath AND LTO flags
 filtered_args=()
 i=0
 args=("$@")
@@ -19,8 +19,28 @@ args=("$@")
 while [[ $i -lt ${#args[@]} ]]; do
     arg="${args[$i]}"
 
+    # Skip LTO library flag and its argument
+    if [[ "$arg" == "-lto_library" ]]; then
+        # Skip this flag and the next argument (the library path)
+        i=$((i + 2))
+        continue
+    fi
+
+    # Skip LLVM-specific LTO optimization flags
+    if [[ "$arg" == "-mllvm" ]]; then
+        next_i=$((i + 1))
+        if [[ $next_i -lt ${#args[@]} ]]; then
+            next_arg="${args[$next_i]}"
+            # Skip both -mllvm and its argument if it's LTO-related
+            if [[ "$next_arg" == *"lto"* ]] || [[ "$next_arg" == *"linkonce"* ]]; then
+                i=$((i + 2))
+                continue
+            fi
+        fi
+    fi
+
+    # Skip 15.5 SDK rpath
     if [[ "$arg" == "-rpath" ]]; then
-        # Look ahead to see if next argument is the contaminated path
         next_i=$((i + 1))
         if [[ $next_i -lt ${#args[@]} ]]; then
             next_arg="${args[$next_i]}"
