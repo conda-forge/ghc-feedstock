@@ -14,21 +14,23 @@ export host_alias="${_ghc_host}"
 export BUILD=${build_alias}
 export HOST=${host_alias}
 
-# Update cabal package database
-run_and_log "cabal-update" cabal v2-update
+export CABAL="${BUILD_PREFIX}/bin/cabal"
+export CABAL_DIR="${SRC_DIR}/.cabal"
+
+mkdir -p "${CABAL_DIR}" && "${CABAL}" user-config init
+run_and_log "cabal-update" "${CABAL}" v2-update
 
 _hadrian_build=("${SRC_DIR}"/hadrian/build "-j${CPU_COUNT}")
 
 # Configure and build GHC
 SYSTEM_CONFIG=(
   --build="x86_64-unknown-linux-gnu"
-  --host="aarch64-unknown-linux-gnu"
+  --host="x86_64-unknown-linux-gnu"
   --target="aarch64-unknown-linux-gnu"
   --prefix="${PREFIX}"
 )
 
 CONFIGURE_ARGS=(
-  --enable-ignore-build-platform-mismatch=yes
   --disable-numa
   --with-system-libffi=yes
   --with-curses-includes="${PREFIX}"/include
@@ -55,18 +57,27 @@ RANLIB=aarch64-conda-linux-gnu-ranlib \
 LDFLAGS="-L${PREFIX}/lib ${LDFLAGS:-}" \
 run_and_log "ghc-configure" bash configure "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}"
 
-ls -lrt "${SRC_DIR}"/hadrian/cfg/
-
 # Fix host configuration to use x86_64, target aarch64
-#perl -pi -e 's#"--target=[\w-]+"#"--target=x86_64-unknown-linux","--sysroot=$ENV{BUILD_PREFIX}/x86_64-conda-linux-gnu/sysroot"#'  "${SRC_DIR}"/hadrian/cfg/default.host.target
-#perl -pi -e 's/aarch64/x86_64/;s/ArchAArch64/ArchX86_64/' "${SRC_DIR}"/hadrian/cfg/default.host.target
-#perl -pi -e 's#"--target=[\w-]+"#"--target=aarch64-unknown-linux","--sysroot=$ENV{BUILD_PREFIX}/aarch64-conda-linux-gnu/sysroot"#'  "${SRC_DIR}"/hadrian/cfg/default.target
+settings_file="${SRC_DIR}"/hadrian/cfg/system.config
+perl -pi -e "s#${BUILD_PREFIX}/bin/##" "${settings_file}"
+perl -pi -e 's#(=\s+)(ar|clang|clang++|llc|nm|opt|ranlib)$#$1aarch64-conda-linux-gnu-$2#' "${settings_file}"
+perl -pi -e 's#(conf-gcc-linker-args-stage[12] = )#$1-Wl,-L$ENV{PREFIX}/lib#' "${settings_file}"
+perl -pi -e 's#(conf-ld-linker-args-stage[12] = )#$1-L$ENV{PREFIX}/lib#' "${settings_file}"
 
 run_and_log "stage1_exe" "${_hadrian_build[@]}" stage1:exe:ghc-bin --flavour=release --docs=none --progress-info=none
-perl -pi -e 's#($ENV{BUILD_PREFIX}|$ENV{PREFIX})/bin/##' "${SRC_DIR}"/_build/stage0/lib/settings
+settings_file="${SRC_DIR}"/_build/stage0/lib/settings
+perl -pi -e 's#(C compiler link flags", "[^"]*)#$1 -Wl,-L$ENV{PREFIX}/lib -Wl,-rpath,$ENV{PREFIX}/lib#' "${settings_file}"
+perl -pi -e 's#(ld flags", "[^"]*)#$1 -L$ENV{PREFIX}/lib -rpath $ENV{PREFIX}/lib#' "${settings_file}"
+grep "link flags" "${settings_file}"
+
+run_and_log "stage1_lib" "${_hadrian_build[@]}" stage1:lib:ghc --flavour=release --docs=none --progress-info=none
+perl -pi -e 's#(C compiler link flags", "[^"]*)#$1 -Wl,-L$ENV{PREFIX}/lib -Wl,-rpath,$ENV{PREFIX}/lib#' "${settings_file}"
+perl -pi -e 's#(ld flags", "[^"]*)#$1 -L$ENV{PREFIX}/lib -rpath $ENV{PREFIX}/lib#' "${settings_file}"
 
 # GHC build ghc-pkg with '-fno-use-rpaths' but it requires libiconv.so.2
 # _build/stage1/bin/ghc-pkg: error while loading shared libraries: libiconv.so.2
+export LIBRARY_PATH="${PREFIX}/lib${LIBRARY_PATH:+:}${LIBRARY_PATH:-}"
+export LD_LIBRARY_PATH="${PREFIX}/lib${LD_LIBRARY_PATH:+:}${LD_LIBRARY_PATH:-}"
 export LD_PRELOAD="${BUILD_PREFIX}/lib/libiconv.so.2 ${BUILD_PREFIX}/lib/libgmp.so.10 ${BUILD_PREFIX}/lib/libffi.so.8 ${BUILD_PREFIX}/lib/libtinfow.so.6 ${BUILD_PREFIX}/lib/libtinfo.so.6 ${LD_PRELOAD:-}"
 run_and_log "bindist" "${_hadrian_build[@]}" binary-dist --prefix="${PREFIX}" --flavour=release --docs=none --progress-info=none
 
