@@ -19,11 +19,11 @@ unset host_alias
 
 # Build dynamic versions with explicit SDK version for compatibility
 # This ensures the object file matches the SDK version used during GHC linking
-${CC} -c "${RECIPE_DIR}"/building/osx_iconv_compat.c -o "${RECIPE_DIR}"/building/iconv_compat.o -mmacosx-version-min=10.13
 mkdir -p "${PREFIX}/lib/ghc-${PKG_VERSION}/lib"
-${CC} -dynamiclib -o "${PREFIX}"/lib/ghc-"${PKG_VERSION}"/lib/libiconv_compat.dylib "${RECIPE_DIR}"/building/iconv_compat.c \
+${CC} -dynamiclib -o "${PREFIX}"/lib/ghc-"${PKG_VERSION}"/lib/libiconv_compat.dylib "${RECIPE_DIR}"/building/osx_iconv_compat.c \
     -L"${PREFIX}/lib" -liconv \
     -Wl,-rpath,"${PREFIX}/lib" \
+    -mmacosx-version-min=10.13 \
     -install_name "${PREFIX}/lib/ghc-${PKG_VERSION}/lib/libiconv_compat.dylib"
 
 # Preload CONDA libraries to override system libraries
@@ -35,8 +35,12 @@ settings_file=$(find "${BUILD_PREFIX}"/ghc-bootstrap -name settings | head -n 1)
 update_link_flags "${settings_file}"
 set_macos_conda_ar_ranlib "${settings_file}" "${CONDA_TOOLCHAIN_BUILD}"
 
-# Update cabal package database (now using conda-forge toolchain)
-run_and_log "cabal-update" cabal v2-update --allow-newer --minimize-conflict-set
+export CABAL="${BUILD_PREFIX}/bin/cabal"
+export CABAL_DIR="${SRC_DIR}/.cabal"
+mkdir -p "${CABAL_DIR}" && "${CABAL}" user-config init
+run_and_log "cabal-update" "${CABAL}" v2-update
+
+_hadrian_build=("${SRC_DIR}"/hadrian/build "-j${CPU_COUNT}")
 
 # Configure and build GHC
 SYSTEM_CONFIG=(
@@ -46,8 +50,6 @@ SYSTEM_CONFIG=(
 )
 
 CONFIGURE_ARGS=(
-  # default is auto: --disable-numa
-  # --disable-ld-override
   --with-system-libffi=yes
   --with-curses-includes="${PREFIX}"/include
   --with-curses-libraries="${PREFIX}"/lib
@@ -88,8 +90,6 @@ run_and_log "configure" ./configure "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}"
 
 set_macos_conda_ar_ranlib "${SRC_DIR}"/hadrian/cfg/default.host.target "${CONDA_TOOLCHAIN_BUILD}"
 set_macos_conda_ar_ranlib "${SRC_DIR}"/hadrian/cfg/default.target "${CONDA_TOOLCHAIN_BUILD}"
-
-_hadrian_build=("${SRC_DIR}"/hadrian/build "-j${CPU_COUNT}")
 
 # GHC selection of tools seems to fail to use conda-forge toolchain tools
 rm -f /Users/runner/miniforge3/bin/{ar,ranlib,ld}
