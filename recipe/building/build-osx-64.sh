@@ -27,18 +27,12 @@ ${CC} -c /tmp/iconv_compat.c -o /tmp/iconv_compat.o -mmacosx-version-min=10.13
 ${AR} rcs /tmp/libiconv_compat.a /tmp/iconv_compat.o
 
 
-# Create export list for dylib
-cat > /tmp/iconv_exports.txt << 'EOF'
-_iconv_open
-_iconv
-_iconv_close
-EOF
-
-# Create dylib for runtime preloading with explicit symbol exports
+# Create dylib with ALL symbols exported (not just the wrappers)
+# The dylib must re-export libiconv's symbols AND provide our wrappers
 ${CC} -dynamiclib -o /tmp/libiconv_compat.dylib /tmp/iconv_compat.c \
     -L"${PREFIX}/lib" -liconv \
     -Wl,-rpath,"${PREFIX}/lib" \
-    -Wl,-exported_symbols_list,/tmp/iconv_exports.txt \
+    -Wl,-reexport_library,"${PREFIX}/lib/libiconv.dylib" \
     -install_name "/tmp/libiconv_compat.dylib"
 
 # Preload the dylib for ALL commands from now on
