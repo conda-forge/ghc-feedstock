@@ -19,7 +19,7 @@ unset host_alias
 
 # Build dynamic versions with explicit SDK version for compatibility
 # This ensures the object file matches the SDK version used during GHC linking
-${CC} -c "${RECIPE_DIR}"/building/iconv_compat.c -o "${RECIPE_DIR}"/building/iconv_compat.o -mmacosx-version-min=10.13
+${CC} -c "${RECIPE_DIR}"/building/osx_iconv_compat.c -o "${RECIPE_DIR}"/building/iconv_compat.o -mmacosx-version-min=10.13
 mkdir -p "${PREFIX}/lib/ghc-${PKG_VERSION}/lib"
 ${CC} -dynamiclib -o "${PREFIX}"/lib/ghc-"${PKG_VERSION}"/lib/libiconv_compat.dylib "${RECIPE_DIR}"/building/iconv_compat.c \
     -L"${PREFIX}/lib" -liconv \
