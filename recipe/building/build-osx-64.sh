@@ -13,7 +13,11 @@ update_link_flags() {
   perl -pi -e "s#(ld flags\", \"[^\"]*)#\$1 -L${prefix}/lib -liconv -L${prefix}/lib/ghc-${PKG_VERSION}/lib -liconv_compat#" "${settings_file}"
 }
 
-# Build both static and dynamic versions with explicit SDK version for compatibility
+# This is needed as in seems to interfere with configure scripts
+unset build_alias
+unset host_alias
+
+# Build dynamic versions with explicit SDK version for compatibility
 # This ensures the object file matches the SDK version used during GHC linking
 ${CC} -c "${RECIPE_DIR}"/building/iconv_compat.c -o "${RECIPE_DIR}"/building/iconv_compat.o -mmacosx-version-min=10.13
 mkdir -p "${PREFIX}/lib/ghc-${PKG_VERSION}/lib"
@@ -26,10 +30,6 @@ ${CC} -dynamiclib -o "${PREFIX}"/lib/ghc-"${PKG_VERSION}"/lib/libiconv_compat.dy
 export DYLD_INSERT_LIBRARIES="${PREFIX}/lib/libiconv.dylib:${PREFIX}/lib/ghc-${PKG_VERSION}/lib/libiconv_compat.dylib"
 export DYLD_LIBRARY_PATH="${BUILD_PREFIX}/lib:${PREFIX}/lib:${DYLD_LIBRARY_PATH:-}"
 export AR=llvm-ar
-
-# This is needed as in seems to interfere with configure scripts
-unset build_alias
-unset host_alias
 
 settings_file=$(find "${BUILD_PREFIX}"/ghc-bootstrap -name settings | head -n 1)
 update_link_flags "${settings_file}"
@@ -107,7 +107,6 @@ set_macos_conda_ar_ranlib "${settings_file}" "${CONDA_TOOLCHAIN_BUILD}"
 
 "${_hadrian_build[@]}" stage2:exe:ghc-bin --flavour=quickest --freeze1 --docs=none --progress-info=none
 
-export DYLD_LIBRARY_PATH="${BUILD_PREFIX}/lib:${PREFIX}/lib:${DYLD_LIBRARY_PATH:-}"
 settings_file="${SRC_DIR}"/_build/stage1/lib/settings
 update_link_flags "${settings_file}"
 set_macos_conda_ar_ranlib "${settings_file}" "${CONDA_TOOLCHAIN_BUILD}"
@@ -117,8 +116,6 @@ run_and_log "stage2_lib" "${_hadrian_build[@]}" stage2:lib:ghc --flavour=release
 run_and_log "install" "${_hadrian_build[@]}" install --prefix="${PREFIX}" --flavour=release --freeze1 --freeze2 --docs=none --progress-info=none
 
 settings_file=$(find "${PREFIX}" -name settings | head -n 1)
-perl -i -pe "s#(C compiler flags\", \")([^\"]*)#\1\2 -Wl,-L\$topdir/../../../../lib -Wl,-rpath,\$topdir/../../../../lib -liconv -Wl,-L\$topdir -Wl,-rpath,\$topdir -liconv_compat#" "${settings_file}"
-perl -i -pe "s#(C\+\+ compiler flags\", \")([^\"]*)#\1\2 -fno-lto#" "${settings_file}"
 perl -i -pe "s#(C compiler link flags\", \")([^\"]*)#\1\2 -Wl,-L\$topdir/../../../../lib -Wl,-rpath,\$topdir/../../../../lib -liconv -Wl,-L\$topdir -Wl,-rpath,\$topdir -liconv_compat#" "${settings_file}"
 perl -i -pe "s#(ld flags\", \")([^\"]*)#\1\2 -L\$topdir/../../../../lib -rpath \$topdir/../../../../lib -liconv -L\$topdir -rpath \$topdir -liconv_compat#" "${settings_file}"
 set_macos_conda_ar_ranlib "${settings_file}" "${CONDA_TOOLCHAIN_BUILD}"
