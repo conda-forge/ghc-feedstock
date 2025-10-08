@@ -106,16 +106,16 @@ BINDIST_DIR=$(find "${SRC_DIR}"/_build/bindist -name "ghc-${PKG_VERSION}-aarch64
 if [[ -n "${BINDIST_DIR}" ]]; then
   pushd "${BINDIST_DIR}"
  
-  # Configure the binary distribution with proper cross-compilation settings
-  MergeObjsCmd=aarch64-conda-linux-gnu-ld.gold \
-  AR=aarch64-conda-linux-gnu-ar \
-  AS=aarch64-conda-linux-gnu-as \
-  CC=aarch64-conda-linux-gnu-clang \
-  CXX=aarch64-conda-linux-gnu-clang++ \
-  NM=aarch64-conda-linux-gnu-nm \
-  RANLIB=aarch64-conda-linux-gnu-ranlib \
-  LDFLAGS="-L${PREFIX}/lib ${LDFLAGS:-}" \
-  ./configure --prefix="${PREFIX}" --build=x86_64-unknown-linux-gnu --host=x86_64-unknown-linux-gnu --target=aarch64-unknown-linux-gnu
+  # # Configure the binary distribution with proper cross-compilation settings
+  # MergeObjsCmd=aarch64-conda-linux-gnu-ld.gold \
+  # AR=aarch64-conda-linux-gnu-ar \
+  # AS=aarch64-conda-linux-gnu-as \
+  # CC=aarch64-conda-linux-gnu-clang \
+  # CXX=aarch64-conda-linux-gnu-clang++ \
+  # NM=aarch64-conda-linux-gnu-nm \
+  # RANLIB=aarch64-conda-linux-gnu-ranlib \
+  # LDFLAGS="-L${PREFIX}/lib ${LDFLAGS:-}" \
+  # ./configure --prefix="${PREFIX}" --build=x86_64-unknown-linux-gnu --host=x86_64-unknown-linux-gnu --target=aarch64-unknown-linux-gnu
  
   # Install
   make install
