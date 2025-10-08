@@ -16,12 +16,15 @@ extern int libiconv_close(iconv_t);
 
 __attribute__((visibility("default")))
 iconv_t iconv_open(const char* a, const char* b) { return libiconv_open(a, b); }
+iconv_t _iconv_open(const char* a, const char* b) { return libiconv_open(a, b); }
 
 __attribute__((visibility("default")))
 size_t iconv(iconv_t a, char** b, size_t* c, char** d, size_t* e) { return libiconv(a,b,c,d,e); }
+size_t _iconv(iconv_t a, char** b, size_t* c, char** d, size_t* e) { return libiconv(a,b,c,d,e); }
 
 __attribute__((visibility("default")))
 int iconv_close(iconv_t a) { return libiconv_close(a); }
+int _iconv_close(iconv_t a) { return libiconv_close(a); }
 EOFC
 
 # Build both static and dynamic versions with explicit SDK version for compatibility
@@ -32,17 +35,7 @@ ${CC} -c /tmp/iconv_compat.c -o /tmp/iconv_compat.o -mmacosx-version-min=10.13
 # Create archive with explicit format for LLVM ar compatibility
 ${AR} rcs /tmp/libiconv_compat.a /tmp/iconv_compat.o
 
-
-# Create dylib with ALL symbols exported (not just the wrappers)
-# The dylib must re-export libiconv's symbols AND provide our wrappers
-${CC} -dynamiclib -o /tmp/libiconv_compat.dylib /tmp/iconv_compat.c \
-    -L"${PREFIX}/lib" -liconv \
-    -Wl,-rpath,"${PREFIX}/lib" \
-    -Wl,-reexport_library,"${PREFIX}/lib/libiconv.dylib" \
-    -install_name "/tmp/libiconv_compat.dylib"
-
-# Preload the dylib for ALL commands from now on
-export DYLD_INSERT_LIBRARIES="/tmp/libiconv_compat.dylib"
+# No DYLD_INSERT_LIBRARIES needed - force_load at link time handles symbol aliasing
 export DYLD_LIBRARY_PATH="${BUILD_PREFIX}/lib:${PREFIX}/lib:${DYLD_LIBRARY_PATH:-}"
 
 # This is needed as in seems to interfere with configure scripts
@@ -53,29 +46,11 @@ unset host_alias
 # This ensures all Haskell libraries in cabal store are built with conda-forge toolchain
 settings_file=$(find "${BUILD_PREFIX}"/ghc-bootstrap -name settings | head -n 1)
 
-# Debug: Show ghc-bootstrap's ORIGINAL ar/ranlib settings before modification
-echo "=== ghc-bootstrap ORIGINAL settings ==="
-grep -E "(ar command|ar flags|ranlib command)" "${settings_file}" || true
-echo "========================================"
-
 # Force load the compat library to ensure symbols are exported in executables
 # Disable LTO as it conflicts with GNU ar format archives
 perl -pi -e 's#(C compiler link flags", "[^"]*)#$1 -v -Wl,-L$ENV{PREFIX}/lib -Wl,-force_load,/tmp/libiconv_compat.a -Wl,-liconv -fno-lto#' "${settings_file}"
 perl -pi -e 's#(ld flags", "[^"]*)#$1 -v -L$ENV{PREFIX}/lib -force_load /tmp/libiconv_compat.a -liconv#' "${settings_file}"
 set_macos_conda_ar_ranlib "${settings_file}" "${CONDA_TOOLCHAIN_BUILD}"
-
-# Debug: Show UPDATED settings after conda-forge toolchain modification
-echo "=== ghc-bootstrap AFTER conda-forge ar/ranlib ==="
-grep -E "(ar command|ar flags|ranlib command)" "${settings_file}" || true
-echo "=================================================="
-
-cat "${settings_file}"
-
-# Clear cabal store to force rebuild with conda-forge toolchain
-# This ensures no BSD ar format archives from previous builds are used
-echo "=== Clearing cabal store for clean rebuild ==="
-rm -rf ~/.local/state/cabal/store/ghc-9.6.7/* || true
-echo "================================================"
 
 # Update cabal package database (now using conda-forge toolchain)
 run_and_log "cabal-update" cabal v2-update --allow-newer --minimize-conflict-set
