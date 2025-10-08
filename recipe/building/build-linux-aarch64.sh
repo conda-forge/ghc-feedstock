@@ -14,7 +14,24 @@ export host_alias="${_ghc_host}"
 export BUILD=${build_alias}
 export HOST=${host_alias}
 
-export CABAL="${BUILD_PREFIX}/bin/cabal"
+# Create aarch64 environment and get library paths
+echo "Creating aarch64 environment for cross-compilation libraries..."
+conda create -y \
+    -n libc2.17_env \
+    --platform linux-64 \
+    -c conda-forge \
+    cabal==3.10.3.0 \
+    ghc-bootstrap==9.6.7 \
+    sysroot_linux-64==2.17
+
+$(conda info --envs | grep libc2.17_env | awk '{print $2}')/ghc-bootstrap/bin/ghc-pkg recache
+export GHC=$(conda info --envs | grep libc2.17_env | awk '{print $2}')/ghc-bootstrap/bin/ghc
+  export CONDA_BUILD_SYSROOT=$(conda info --envs | grep libc2.17_env | awk '{print $2}')/x86_64-conda-linux-gnu/sysroot
+  export CFLAGS="--sysroot=${CONDA_BUILD_SYSROOT}"
+  export CXXFLAGS="--sysroot=${CONDA_BUILD_SYSROOT}"
+  export LDFLAGS="--sysroot=${CONDA_BUILD_SYSROOT}"
+
+export CABAL=$(conda info --envs | grep libc2.17_env | awk '{print $2}')/bin/cabal
 export CABAL_DIR="${SRC_DIR}/.cabal"
 
 mkdir -p "${CABAL_DIR}" && "${CABAL}" user-config init
@@ -60,19 +77,22 @@ run_and_log "ghc-configure" bash configure "${SYSTEM_CONFIG[@]}" "${CONFIGURE_AR
 # Fix host configuration to use x86_64, target aarch64
 settings_file="${SRC_DIR}"/hadrian/cfg/system.config
 perl -pi -e "s#${BUILD_PREFIX}/bin/##" "${settings_file}"
-perl -pi -e 's#(=\s+)(ar|clang|clang++|llc|nm|opt|ranlib)$#$1aarch64-conda-linux-gnu-$2#' "${settings_file}"
-perl -pi -e 's#(conf-gcc-linker-args-stage[12] = )#$1-Wl,-L$ENV{PREFIX}/lib#' "${settings_file}"
-perl -pi -e 's#(conf-ld-linker-args-stage[12] = )#$1-L$ENV{PREFIX}/lib#' "${settings_file}"
+perl -pi -e 's#(=\s+)(ar|clang|clang\+\+|llc|nm|opt|ranlib)$#$1aarch64-conda-linux-gnu-$2#' "${settings_file}"
+perl -pi -e "s#(conf-gcc-linker-args-stage[12].*?= )#\$1-Wl,-L${PREFIX}/lib -Wl,-rpath,${PREFIX}/lib#" "${settings_file}"
+perl -pi -e "s#(conf-ld-linker-args-stage[12].*?= )#\$1-L${PREFIX}/lib -rpath ${PREFIX}/lib#" "${settings_file}"
+perl -pi -e "s#(settings-c-compiler-link-flags.*?= )#\$1-Wl,-L${PREFIX}/lib -Wl,-rpath,${PREFIX}/lib#" "${settings_file}"
+perl -pi -e "s#(settings-ld-flags.*?= )#\$1-L${PREFIX}/lib -rpath ${PREFIX}/lib#" "${settings_file}"
 
 run_and_log "stage1_exe" "${_hadrian_build[@]}" stage1:exe:ghc-bin --flavour=release --docs=none --progress-info=none
+
 settings_file="${SRC_DIR}"/_build/stage0/lib/settings
-perl -pi -e 's#(C compiler link flags", "[^"]*)#$1 -Wl,-L$ENV{PREFIX}/lib -Wl,-rpath,$ENV{PREFIX}/lib#' "${settings_file}"
-perl -pi -e 's#(ld flags", "[^"]*)#$1 -L$ENV{PREFIX}/lib -rpath $ENV{PREFIX}/lib#' "${settings_file}"
-grep "link flags" "${settings_file}"
+perl -pi -e "s#(C compiler link flags\", \"[^\"]*)#\$1 -v -Wl,-L${PREFIX}/lib -Wl,-rpath,${PREFIX}/lib#" "${settings_file}"
+perl -pi -e "s#(ld flags\", \"[^\"]*)#\$1 -v -L${PREFIX}/lib -rpath ${PREFIX}/lib#" "${settings_file}"
 
 run_and_log "stage1_lib" "${_hadrian_build[@]}" stage1:lib:ghc --flavour=release --docs=none --progress-info=none
-perl -pi -e 's#(C compiler link flags", "[^"]*)#$1 -Wl,-L$ENV{PREFIX}/lib -Wl,-rpath,$ENV{PREFIX}/lib#' "${settings_file}"
-perl -pi -e 's#(ld flags", "[^"]*)#$1 -L$ENV{PREFIX}/lib -rpath $ENV{PREFIX}/lib#' "${settings_file}"
+
+perl -pi -e "s#(C compiler link flags\", \"[^\"]*)#\$1 -v -Wl,-L${PREFIX}/lib -Wl,-rpath,${PREFIX}/lib#" "${settings_file}"
+perl -pi -e "s#(ld flags\", \"[^\"]*)#\$1 -v -L${PREFIX}/lib -rpath ${PREFIX}/lib#" "${settings_file}"
 
 # GHC build ghc-pkg with '-fno-use-rpaths' but it requires libiconv.so.2
 # _build/stage1/bin/ghc-pkg: error while loading shared libraries: libiconv.so.2
@@ -82,7 +102,7 @@ export LD_PRELOAD="${BUILD_PREFIX}/lib/libiconv.so.2 ${BUILD_PREFIX}/lib/libgmp.
 run_and_log "bindist" "${_hadrian_build[@]}" binary-dist --prefix="${PREFIX}" --flavour=release --docs=none --progress-info=none
 
 # Now manually install from the bindist with correct configure arguments
-BINDIST_DIR=$(find "${SRC_DIR}"/_build/bindist -name "ghc-*-aarch64-conda-linux-gnu" -type d | head -1)
+BINDIST_DIR=$(find "${SRC_DIR}"/_build/bindist -name "ghc-${PKG_VERSION}-aarch64-*-linux-gnu" -type d | head -1)
 if [[ -n "${BINDIST_DIR}" ]]; then
     pushd "${BINDIST_DIR}"
     
