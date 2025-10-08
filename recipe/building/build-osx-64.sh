@@ -5,58 +5,34 @@ _log_index=0
 
 source "${RECIPE_DIR}"/building/common.sh
 
-# Create iconv compatibility wrapper FIRST, before any commands run
-# This must happen before cabal, ghc-bootstrap, or any other tool executes
-cat > /tmp/iconv_compat.c << 'EOFC'
-#include <stddef.h>
-typedef void* iconv_t;
-extern iconv_t libiconv_open(const char*, const char*);
-extern size_t libiconv(iconv_t, char**, size_t*, char**, size_t*);
-extern int libiconv_close(iconv_t);
-
-__attribute__((visibility("default")))
-iconv_t iconv_open(const char* a, const char* b) { return libiconv_open(a, b); }
-iconv_t _iconv_open(const char* a, const char* b) { return libiconv_open(a, b); }
-
-__attribute__((visibility("default")))
-size_t iconv(iconv_t a, char** b, size_t* c, char** d, size_t* e) { return libiconv(a,b,c,d,e); }
-size_t _iconv(iconv_t a, char** b, size_t* c, char** d, size_t* e) { return libiconv(a,b,c,d,e); }
-
-__attribute__((visibility("default")))
-int iconv_close(iconv_t a) { return libiconv_close(a); }
-int _iconv_close(iconv_t a) { return libiconv_close(a); }
-EOFC
+update_link_flags() {
+  local settings_file="$1"
+  local prefix="${2:$PREFIX}"
+  
+  perl -pi -e "s#(C compiler link flags\", \"[^\"]*)#\$1 -Wl,-L${prefix}/lib -Wl,-liconv -Wl,-L${prefix}/lib/ghc-${PKG_VERSION}/lib -Wl,-liconv_compat#" "${settings_file}"
+  perl -pi -e "s#(ld flags\", \"[^\"]*)#\$1 -L${prefix}/lib -liconv -L${prefix}/lib/ghc-${PKG_VERSION}/lib -liconv_compat#" "${settings_file}"
+}
 
 # Build both static and dynamic versions with explicit SDK version for compatibility
 # This ensures the object file matches the SDK version used during GHC linking
-${CC} -c /tmp/iconv_compat.c -o /tmp/iconv_compat.o -mmacosx-version-min=10.13
-
-
-# Create archive with explicit format for LLVM ar compatibility
-${AR} rcs /tmp/libiconv_compat.a /tmp/iconv_compat.o
-
-# Build dylib with conda libiconv for runtime preloading
-${CC} -dynamiclib -o /tmp/libiconv_compat.dylib /tmp/iconv_compat.c \
+${CC} -c "${RECIPE_DIR}"/building/iconv_compat.c -o "${RECIPE_DIR}"/building/iconv_compat.o -mmacosx-version-min=10.13
+mkdir -p "${PREFIX}/lib/ghc-${PKG_VERSION}/lib"
+${CC} -dynamiclib -o "${PREFIX}"/lib/ghc-"${PKG_VERSION}"/lib/libiconv_compat.dylib "${RECIPE_DIR}"/building/iconv_compat.c \
     -L"${PREFIX}/lib" -liconv \
     -Wl,-rpath,"${PREFIX}/lib" \
-    -install_name "/tmp/libiconv_compat.dylib"
+    -install_name "${PREFIX}/lib/ghc-${PKG_VERSION}/lib/libiconv_compat.dylib"
 
 # Preload CONDA libraries to override system libraries
-export DYLD_INSERT_LIBRARIES="${PREFIX}/lib/libiconv.dylib:/tmp/libiconv_compat.dylib"
+export DYLD_INSERT_LIBRARIES="${PREFIX}/lib/libiconv.dylib:${PREFIX}/lib/ghc-${PKG_VERSION}/lib/libiconv_compat.dylib"
 export DYLD_LIBRARY_PATH="${BUILD_PREFIX}/lib:${PREFIX}/lib:${DYLD_LIBRARY_PATH:-}"
+export AR=llvm-ar
 
 # This is needed as in seems to interfere with configure scripts
 unset build_alias
 unset host_alias
 
-# CRITICAL: Configure ghc-bootstrap to use conda-forge ar/ranlib BEFORE cabal builds anything
-# This ensures all Haskell libraries in cabal store are built with conda-forge toolchain
 settings_file=$(find "${BUILD_PREFIX}"/ghc-bootstrap -name settings | head -n 1)
-
-# Force load the compat library to ensure symbols are exported in executables
-# Disable LTO as it conflicts with GNU ar format archives
-perl -pi -e 's#(C compiler link flags", "[^"]*)#$1 -v -Wl,-L$ENV{PREFIX}/lib -Wl,-force_load,/tmp/libiconv_compat.a -Wl,-liconv -fno-lto#' "${settings_file}"
-perl -pi -e 's#(ld flags", "[^"]*)#$1 -v -L$ENV{PREFIX}/lib -force_load /tmp/libiconv_compat.a -liconv#' "${settings_file}"
+update_link_flags "${settings_file}"
 set_macos_conda_ar_ranlib "${settings_file}" "${CONDA_TOOLCHAIN_BUILD}"
 
 # Update cabal package database (now using conda-forge toolchain)
@@ -98,15 +74,15 @@ export ac_cv_path_RANLIB="${RANLIB}"
 export DEVELOPER_DIR=""
 
 
-# Install ld wrapper to surgically remove MacOSX15.5.sdk rpath contamination
-mv "${BUILD_PREFIX}"/bin/"${CONDA_TOOLCHAIN_BUILD}"-ld "${BUILD_PREFIX}"/bin/"${CONDA_TOOLCHAIN_BUILD}"-ld.real
-cp "${RECIPE_DIR}"/building/ld-wrapper.sh "${BUILD_PREFIX}"/bin/"${CONDA_TOOLCHAIN_BUILD}"-ld
-chmod +x "${BUILD_PREFIX}"/bin/"${CONDA_TOOLCHAIN_BUILD}"-ld
+# # Install ld wrapper to surgically remove MacOSX15.5.sdk rpath contamination
+# mv "${BUILD_PREFIX}"/bin/"${CONDA_TOOLCHAIN_BUILD}"-ld "${BUILD_PREFIX}"/bin/"${CONDA_TOOLCHAIN_BUILD}"-ld.real
+# cp "${RECIPE_DIR}"/building/ld-wrapper.sh "${BUILD_PREFIX}"/bin/"${CONDA_TOOLCHAIN_BUILD}"-ld
+# chmod +x "${BUILD_PREFIX}"/bin/"${CONDA_TOOLCHAIN_BUILD}"-ld
 
-# Create symlinks for conda-forge toolchain (ghc-bootstrap is already configured above)
-ln -sf "${BUILD_PREFIX}"/bin/"${CONDA_TOOLCHAIN_BUILD}"-as "${BUILD_PREFIX}"/bin/as
-ln -sf "${BUILD_PREFIX}"/bin/"${CONDA_TOOLCHAIN_BUILD}"-ld "${BUILD_PREFIX}"/bin/ld
-ln -sf "${BUILD_PREFIX}"/bin/"${CONDA_TOOLCHAIN_BUILD}"-ranlib "${BUILD_PREFIX}"/bin/ranlib
+# # Create symlinks for conda-forge toolchain (ghc-bootstrap is already configured above)
+# ln -sf "${BUILD_PREFIX}"/bin/"${CONDA_TOOLCHAIN_BUILD}"-as "${BUILD_PREFIX}"/bin/as
+# ln -sf "${BUILD_PREFIX}"/bin/"${CONDA_TOOLCHAIN_BUILD}"-ld "${BUILD_PREFIX}"/bin/ld
+# ln -sf "${BUILD_PREFIX}"/bin/"${CONDA_TOOLCHAIN_BUILD}"-ranlib "${BUILD_PREFIX}"/bin/ranlib
 
 run_and_log "configure" ./configure "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}"
 
@@ -116,47 +92,33 @@ set_macos_conda_ar_ranlib "${SRC_DIR}"/hadrian/cfg/default.target "${CONDA_TOOLC
 _hadrian_build=("${SRC_DIR}"/hadrian/build "-j${CPU_COUNT}")
 
 # GHC selection of tools seems to fail to use conda-forge toolchain tools
-rm -f /Users/runner/miniforge3/bin/{as,ranlib,ld}
+rm -f /Users/runner/miniforge3/bin/{ar,ranlib,ld}
 
-"${_hadrian_build[@]}" stage1:exe:ghc-bin --flavour=release
+"${_hadrian_build[@]}" stage1:exe:ghc-bin --flavour=quickest --docs=none --progress-info=none
 
 settings_file="${SRC_DIR}"/_build/stage0/lib/settings
-perl -pi -e 's#(C compiler link flags", "[^"]*)#$1 -v -Wl,-L$ENV{PREFIX}/lib -Wl,-L\$topdir/../../../../lib -Wl,-rpath,\$topdir/../../../../lib -Wl,-force_load,/tmp/libiconv_compat.a -Wl,-liconv -fno-lto#' "${settings_file}"
-perl -pi -e 's#(ld flags", "[^"]*)#$1 -v -L$ENV{PREFIX}/lib -L\$topdir/../../../../lib -rpath \$topdir/../../../../lib -force_load /tmp/libiconv_compat.a -liconv#' "${settings_file}"
+update_link_flags "${settings_file}"
 set_macos_conda_ar_ranlib "${settings_file}" "${CONDA_TOOLCHAIN_BUILD}"
 
-run_and_log "stage1_lib" "${_hadrian_build[@]}" stage1:lib:ghc --flavour=release
+run_and_log "stage1_lib" "${_hadrian_build[@]}" stage1:lib:ghc --flavour=quickest --docs=none --progress-info=none
 
-perl -i -pe "s#(C compiler link flags\", \")([^\"]*)#\1\2 -v -Wl,-L\$ENV{PREFIX}/lib -Wl,-L\\\$topdir/../../../../lib -Wl,-rpath,\\\$topdir/../../../../lib -Wl,-force_load,/tmp/libiconv_compat.a -Wl,-liconv -fno-lto#" "${settings_file}"
-perl -i -pe "s#(ld flags\", \")([^\"]*)#\1\2 -v -L\$ENV{PREFIX}/lib -L\\\$topdir/../../../../lib -force_load /tmp/libiconv_compat.a -liconv#" "${settings_file}"
+update_link_flags "${settings_file}"
 set_macos_conda_ar_ranlib "${settings_file}" "${CONDA_TOOLCHAIN_BUILD}"
 
-"${_hadrian_build[@]}" stage2:exe:ghc-bin --flavour=quickest
+"${_hadrian_build[@]}" stage2:exe:ghc-bin --flavour=quickest --freeze1 --docs=none --progress-info=none
 
 export DYLD_LIBRARY_PATH="${BUILD_PREFIX}/lib:${PREFIX}/lib:${DYLD_LIBRARY_PATH:-}"
 settings_file="${SRC_DIR}"/_build/stage1/lib/settings
-perl -i -pe "s#(C compiler link flags\", \")([^\"]*)#\1\2 -v -Wl,-L\$ENV{PREFIX}/lib -Wl,-L\\\$topdir/../../../../lib -Wl,-rpath,\\\$topdir/../../../../lib -Wl,-force_load,/tmp/libiconv_compat.a -Wl,-liconv -fno-lto#" "${settings_file}"
-perl -i -pe "s#(ld flags\", \")([^\"]*)#\1\2 -v -L\$ENV{PREFIX}/lib -v -L\\\$topdir/../../../../lib -force_load /tmp/libiconv_compat.a -liconv#" "${settings_file}"
+update_link_flags "${settings_file}"
 set_macos_conda_ar_ranlib "${settings_file}" "${CONDA_TOOLCHAIN_BUILD}"
-run_and_log "stage2_lib" "${_hadrian_build[@]}" stage2:lib:ghc --flavour=release
 
-run_and_log "install" "${_hadrian_build[@]}" install --prefix="${PREFIX}" --flavour=release --docs=none --progress-info=none
+run_and_log "stage2_lib" "${_hadrian_build[@]}" stage2:lib:ghc --flavour=release --freeze1 --docs=none --progress-info=none
+
+run_and_log "install" "${_hadrian_build[@]}" install --prefix="${PREFIX}" --flavour=release --freeze1 --freeze2 --docs=none --progress-info=none
 
 settings_file=$(find "${PREFIX}" -name settings | head -n 1)
-perl -i -pe "s#(C compiler flags\", \")([^\"]*)#\1\2 -v -fno-lto#" "${settings_file}"
-perl -i -pe "s#(C\+\+ compiler flags\", \")([^\"]*)#\1\2 -v -fno-lto#" "${settings_file}"
-perl -i -pe "s#(C compiler link flags\", \")([^\"]*)#\1\2 -v -Wl,-L\\\$topdir/../../../../lib -Wl,-rpath,\\\$topdir/../../../../lib -Wl,-force_load,/tmp/libiconv_compat.a -Wl,-liconv -fno-lto#" "${settings_file}"
-perl -i -pe "s#(ld flags\", \")([^\"]*)#\1\2 -v -L\\\$topdir/../../../../lib -force_load /tmp/libiconv_compat.a -liconv#" "${settings_file}"
+perl -i -pe "s#(C compiler flags\", \")([^\"]*)#\1\2 -Wl,-L\$topdir/../../../../lib -Wl,-rpath,\$topdir/../../../../lib -liconv -Wl,-L\$topdir -Wl,-rpath,\$topdir -liconv_compat#" "${settings_file}"
+perl -i -pe "s#(C\+\+ compiler flags\", \")([^\"]*)#\1\2 -fno-lto#" "${settings_file}"
+perl -i -pe "s#(C compiler link flags\", \")([^\"]*)#\1\2 -Wl,-L\$topdir/../../../../lib -Wl,-rpath,\$topdir/../../../../lib -liconv -Wl,-L\$topdir -Wl,-rpath,\$topdir -liconv_compat#" "${settings_file}"
+perl -i -pe "s#(ld flags\", \")([^\"]*)#\1\2 -L\$topdir/../../../../lib -rpath \$topdir/../../../../lib -liconv -L\$topdir -rpath \$topdir -liconv_compat#" "${settings_file}"
 set_macos_conda_ar_ranlib "${settings_file}" "${CONDA_TOOLCHAIN_BUILD}"
-
-cat "${settings_file}"
-
-# Add debugging to verify archive format after build completes
-echo "=== Post-build archive format check ==="
-echo "Checking a cabal-built archive format:"
-find /Users/runner/.local/state/cabal/store/ghc-9.6.7/ -name "*.a" -type f | head -3 | while read f; do
-  echo "File: $f"
-  file "$f"
-  head -c 20 "$f" | od -An -tx1
-done
-echo "=========================================="
