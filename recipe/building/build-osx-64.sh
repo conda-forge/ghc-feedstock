@@ -35,7 +35,14 @@ ${CC} -c /tmp/iconv_compat.c -o /tmp/iconv_compat.o -mmacosx-version-min=10.13
 # Create archive with explicit format for LLVM ar compatibility
 ${AR} rcs /tmp/libiconv_compat.a /tmp/iconv_compat.o
 
-# No DYLD_INSERT_LIBRARIES needed - force_load at link time handles symbol aliasing
+# Build dylib with conda libiconv for runtime preloading
+${CC} -dynamiclib -o /tmp/libiconv_compat.dylib /tmp/iconv_compat.c \
+    -L"${PREFIX}/lib" -liconv \
+    -Wl,-rpath,"${PREFIX}/lib" \
+    -install_name "/tmp/libiconv_compat.dylib"
+
+# Preload CONDA libraries to override system libraries
+export DYLD_INSERT_LIBRARIES="${PREFIX}/lib/libiconv.dylib:/tmp/libiconv_compat.dylib"
 export DYLD_LIBRARY_PATH="${BUILD_PREFIX}/lib:${PREFIX}/lib:${DYLD_LIBRARY_PATH:-}"
 
 # This is needed as in seems to interfere with configure scripts
