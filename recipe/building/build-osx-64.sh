@@ -80,18 +80,16 @@ export DEVELOPER_DIR=""
 # cp "${RECIPE_DIR}"/building/ld-wrapper.sh "${BUILD_PREFIX}"/bin/"${CONDA_TOOLCHAIN_BUILD}"-ld
 # chmod +x "${BUILD_PREFIX}"/bin/"${CONDA_TOOLCHAIN_BUILD}"-ld
 
-# # Create symlinks for conda-forge toolchain (ghc-bootstrap is already configured above)
+# Create symlinks for conda-forge toolchain (ghc-bootstrap is already configured above)
+rm -f /Users/runner/miniforge3/bin/{ar,ranlib,ld}
+ln -sf "${BUILD_PREFIX}"/bin/"${CONDA_TOOLCHAIN_BUILD}"-ld "${BUILD_PREFIX}"/bin/ld
 # ln -sf "${BUILD_PREFIX}"/bin/"${CONDA_TOOLCHAIN_BUILD}"-as "${BUILD_PREFIX}"/bin/as
-# ln -sf "${BUILD_PREFIX}"/bin/"${CONDA_TOOLCHAIN_BUILD}"-ld "${BUILD_PREFIX}"/bin/ld
 # ln -sf "${BUILD_PREFIX}"/bin/"${CONDA_TOOLCHAIN_BUILD}"-ranlib "${BUILD_PREFIX}"/bin/ranlib
 
 run_and_log "configure" ./configure "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}"
 
 set_macos_conda_ar_ranlib "${SRC_DIR}"/hadrian/cfg/default.host.target "${CONDA_TOOLCHAIN_BUILD}"
 set_macos_conda_ar_ranlib "${SRC_DIR}"/hadrian/cfg/default.target "${CONDA_TOOLCHAIN_BUILD}"
-
-# GHC selection of tools seems to fail to use conda-forge toolchain tools
-rm -f /Users/runner/miniforge3/bin/{ar,ranlib,ld}
 
 "${_hadrian_build[@]}" stage1:exe:ghc-bin --flavour=quickest --docs=none --progress-info=none
 
