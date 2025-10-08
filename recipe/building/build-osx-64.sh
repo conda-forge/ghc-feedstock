@@ -22,47 +22,23 @@ EOFC
 # This ensures the object file matches the SDK version used during GHC linking
 ${CC} -c /tmp/iconv_compat.c -o /tmp/iconv_compat.o -mmacosx-version-min=10.13
 
-# Debug: Check what ar AND ld we're using
-echo "=== Toolchain Debug Info ==="
-echo "AR=${AR}"
-which "${AR}" || echo "AR not in PATH"
-"${AR}" --version || "${AR}" -V || echo "Cannot get ar version"
-echo ""
-echo "LD=${LD}"
-which "${LD}" || echo "LD not in PATH"
-"${LD}" -v || "${LD}" --version || echo "Cannot get ld version"
-echo ""
-echo "Testing ar format compatibility:"
-echo "Creating test archive with ${AR}..."
-echo "int test_func() { return 42; }" > /tmp/test.c
-${CC} -c /tmp/test.c -o /tmp/test.o
-${AR} rcs /tmp/test.a /tmp/test.o
-file /tmp/test.a
-echo "Trying to link with ${LD}..."
-${CC} -o /tmp/test_binary /tmp/test.o 2>&1 | head -20
-echo "=============================="
 
 # Create archive with explicit format for LLVM ar compatibility
 ${AR} rcs /tmp/libiconv_compat.a /tmp/iconv_compat.o
 
-# Verify the archive and object file metadata
-echo "=== Archive verification ==="
-file /tmp/libiconv_compat.a
-${AR} -t /tmp/libiconv_compat.a
-echo ""
-echo "Object file metadata:"
-file /tmp/iconv_compat.o
-otool -l /tmp/iconv_compat.o | grep -A 3 "LC_VERSION_MIN\|LC_BUILD_VERSION" || echo "No version info found"
-echo ""
-echo "Checking if ld can read the archive:"
-${AR} -x /tmp/libiconv_compat.a
-file iconv_compat.o
-echo "============================"
 
-# Create dylib for runtime preloading with absolute paths
+# Create export list for dylib
+cat > /tmp/iconv_exports.txt << 'EOF'
+_iconv_open
+_iconv
+_iconv_close
+EOF
+
+# Create dylib for runtime preloading with explicit symbol exports
 ${CC} -dynamiclib -o /tmp/libiconv_compat.dylib /tmp/iconv_compat.c \
     -L"${PREFIX}/lib" -liconv \
     -Wl,-rpath,"${PREFIX}/lib" \
+    -Wl,-exported_symbols_list,/tmp/iconv_exports.txt \
     -install_name "/tmp/libiconv_compat.dylib"
 
 # Preload the dylib for ALL commands from now on
@@ -139,33 +115,6 @@ export ac_cv_path_LD="${LD}"
 export ac_cv_path_RANLIB="${RANLIB}"
 export DEVELOPER_DIR=""
 
-# Verify the iconv compatibility libraries were created
-echo "=== Verifying iconv compatibility symbols ==="
-echo "Static library:"
-nm /tmp/libiconv_compat.a | grep iconv || true
-echo "Dynamic library:"
-nm -gU /tmp/libiconv_compat.dylib | grep iconv || true
-echo "Dylib dependencies:"
-otool -L /tmp/libiconv_compat.dylib || true
-echo "DYLD_INSERT_LIBRARIES=${DYLD_INSERT_LIBRARIES}"
-echo "=============================================="
-
-# Check what ar tools are available
-echo "=== Available ar tools ==="
-ls -la "${BUILD_PREFIX}"/bin/*ar* 2>&1 | grep -E "(llvm-ar|ranlib|ar)" || true
-echo "=========================="
-
-# Test llvm-ar compatibility with ld
-echo "=== Testing llvm-ar + ld compatibility ==="
-echo "int test_func() { return 42; }" > /tmp/llvm_test.c
-${CC} -c /tmp/llvm_test.c -o /tmp/llvm_test.o -mmacosx-version-min=10.13
-echo "Creating archive with llvm-ar..."
-"${BUILD_PREFIX}"/bin/llvm-ar rcs /tmp/llvm_test.a /tmp/llvm_test.o
-file /tmp/llvm_test.a
-echo "Linking with ld..."
-${CC} -o /tmp/llvm_test_binary /tmp/llvm_test.o -mmacosx-version-min=10.13 2>&1 | head -10 || true
-echo "Exit code: $?"
-echo "============================================"
 
 # Install ld wrapper to surgically remove MacOSX15.5.sdk rpath contamination
 mv "${BUILD_PREFIX}"/bin/"${CONDA_TOOLCHAIN_BUILD}"-ld "${BUILD_PREFIX}"/bin/"${CONDA_TOOLCHAIN_BUILD}"-ld.real
