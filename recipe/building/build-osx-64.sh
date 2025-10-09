@@ -49,6 +49,7 @@ SYSTEM_CONFIG=(
 )
 
 CONFIGURE_ARGS=(
+  --disable-ld-override
   --with-system-libffi=yes
   --with-curses-includes="${PREFIX}"/include
   --with-curses-libraries="${PREFIX}"/lib
@@ -84,7 +85,7 @@ run_and_log "configure" ./configure "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}"
 set_macos_conda_ar_ranlib "${SRC_DIR}"/hadrian/cfg/default.host.target "${CONDA_TOOLCHAIN_BUILD}"
 set_macos_conda_ar_ranlib "${SRC_DIR}"/hadrian/cfg/default.target "${CONDA_TOOLCHAIN_BUILD}"
 
-"${_hadrian_build[@]}" stage1:exe:ghc-bin --flavour=quickest --docs=none --progress-info=none
+run_and_log "stage1_exe" "${_hadrian_build[@]}" stage1:exe:ghc-bin --flavour=quickest --docs=none --progress-info=none
 
 settings_file="${SRC_DIR}"/_build/stage0/lib/settings
 update_link_flags "${settings_file}"
@@ -101,13 +102,14 @@ settings_file="${SRC_DIR}"/_build/stage1/lib/settings
 update_link_flags "${settings_file}"
 set_macos_conda_ar_ranlib "${settings_file}" "${CONDA_TOOLCHAIN_BUILD}"
 
-run_and_log "stage2_lib" "${_hadrian_build[@]}" stage2:lib:ghc --flavour=quickest --freeze1 --docs=none --progress-info=none
+run_and_log "stage2_lib" "${_hadrian_build[@]}" stage2:lib:ghc --flavour=release --freeze1 --docs=none --progress-info=none
 
-run_and_log "install" "${_hadrian_build[@]}" install --prefix="${PREFIX}" --flavour=quickest --freeze1 --freeze2 --docs=none --progress-info=none
+run_and_log "install" "${_hadrian_build[@]}" install --prefix="${PREFIX}" --freeze1 --freeze2 --docs=none --progress-info=none
 
 settings_file=$(find "${PREFIX}" -name settings | head -n 1)
 perl -i -pe "s#(C compiler link flags\", \")([^\"]*)#\1\2 -Wl,-L\\\$topdir/../../../../lib -Wl,-rpath,\\\$topdir/../../../../lib -liconv -Wl,-L\\\$topdir/../lib -Wl,-rpath,\\\$topdir/../lib -liconv_compat#" "${settings_file}"
 perl -i -pe "s#(ld flags\", \")([^\"]*)#\1\2 -L\\\$topdir/../../../../lib -rpath \\\$topdir/../../../../lib -liconv -L\\\$topdir/../lib -rpath \\\$topdir/../lib -liconv_compat#" "${settings_file}"
+perl -i -pe "s#\"(llc|opt|clang)\"#x86_64-apple-darwin13.4.0-\1#" "${settings_file}"
 set_macos_conda_ar_ranlib "${settings_file}" "${CONDA_TOOLCHAIN_BUILD}"
 
 cat "${settings_file}"
