@@ -107,8 +107,8 @@ run_and_log "stage2_lib" "${_hadrian_build[@]}" stage2:lib:ghc --flavour=quick -
 run_and_log "install" "${_hadrian_build[@]}" install --flavour=quick --prefix="${PREFIX}" --freeze1 --freeze2 --docs=none --progress-info=none
 
 settings_file=$(find "${PREFIX}" -name settings | head -n 1)
-perl -i -pe "s#(C compiler link flags\", \")([^\"]*)#\1\2 -Wl,-L\\\$topdir/../../../../lib -Wl,-rpath,\\\$topdir/../../../../lib -liconv -Wl,-L\\\$topdir/../lib -Wl,-rpath,\\\$topdir/../lib -liconv_compat#" "${settings_file}"
-perl -i -pe "s#(ld flags\", \")([^\"]*)#\1\2 -L\\\$topdir/../../../../lib -rpath \\\$topdir/../../../../lib -liconv -L\\\$topdir/../lib -rpath \\\$topdir/../lib -liconv_compat#" "${settings_file}"
+perl -i -pe "s#(C compiler link flags\", \")([^\"]*)#\1\2 -fno-lto -Wl,-L\\\$topdir/../../../../lib -Wl,-rpath,\\\$topdir/../../../../lib -liconv -Wl,-L\\\$topdir/../lib -Wl,-rpath,\\\$topdir/../lib -liconv_compat#" "${settings_file}"
+perl -i -pe "s#(ld flags\", \")([^\"]*)#\1\2 -fno-lto -L\\\$topdir/../../../../lib -rpath \\\$topdir/../../../../lib -liconv -L\\\$topdir/../lib -rpath \\\$topdir/../lib -liconv_compat#" "${settings_file}"
 perl -i -pe "s#\"(llc|opt|clang)\"#\"x86_64-apple-darwin13.4.0-\1\"#" "${settings_file}"
 set_macos_conda_ar_ranlib "${settings_file}" "${CONDA_TOOLCHAIN_BUILD}"
 
