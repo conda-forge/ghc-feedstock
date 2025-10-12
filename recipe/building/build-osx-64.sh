@@ -49,7 +49,6 @@ SYSTEM_CONFIG=(
 )
 
 CONFIGURE_ARGS=(
-  --disable-ld-override
   --with-system-libffi=yes
   --with-curses-includes="${PREFIX}"/include
   --with-curses-libraries="${PREFIX}"/lib
