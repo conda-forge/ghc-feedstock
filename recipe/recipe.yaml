@@ -151,7 +151,6 @@ tests:
   - script: |
       ghc --version
       printf 'main = putStrLn "Hello conda-forge"\n' > hello.hs
-      ln -sf ${PREFIX}/bin/*-ld ${PREFIX}/bin/ld || true
       ghc -v hello.hs
       ./hello
     requirements:
