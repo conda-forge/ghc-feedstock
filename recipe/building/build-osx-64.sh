@@ -102,7 +102,6 @@ update_link_flags "${settings_file}"
 set_macos_conda_ar_ranlib "${settings_file}" "${CONDA_TOOLCHAIN_BUILD}"
 
 run_and_log "stage2_lib" "${_hadrian_build[@]}" stage2:lib:ghc --flavour=quick --freeze1 --docs=none --progress-info=none
-
 run_and_log "install" "${_hadrian_build[@]}" install --flavour=quick --prefix="${PREFIX}" --freeze1 --freeze2 --docs=none --progress-info=none
 
 settings_file=$(find "${PREFIX}" -name settings | head -n 1)
