@@ -150,6 +150,7 @@ tests:
 
   - script: |
       ghc --version
+      ln -sf ${PREFIX}/bin/x86_64-apple-darwin13.4.0-ld ${PREFIX}/bin/ld || true
       printf 'main = putStrLn "Hello conda-forge"\n' > hello.hs
       ghc -v hello.hs
       ./hello
@@ -162,7 +163,7 @@ tests:
           then: libiconv
 
   - script:
-      - ln -s ${PREFIX}/lib/libLTO.19.1.dylib ${PREFIX}/lib/libLTO.dylib || true
+      - ln -sf ${PREFIX}/bin/x86_64-apple-darwin13.4.0-ld ${PREFIX}/bin/ld || true
       - printf 'import System.Posix.Signals\nmain = installHandler sigTERM Default Nothing >> putStrLn "Signal test"\n' > signal_test.hs
       - if: unix
         then: |
