@@ -9,13 +9,8 @@ source:
   - url: https://downloads.haskell.org/~ghc/${{ version }}/ghc-${{ version }}-src.tar.xz
     sha256: d053bf6ce1d588a75cfe8c9316269486e9d8fb89dcdf6fd92836fa2e3df61305
     patches:
-      # - patches/update-Release.hs.patch
-      # - patches/update-Rts.hs.patch
-      # - patches/library-rts-symlinks.patch
-      # - patches/update-Compile.hs.patch
-      # - patches/fix-dynamic-interface-tags.patch
-      # - patches/fix-wired-in-package-unit-ids.patch
-      # - patches/fix-rts-linking.patch
+      - patches/add-freeze-libs.patch
+      - patches/skip-bindist-recache-crosscompile.patch
       - if: osx and arm64
         then:
           - patches/patch-rpath-macos.patch
@@ -36,6 +31,7 @@ requirements:
         - cabal ==3.10.3.0
         - ghc-bootstrap ==9.6.7
     - llvm-tools ${{ c_compiler_version }}.*
+    - pkg-config
     - python 3.10.*
     - sphinx
     - zstd
@@ -149,8 +145,10 @@ tests:
   - script: |
       ghc --version
       printf 'main = putStrLn "Hello conda-forge"\n' > hello.hs
-      ghc hello.hs
-      ./hello
+      ghc hello.hs -o hello && ./hello
+      ghc -threaded hello.hs -o hello_t && ./hello_t
+      ghc -prof hello.hs -o hello_p && ./hello_p
+      ghc -threaded -prof hello.hs -o hello_pt && ./hello_pt
     requirements:
       run:
         - ${{ compiler('c') }}
@@ -160,8 +158,10 @@ tests:
 
   - script: |
       printf 'main = putStrLn "Hello conda-forge"\n' > hello.hs
-      ghc -dynamic hello.hs
-      ./hello
+      ghc -dynamic hello.hs && ./hello
+      ghc -dynamic -threaded hello.hs -o hello_t && ./hello_t
+      ghc -dynamic -prof hello.hs -o hello_p && ./hello_p
+      ghc -dynamic -threaded -prof hello.hs -o hello_pt && ./hello_pt
     requirements:
       run:
         - ${{ compiler('c') }}

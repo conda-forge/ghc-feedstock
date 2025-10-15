@@ -5,52 +5,58 @@ _log_index=0
 
 source "${RECIPE_DIR}"/building/common.sh
 
+ghc_host="${build_alias##*darwin}"
+ghc_target="${host_alias##*darwin}"
+
 _build_alias=${build_alias}
-_build_version="${build_alias##*darwin}"
 _host_alias=${host_alias}
-_host_version="${host_alias##*darwin}"
-_ghc_host="x86_64-apple-darwin"
+unset build_alias
+unset host_alias
 
-export build_alias="${_ghc_host}"
-export host_alias="${_ghc_host}"
-export BUILD=${build_alias}
-export HOST=${host_alias}
+export CABAL="${BUILD_PREFIX}"/bin/cabal
+export CABAL_DIR="${SRC_DIR}"/.cabal
 
-# Update cabal package database
-run_and_log "cabal-update" cabal v2-update
+mkdir -p "${CABAL_DIR}" && "${CABAL}" user-config init
+run_and_log "cabal-update" "${CABAL}" v2-update
+
+_hadrian_build=("${SRC_DIR}"/hadrian/build "-j${CPU_COUNT}")
 
 # Configure and build GHC
 SYSTEM_CONFIG=(
-  --prefix="${PREFIX}"
+  --prefix="${cross_prefix}"
 )
 
-if [[ "${_build_alias}" != "${_host_alias}" ]]; then
+if [[ "${ghc_host}" != "${ghc_target}" ]]; then
+  # Prepare cross-compiler build/install
+  cross_prefix="${SRC_DIR}"/_cross-compiler && mkdir -p "${cross_prefix}"
+  perl -pi -e 's#(finalStage\s*=\s*Stage)[0-9]#${1}1#' "${SRC_DIR}"/hadrian/src/UserSettings.hs
+
   SYSTEM_CONFIG+=(
-    --build="${_build_alias}"
-    --host="${_build_alias}"
     --target="${_host_alias}"
   )
 fi
 
 CONFIGURE_ARGS=(
-  --disable-numa
-  --enable-ignore-build-platform-mismatch=yes
-  # This creates conflicts downstream: --enable-ghc-toolchain=yes
   --with-system-libffi=yes
-  --with-curses-includes="${BUILD_PREFIX}"/include
-  --with-curses-libraries="${BUILD_PREFIX}"/lib
-  --with-ffi-includes="${BUILD_PREFIX}"/include
-  --with-ffi-libraries="${BUILD_PREFIX}"/lib
-  --with-gmp-includes="${BUILD_PREFIX}"/include
-  --with-gmp-libraries="${BUILD_PREFIX}"/lib
-  --with-iconv-includes="${BUILD_PREFIX}"/include
-  --with-iconv-libraries="${BUILD_PREFIX}"/lib
+  --with-curses-includes="${PREFIX}"/include
+  --with-curses-libraries="${PREFIX}"/lib
+  --with-ffi-includes="${PREFIX}"/include
+  --with-ffi-libraries="${PREFIX}"/lib
+  --with-gmp-includes="${PREFIX}"/include
+  --with-gmp-libraries="${PREFIX}"/lib
+  --with-iconv-includes="${PREFIX}"/include
+  --with-iconv-libraries="${PREFIX}"/lib
+  MergeCmdObj=${MergeCmdObj:-${CONDA_TOOLCHAIN_BUILD}-ld}
+  AR=${CONDA_TOOLCHAIN_BUILD}-ar
+  AS=${CONDA_TOOLCHAIN_BUILD}-as
+  CC=${CC_FOR_BUILD}
+  CXX=${CXX_FOR_BUILD}
+  LD=${CONDA_TOOLCHAIN_BUILD}-ld
+  NM=${CONDA_TOOLCHAIN_BUILD}-nm
+  RANLIB=${CONDA_TOOLCHAIN_BUILD}-ranlib
+  LDFLAGS="-L${PREFIX}/lib ${LDFLAGS:-}"
+  LDFLAGS_LD="-L${PREFIX}/lib ${LDFLAGS:-}"
 )
-
-export build_alias=${_build_alias}
-export host_alias=${_host_alias}
-export BUILD=${build_alias}
-export HOST=${host_alias}
 
 # Bug in ghc-bootstrap for libiconv2
 if [[ "${target_platform}" == osx-arm64 ]]; then
@@ -58,15 +64,6 @@ if [[ "${target_platform}" == osx-arm64 ]]; then
 fi 
 
 # This will not generate ghc-toolchain-bin or the .ghc-toolchain (possibly due to x-platform)
-MergeCmdObj=${MergeCmdObj:-${CONDA_TOOLCHAIN_BUILD}-ld} \
-AR=${CONDA_TOOLCHAIN_BUILD}-ar \
-AS=${CONDA_TOOLCHAIN_BUILD}-as \
-CC=${CC_FOR_BUILD} \
-CXX=${CXX_FOR_BUILD} \
-NM=${CONDA_TOOLCHAIN_BUILD}-nm \
-RANLIB=${CONDA_TOOLCHAIN_BUILD}-ranlib \
-LDFLAGS=${LDFLAGS//$PREFIX/$BUILD_PREFIX/} \
-LDFLAGS_LD=${LDFLAGS_LD//$PREFIX/$BUILD_PREFIX/} \
 run_and_log "ghc-configure" bash configure "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}"
 
 perl -pi -e 's#($ENV{BUILD_PREFIX}|$ENV{PREFIX})/bin/##' "${SRC_DIR}"/hadrian/cfg/default.target
@@ -118,7 +115,6 @@ fi
 run_and_log "stage1_lib" "${_hadrian_build[@]}" stage1:lib:ghc -VV --flavour=release --docs=none --progress-info=unicorn
 run_and_log "stage2_exe" "${_hadrian_build[@]}" stage2:exe:ghc-bin --flavour=release --freeze1 --docs=none --progress-info=none
 run_and_log "build_all" "${_hadrian_build[@]}" --flavour=release --freeze1 --freeze2 --docs=no-sphinx-pdfs --progress-info=none
-
 run_and_log "install" "${_hadrian_build[@]}" install --prefix="${PREFIX}" --flavour=release --freeze1 --freeze2 --docs=none --progress-info=none || true
 
 # Create links of aarch64-conda-linux-gnu-xxx to xxx

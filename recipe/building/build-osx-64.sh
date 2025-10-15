@@ -77,9 +77,17 @@ export DEVELOPER_DIR=""
 
 # GHC selection of tools seems to fail to use conda-forge toolchain tools
 rm -f /Users/runner/miniforge3/bin/{ar,ranlib,ld}
+ln -sf "${BUILD_PREFIX}"/bin/"${CONDA_TOOLCHAIN_BUILD}"-ld "${BUILD_PREFIX}"/bin/ld
+
 run_and_log "configure" bash configure "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}"
-set_macos_conda_ar_ranlib "${SRC_DIR}"/hadrian/cfg/default.host.target "${CONDA_TOOLCHAIN_BUILD}"
-set_macos_conda_ar_ranlib "${SRC_DIR}"/hadrian/cfg/default.target "${CONDA_TOOLCHAIN_BUILD}"
+settings_file="${SRC_DIR}"/hadrian/cfg/system.config
+perl -pi -e "s#${BUILD_PREFIX}/bin/##" "${settings_file}"
+perl -pi -e 's#(=\s+)(ar)$#$1llvm-$2#' "${settings_file}"
+perl -pi -e 's#(=\s+)(clang|clang\+\+|llc|nm|opt|ranlib)$#$1xx86_64-apple-darwin13.4.0-$2#' "${settings_file}"
+perl -pi -e "s#(conf-gcc-linker-args-stage[12].*?= )#\$1-Wl,-L${PREFIX}/lib -Wl,-rpath,${PREFIX}/lib#" "${settings_file}"
+perl -pi -e "s#(conf-ld-linker-args-stage[12].*?= )#\$1-L${PREFIX}/lib -rpath ${PREFIX}/lib#" "${settings_file}"
+perl -pi -e "s#(settings-c-compiler-link-flags.*?= )#\$1-Wl,-L${PREFIX}/lib -Wl,-rpath,${PREFIX}/lib#" "${settings_file}"
+perl -pi -e "s#(settings-ld-flags.*?= )#\$1-L${PREFIX}/lib -rpath ${PREFIX}/lib#" "${settings_file}"
 
 export CABFLAGS=(--enable-shared --enable-executable-dynamic -j)
 for pkg in hadrian; do
