@@ -105,9 +105,9 @@ run_and_log "stage2_lib" "${_hadrian_build[@]}" stage2:lib:ghc --flavour=quick -
 run_and_log "install" "${_hadrian_build[@]}" install --flavour=quick --prefix="${PREFIX}" --freeze1 --freeze2 --docs=none --progress-info=none
 
 settings_file=$(find "${PREFIX}" -name settings | head -n 1)
-perl -i -pe "s#(C compiler flags\", \")([^\"]*)#\1\2 -fno-lto -B\\\$topdir/../../../bin#" "${settings_file}"
+perl -i -pe "s#(C compiler flags\", \")([^\"]*)#\1\2 -fno-lto#" "${settings_file}"
 perl -i -pe "s#(C\\+\\+ compiler flags\", \")([^\"]*)#\1\2 -fno-lto#" "${settings_file}"
-perl -i -pe "s#(C compiler link flags\", \")([^\"]*)#\1\2 -v -fuse-ld=lld -fno-lto -fno-use-linker-plugin -Wl,-L\\\$topdir/../../../lib -Wl,-rpath,\\\$topdir/../../../lib -liconv -Wl,-L\\\$topdir/../lib -Wl,-rpath,\\\$topdir/../lib -liconv_compat#" "${settings_file}"
+perl -i -pe "s#(C compiler link flags\", \")([^\"]*)#\1\2 -v -fno-lto -fno-use-linker-plugin -Wl,-L\\\$topdir/../../../lib -Wl,-rpath,\\\$topdir/../../../lib -liconv -Wl,-L\\\$topdir/../lib -Wl,-rpath,\\\$topdir/../lib -liconv_compat#" "${settings_file}"
 perl -i -pe "s#\"(llc|opt|clang)\"#\"x86_64-apple-darwin13.4.0-\1\"#" "${settings_file}"
 set_macos_conda_ar_ranlib "${settings_file}" "${CONDA_TOOLCHAIN_BUILD}"
 

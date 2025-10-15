@@ -29,11 +29,12 @@ requirements:
     - ${{ compiler('cxx') }}
     - ${{ stdlib('c') }}
     - binutils
-    - cabal ==3.10.3.0
-    - ghc-bootstrap ==9.6.7
-    - gmp
-    - libiconv
+    - if: target_platform != "linux-aarch64"
+      then:
+        - cabal ==3.10.3.0
+        - ghc-bootstrap ==9.6.7
     - llvm-tools ${{ c_compiler_version }}.*
+    - pkg-config
     - python 3.10.*
     - sphinx
     - zstd
@@ -41,10 +42,6 @@ requirements:
     - if: linux
       then:
         - patchelf
-
-    - if: osx
-      then:
-        - libcxx-devel
 
     - if: unix
       then:
@@ -76,7 +73,7 @@ requirements:
         # Restrict to 2.43 (2.44 does not seem to have ld.gold and makes aarch64 build fail)
         - binutils_impl_${{ build_platform }} ${{ binutils_version }}.*
         - binutils_impl_${{ target_platform }} ${{ binutils_version }}.*
-        - sysroot_${{ build_platform }} >=${{ c_stdlib_version }}
+        # - sysroot_${{ build_platform }} >=${{ c_stdlib_version }}
 
     # Cross-compiler aarch64 on linux-64
     # Disabled: - if: target_platform == "linux-64"
