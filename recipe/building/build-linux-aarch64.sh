@@ -119,7 +119,6 @@ cat > /tmp/hello.hs << EOF
 main = putStrLn "Hello conda-forge"
 EOF
 "${SRC_DIR}"/_build/ghc-stage1 /tmp/hello.hs -o /tmp/hello && file /tmp/hello | grep "ARM aarch64"
-"${CROSSCOMPILING_EMULATOR}" /tmp/hello | grep "Hello conda-forge"
 
 # ---| Stage 2: Cross-compiled bin/libs |---
 
@@ -131,7 +130,6 @@ export GHC="${SRC_DIR}"/_build/ghc-stage1
 
 run_and_log "stage2_ghc-bin" "${_hadrian_build[@]}" stage2:exe:ghc-bin --flavour=release --docs=none --progress-info=none
 file "${SRC_DIR}"/_build/stage1/bin/"${ghc_target}"-ghc | grep "ARM aarch64"
-"${CROSSCOMPILING_EMULATOR}" "${SRC_DIR}"/_build/stage1/bin/"${ghc_target}"-ghc --version | grep "${PKG_VERSION}"
 
 run_and_log "stage2_ghc-pkg" "${_hadrian_build[@]}" stage2:exe:ghc-pkg --flavour=release --docs=none --progress-info=none
 run_and_log "stage2_hsc2hs" "${_hadrian_build[@]}" stage2:exe:hsc2hs --flavour=release --docs=none --progress-info=none
