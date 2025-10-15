@@ -12,7 +12,7 @@ export M4=${BUILD_PREFIX}/bin/m4
 export PYTHON=${BUILD_PREFIX}/bin/python
 export PATH=${BUILD_PREFIX}/ghc-bootstrap/bin${PATH:+:}${PATH:-}
 
-"${RECIPE_DIR}"/building/build-"${target_platform}-freeze.sh"
+"${RECIPE_DIR}"/building/build-"${target_platform}.sh"
 
 # Create bash completion
 mkdir -p "${PREFIX}"/etc/bash_completion.d

@@ -9,6 +9,7 @@ source:
   - url: https://downloads.haskell.org/~ghc/${{ version }}/ghc-${{ version }}-src.tar.xz
     sha256: d053bf6ce1d588a75cfe8c9316269486e9d8fb89dcdf6fd92836fa2e3df61305
     patches:
+      - patches/add-freeze-libs.patch
       - patches/skip-bindist-recache-crosscompile.patch
       - if: osx and arm64
         then:
