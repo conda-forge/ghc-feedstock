@@ -184,7 +184,7 @@ fi
 
 # Create links of aarch64-conda-linux-gnu-xxx to xxx
 pushd "${PREFIX}"/bin
-  for bin in ghc ghci ghc-pkg hp2ps hcs2hs; do
+  for bin in ghc ghci ghc-pkg hp2ps hsc2hs; do
     ln -sf "${bin}" "${bin#${ghc_target}-}"
   done
 popd
