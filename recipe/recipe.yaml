@@ -9,7 +9,7 @@ source:
   - url: https://downloads.haskell.org/~ghc/${{ version }}/ghc-${{ version }}-src.tar.xz
     sha256: d053bf6ce1d588a75cfe8c9316269486e9d8fb89dcdf6fd92836fa2e3df61305
     patches:
-      - patches/add-freeze-libs.patch
+      # - patches/add-freeze-libs.patch
       - patches/skip-bindist-recache-crosscompile.patch
       - if: osx and arm64
         then:
@@ -18,7 +18,7 @@ source:
 
 build:
   number: 0
-  skip: not unix or ppc64le
+  skip: not unix
 
 requirements:
   build:
@@ -26,7 +26,7 @@ requirements:
     - ${{ compiler('cxx') }}
     - ${{ stdlib('c') }}
     - binutils
-    - if: target_platform != "linux-aarch64"
+    - if: target_platform != "linux-aarch64" and target_platform != "linux-ppc64le"
       then:
         - cabal ==3.10.3.0
         - ghc-bootstrap ==9.6.7
