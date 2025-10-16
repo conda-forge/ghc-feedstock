@@ -147,8 +147,8 @@ tests:
       printf 'main = putStrLn "Hello conda-forge"\n' > hello.hs
       ghc hello.hs -o hello && ./hello
       ghc -threaded hello.hs -o hello_t && ./hello_t
-      # prof not enabled yet: ghc -prof hello.hs -o hello_p && ./hello_p
-      # prof not enabled yet: ghc -threaded -prof hello.hs -o hello_pt && ./hello_pt
+      ghc -prof hello.hs -o hello_p && ./hello_p
+      ghc -threaded -prof hello.hs -o hello_pt && ./hello_pt
     requirements:
       run:
         - ${{ compiler('c') }}
@@ -160,8 +160,8 @@ tests:
       printf 'main = putStrLn "Hello conda-forge"\n' > hello.hs
       ghc -dynamic hello.hs && ./hello
       ghc -dynamic -threaded hello.hs -o hello_t && ./hello_t
-      # prof not enabled yet: ghc -dynamic -prof hello.hs -o hello_p && ./hello_p
-      # prof not enabled yet: ghc -dynamic -threaded -prof hello.hs -o hello_pt && ./hello_pt
+      ghc -dynamic -prof hello.hs -o hello_p && ./hello_p
+      ghc -dynamic -threaded -prof hello.hs -o hello_pt && ./hello_pt
     requirements:
       run:
         - ${{ compiler('c') }}
