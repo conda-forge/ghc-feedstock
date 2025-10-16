@@ -8,8 +8,8 @@ source "${RECIPE_DIR}"/building/common.sh
 # in 9.12+ we can use x86_64-conda-linux-gnu
 conda_host="${build_alias}"
 conda_target="${host_alias}"
-host_arch="${build_alias//-conda-linux-gnu/}"
-target_arch="${host_alias//-conda-linux-gnu/}"
+host_arch="${build_alias%%-*}"
+target_arch="${host_alias%%-*}"
 
 ghc_host="${host_arch}-unknown-linux-gnu"
 ghc_target="${target_arch}-unknown-linux-gnu"
