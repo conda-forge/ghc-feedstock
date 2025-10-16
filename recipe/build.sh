@@ -13,7 +13,7 @@ export PYTHON=${BUILD_PREFIX}/bin/python
 export PATH=${BUILD_PREFIX}/ghc-bootstrap/bin${PATH:+:}${PATH:-}
 
 #if [[ "${target_platform}" == "linux-aarch64" ]] || [["${target_platform}" == "linux-ppc64le"]]; then
-if [["${target_platform}" == "linux-ppc64le"]]; then
+if [[ "${target_platform}" == "linux-ppc64le" ]]; then
   "${RECIPE_DIR}"/building/build-linux-cross.sh
 else
   "${RECIPE_DIR}"/building/build-"${target_platform}.sh"
