@@ -23,7 +23,7 @@ _hadrian_build=("${SRC_DIR}"/hadrian/build "-j${CPU_COUNT}")
 
 # Configure and build GHC
 SYSTEM_CONFIG=(
-  --prefix="${cross_prefix}"
+  --prefix="${PREFIX}"
 )
 
 if [[ "${ghc_host}" != "${ghc_target}" ]]; then
@@ -49,8 +49,8 @@ CONFIGURE_ARGS=(
   MergeCmdObj=${MergeCmdObj:-${CONDA_TOOLCHAIN_BUILD}-ld}
   AR=${CONDA_TOOLCHAIN_BUILD}-ar
   AS=${CONDA_TOOLCHAIN_BUILD}-as
-  CC=${CC_FOR_BUILD}
-  CXX=${CXX_FOR_BUILD}
+  CC=${CC_FOR_BUILD:-${CONDA_TOOLCHAIN_BUILD}-clang}
+  CXX=${CXX_FOR_BUILD:-${CONDA_TOOLCHAIN_BUILD}-clangxx}
   LD=${CONDA_TOOLCHAIN_BUILD}-ld
   NM=${CONDA_TOOLCHAIN_BUILD}-nm
   RANLIB=${CONDA_TOOLCHAIN_BUILD}-ranlib
@@ -87,9 +87,6 @@ _hadrian_build=("${SRC_DIR}"/hadrian/build "-j${CPU_COUNT}")
 
 CONFIGURE_ARGS=(
   --prefix="${PREFIX}"
-  --disable-numa
-  --enable-ignore-build-platform-mismatch=yes
-  # This creates conflicts downstream: --enable-ghc-toolchain=yes
   --with-system-libffi=yes
   --with-curses-includes="${PREFIX}"/include
   --with-curses-libraries="${PREFIX}"/lib
