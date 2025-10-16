@@ -5,6 +5,7 @@ index abcdefg..1234567 100644
 @@ -177,9 +177,10 @@ defaultPackages stage = fromMaybe [] <$> stagePackages stage
  -- * We build 'profiling' way when stage > Stage0.
  -- * We build 'dynamic' way when stage > Stage0 and the platform supports it.
++-- * We build 'profilingDynamic' way when stage > Stage0 and the platform supports it.
  defaultLibraryWays :: Ways
  defaultLibraryWays = Set.fromList <$>
      mconcat
@@ -13,3 +14,22 @@ index abcdefg..1234567 100644
      , notStage0 ? platformSupportsSharedLibs ? pure [dynamic]
 +    , notStage0 ? platformSupportsSharedLibs ? pure [profilingDynamic]
      ]
+
+ -- | Default build ways for the RTS.
++-- Extended to include profiling+dynamic combinations for complete -dynamic -prof support.
+ defaultRtsWays :: Ways
+ defaultRtsWays = Set.fromList <$>
+   mconcat
+   [ pure [vanilla]
+   , notStage0 ? pure
+       [ profiling, debugProfiling
+       , debug
+       ]
+   , notStage0 ? targetSupportsThreadedRts ? pure [threaded, threadedProfiling, threadedDebugProfiling, threadedDebug]
+   , notStage0 ? platformSupportsSharedLibs ? pure
+       [ dynamic, debugDynamic
+       ]
+   , notStage0 ? platformSupportsSharedLibs ? targetSupportsThreadedRts ? pure [ threadedDynamic, threadedDebugDynamic ]
++  , notStage0 ? platformSupportsSharedLibs ? pure [ profilingDynamic, debugProfilingDynamic ]
++  , notStage0 ? platformSupportsSharedLibs ? targetSupportsThreadedRts ? pure [ threadedProfilingDynamic ]
+   ]
