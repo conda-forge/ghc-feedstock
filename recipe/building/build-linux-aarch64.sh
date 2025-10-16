@@ -38,7 +38,7 @@ conda create -y \
 
 libc2_17_env=$(conda info --envs | grep libc2.17_env | awk '{print $2}')
 ghc_path="${libc2_17_env}"/ghc-bootstrap/bin
-export GHC="${ghc_path}"//ghc
+export GHC="${ghc_path}"/ghc
 
 "${ghc_path}"/ghc-pkg recache
 
@@ -85,7 +85,7 @@ CONFIGURE_ARGS=(
 
 run_and_log "ghc-configure" ./configure "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}"
 
-# Fix host configuration to use x86_64, target aarch64
+# Fix host configuration to use x86_64, target cross
 settings_file="${SRC_DIR}"/hadrian/cfg/system.config
 perl -pi -e "s#${BUILD_PREFIX}/bin/##" "${settings_file}"
 perl -pi -e "s#(=\s+)(ar|clang|clang\+\+|llc|nm|opt|ranlib)\$#\$1${conda_target}-\$2#" "${settings_file}"
@@ -98,7 +98,7 @@ _hadrian_build=("${SRC_DIR}"/hadrian/build "-j${CPU_COUNT}")
 
 # ---| Stage 1: Cross-compiler |---
 
-# Disable copy for cross-compilation - force building the aarch64 binary
+# Disable copy for cross-compilation - force building the cross binary
 # Change the cross-compile copy condition to never match
 perl -i -pe 's/\(True, s\) \| s > stage0InTree ->/\(False, s\) | s > stage0InTree \&\& False ->/' "${SRC_DIR}"/hadrian/src/Rules/Program.hs
 run_and_log "stage1_ghc-bin" "${_hadrian_build[@]}" stage1:exe:ghc-bin --flavour=quickest --docs=none --progress-info=none
@@ -114,11 +114,12 @@ update_link_flags "${settings_file}"
 _hadrian_bin=$(find "${SRC_DIR}"/hadrian/dist-newstyle/build -name hadrian -type f -executable | head -1)
 _hadrian_build=("${_hadrian_bin}" "-j${CPU_COUNT}" "--directory" "${SRC_DIR}")
 
-# Verify that stage 1 produces aarch64 exec
-cat > /tmp/hello.hs << EOF
+# Verify that stage 1 produces cross exec
+mkdir -p "${SRC_DIR}"/_tmp/
+cat > "${SRC_DIR}"/_tmp/hello.hs << EOF
 main = putStrLn "Hello conda-forge"
 EOF
-"${SRC_DIR}"/_build/ghc-stage1 /tmp/hello.hs -o /tmp/hello && file /tmp/hello | grep "ARM aarch64"
+"${SRC_DIR}"/_build/ghc-stage1 "${SRC_DIR}"/_tmp/hello.hs -o "${SRC_DIR}"/_tmp/hello && file "${SRC_DIR}"/_tmp/hello | grep OpenPOWER
 
 # ---| Stage 2: Cross-compiled bin/libs |---
 
@@ -134,9 +135,9 @@ file "${SRC_DIR}"/_build/stage1/bin/"${ghc_target}"-ghc | grep "ARM aarch64"
 run_and_log "stage2_ghc-pkg" "${_hadrian_build[@]}" stage2:exe:ghc-pkg --flavour=release --docs=none --progress-info=none
 run_and_log "stage2_hsc2hs" "${_hadrian_build[@]}" stage2:exe:hsc2hs --flavour=release --docs=none --progress-info=none
 
-# This does not seem needed as the _build/stage1 libs are already aarch64
-# We would have to modify the recipe in order to workaround the fact that the aarch64 used
-# by stage2 are aarch64 (either by patches or by use of qemu)
+# This does not seem needed as the _build/stage1 libs are already cross
+# We would have to modify the recipe in order to workaround the fact that the cross used
+# by stage2 are cross (either by patches or by use of qemu)
 # run_and_log "stage2_lib" "${_hadrian_build[@]}" stage2:lib:ghc --flavour=release --freeze-libs --docs=none --progress-info=none
 run_and_log "bindist"    "${_hadrian_build[@]}" binary-dist --prefix="${PREFIX}" --flavour=release --freeze1 --freeze2 --docs=none --progress-info=none
 
@@ -149,7 +150,7 @@ if [[ -n "${bindist_dir}" ]]; then
     CXX="${conda_host}"-clang++ \
     ./configure --prefix="${PREFIX}" --target="${ghc_target}"
  
-    # Install (update_package_db fails due to aarch64 ghc-pkg)
+    # Install (update_package_db fails due to cross ghc-pkg)
     run_and_log "make_install" make install_bin install_lib install_man
     
     # Manually update package database using bootstrap (x86_64) ghc-pkg
@@ -180,15 +181,17 @@ else
   exit 1
 fi
 
-# Create links of aarch64-conda-linux-gnu-xxx to xxx
+# Create links of cross-conda-linux-gnu-xxx to xxx
 pushd "${PREFIX}"/bin
   for bin in ghc ghci ghc-pkg hp2ps hsc2hs; do
-    ln -sf "${bin}" "${bin#${ghc_target}-}"
+    if [[ -f "${ghc_target}-${bin}" ]] && [[ ! -f "${bin}" ]]; then
+      ln -sf "${ghc_target}-${bin}" "${bin}"
+    fi
   done
 popd
 
 if [[ -d "${PREFIX}"/lib/${ghc_target}-ghc-"${PKG_VERSION}" ]]; then
-  # $PREFIX/lib/aarch64-conda-linux-gnu-ghc-9.12.2 -> $PREFIX/lib/ghc-9.12.2
+  # $PREFIX/lib/cross-conda-linux-gnu-ghc-9.12.2 -> $PREFIX/lib/ghc-9.12.2
   mv "${PREFIX}"/lib/"${ghc_target}"-ghc-"${PKG_VERSION}" "${PREFIX}"/lib/ghc-"${PKG_VERSION}"
   ln -sf "${PREFIX}"/lib/ghc-"${PKG_VERSION}" "${PREFIX}"/lib/"${ghc_target}"-ghc-"${PKG_VERSION}"
 fi

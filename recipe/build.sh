@@ -12,7 +12,12 @@ export M4=${BUILD_PREFIX}/bin/m4
 export PYTHON=${BUILD_PREFIX}/bin/python
 export PATH=${BUILD_PREFIX}/ghc-bootstrap/bin${PATH:+:}${PATH:-}
 
-"${RECIPE_DIR}"/building/build-"${target_platform}.sh"
+#if [[ "${target_platform}" == "linux-aarch64" ]] || [["${target_platform}" == "linux-ppc64le"]]; then
+if [["${target_platform}" == "linux-ppc64le"]]; then
+  "${RECIPE_DIR}"/building/build-linux-cross.sh
+else
+  "${RECIPE_DIR}"/building/build-"${target_platform}.sh"
+fi
 
 # Create bash completion
 mkdir -p "${PREFIX}"/etc/bash_completion.d

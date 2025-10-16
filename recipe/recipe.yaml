@@ -11,6 +11,7 @@ source:
     patches:
       # - patches/add-freeze-libs.patch
       - patches/skip-bindist-recache-crosscompile.patch
+      - patches/enable-dynamic-profiling.patch
       - if: osx and arm64
         then:
           - patches/patch-rpath-macos.patch

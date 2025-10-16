@@ -1,0 +1,15 @@
+diff --git a/hadrian/src/Settings/Default.hs b/hadrian/src/Settings/Default.hs
+index abcdefg..1234567 100644
+--- a/hadrian/src/Settings/Default.hs
++++ b/hadrian/src/Settings/Default.hs
+@@ -177,9 +177,10 @@ defaultPackages stage = fromMaybe [] <$> stagePackages stage
+ -- * We build 'profiling' way when stage > Stage0.
+ -- * We build 'dynamic' way when stage > Stage0 and the platform supports it.
+ defaultLibraryWays :: Ways
+ defaultLibraryWays = Set.fromList <$>
+     mconcat
+     [ pure [vanilla]
+     , notStage0 ? pure [profiling]
+     , notStage0 ? platformSupportsSharedLibs ? pure [dynamic]
++    , notStage0 ? platformSupportsSharedLibs ? pure [profilingDynamic]
+     ]
