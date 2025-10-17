@@ -30,6 +30,10 @@ index abcdefg..1234567 100644
        [ dynamic, debugDynamic
        ]
    , notStage0 ? platformSupportsSharedLibs ? targetSupportsThreadedRts ? pure [ threadedDynamic, threadedDebugDynamic ]
-+  , notStage0 ? platformSupportsSharedLibs ? pure [ profilingDynamic, debugProfilingDynamic ]
-+  , notStage0 ? platformSupportsSharedLibs ? targetSupportsThreadedRts ? pure [ threadedProfilingDynamic ]
    ]
++
++-- Note: RTS does NOT support profiling+dynamic combinations (no libHSrts_p.so)
++-- Profiling RTS libraries are static-only (.a files)
++-- For -dynamic -prof, user programs link against:
++--   - Dynamic profiling libraries (libHSbase_p_dyn.so, etc.)
++--   - Static profiling RTS (libHSrts_p.a)
