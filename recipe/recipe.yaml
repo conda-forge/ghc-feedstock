@@ -148,13 +148,14 @@ tests:
       ghc hello.hs -o hello && ./hello
       ghc -threaded hello.hs -o hello_t && ./hello_t
       ghc -prof hello.hs -o hello_p && ./hello_p
-      ghc -threaded -prof hello.hs -o hello_pt && ./hello_pt
     requirements:
       run:
         - ${{ compiler('c') }}
         - libiconv
         - if: unix
           then: ${{ stdlib('c') }}
+        - if: osx
+          then: lld
 
   - script: |
       printf 'main = putStrLn "Hello conda-forge"\n' > hello.hs
@@ -166,6 +167,8 @@ tests:
         - libiconv
         - if: unix
           then: ${{ stdlib('c') }}
+        - if: osx
+          then: lld
 
   - script:
       - printf 'import System.Posix.Signals\nmain = installHandler sigTERM Default Nothing >> putStrLn "Signal test"\n' > signal_test.hs

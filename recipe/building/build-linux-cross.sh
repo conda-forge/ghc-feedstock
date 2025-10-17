@@ -19,17 +19,6 @@ _host_alias=${host_alias}
 export build_alias="${ghc_host}"
 export host_alias="${ghc_host}"
 
-#export BUILD=${build_alias}
-#export HOST=${host_alias}
-
-update_link_flags() {
-  local settings_file="$1"
-  
-  perl -pi -e "s#(C compiler link flags\", \"[^\"]*)#\$1 -Wl,-L${PREFIX}/lib -Wl,-rpath,${PREFIX}/lib#" "${settings_file}"
-  perl -pi -e "s#(ld flags\", \"[^\"]*)#\$1 -L${PREFIX}/lib -rpath ${PREFIX}/lib#" "${settings_file}"
-  perl -pi -e "s#\"[/\w]*?(ar|clang|clang\+\+|ld|ranlib|llc|objdump|opt)\"#\"${conda_target}-\$1\"#" "${settings_file}"
-}
-
 # Create environment and get library paths
 echo "Creating environment for cross-compilation libraries..."
 conda create -y \
@@ -46,10 +35,10 @@ export GHC="${ghc_path}"/ghc
 
 "${ghc_path}"/ghc-pkg recache
 
-export CONDA_BUILD_SYSROOT="${libc2_17_env}"/"${conda_host}"/sysroot
-export CFLAGS="--sysroot=${CONDA_BUILD_SYSROOT}"
-export CXXFLAGS="--sysroot=${CONDA_BUILD_SYSROOT}"
-export LDFLAGS="--sysroot=${CONDA_BUILD_SYSROOT}"
+conda_build_sysroot="${libc2_17_env}"/"${conda_host}"/sysroot
+export CFLAGS="--sysroot=${conda_build_sysroot}"
+export CXXFLAGS="--sysroot=${conda_build_sysroot}"
+export LDFLAGS="--sysroot=${conda_build_sysroot}"
 
 export CABAL="${libc2_17_env}"/bin/cabal
 export CABAL_DIR="${SRC_DIR}"/.cabal
@@ -109,9 +98,9 @@ run_and_log "stage1_ghc-pkg" "${_hadrian_build[@]}" stage1:exe:ghc-pkg --flavour
 run_and_log "stage1_hsc2hs"  "${_hadrian_build[@]}" stage1:exe:hsc2hs --flavour=quickest --docs=none --progress-info=none
 
 settings_file="${SRC_DIR}"/_build/stage0/lib/settings
-update_link_flags "${settings_file}"
+update_linux_link_flags "${settings_file}"
 run_and_log "stage1_lib" "${_hadrian_build[@]}" stage1:lib:ghc --flavour=quickest --docs=none --progress-info=none
-update_link_flags "${settings_file}"
+update_linux_link_flags "${settings_file}"
 
 # Redifine hadrian to avoid rebuilding via the build script
 _hadrian_bin=$(find "${SRC_DIR}"/hadrian/dist-newstyle/build -name hadrian -type f -executable | head -1)
