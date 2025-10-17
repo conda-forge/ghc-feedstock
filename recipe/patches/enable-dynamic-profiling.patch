@@ -1,2 +1,0 @@
-# This patch has been removed - dynamic profiling libraries are not supported in GHC 9.6.7
-# The -dynamic -prof combination is not available in the upstream source distribution
