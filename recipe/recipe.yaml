@@ -33,8 +33,6 @@ requirements:
       then:
         - cabal ==3.10.3.0
         - ghc-bootstrap ==9.6.7
-    - if: osx
-      then: lld
     - llvm-tools ${{ c_compiler_version }}.*
     - pkg-config
     - python 3.10.*
@@ -91,8 +89,9 @@ requirements:
     - libffi
     - zstd
     - if: unix
-      then:
-        - ncurses
+      then: ncurses
+    - if: osx
+      then: lld
 
 tests:
   - package_contents:
