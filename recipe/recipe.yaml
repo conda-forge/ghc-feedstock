@@ -99,10 +99,10 @@ tests:
         - hsc2hs
         - if: build_platform == target_platform
           then:
-          - haddock
-          - hpc
-          - runghc
-          - runhaskell
+            - haddock
+            - hpc
+            - runghc
+            - runhaskell
         # Disabled: - if: linux and x86_64
         # Disabled:   then:
         # Disabled:     - aarch64-conda-linux-gnu-ghc
@@ -156,6 +156,8 @@ tests:
           then: ${{ stdlib('c') }}
         - if: osx
           then: lld
+        - if: linux-aarch64
+          then: ld_impl_linux-aarch64
 
   - script: |
       printf 'main = putStrLn "Hello conda-forge"\n' > hello.hs
@@ -169,6 +171,8 @@ tests:
           then: ${{ stdlib('c') }}
         - if: osx
           then: lld
+        - if: linux-aarch64
+          then: ld_impl_linux-aarch64
 
   - script:
       - printf 'import System.Posix.Signals\nmain = installHandler sigTERM Default Nothing >> putStrLn "Signal test"\n' > signal_test.hs
@@ -184,6 +188,8 @@ tests:
         - libiconv
         - if: unix
           then: ${{ stdlib('c') }}
+        - if: linux-aarch64
+          then: ld_impl_linux-aarch64
 
   # Disabled: - script:
   # Disabled:     - if: linux and x86_64
