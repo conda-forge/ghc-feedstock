@@ -89,7 +89,6 @@ set_macos_conda_ar_ranlib() {
   fi
 }
 
-
 update_linux_link_flags() {
   local settings_file="$1"
   
