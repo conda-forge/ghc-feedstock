@@ -1,5 +1,5 @@
-binutils_version:               # [linux]
-  - 2.43                        # [linux]
+binutils_version:
+  - 2.44
 
 c_stdlib:                       # [not osx]
   - sysroot                     # [linux]

@@ -25,7 +25,7 @@ requirements:
     - ${{ compiler('c') }}
     - ${{ compiler('cxx') }}
     - ${{ stdlib('c') }}
-    - binutils
+    - binutils >=${{ binutils_version }}
     - if: target_platform != "linux-aarch64" and target_platform != "linux-ppc64le"
       then:
         - cabal ==3.10.3.0
@@ -35,10 +35,6 @@ requirements:
     - python 3.10.*
     - sphinx
     - zstd
-
-    - if: linux
-      then:
-        - patchelf
 
     - if: unix
       then:
@@ -57,7 +53,6 @@ requirements:
         - m2-m4
         - m2-make
 
-    # Cross-compiling
     - if: build_platform != target_platform
       then:
         - gmp
@@ -65,21 +60,11 @@ requirements:
         - libiconv
         - ncurses
 
-    - if: target_platform == "linux-aarch64"
-      then:
-        # Restrict to 2.43 (2.44 does not seem to have ld.gold and makes aarch64 build fail)
-        - binutils_impl_${{ build_platform }} ${{ binutils_version }}.*
-        - binutils_impl_${{ target_platform }} ${{ binutils_version }}.*
-        # - sysroot_${{ build_platform }} ==${{ c_stdlib_version }}
-
-    # Cross-compiler aarch64 on linux-64
-    # Disabled: - if: target_platform == "linux-64"
-    # Disabled:   then:
-    # Disabled:     - ${{ c_stdlib }}_linux-aarch64 >=${{ c_stdlib_version }}
-    # Disabled:     - binutils_impl_linux-aarch64 ${{ binutils_version }}.*
-    # Disabled:     - ${{ c_compiler }}_impl_linux-aarch64 ${{ c_compiler_version }}.*
-    # Disabled:     - ${{ cxx_compiler }}_impl_linux-aarch64 ${{ cxx_compiler_version }}.*
-    # Disabled:     - libgcc-devel_linux-aarch64
+    # - if: target_platform == "linux-aarch64"
+    #   then:
+    #     # Restrict to 2.43 (2.44 does not seem to have ld.gold and makes aarch64 build fail)
+    #     - binutils_impl_${{ build_platform }} ${{ binutils_version }}.*
+    #     - binutils_impl_${{ target_platform }} ${{ binutils_version }}.*
   host:
     - gmp
     - libiconv
@@ -88,7 +73,7 @@ requirements:
     - if: unix
       then:
         - ncurses
-
+    
 tests:
   - package_contents:
       bin:
@@ -103,13 +88,6 @@ tests:
             - hpc
             - runghc
             - runhaskell
-        # Disabled: - if: linux and x86_64
-        # Disabled:   then:
-        # Disabled:     - aarch64-conda-linux-gnu-ghc
-        # Disabled:     - aarch64-conda-linux-gnu-ghc-pkg
-        # Disabled:     - aarch64-conda-linux-gnu-ghci
-        # Disabled:     - aarch64-conda-linux-gnu-hp2ps
-        # Disabled:     - aarch64-conda-linux-gnu-hsc2hs
       files:
         - etc/bash_completion.d/ghc
         - etc/conda/activate.d/ghc_activate.sh
@@ -128,26 +106,14 @@ tests:
           else:
             - lib/ghc-${{ version }}/lib/*-ghc-${{ version }}/**
 
-        # Disabled: - if: linux and x86_64
-        # Disabled:   then:
-        # Disabled:     # It is too complex to change 'aarch64-unknown-ghc'
-        # Disabled:     - lib/aarch64-unknown-ghc-${{ version }}/lib/llvm-passes
-        # Disabled:     - lib/aarch64-unknown-ghc-${{ version }}/lib/llvm-targets
-        # Disabled:     - lib/aarch64-unknown-ghc-${{ version }}/lib/package.conf.d/**
-        # Disabled:     - lib/aarch64-unknown-ghc-${{ version }}/lib/ghc-interp.js
-        # Disabled:     - lib/aarch64-unknown-ghc-${{ version }}/lib/ghc-usage.txt
-        # Disabled:     - lib/aarch64-unknown-ghc-${{ version }}/lib/ghci-usage.txt
-        # Disabled:     - lib/aarch64-unknown-ghc-${{ version }}/lib/post-link.mjs
-        # Disabled:     - lib/aarch64-unknown-ghc-${{ version }}/lib/settings
-        # Disabled:     - lib/aarch64-unknown-ghc-${{ version }}/lib/template-hsc.h
-        # Disabled:     - lib/aarch64-unknown-ghc-${{ version }}/lib/*-ghc-${{ version }}-inplace/*-inplace/*-inplace.a
-
   - script: |
       ghc --version
       printf 'main = putStrLn "Hello conda-forge"\n' > hello.hs
-      ghc hello.hs -o hello && ./hello
-      ghc -prof hello.hs -o hello_p && ./hello_p
-      # ghc -threaded hello.hs -o hello_t && ./hello_t
+      ghc hello.hs && ./hello
+      printf 'main = putStrLn "Hello profiled conda-forge"\n' > hello_p.hs
+      ghc -prof hello_p.hs && ./hello_p
+      printf 'main = putStrLn "Hello threaded conda-forge"\n' > hello_t.hs
+      ghc -threaded hello_t.hs && ./hello_t
     requirements:
       run:
         - ${{ compiler('c') }}
@@ -156,13 +122,12 @@ tests:
           then: ${{ stdlib('c') }}
         - if: osx
           then: lld
-        - if: linux-aarch64
-          then: ld_impl_linux-aarch64
 
   - script: |
       printf 'main = putStrLn "Hello conda-forge"\n' > hello.hs
       ghc -dynamic hello.hs && ./hello
-      # ghc -dynamic -threaded hello.hs -o hello_t && ./hello_t
+      printf 'main = putStrLn "Hello threaded conda-forge"\n' > hello_t.hs
+      ghc -dynamic -threaded hello_t.hs && ./hello_t
     requirements:
       run:
         - ${{ compiler('c') }}
@@ -171,8 +136,6 @@ tests:
           then: ${{ stdlib('c') }}
         - if: osx
           then: lld
-        - if: linux-aarch64
-          then: ld_impl_linux-aarch64
 
   - script:
       - printf 'import System.Posix.Signals\nmain = installHandler sigTERM Default Nothing >> putStrLn "Signal test"\n' > signal_test.hs
@@ -188,30 +151,6 @@ tests:
         - libiconv
         - if: unix
           then: ${{ stdlib('c') }}
-        - if: linux-aarch64
-          then: ld_impl_linux-aarch64
-
-  # Disabled: - script:
-  # Disabled:     - if: linux and x86_64
-  # Disabled:       then: |
-  # Disabled:         echo "Testing aarch64 cross-compiler..."
-  # Disabled:         aarch64-conda-linux-gnu-ghc --version
-  # Disabled:         printf 'main = putStrLn "Hello from aarch64 cross-compiler"\n' > cross_hello.hs
-  # Disabled:         aarch64-conda-linux-gnu-ghc cross_hello.hs
-  # Disabled:         file cross_hello | grep -i aarch64
-  # Disabled:         qemu-execve-aarch64 cross_hello
-  # Disabled:         echo "Cross-compiler test passed: generated aarch64 object file"
-  # Disabled:       else:
-  # Disabled:         echo "Skipping cross-compiler test (not available on this platform)"
-  # Disabled:   requirements:
-  # Disabled:     run:
-  # Disabled:       - ${{ compiler('c') }}
-  # Disabled:       - if: unix
-  # Disabled:         then: ${{ stdlib('c') }}
-  # Disabled:       - if: linux and x86_64
-  # Disabled:         then:
-  # Disabled:         - binutils_linux-aarch64
-  # Disabled:         - qemu-execve-aarch64
 
 
 about:

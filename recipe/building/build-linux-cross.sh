@@ -26,6 +26,7 @@ conda create -y \
     --platform linux-64 \
     -c conda-forge \
     cabal==3.10.3.0 \
+    binutils_impl_linux-64==2.43 \
     ghc-bootstrap=="${PKG_VERSION}" \
     sysroot_linux-64==2.17
 

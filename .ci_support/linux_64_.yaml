@@ -1,5 +1,5 @@
 binutils_version:
-- '2.43'
+- '2.44'
 c_compiler:
 - clang
 c_compiler_version:
