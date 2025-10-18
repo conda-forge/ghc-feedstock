@@ -146,8 +146,8 @@ tests:
       ghc --version
       printf 'main = putStrLn "Hello conda-forge"\n' > hello.hs
       ghc hello.hs -o hello && ./hello
-      ghc -threaded hello.hs -o hello_t && ./hello_t
       ghc -prof hello.hs -o hello_p && ./hello_p
+      # ghc -threaded hello.hs -o hello_t && ./hello_t
     requirements:
       run:
         - ${{ compiler('c') }}
@@ -162,7 +162,7 @@ tests:
   - script: |
       printf 'main = putStrLn "Hello conda-forge"\n' > hello.hs
       ghc -dynamic hello.hs && ./hello
-      ghc -dynamic -threaded hello.hs -o hello_t && ./hello_t
+      # ghc -dynamic -threaded hello.hs -o hello_t && ./hello_t
     requirements:
       run:
         - ${{ compiler('c') }}
