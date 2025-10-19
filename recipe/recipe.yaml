@@ -31,6 +31,7 @@ requirements:
         - cabal ==3.10.3.0
         - ghc-bootstrap ==9.6.7
     - llvm-tools ${{ c_compiler_version }}.*
+    - perl 5.40.2
     - pkg-config
     - python 3.10.*
     - sphinx
@@ -59,12 +60,6 @@ requirements:
         - libffi
         - libiconv
         - ncurses
-
-    # - if: target_platform == "linux-aarch64"
-    #   then:
-    #     # Restrict to 2.43 (2.44 does not seem to have ld.gold and makes aarch64 build fail)
-    #     - binutils_impl_${{ build_platform }} ${{ binutils_version }}.*
-    #     - binutils_impl_${{ target_platform }} ${{ binutils_version }}.*
   host:
     - gmp
     - libiconv
@@ -158,7 +153,6 @@ about:
   license: BSD-3-Clause
   license_file:
     - LICENSE
-    # - license_files
   summary: Glorious Glasgow Haskell Compilation System
   description: |
     GHC is a state-of-the-art, open source, compiler and interactive environment 

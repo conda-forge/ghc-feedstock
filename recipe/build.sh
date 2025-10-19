@@ -30,15 +30,8 @@ mkdir -p "${PREFIX}/etc/conda/activate.d"
 cp "${RECIPE_DIR}/activate.sh" "${PREFIX}/etc/conda/activate.d/${PKG_NAME}_activate.sh"
 
 # Cleanup potential hard-coded build env paths
-if [[ -f "${PREFIX}"/lib/ghc-"${PKG_VERSION}"/lib/settings ]]; then
-  python -c "
-import os, re
-f = '${PREFIX}/lib/ghc-${PKG_VERSION}/lib/settings'
-with open(f, 'r') as file: content = file.read()
-content = re.sub(rf'({re.escape(os.environ.get(\"BUILD_PREFIX\", \"\"))}|{re.escape(os.environ.get(\"PREFIX\", \"\"))})/bin/', '', content)
-with open(f, 'w') as file: file.write(content)
-"
-fi
+settings_file=$(find "${PREFIX}"/lib/ -name settings | head -1)
+perl -pi -e "s#${BUILD_PREFIX}/(bin|lib)##g" "${settings_file}"
 
 # Find all the .dylib libs with the '-ghc<version>' extension and link them to non-'-ghc<version>'
 find "${PREFIX}/lib" -name "*-ghc${PKG_VERSION}.dylib" -o -name "*-ghc${PKG_VERSION}.so" | while read -r lib; do
