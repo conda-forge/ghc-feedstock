@@ -70,7 +70,10 @@ run_and_log "install" "${_hadrian_build[@]}" install --prefix="${PREFIX}" --free
 installed_settings="${PREFIX}"/lib/ghc-"${PKG_VERSION}"/lib/settings
 if [[ -f "${installed_settings}" ]]; then
   echo "Fixing installed settings file with RPATH..."
+  perl -pi -e 's#(-Wl,-L$ENV{BUILD_PREFIX}/lib|-Wl,-L$ENV{PREFIX}/lib|-Wl,-rpath,$ENV{BUILD_PREFIX}/lib|-Wl,-rpath,$ENV{PREFIX}/lib##g' "${settings_file}"
+  perl -pi -e 's#(-L$ENV{BUILD_PREFIX}/lib|-L$ENV{PREFIX}/lib|-rpath $ENV{PREFIX}/lib|-rpath $ENV{BUILD_PREFIX}/lib)##g' "${settings_file}"
   perl -pi -e "s#(C compiler link flags\", \"[^\"]*)#\$1 -Wl,-L\\\$topdir/x86_64-linux-ghc-${PKG_VERSION} -Wl,-rpath,\\\$topdir/x86_64-linux-ghc-${PKG_VERSION} -Wl,-L\\\$topdir/../../../lib -Wl,-rpath,\\\$topdir/../../../lib#" "${installed_settings}"
   perl -pi -e "s#(ld flags\", \")#\$1-L\\\$topdir/x86_64-linux-ghc-${PKG_VERSION} -rpath \\\$topdir/x86_64-linux-ghc-${PKG_VERSION} -L\\\$topdir/../../../lib -rpath \\\$topdir/../../../lib#" "${installed_settings}"
+  cat "${settings_file}"
 fi
 
