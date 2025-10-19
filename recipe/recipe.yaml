@@ -31,7 +31,7 @@ requirements:
         - cabal ==3.10.3.0
         - ghc-bootstrap ==9.6.7
     - llvm-tools ${{ c_compiler_version }}.*
-    - perl 5.40.*
+    - perl 5.32.*
     - pkg-config
     - python 3.10.*
     - sphinx
