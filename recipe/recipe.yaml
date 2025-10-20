@@ -127,7 +127,7 @@ tests:
         - ${{ compiler('c') }}
         - ld_impl_${{ target_platform }} ${{ binutils_version }}
         - libiconv
-        - if: unix
+        - if: linux
           then: ${{ stdlib('c') }}
 
   - script: |
