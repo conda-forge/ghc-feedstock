@@ -110,10 +110,11 @@ tests:
     requirements:
       run:
         - ${{ compiler('c') }}
-        - ld_impl_${{ target_platform }} ${{ binutils_version }}
         - libiconv
         - if: unix
           then: ${{ stdlib('c') }}
+        - if: linux
+          then: ld_impl_${{ target_platform }} ${{ binutils_version }}
         - if: osx
           then: lld
 
@@ -126,10 +127,11 @@ tests:
     requirements:
       run:
         - ${{ compiler('c') }}
-        - ld_impl_${{ target_platform }} ${{ binutils_version }}
         - libiconv
-        - if: linux
+        - if: unix
           then: ${{ stdlib('c') }}
+        - if: linux
+          then: ld_impl_${{ target_platform }} ${{ binutils_version }}
 
   - script: |
       printf 'main = putStrLn "Hello conda-forge"\n' > hello.hs
@@ -139,10 +141,11 @@ tests:
     requirements:
       run:
         - ${{ compiler('c') }}
-        - ld_impl_${{ target_platform }} ${{ binutils_version }}
         - libiconv
         - if: unix
           then: ${{ stdlib('c') }}
+        - if: linux
+          then: ld_impl_${{ target_platform }} ${{ binutils_version }}
         - if: osx
           then: lld
 
@@ -157,10 +160,11 @@ tests:
     requirements:
       run:
         - ${{ compiler('c') }}
-        - ld_impl_${{ target_platform }} ${{ binutils_version }}
         - libiconv
         - if: unix
           then: ${{ stdlib('c') }}
+        - if: linux
+          then: ld_impl_${{ target_platform }} ${{ binutils_version }}
         - if: osx
           then: lld
 
