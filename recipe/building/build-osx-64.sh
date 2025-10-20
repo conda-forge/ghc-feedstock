@@ -27,7 +27,7 @@ export DYLD_LIBRARY_PATH="${BUILD_PREFIX}/lib:${PREFIX}/lib:${DYLD_LIBRARY_PATH:
 export AR=llvm-ar
 
 settings_file=$(find "${BUILD_PREFIX}"/ghc-bootstrap -name settings | head -n 1)
-update_osx_link_flags "${settings_file}"
+update_settings_link_flags "${settings_file}"
 set_macos_conda_ar_ranlib "${settings_file}" "${CONDA_TOOLCHAIN_BUILD}"
 
 export CABAL="${BUILD_PREFIX}/bin/cabal"
@@ -88,34 +88,20 @@ perl -pi -e "s#(settings-ld-flags.*?= )#\$1-L${PREFIX}/lib -rpath ${PREFIX}/lib#
 run_and_log "stage1_exe" "${_hadrian_build[@]}" stage1:exe:ghc-bin --flavour=quickest --docs=none --progress-info=none
 
 settings_file="${SRC_DIR}"/_build/stage0/lib/settings
-perl -pi -e 's#(C compiler flags", "[^"]*)#$1 -fno-lto#' "${settings_file}"
-perl -pi -e 's#(C\+\+ compiler flags", "[^"]*)#$1 -fno-lto#' "${settings_file}"
-perl -pi -e 's#(C compiler link flags", "[^"]*)#$1 -v -fuse-ld=lld -fno-lto -fno-use-linker-plugin#' "${settings_file}"
-update_osx_link_flags "${settings_file}"
+update_settings_link_flags "${settings_file}"
 set_macos_conda_ar_ranlib "${settings_file}" "${CONDA_TOOLCHAIN_BUILD}"
 
 run_and_log "stage1_lib" "${_hadrian_build[@]}" stage1:lib:ghc --flavour=quickest --docs=none --progress-info=none
-
-perl -pi -e 's#(C compiler flags", "[^"]*)#$1 -Wno-strict-prototypes#' "${settings_file}"
-perl -pi -e 's#(C\+\+ compiler flags", "[^"]*)#$1 -Wno-strict-prototypes#' "${settings_file}"
-update_osx_link_flags "${settings_file}"
+update_settings_link_flags "${settings_file}"
 set_macos_conda_ar_ranlib "${settings_file}" "${CONDA_TOOLCHAIN_BUILD}"
 
 run_and_log "stage2_exe" "${_hadrian_build[@]}" stage2:exe:ghc-bin --flavour=release --freeze1 --docs=none --progress-info=none
 
-settings_file="${SRC_DIR}"/_build/stage1/lib/settings
-perl -pi -e 's#(C compiler flags", "[^"]*)#$1 -Wno-strict-prototypes -fno-lto#' "${settings_file}"
-perl -pi -e 's#(C\+\+ compiler flags", "[^"]*)#$1 -Wno-strict-prototypes -fno-lto#' "${settings_file}"
-perl -pi -e 's#(C compiler link flags", "[^"]*)#$1 -v -fuse-ld=lld -fno-lto -fno-use-linker-plugin#' "${settings_file}"
-update_osx_link_flags "${settings_file}"
+update_settings_link_flags "${SRC_DIR}"/_build/stage1/lib/settings
 
 run_and_log "stage2_lib" "${_hadrian_build[@]}" stage2:lib:ghc --flavour=release --freeze1 --docs=none --progress-info=none
 run_and_log "install" "${_hadrian_build[@]}" install --prefix="${PREFIX}" --flavour=release --freeze1 --freeze2 --docs=none --progress-info=none
 
-settings_file=$(find "${PREFIX}" -name settings | head -n 1)
-perl -i -pe "s#(C compiler flags\", \")([^\"]*)#\1\2 -fno-lto#" "${settings_file}"
-perl -i -pe "s#(C\\+\\+ compiler flags\", \")([^\"]*)#\1\2 -fno-lto#" "${settings_file}"
-perl -i -pe "s#(C compiler link flags\", \")([^\"]*)#\1\2 -v -fuse-ld=lld -fno-lto -fno-use-linker-plugin -Wl,-L\\\$topdir/../../../lib -Wl,-rpath,\\\$topdir/../../../lib -liconv -Wl,-L\\\$topdir/../lib -Wl,-rpath,\\\$topdir/../lib -liconv_compat#" "${settings_file}"
-perl -i -pe "s#\"(llc|opt|clang)\"#\"x86_64-apple-darwin13.4.0-\1\"#" "${settings_file}"
+update_installed_settings
 set_macos_conda_ar_ranlib "${settings_file}" "${CONDA_TOOLCHAIN_BUILD}"
 cat "${settings_file}"
