@@ -104,7 +104,8 @@ update_settings_link_flags() {
     # Add -fno-lto DURING build to prevent ABI mismatches and runtime crashes
     perl -pi -e 's#(C compiler flags", "[^"]*)#$1 -fno-lto#' "${settings_file}"
     perl -pi -e 's#(C\+\+ compiler flags", "[^"]*)#$1 -fno-lto#' "${settings_file}"
-    perl -pi -e "s#(C compiler link flags\", \"[^\"]*)#\$1 -v -fuse-ld=lld -fno-lto -fno-use-linker-plugin -Wl,-L${PREFIX}/lib -Wl,-liconv -Wl,-L${PREFIX}/lib/ghc-${PKG_VERSION}/lib -Wl,-liconv_compat#" "${settings_file}"
+    # Don't add -fuse-ld=lld during build (bootstrap compiler doesn't support it)
+    perl -pi -e "s#(C compiler link flags\", \"[^\"]*)#\$1 -fno-lto -Wl,-L${PREFIX}/lib -Wl,-liconv -Wl,-L${PREFIX}/lib/ghc-${PKG_VERSION}/lib -Wl,-liconv_compat#" "${settings_file}"
     perl -pi -e "s#(ld flags\", \"[^\"]*)#\$1 -L${PREFIX}/lib -liconv -L${PREFIX}/lib/ghc-${PKG_VERSION}/lib -liconv_compat#" "${settings_file}"
   fi
   
