@@ -96,7 +96,6 @@ update_settings_link_flags "${settings_file}"
 set_macos_conda_ar_ranlib "${settings_file}" "${CONDA_TOOLCHAIN_BUILD}"
 
 run_and_log "stage2_exe" "${_hadrian_build[@]}" stage2:exe:ghc-bin --flavour=release --freeze1 --docs=none --progress-info=none
-
 update_settings_link_flags "${SRC_DIR}"/_build/stage1/lib/settings
 
 run_and_log "stage2_lib" "${_hadrian_build[@]}" stage2:lib:ghc --flavour=release --freeze1 --docs=none --progress-info=none
