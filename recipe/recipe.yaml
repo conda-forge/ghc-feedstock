@@ -11,6 +11,7 @@ source:
     patches:
       # - patches/add-freeze-libs.patch
       - patches/skip-bindist-recache-crosscompile.patch
+      - patches/remove-profiling-dynamic.patch  # Remove p_dyn libraries to speed up macOS builds
       - if: osx and arm64
         then:
           - patches/patch-rpath-macos.patch
