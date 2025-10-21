@@ -123,7 +123,7 @@ tests:
         then:
           - printf 'main = putStrLn "Hello profiled conda-forge"\n' > hello_p.hs
           - ls ${PREFIX}/bin/*ld
-          - ghc -prof hello_p.hs && ./hello_p
+          - ghc -v -prof hello_p.hs && ./hello_p
         else: echo "Profiling fails on osx"
     requirements:
       run:
