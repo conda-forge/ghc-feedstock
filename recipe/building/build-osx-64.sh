@@ -70,12 +70,7 @@ export ac_cv_path_LD="${LD}"
 export ac_cv_path_RANLIB="${RANLIB}"
 export DEVELOPER_DIR=""
 
-
-# GHC selection of tools seems to fail to use conda-forge toolchain tools
-#rm -f /Users/runner/miniforge3/bin/{ar,ranlib,ld}
-#ln -sf "${BUILD_PREFIX}"/bin/"${CONDA_TOOLCHAIN_BUILD}"-ld "${BUILD_PREFIX}"/bin/ld
-
-run_and_log "configure" bash configure "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}"
+run_and_log "configure" ./configure "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}"
 settings_file="${SRC_DIR}"/hadrian/cfg/system.config
 perl -pi -e "s#${BUILD_PREFIX}/bin/##" "${settings_file}"
 perl -pi -e 's#(=\s+)(ar)$#$1llvm-$2#' "${settings_file}"
