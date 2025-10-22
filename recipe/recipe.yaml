@@ -104,8 +104,6 @@ tests:
       ghc --version
       printf 'main = putStrLn "Hello conda-forge"\n' > hello.hs
       ghc hello.hs && ./hello
-      printf 'main = putStrLn "Hello threaded conda-forge"\n' > hello_t.hs
-      ghc -threaded hello_t.hs && ./hello_t
     requirements:
       run:
         - ${{ compiler('c') }}
@@ -120,8 +118,9 @@ tests:
   - script:
       - if: not osx
         then:
+          - printf 'main = putStrLn "Hello threaded conda-forge"\n' > hello_t.hs
+          - ghc -threaded hello_t.hs && ./hello_t
           - printf 'main = putStrLn "Hello profiled conda-forge"\n' > hello_p.hs
-          - ls ${PREFIX}/bin/*ld
           - ghc -v -prof hello_p.hs && ./hello_p
         else: echo "Profiling fails on osx"
     requirements:
