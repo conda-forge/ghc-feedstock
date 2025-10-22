@@ -72,8 +72,8 @@ export DEVELOPER_DIR=""
 
 
 # GHC selection of tools seems to fail to use conda-forge toolchain tools
-rm -f /Users/runner/miniforge3/bin/{ar,ranlib,ld}
-ln -sf "${BUILD_PREFIX}"/bin/"${CONDA_TOOLCHAIN_BUILD}"-ld "${BUILD_PREFIX}"/bin/ld
+#rm -f /Users/runner/miniforge3/bin/{ar,ranlib,ld}
+#ln -sf "${BUILD_PREFIX}"/bin/"${CONDA_TOOLCHAIN_BUILD}"-ld "${BUILD_PREFIX}"/bin/ld
 
 run_and_log "configure" bash configure "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}"
 settings_file="${SRC_DIR}"/hadrian/cfg/system.config
@@ -85,13 +85,13 @@ perl -pi -e "s#(conf-ld-linker-args-stage[12].*?= )#\$1-L${PREFIX}/lib -rpath ${
 perl -pi -e "s#(settings-c-compiler-link-flags.*?= )#\$1-Wl,-L${PREFIX}/lib -Wl,-rpath,${PREFIX}/lib#" "${settings_file}"
 perl -pi -e "s#(settings-ld-flags.*?= )#\$1-L${PREFIX}/lib -rpath ${PREFIX}/lib#" "${settings_file}"
 
-run_and_log "stage1_exe" "${_hadrian_build[@]}" stage1:exe:ghc-bin --flavour=quickest --docs=none --progress-info=none
+run_and_log "stage1_exe" "${_hadrian_build[@]}" stage1:exe:ghc-bin --flavour=release --docs=none --progress-info=none
 
 settings_file="${SRC_DIR}"/_build/stage0/lib/settings
 update_settings_link_flags "${settings_file}"
 set_macos_conda_ar_ranlib "${settings_file}" "${CONDA_TOOLCHAIN_BUILD}"
 
-run_and_log "stage1_lib" "${_hadrian_build[@]}" stage1:lib:ghc --flavour=quickest --docs=none --progress-info=none
+run_and_log "stage1_lib" "${_hadrian_build[@]}" stage1:lib:ghc --flavour=release --docs=none --progress-info=none
 update_settings_link_flags "${settings_file}"
 set_macos_conda_ar_ranlib "${settings_file}" "${CONDA_TOOLCHAIN_BUILD}"
 

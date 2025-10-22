@@ -10,8 +10,6 @@ source:
     sha256: d053bf6ce1d588a75cfe8c9316269486e9d8fb89dcdf6fd92836fa2e3df61305
     patches:
       - patches/skip-bindist-recache-crosscompile.patch
-      - if: osx
-        then: patches/remove-profiling-dynamic.patch  # Remove p_dyn libraries to speed up macOS builds
       - if: osx and arm64
         then:
           - patches/patch-rpath-macos.patch
