@@ -65,58 +65,6 @@ run_and_log() {
   return $exit_code
 }
 
-# Function to calculate relative path from one directory to another
-calculate_relative_path() {
-    local from_path="$1"
-    local to_path="$2"
-
-    # Convert to absolute paths
-    from_path=$(realpath "$from_path")
-    to_path=$(realpath "$to_path")
-
-    # Use Python to calculate relative path (most reliable)
-    python3 -c "
-import os
-print(os.path.relpath('$to_path', '$from_path'))
-"
-}
-
-# Function to convert relative path to $ORIGIN-based rpath
-calculate_origin_rpath() {
-    local binary_path="$1"
-    local target_lib_path="$2"
-
-    # Get directory containing the binary
-    local binary_dir=$(dirname "$binary_path")
-
-    # Calculate relative path from binary dir to target lib
-    local rel_path=$(calculate_relative_path "$binary_dir" "$target_lib_path")
-
-    # Convert to $ORIGIN syntax
-    echo "\$ORIGIN/$rel_path"
-}
-
-# Function to set the system ar/ranlib for OSX
-set_macos_system_ar_ranlib() {
-  local settings_file="$1"
-
-  if [[ -f "$settings_file" ]]; then
-    if [[ "$(basename "${settings_file}")" == "default."* ]]; then
-      perl -i -pe "s#(arMkArchive\s*=\s*).*#\$1Program {prgPath = \"/usr/bin/ar\", prgFlags = [\"qcls\"]}#g" "${settings_file}"
-      perl -i -pe 's#((arIsGnu|arSupportsAtFile)\s*=\s*).*#$1False#g' "${settings_file}"
-      perl -i -pe 's#(arNeedsRanlib\s*=\s*).*#$1True#g' "${settings_file}"
-      perl -i -pe "s#(tgtRanlib\s*=\s*).*#\$1Just (Ranlib {ranlibProgram = Program {prgPath = \"/usr/bin/ranlib\", prgFlags = []}})#g" "${settings_file}"
-    else
-      perl -i -pe "s#(\"ar command\", \")[^\"]*#\$1/usr/bin/ar#g" "${settings_file}"
-      perl -i -pe "s#(\"ar flags\", \")[^\"]*#\$1qcls#g" "${settings_file}"
-      perl -i -pe "s#(\"ranlib command\", \")[^\"]*#\$1/usr/bin/ranlib#g" "${settings_file}"
-    fi
-  else
-    echo "Error: $settings_file not found!"
-    exit 1
-  fi
-}
-
 # Function to set the conda ar/ranlib for OSX
 set_macos_conda_ar_ranlib() {
   local settings_file="$1"
@@ -139,4 +87,64 @@ set_macos_conda_ar_ranlib() {
     echo "Error: $settings_file not found!"
     exit 1
   fi
+}
+
+update_settings_link_flags() {
+  local settings_file="$1"
+  local toolchain="${2:-$CONDA_TOOLCHAIN_HOST}"
+  
+  if [[ "${target_platform}" == "linux-"* ]]; then
+    perl -pi -e 's#(C compiler flags", "[^"]*)#$1 -Wno-strict-prototypes#' "${settings_file}"
+    perl -pi -e 's#(C\+\+ compiler flags", "[^"]*)#$1 -Wno-strict-prototypes#' "${settings_file}"
+
+    perl -pi -e "s#(C compiler link flags\", \"[^\"]*)#\$1 -Wl,-L${BUILD_PREFIX}/lib -Wl,-L${PREFIX}/lib -Wl,-rpath,${BUILD_PREFIX}/lib -Wl,-rpath,${PREFIX}/lib#" "${settings_file}"
+    perl -pi -e "s#(ld flags\", \"[^\"]*)#\$1 -L${BUILD_PREFIX}/lib -L${PREFIX}/lib -rpath ${BUILD_PREFIX}/lib -rpath ${PREFIX}/lib#" "${settings_file}"
+
+  elif [[ "${target_platform}" == "osx-"* ]]; then
+    # Add -fno-lto DURING build to prevent ABI mismatches and runtime crashes
+    perl -pi -e 's#(C compiler flags", "[^"]*)#$1 -fno-lto#' "${settings_file}"
+    perl -pi -e 's#(C\+\+ compiler flags", "[^"]*)#$1 -fno-lto#' "${settings_file}"
+    # Don't add -fuse-ld=lld during build (bootstrap compiler doesn't support it)
+    perl -pi -e "s#(C compiler link flags\", \"[^\"]*)#\$1 -fno-lto -Wl,-L${PREFIX}/lib -Wl,-liconv -Wl,-L${PREFIX}/lib/ghc-${PKG_VERSION}/lib -Wl,-liconv_compat#" "${settings_file}"
+    perl -pi -e "s#(ld flags\", \"[^\"]*)#\$1 -L${PREFIX}/lib -liconv -L${PREFIX}/lib/ghc-${PKG_VERSION}/lib -liconv_compat#" "${settings_file}"
+  fi
+  
+  perl -pi -e "s#\"[/\w]*?(ar|clang|clang\+\+|ld|ranlib|llc|objdump|opt)\"#\"${toolchain}-\$1\"#" "${settings_file}"
+}
+
+update_installed_settings() {
+  local toolchain="${1:-$CONDA_TOOLCHAIN_HOST}"
+  
+  local settings_file=$(find "${PREFIX}/lib" -name settings | head -n 1)
+  if [[ "${target_platform}" == "linux-"* ]]; then
+    perl -pi -e "s#(C compiler link flags\", \"[^\"]*)#\$1 -Wl,-L\\\$topdir/x86_64-linux-ghc-${PKG_VERSION} -Wl,-rpath,\\\$topdir/x86_64-linux-ghc-${PKG_VERSION} -Wl,-L\\\$topdir/../../../lib -Wl,-rpath,\\\$topdir/../../../lib#" "${settings_file}"
+    perl -pi -e "s#(ld flags\", \")#\$1-L\\\$topdir/x86_64-linux-ghc-${PKG_VERSION} -rpath \\\$topdir/x86_64-linux-ghc-${PKG_VERSION} -L\\\$topdir/../../../lib -rpath \\\$topdir/../../../lib#" "${settings_file}"
+
+  elif [[ "${target_platform}" == "osx-"* ]]; then
+    perl -i -pe "s#(C compiler flags\", \")([^\"]*)#\1\2 -fno-lto#" "${settings_file}"
+    perl -i -pe "s#(C\\+\\+ compiler flags\", \")([^\"]*)#\1\2 -fno-lto#" "${settings_file}"
+    perl -i -pe "s#(C compiler link flags\", \")([^\"]*)#\1\2 -v -fuse-ld=lld -fno-lto -fno-use-linker-plugin -Wl,-L\\\$topdir/../../../lib -Wl,-rpath,\\\$topdir/../../../lib -liconv -Wl,-L\\\$topdir/../lib -Wl,-rpath,\\\$topdir/../lib -liconv_compat#" "${settings_file}"
+  fi
+  
+  perl -pi -e "s#(-Wl,-L${BUILD_PREFIX}/lib|-Wl,-L${PREFIX}/lib|-Wl,-rpath,${BUILD_PREFIX}/lib|-Wl,-rpath,${PREFIX}/lib)##g" "${settings_file}"
+  perl -pi -e "s#(-L${BUILD_PREFIX}/lib|-L${PREFIX}/lib|-rpath ${PREFIX}/lib|-rpath ${BUILD_PREFIX}/lib)##g" "${settings_file}"
+
+  perl -pi -e "s#\"[/\w]*?(ar|clang|clang\+\+|ld|ranlib|llc|objdump|opt)\"#\"${toolchain}-\$1\"#" "${settings_file}"
+}
+
+update_linux_link_flags() {
+  local settings_file="$1"
+  
+  perl -pi -e 's#(C compiler flags", "[^"]*)#$1 -Wno-strict-prototypes#' "${settings_file}"
+  perl -pi -e 's#(C\+\+ compiler flags", "[^"]*)#$1 -Wno-strict-prototypes#' "${settings_file}"
+  perl -pi -e "s#(C compiler link flags\", \"[^\"]*)#\$1 -Wl,-L${BUILD_PREFIX}/lib -Wl,-L${PREFIX}/lib -Wl,-rpath,${BUILD_PREFIX}/lib -Wl,-rpath,${PREFIX}/lib#" "${settings_file}"
+  perl -pi -e "s#(ld flags\", \"[^\"]*)#\$1 -L${BUILD_PREFIX}/lib -L${PREFIX}/lib -rpath ${BUILD_PREFIX}/lib -rpath ${PREFIX}/lib#" "${settings_file}"
+  perl -pi -e "s#\"[/\w]*?(ar|clang|clang\+\+|ld|ranlib|llc|objdump|opt)\"#\"${CONDA_TOOLCHAIN_HOST}-\$1\"#" "${settings_file}"
+}
+
+update_osx_link_flags() {
+  local settings_file="$1"
+  
+  perl -pi -e "s#(C compiler link flags\", \"[^\"]*)#\$1 -Wl,-L${PREFIX}/lib -Wl,-liconv -Wl,-L${PREFIX}/lib/ghc-${PKG_VERSION}/lib -Wl,-liconv_compat#" "${settings_file}"
+  perl -pi -e "s#(ld flags\", \"[^\"]*)#\$1 -L${PREFIX}/lib -liconv -L${PREFIX}/lib/ghc-${PKG_VERSION}/lib -liconv_compat#" "${settings_file}"
 }

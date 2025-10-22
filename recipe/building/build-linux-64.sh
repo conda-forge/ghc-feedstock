@@ -6,8 +6,9 @@ _log_index=0
 source "${RECIPE_DIR}"/building/common.sh
 
 export CABAL="${BUILD_PREFIX}/bin/cabal"
+export CABAL_DIR="${SRC_DIR}/.cabal"
 
-# Update cabal package database
+mkdir -p "${CABAL_DIR}" && "${CABAL}" user-config init
 run_and_log "cabal-update" "${CABAL}" v2-update
 
 _hadrian_build=("${SRC_DIR}"/hadrian/build "-j${CPU_COUNT}")
@@ -32,11 +33,26 @@ CONFIGURE_ARGS=(
 )
 run_and_log "ghc-configure" bash configure "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}"
 
-run_and_log "stage1_exe" "${_hadrian_build[@]}" stage1:exe:ghc-bin --flavour=quickest
-run_and_log "stage1_lib" "${_hadrian_build[@]}" stage1:lib:ghc --flavour=quickest
+export CABFLAGS=(--enable-shared --enable-executable-dynamic -j)
+for pkg in hadrian; do
+  (cd  "${SRC_DIR}"/hadrian/ && ${CABAL} v2-build "${CABFLAGS[@]}" --ghc-options="-dynamic -shared -fPIC -optl-dynamic -optl-Wl,-rpath,${PREFIX}/lib -optl-L${PREFIX}/lib -optl-liconv -optl-lffi -optl-lgmp -optl-ltinfo -optl-ltinfow" "${pkg}")
+done
 
-# $topdir expansion will not work for _build/bindist/... binaries, use LD_PRELOAD hack
-export LD_PRELOAD="${PREFIX}"/lib/libiconv.so.2
-perl -pi -e 's#(C compiler link flags", "[^"]*)#$1 -Wl,-L\$topdir/../../../../lib -Wl,-rpath,\$topdir/../../../../lib#' "${SRC_DIR}"/_build/stage0/lib/settings
-perl -pi -e 's#(ld flags", "[^"]*)#$1 -L\$topdir/../../../../lib -rpath \$topdir/../../../../lib#' "${SRC_DIR}"/_build/stage0/lib/settings
-run_and_log "install" "${_hadrian_build[@]}" install --prefix="${PREFIX}" --flavour=quickest --docs=none
+run_and_log "stage1_exe" "${_hadrian_build[@]}" stage1:exe:ghc-bin --flavour=release
+update_settings_link_flags "${SRC_DIR}"/_build/stage0/lib/settings
+
+export LIBRARY_PATH="${BUILD_PREFIX}/lib:${PREFIX}/lib${LIBRARY_PATH:+:}${LIBRARY_PATH:-}"
+export LD_LIBRARY_PATH="${BUILD_PREFIX}/lib:${PREFIX}/lib${LD_LIBRARY_PATH:+:}${LD_LIBRARY_PATH:-}"
+
+run_and_log "stage1_lib" "${_hadrian_build[@]}" stage1:lib:ghc --flavour=release
+update_settings_link_flags "${SRC_DIR}"/_build/stage0/lib/settings
+
+run_and_log "stage2_exe" "${_hadrian_build[@]}" stage2:exe:ghc-bin --flavour=release --freeze1
+update_settings_link_flags "${SRC_DIR}"/_build/stage1/lib/settings
+
+run_and_log "stage2_lib" "${_hadrian_build[@]}" stage2:lib:ghc --flavour=release --freeze1
+run_and_log "install" "${_hadrian_build[@]}" install --prefix="${PREFIX}" --freeze1 --freeze2 --flavour=release --docs=none
+
+settings_file=$(find "${PREFIX}"/lib/ -name settings | head -1)
+update_installed_settings
+cat "${settings_file}"
