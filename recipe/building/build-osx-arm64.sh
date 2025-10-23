@@ -15,10 +15,13 @@ ghc_target="${host_alias/darwin*/darwin}"
 
 _build_alias=${build_alias}
 _host_alias=${host_alias}
-unset build_alias
-unset host_alias
-unset HOST
-unset BUILD
+
+export target_alias="${host_alias}"
+
+# unset build_alias
+# unset host_alias
+# unset HOST
+# unset BUILD
 
 # Create environment and get library paths
 echo "Creating environment for cross-compilation libraries..."
@@ -70,7 +73,7 @@ CONFIGURE_ARGS=(
   CC_STAGE0="${CC_FOR_BUILD}"
 )
 
-./configure -v "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}" || { cat config.log; exit 1; }
+run_and_log "configure" ./configure -v "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}" || { cat config.log; exit 1; }
 
 # Fix host configuration to use x86_64, target cross
 settings_file="${SRC_DIR}"/hadrian/cfg/system.config
