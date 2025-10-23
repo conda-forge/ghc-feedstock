@@ -17,6 +17,8 @@ _build_alias=${build_alias}
 _host_alias=${host_alias}
 unset build_alias
 unset host_alias
+unset HOST
+unset BUILD
 
 # Create environment and get library paths
 echo "Creating environment for cross-compilation libraries..."
@@ -46,7 +48,6 @@ SYSTEM_CONFIG=(
 )
 
 CONFIGURE_ARGS=(
-  --disable-numa
   --with-system-libffi=yes
   --with-curses-includes="${PREFIX}"/include
   --with-curses-libraries="${PREFIX}"/lib
@@ -66,9 +67,10 @@ CONFIGURE_ARGS=(
   OBJDUMP="${conda_target}"-objdump
   RANLIB="${conda_target}"-ranlib
   LDFLAGS="-L${PREFIX}/lib ${LDFLAGS:-}"
+  CC_STAGE0="${CC_FOR_BUILD}"
 )
 
-./configure "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}"
+./configure -v "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}" || { cat config.log }
 
 # Fix host configuration to use x86_64, target cross
 settings_file="${SRC_DIR}"/hadrian/cfg/system.config
