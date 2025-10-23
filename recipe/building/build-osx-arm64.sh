@@ -7,17 +7,16 @@ source "${RECIPE_DIR}"/building/common.sh
 
 conda_host="${build_alias}"
 conda_target="${host_alias}"
-host_arch="${build_alias%%-*}"
-target_arch="${host_alias%%-*}"
 
-ghc_host="${build_alias/darwin*/darwin}"
-ghc_target="${host_alias/darwin*/darwin}"
+host_arch="${conda_host%%-*}"
+target_arch="${conda_target%%-*}"
 
-_build_alias=${build_alias}
-_host_alias=${host_alias}
+ghc_host="${conda_host/darwin*/darwin}"
+ghc_target="${conda_target/darwin*/darwin}"
 
-export host_alias="${build_alias}"
-export target_alias="${host_alias}"
+export build_alias="${conda_host}"
+export host_alias="${conda_host}"
+export target_alias="${conda_target}"
 
 # Create environment and get library paths
 echo "Creating environment for cross-compilation libraries..."
