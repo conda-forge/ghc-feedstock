@@ -68,7 +68,7 @@ CONFIGURE_ARGS=(
   LDFLAGS="-L${PREFIX}/lib ${LDFLAGS:-}"
 )
 
-run_and_log "ghc-configure" ./configure "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}"
+./configure "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}"
 
 # Fix host configuration to use x86_64, target cross
 settings_file="${SRC_DIR}"/hadrian/cfg/system.config
@@ -79,14 +79,14 @@ perl -pi -e "s#(conf-ld-linker-args-stage[12].*?= )#\$1-L${PREFIX}/lib -rpath ${
 perl -pi -e "s#(settings-c-compiler-link-flags.*?= )#\$1-Wl,-L${PREFIX}/lib -Wl,-rpath,${PREFIX}/lib#" "${settings_file}"
 perl -pi -e "s#(settings-ld-flags.*?= )#\$1-L${PREFIX}/lib -rpath ${PREFIX}/lib#" "${settings_file}"
 
+cat "${settings_file}"
+
 _hadrian_build=("${SRC_DIR}"/hadrian/build "-j${CPU_COUNT}")
 
 # ---| Stage 1: Cross-compiler |---
 
 # Bug in ghc-bootstrap for libiconv2
-if [[ "${target_platform}" == osx-arm64 ]]; then
-  perl -pi -e "s#[^ ]+/usr/lib/libiconv2.tbd##" "${osx_64_env}"/ghc-bootstrap/lib/ghc-"${PKG_VERSION}"/lib/settings
-fi 
+perl -pi -e "s#[^ ]+/usr/lib/libiconv2.tbd##" "${osx_64_env}"/ghc-bootstrap/lib/ghc-"${PKG_VERSION}"/lib/settings
 
 # This will not generate ghc-toolchain-bin or the .ghc-toolchain (possibly due to x-platform)
 run_and_log "ghc-configure" ./configure "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}"
