@@ -18,10 +18,10 @@ _host_alias=${host_alias}
 
 export target_alias="${host_alias}"
 
-# unset build_alias
-# unset host_alias
-# unset HOST
-# unset BUILD
+unset build_alias
+unset host_alias
+unset HOST
+unset BUILD
 
 # Create environment and get library paths
 echo "Creating environment for cross-compilation libraries..."
@@ -46,7 +46,7 @@ run_and_log "cabal-update" "${CABAL}" v2-update
 
 # Configure and build GHC
 SYSTEM_CONFIG=(
-  --target="${ghc_target}"
+  --target="${target_alias}"
   --prefix="${PREFIX}"
 )
 
