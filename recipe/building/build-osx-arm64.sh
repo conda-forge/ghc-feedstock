@@ -10,8 +10,8 @@ conda_target="${host_alias}"
 host_arch="${build_alias%%-*}"
 target_arch="${host_alias%%-*}"
 
-ghc_host="${build_alias##*darwin}"
-ghc_target="${host_alias##*darwin}"
+ghc_host="${build_alias/darwin*/darwin}"
+ghc_target="${host_alias/darwin*/darwin}"
 
 _build_alias=${build_alias}
 _host_alias=${host_alias}
