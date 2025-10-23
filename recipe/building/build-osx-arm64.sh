@@ -70,7 +70,7 @@ CONFIGURE_ARGS=(
   CC_STAGE0="${CC_FOR_BUILD}"
 )
 
-./configure -v "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}" || { cat config.log }
+./configure -v "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}" || { cat config.log; exit 1; }
 
 # Fix host configuration to use x86_64, target cross
 settings_file="${SRC_DIR}"/hadrian/cfg/system.config
