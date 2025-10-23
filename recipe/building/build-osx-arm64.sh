@@ -5,6 +5,11 @@ _log_index=0
 
 source "${RECIPE_DIR}"/building/common.sh
 
+conda_host="${build_alias}"
+conda_target="${host_alias}"
+host_arch="${build_alias%%-*}"
+target_arch="${host_alias%%-*}"
+
 ghc_host="${build_alias##*darwin}"
 ghc_target="${host_alias##*darwin}"
 
