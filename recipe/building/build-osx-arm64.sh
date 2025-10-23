@@ -16,12 +16,8 @@ ghc_target="${host_alias/darwin*/darwin}"
 _build_alias=${build_alias}
 _host_alias=${host_alias}
 
+export host_alias="${build_alias}"
 export target_alias="${host_alias}"
-
-unset build_alias
-unset host_alias
-unset HOST
-unset BUILD
 
 # Create environment and get library paths
 echo "Creating environment for cross-compilation libraries..."
