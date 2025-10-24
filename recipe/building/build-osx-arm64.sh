@@ -101,10 +101,10 @@ perl -pi -e "s#[^ ]+/usr/lib/libiconv2.tbd##" "${osx_64_env}"/ghc-bootstrap/lib/
 run_and_log "ghc-configure" ./configure "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}"
 
 # run_and_log "stage1_ghc-bin" "${_hadrian_build[@]}" stage1:exe:ghc-bin -V --flavour=release --progress-info=unicorn
-export CC="${BUILD_PREFIX}/bin/${conda_target}-clang"
-export CXX="${BUILD_PREFIX}/bin/${conda_target}-clang++"
-export AS="${BUILD_PREFIX}/bin/${conda_target}-as"
-export LD="${BUILD_PREFIX}/bin/${conda_target}-ld"
+export CC="${BUILD_PREFIX}/bin/${conda_host}-clang"
+export CXX="${BUILD_PREFIX}/bin/${conda_host}-clang++"
+export AS="${BUILD_PREFIX}/bin/${conda_host}-as"
+export LD="${BUILD_PREFIX}/bin/${conda_host}-ld"
 export CABFLAGS=(-v --enable-shared --enable-executable-dynamic -j)
 (cd "${SRC_DIR}"/hadrian && "${CABAL}" v2-build -v3 --with-gcc="${CC_FOR_BUILD}" clock)
 "${_hadrian_build[@]}" stage1:exe:ghc-bin -V --flavour=release --progress-info=unicorn
