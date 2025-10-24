@@ -41,7 +41,7 @@ mkdir -p "${CABAL_DIR}" && "${CABAL}" user-config init
 run_and_log "cabal-update" "${CABAL}" v2-update
 
 # Configure and build GHC
-$(find "${BUILD_PREFIX}" -name llvm-ar)
+echo $(find "${BUILD_PREFIX}" -name llvm-ar)
 AR=$(find "${BUILD_PREFIX}" -name llvm-ar | head -1)
 export AR
 
