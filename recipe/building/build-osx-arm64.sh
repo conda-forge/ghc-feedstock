@@ -56,10 +56,10 @@ CONFIGURE_ARGS=(
   --with-iconv-includes="${PREFIX}"/include
   --with-iconv-libraries="${PREFIX}"/lib
   ac_cv_lib_ffi_ffi_call=yes
-  ac_cv_prog_CC="${BUILD_PREFIX}/bin/${conda_target}-clang"                                                                               \u2502
-  ac_cv_prog_CXX="${BUILD_PREFIX}/bin/${conda_target}-clang++"                                                                            \u2502
-  ac_cv_path_CC="${BUILD_PREFIX}/bin/${conda_target}-clang"                                                                               \u2502
-  ac_cv_path_CXX="${BUILD_PREFIX}/bin/${conda_target}-clang++"                                                                            \u2502
+  ac_cv_prog_CC="${BUILD_PREFIX}/bin/${conda_target}-clang"
+  ac_cv_prog_CXX="${BUILD_PREFIX}/bin/${conda_target}-clang++"
+  ac_cv_path_CC="${BUILD_PREFIX}/bin/${conda_target}-clang"
+  ac_cv_path_CXX="${BUILD_PREFIX}/bin/${conda_target}-clang++"
   AR=llvm-ar
   # AS="${conda_target}"-as
   # CC="${conda_target}"-clang
@@ -96,10 +96,10 @@ perl -pi -e "s#[^ ]+/usr/lib/libiconv2.tbd##" "${osx_64_env}"/ghc-bootstrap/lib/
 run_and_log "ghc-configure" ./configure "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}"
 
 # run_and_log "stage1_ghc-bin" "${_hadrian_build[@]}" stage1:exe:ghc-bin -V --flavour=release --progress-info=unicorn
-export CC="${BUILD_PREFIX}/bin/${conda_target}-clang"                                                                               \u2502
-export CXX="${BUILD_PREFIX}/bin/${conda_target}-clang++"                                                                            \u2502
+export CC="${BUILD_PREFIX}/bin/${conda_target}-clang"
+export CXX="${BUILD_PREFIX}/bin/${conda_target}-clang++"
 export CABFLAGS=(-v --enable-shared --enable-executable-dynamic -j)
-(cd "${SRC_DIR}"/hadrian && "${CABAL}" v2-build -v3 clock)
+(cd "${SRC_DIR}"/hadrian && "${CABAL}" v2-build -v3 --with-gcc="${CC}" clock)
 "${_hadrian_build[@]}" stage1:exe:ghc-bin -V --flavour=release --progress-info=unicorn
 
 "${SRC_DIR}"/_build/stage0/bin/arm64-apple-darwin20.0.0-ghc --version || { echo "Stage0 GHC failed to report version"; exit 1; }
