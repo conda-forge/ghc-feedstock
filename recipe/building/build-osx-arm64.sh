@@ -106,8 +106,22 @@ export CC="${BUILD_PREFIX}/bin/${conda_host}-clang"
 export CXX="${BUILD_PREFIX}/bin/${conda_host}-clang++"
 export AS="${BUILD_PREFIX}/bin/${conda_host}-as"
 export LD="${BUILD_PREFIX}/bin/${conda_host}-ld"
-export CABFLAGS=(-v --enable-shared --enable-executable-dynamic -j)
-(cd "${SRC_DIR}"/hadrian && "${CABAL}" v2-build -v3 --with-gcc="${CC_FOR_BUILD}" clock)
+echo "===== CABAL ====="
+(cd "${SRC_DIR}"/hadrian && \
+ "${CABAL}" v2-build \
+   --verbose=3 \
+   --builddir=dist-clock \
+   --keep-going \
+   --ghc-options="-v4 -keep-tmp-files -ddump-to-file" \
+   --with-gcc="${CC_FOR_BUILD}" \
+   clock 2>&1 | tee "${SRC_DIR}"/cabal-clock-verbose.log || {
+     echo "=== Build failed with exit code $? ==="
+     echo "=== Showing setup log ==="
+     find dist-clock -name "*.log" -exec echo "=== {} ===" \; -exec cat {} \;
+     echo "=== Showing config.log if exists ==="
+     find dist-clock -name "config.log" -exec cat {} \;
+     exit 1
+   })
 "${_hadrian_build[@]}" stage1:exe:ghc-bin -V --flavour=release --progress-info=unicorn
 
 "${SRC_DIR}"/_build/stage0/bin/arm64-apple-darwin20.0.0-ghc --version || { echo "Stage0 GHC failed to report version"; exit 1; }
