@@ -97,6 +97,7 @@ run_and_log "ghc-configure" ./configure "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[
 
 # run_and_log "stage1_ghc-bin" "${_hadrian_build[@]}" stage1:exe:ghc-bin -V --flavour=release --progress-info=unicorn
 export CABFLAGS=(-v --enable-shared --enable-executable-dynamic -j)
+"${CABAL}" v2-build -v3 clock
 "${_hadrian_build[@]}" stage1:exe:ghc-bin -V --flavour=release --progress-info=unicorn
 
 "${SRC_DIR}"/_build/stage0/bin/arm64-apple-darwin20.0.0-ghc --version || { echo "Stage0 GHC failed to report version"; exit 1; }
