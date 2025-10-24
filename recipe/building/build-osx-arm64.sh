@@ -17,6 +17,7 @@ ghc_target="${conda_target/darwin*/darwin}"
 export build_alias="${conda_host}"
 export host_alias="${conda_host}"
 export target_alias="${conda_target}"
+export host_platform="${build_platform}"
 
 # Create environment and get library paths
 echo "Creating environment for cross-compilation libraries..."
@@ -40,6 +41,9 @@ mkdir -p "${CABAL_DIR}" && "${CABAL}" user-config init
 run_and_log "cabal-update" "${CABAL}" v2-update
 
 # Configure and build GHC
+AR=$(find "${BUILD_PREFIX}" -name llvm-ar | head -1)
+export AR
+
 SYSTEM_CONFIG=(
   --target="${target_alias}"
   --prefix="${PREFIX}"
@@ -60,7 +64,7 @@ CONFIGURE_ARGS=(
   ac_cv_prog_CXX="${BUILD_PREFIX}/bin/${conda_target}-clang++"
   ac_cv_path_CC="${BUILD_PREFIX}/bin/${conda_target}-clang"
   ac_cv_path_CXX="${BUILD_PREFIX}/bin/${conda_target}-clang++"
-  AR=llvm-ar
+  # AR=llvm-ar
   # AS="${conda_target}"-as
   # CC="${conda_target}"-clang
   # CXX="${conda_target}"-clang++
@@ -77,11 +81,12 @@ run_and_log "configure" ./configure -v "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@
 # Fix host configuration to use x86_64, target cross
 settings_file="${SRC_DIR}"/hadrian/cfg/system.config
 perl -pi -e "s#${BUILD_PREFIX}/bin/##" "${settings_file}"
-perl -pi -e "s#(=\s+)(ar|clang|clang\+\+|llc|nm|opt|ranlib)\$#\$1${conda_target}-\$2#" "${settings_file}"
-perl -pi -e "s#(conf-gcc-linker-args-stage[12].*?= )#\$1-Wl,-L${PREFIX}/lib -Wl,-rpath,${PREFIX}/lib#" "${settings_file}"
-perl -pi -e "s#(conf-ld-linker-args-stage[12].*?= )#\$1-L${PREFIX}/lib -rpath ${PREFIX}/lib#" "${settings_file}"
-perl -pi -e "s#(settings-c-compiler-link-flags.*?= )#\$1-Wl,-L${PREFIX}/lib -Wl,-rpath,${PREFIX}/lib#" "${settings_file}"
-perl -pi -e "s#(settings-ld-flags.*?= )#\$1-L${PREFIX}/lib -rpath ${PREFIX}/lib#" "${settings_file}"
+perl -pi -e "s#(=\s+)(ar|clang|clang\+\+|llc|nm|objdump|opt|ranlib)\$#\$1${conda_target}-\$2#" "${settings_file}"
+# perl -pi -e "s#(system-ar\s*?= ).*#\$1${AR}#" "${settings_file}"
+perl -pi -e "s#(conf-gcc-linker-args-stage[12]\s*?= )#\$1-Wl,-L${PREFIX}/lib -Wl,-rpath,${PREFIX}/lib#" "${settings_file}"
+perl -pi -e "s#(conf-ld-linker-args-stage[12]\s*?= )#\$1-L${PREFIX}/lib -rpath ${PREFIX}/lib#" "${settings_file}"
+perl -pi -e "s#(settings-c-compiler-link-flags\s*?= )#\$1-Wl,-L${PREFIX}/lib -Wl,-rpath,${PREFIX}/lib#" "${settings_file}"
+perl -pi -e "s#(settings-ld-flags\s*?= )#\$1-L${PREFIX}/lib -rpath ${PREFIX}/lib#" "${settings_file}"
 
 cat "${settings_file}"
 
@@ -99,7 +104,7 @@ run_and_log "ghc-configure" ./configure "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[
 export CC="${BUILD_PREFIX}/bin/${conda_target}-clang"
 export CXX="${BUILD_PREFIX}/bin/${conda_target}-clang++"
 export CABFLAGS=(-v --enable-shared --enable-executable-dynamic -j)
-(cd "${SRC_DIR}"/hadrian && "${CABAL}" v2-build -v3 --with-gcc="${CC}" clock)
+(cd "${SRC_DIR}"/hadrian && "${CABAL}" v2-build -v3 --with-gcc="${CC_FOR_BUILD}" --with-ld="${LD_FOR_BUILD}" clock)
 "${_hadrian_build[@]}" stage1:exe:ghc-bin -V --flavour=release --progress-info=unicorn
 
 "${SRC_DIR}"/_build/stage0/bin/arm64-apple-darwin20.0.0-ghc --version || { echo "Stage0 GHC failed to report version"; exit 1; }
