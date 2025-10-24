@@ -104,7 +104,7 @@ run_and_log "ghc-configure" ./configure "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[
 export CC="${BUILD_PREFIX}/bin/${conda_target}-clang"
 export CXX="${BUILD_PREFIX}/bin/${conda_target}-clang++"
 export CABFLAGS=(-v --enable-shared --enable-executable-dynamic -j)
-(cd "${SRC_DIR}"/hadrian && "${CABAL}" v2-build -v3 --with-gcc="${CC_FOR_BUILD}" --with-ld="${LD_FOR_BUILD}" clock)
+(cd "${SRC_DIR}"/hadrian && "${CABAL}" v2-build -v3 --with-gcc="${CC_FOR_BUILD}" clock)
 "${_hadrian_build[@]}" stage1:exe:ghc-bin -V --flavour=release --progress-info=unicorn
 
 "${SRC_DIR}"/_build/stage0/bin/arm64-apple-darwin20.0.0-ghc --version || { echo "Stage0 GHC failed to report version"; exit 1; }
