@@ -41,6 +41,7 @@ mkdir -p "${CABAL_DIR}" && "${CABAL}" user-config init
 run_and_log "cabal-update" "${CABAL}" v2-update
 
 # Configure and build GHC
+$(find "${BUILD_PREFIX}" -name llvm-ar)
 AR=$(find "${BUILD_PREFIX}" -name llvm-ar | head -1)
 export AR
 
@@ -82,7 +83,7 @@ run_and_log "configure" ./configure -v "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@
 settings_file="${SRC_DIR}"/hadrian/cfg/system.config
 perl -pi -e "s#${BUILD_PREFIX}/bin/##" "${settings_file}"
 perl -pi -e "s#(=\s+)(ar|clang|clang\+\+|llc|nm|objdump|opt|ranlib)\$#\$1${conda_target}-\$2#" "${settings_file}"
-# perl -pi -e "s#(system-ar\s*?= ).*#\$1${AR}#" "${settings_file}"
+perl -pi -e "s#(system-ar\s*?= ).*#\$1${AR}#" "${settings_file}"
 perl -pi -e "s#(conf-gcc-linker-args-stage[12]\s*?= )#\$1-Wl,-L${PREFIX}/lib -Wl,-rpath,${PREFIX}/lib#" "${settings_file}"
 perl -pi -e "s#(conf-ld-linker-args-stage[12]\s*?= )#\$1-L${PREFIX}/lib -rpath ${PREFIX}/lib#" "${settings_file}"
 perl -pi -e "s#(settings-c-compiler-link-flags\s*?= )#\$1-Wl,-L${PREFIX}/lib -Wl,-rpath,${PREFIX}/lib#" "${settings_file}"
