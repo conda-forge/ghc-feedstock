@@ -62,10 +62,6 @@ CONFIGURE_ARGS=(
   --with-iconv-libraries="${PREFIX}"/lib
   ac_cv_lib_ffi_ffi_call=yes
   ac_cv_prog_CC="${BUILD_PREFIX}/bin/${conda_target}-clang"
-  # ac_cv_prog_CXX="${BUILD_PREFIX}/bin/${conda_target}-clang++"
-  # ac_cv_path_AS="${BUILD_PREFIX}/bin/${conda_target}-as"
-  # ac_cv_path_CC="${BUILD_PREFIX}/bin/${conda_target}-clang"
-  # ac_cv_path_CXX="${BUILD_PREFIX}/bin/${conda_target}-clang++"
   ac_cv_path_ac_pt_CC="${BUILD_PREFIX}/bin/${conda_target}-clang"
   ac_cv_path_ac_pt_CXX="${BUILD_PREFIX}/bin/${conda_target}-clang++"
   LDFLAGS="-L${PREFIX}/lib ${LDFLAGS:-}"
@@ -130,6 +126,7 @@ pushd "${SRC_DIR}"/hadrian
     shake \
     hadrian \
     2>&1 | tee "${SRC_DIR}"/cabal-verbose.log
+    _cabal_exit_code=${PIPESTATUS[0]}
 popd
 
 if [[ $_cabal_exit_code -ne 0 ]]; then
