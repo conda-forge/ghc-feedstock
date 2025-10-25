@@ -107,6 +107,7 @@ export CXX="${BUILD_PREFIX}/bin/${conda_host}-clang++"
 export AS="${BUILD_PREFIX}/bin/${conda_host}-as"
 export LD="${BUILD_PREFIX}/bin/${conda_host}-ld"
 echo "===== CABAL ====="
+set +e  # Temporarily disable exit on error to capture the exit code
 (cd "${SRC_DIR}"/hadrian && \
  "${CABAL}" v2-build \
    --verbose=3 \
@@ -114,14 +115,25 @@ echo "===== CABAL ====="
    --keep-going \
    --ghc-options="-v4 -keep-tmp-files -ddump-to-file" \
    --with-gcc="${CC_FOR_BUILD}" \
-   clock 2>&1 | tee "${SRC_DIR}"/cabal-clock-verbose.log || {
-     echo "=== Build failed with exit code $? ==="
-     echo "=== Showing setup log ==="
-     find dist-clock -name "*.log" -exec echo "=== {} ===" \; -exec cat {} \;
-     echo "=== Showing config.log if exists ==="
-     find dist-clock -name "config.log" -exec cat {} \;
-     exit 1
-   })
+   clock 2>&1 | tee "${SRC_DIR}"/cabal-clock-verbose.log)
+_cabal_exit_code=$?
+set -e  # Re-enable exit on error
+
+if [[ $_cabal_exit_code -ne 0 ]]; then
+  echo "=== Cabal build failed with exit code ${_cabal_exit_code} ==="
+  echo "=== Showing Cabal package log ==="
+  if [[ -f "${SRC_DIR}/.cabal/logs/ghc-9.6.7/clck-0.8.4-0ff7fcfa.log" ]]; then
+    cat "${SRC_DIR}/.cabal/logs/ghc-9.6.7/clck-0.8.4-0ff7fcfa.log"
+  else
+    echo "Cabal log not found at expected location"
+    find "${SRC_DIR}/.cabal/logs" -name "*.log" -exec echo "=== {} ===" \; -exec cat {} \; 2>/dev/null || echo "No logs found"
+  fi
+  echo "=== Showing dist-clock logs ==="
+  find "${SRC_DIR}"/hadrian/dist-clock -name "*.log" -exec echo "=== {} ===" \; -exec cat {} \; 2>/dev/null || echo "No dist-clock logs found"
+  echo "=== Showing config.log if exists ==="
+  find "${SRC_DIR}"/hadrian/dist-clock -name "config.log" -exec cat {} \; 2>/dev/null || echo "No config.log found"
+  exit 1
+fi
 "${_hadrian_build[@]}" stage1:exe:ghc-bin -V --flavour=release --progress-info=unicorn
 
 "${SRC_DIR}"/_build/stage0/bin/arm64-apple-darwin20.0.0-ghc --version || { echo "Stage0 GHC failed to report version"; exit 1; }
