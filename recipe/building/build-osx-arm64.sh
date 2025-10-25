@@ -136,6 +136,10 @@ echo "Using llvm-ar: ${_llvm_ar}"
   os-string \
   splitmix \
   utf8-string \
+  hashable \
+  process \
+  primitive \
+  random \
   2>&1 | tee "${SRC_DIR}"/cabal-clock-verbose.log
 _cabal_exit_code=${PIPESTATUS[0]}
 cd -
