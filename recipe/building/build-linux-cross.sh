@@ -132,17 +132,6 @@ if [[ -n "${bindist_dir}" ]]; then
  
     # Install (update_package_db fails due to cross ghc-pkg)
     run_and_log "make_install" make install_bin install_lib install_man
-    
-    # Manually update package database using bootstrap (x86_64) ghc-pkg
-    # pkg_conf_dir=$(find "${PREFIX}"/lib -type d -name "package.conf.d" | head -1)
-    # if [[ -n "${pkg_conf_dir}" ]]; then
-    #   echo "Found package database at: ${pkg_conf_dir}"
-    #   "${ghc_path}"/ghc-pkg --global-package-db "${pkg_conf_dir}" recache
-    # else
-    #   echo "ERROR: Could not find package.conf.d directory in ${PREFIX}/lib"
-    #   find "${PREFIX}"/lib -type d -name "*ghc*" || true
-    #   exit 1
-    # fi
   popd
 else
   echo "Error: Could not find binary distribution directory"

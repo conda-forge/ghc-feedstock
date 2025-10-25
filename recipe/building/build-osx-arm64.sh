@@ -61,16 +61,17 @@ CONFIGURE_ARGS=(
   --with-iconv-includes="${PREFIX}"/include
   --with-iconv-libraries="${PREFIX}"/lib
   ac_cv_lib_ffi_ffi_call=yes
-  AR="${AR}"
-  # AS="${conda_target}"-as
-  # CC="${conda_target}"-clang
-  # CXX="${conda_target}"-clang++
-  # LD="${conda_target}"-ld
-  # NM="${conda_target}"-nm
-  # OBJDUMP="${conda_target}"-objdump
-  # RANLIB="${conda_target}"-ranlib
+  ac_cv_prog_CC="${BUILD_PREFIX}/bin/${conda_target}-clang"
+  # ac_cv_prog_CXX="${BUILD_PREFIX}/bin/${conda_target}-clang++"
+  # ac_cv_path_AS="${BUILD_PREFIX}/bin/${conda_target}-as"
+  # ac_cv_path_CC="${BUILD_PREFIX}/bin/${conda_target}-clang"
+  # ac_cv_path_CXX="${BUILD_PREFIX}/bin/${conda_target}-clang++"
+  ac_cv_path_ac_pt_CC="${BUILD_PREFIX}/bin/${conda_target}-clang"
+  ac_cv_path_ac_pt_CXX="${BUILD_PREFIX}/bin/${conda_target}-clang++"
   LDFLAGS="-L${PREFIX}/lib ${LDFLAGS:-}"
+  AR_STAGE0="${AR}"
   CC_STAGE0="${CC_FOR_BUILD}"
+  LD_STAGE0="${BUILD_PREFIX}/bin/${conda_host}-ld"
 )
 
 run_and_log "configure" ./configure -v "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}" || { cat config.log; exit 1; }
@@ -90,7 +91,11 @@ cat "${settings_file}"
 _hadrian_build=("${SRC_DIR}"/hadrian/build "-j${CPU_COUNT}")
 
 # Bug in ghc-bootstrap for libiconv2
-perl -pi -e "s#[^ ]+/usr/lib/libiconv2.tbd##" "${osx_64_env}"/ghc-bootstrap/lib/ghc-"${PKG_VERSION}"/lib/settings
+bootstrap_settings="${osx_64_env}"/ghc-bootstrap/lib/ghc-"${PKG_VERSION}"/lib/settings
+perl -pi -e "s#[^ ]+/usr/lib/libiconv2.tbd##" "${bootstrap_settings}"
+perl -pi -e "s#(\(\"ar command\", \")[^\"]*#\$1${AR}#" "${bootstrap_settings}"
+perl -pi -e "s#(\(\"ranlib command\", \")[^\"]*#\$1llvm-ranlib#" "${bootstrap_settings}"
+grep -E '(ar|ranlib) command' "${bootstrap_settings}" || echo "Pattern not found"
 
 # This will not generate ghc-toolchain-bin or the .ghc-toolchain (possibly due to x-platform)
 run_and_log "ghc-configure" ./configure "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}"
