@@ -140,6 +140,9 @@ echo "Using llvm-ar: ${_llvm_ar}"
   process \
   primitive \
   random \
+  QuickCheck \
+  unordered-containers \
+  extra \
   2>&1 | tee "${SRC_DIR}"/cabal-clock-verbose.log
 _cabal_exit_code=${PIPESTATUS[0]}
 cd -
