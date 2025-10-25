@@ -114,12 +114,18 @@ echo "CXX=${CXX}"
 
 set +e  # Temporarily disable exit on error to capture the exit code
 cd "${SRC_DIR}"/hadrian
+
+# Find the conda-provided llvm-ar to avoid Xcode SDK issues
+_llvm_ar=$(find "${BUILD_PREFIX}" -name llvm-ar | head -1)
+echo "Using llvm-ar: ${_llvm_ar}"
+
 "${CABAL}" v2-build \
   --verbose=3 \
   --builddir=dist-clock \
   --keep-going \
   --ghc-options="-v4 -keep-tmp-files -ddump-to-file" \
   --with-gcc="${CC_FOR_BUILD}" \
+  --with-ar="${_llvm_ar}" \
   clock 2>&1 | tee "${SRC_DIR}"/cabal-clock-verbose.log
 _cabal_exit_code=${PIPESTATUS[0]}
 cd -
