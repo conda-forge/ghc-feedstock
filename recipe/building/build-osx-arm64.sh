@@ -61,11 +61,7 @@ CONFIGURE_ARGS=(
   --with-iconv-includes="${PREFIX}"/include
   --with-iconv-libraries="${PREFIX}"/lib
   ac_cv_lib_ffi_ffi_call=yes
-  ac_cv_prog_CC="${BUILD_PREFIX}/bin/${conda_target}-clang"
-  ac_cv_prog_CXX="${BUILD_PREFIX}/bin/${conda_target}-clang++"
-  ac_cv_path_CC="${BUILD_PREFIX}/bin/${conda_target}-clang"
-  ac_cv_path_CXX="${BUILD_PREFIX}/bin/${conda_target}-clang++"
-  # AR=llvm-ar
+  AR="${AR}"
   # AS="${conda_target}"-as
   # CC="${conda_target}"-clang
   # CXX="${conda_target}"-clang++
@@ -83,17 +79,15 @@ run_and_log "configure" ./configure -v "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@
 settings_file="${SRC_DIR}"/hadrian/cfg/system.config
 perl -pi -e "s#${BUILD_PREFIX}/bin/##" "${settings_file}"
 perl -pi -e "s#(=\s+)(ar|clang|clang\+\+|llc|nm|objdump|opt|ranlib)\$#\$1${conda_target}-\$2#" "${settings_file}"
-perl -pi -e "s#(system-ar\s*?= ).*#\$1${AR}#" "${settings_file}"
-perl -pi -e "s#(conf-gcc-linker-args-stage[12]\s*?= )#\$1-Wl,-L${PREFIX}/lib -Wl,-rpath,${PREFIX}/lib#" "${settings_file}"
-perl -pi -e "s#(conf-ld-linker-args-stage[12]\s*?= )#\$1-L${PREFIX}/lib -rpath ${PREFIX}/lib#" "${settings_file}"
-perl -pi -e "s#(settings-c-compiler-link-flags\s*?= )#\$1-Wl,-L${PREFIX}/lib -Wl,-rpath,${PREFIX}/lib#" "${settings_file}"
-perl -pi -e "s#(settings-ld-flags\s*?= )#\$1-L${PREFIX}/lib -rpath ${PREFIX}/lib#" "${settings_file}"
+perl -pi -e "s#(system-ar\s*?=\s+).*#\$1${AR}#" "${settings_file}"
+perl -pi -e "s#(conf-gcc-linker-args-stage[12]\s*?=\s+)#\$1-Wl,-L${PREFIX}/lib -Wl,-rpath,${PREFIX}/lib#" "${settings_file}"
+perl -pi -e "s#(conf-ld-linker-args-stage[12]\s*?=\s+)#\$1-L${PREFIX}/lib -rpath ${PREFIX}/lib#" "${settings_file}"
+perl -pi -e "s#(settings-c-compiler-link-flags\s*?=\s+)#\$1-Wl,-L${PREFIX}/lib -Wl,-rpath,${PREFIX}/lib#" "${settings_file}"
+perl -pi -e "s#(settings-ld-flags\s*?=\s+)#\$1-L${PREFIX}/lib -rpath ${PREFIX}/lib#" "${settings_file}"
 
 cat "${settings_file}"
 
 _hadrian_build=("${SRC_DIR}"/hadrian/build "-j${CPU_COUNT}")
-
-# ---| Stage 1: Cross-compiler |---
 
 # Bug in ghc-bootstrap for libiconv2
 perl -pi -e "s#[^ ]+/usr/lib/libiconv2.tbd##" "${osx_64_env}"/ghc-bootstrap/lib/ghc-"${PKG_VERSION}"/lib/settings
@@ -101,78 +95,53 @@ perl -pi -e "s#[^ ]+/usr/lib/libiconv2.tbd##" "${osx_64_env}"/ghc-bootstrap/lib/
 # This will not generate ghc-toolchain-bin or the .ghc-toolchain (possibly due to x-platform)
 run_and_log "ghc-configure" ./configure "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}"
 
-# run_and_log "stage1_ghc-bin" "${_hadrian_build[@]}" stage1:exe:ghc-bin -V --flavour=release --progress-info=unicorn
-export CC="${BUILD_PREFIX}/bin/${conda_host}-clang"
-export CXX="${BUILD_PREFIX}/bin/${conda_host}-clang++"
-export AS="${BUILD_PREFIX}/bin/${conda_host}-as"
-export LD="${BUILD_PREFIX}/bin/${conda_host}-ld"
-echo "===== CABAL DEBUG TEST ====="
-echo "About to test cabal build of clock package"
-echo "CC_FOR_BUILD=${CC_FOR_BUILD}"
-echo "CC=${CC}"
-echo "CXX=${CXX}"
-
-set +e  # Temporarily disable exit on error to capture the exit code
-cd "${SRC_DIR}"/hadrian
-
-# Find the conda-provided llvm-ar to avoid Xcode SDK issues
-_llvm_ar=$(find "${BUILD_PREFIX}" -name llvm-ar | head -1)
-echo "Using llvm-ar: ${_llvm_ar}"
-
-"${CABAL}" v2-build \
-  --verbose=3 \
-  --builddir=dist-clock \
-  --keep-going \
-  --ghc-options="-v4 -keep-tmp-files -ddump-to-file" \
-  --with-gcc="${CC_FOR_BUILD}" \
-  --with-ar="${_llvm_ar}" \
-  clock \
-  file-io \
-  heaps \
-  js-dgtable \
-  js-flot \
-  js-jquery \
-  directory \
-  os-string \
-  splitmix \
-  utf8-string \
-  hashable \
-  process \
-  primitive \
-  random \
-  QuickCheck \
-  unordered-containers \
-  extra \
-  Cabal-syntax \
-  filepattern \
-  Cabal \
-  shake \
-  hadrian \
-  2>&1 | tee "${SRC_DIR}"/cabal-clock-verbose.log
-_cabal_exit_code=${PIPESTATUS[0]}
-cd -
-set -e  # Re-enable exit on error
-
-echo "===== CABAL EXIT CODE: ${_cabal_exit_code} ====="
+# Build hadrian with cabal outside script
+pushd "${SRC_DIR}"/hadrian
+  export CABFLAGS=(--enable-shared --enable-executable-dynamic -j)
+  "${CABAL}" v2-build \
+    --with-gcc="${CC_FOR_BUILD}" \
+    --with-ar="${AR}" \
+    -j \
+    clock \
+    file-io \
+    heaps \
+    js-dgtable \
+    js-flot \
+    js-jquery \
+    directory \
+    os-string \
+    splitmix \
+    utf8-string \
+    hashable \
+    process \
+    primitive \
+    random \
+    QuickCheck \
+    unordered-containers \
+    extra \
+    Cabal-syntax \
+    filepattern \
+    Cabal \
+    shake \
+    hadrian \
+    2>&1 | tee "${SRC_DIR}"/cabal-verbose.log
+popd
 
 if [[ $_cabal_exit_code -ne 0 ]]; then
   echo "=== Cabal build FAILED with exit code ${_cabal_exit_code} ==="
-  echo "=== Showing Cabal package log ==="
-  if [[ -f "${SRC_DIR}/.cabal/logs/ghc-9.6.7/clck-0.8.4-0ff7fcfa.log" ]]; then
-    cat "${SRC_DIR}/.cabal/logs/ghc-9.6.7/clck-0.8.4-0ff7fcfa.log"
-  else
-    echo "Cabal log not found at expected location"
-    find "${SRC_DIR}/.cabal/logs" -name "*.log" -exec echo "=== {} ===" \; -exec cat {} \; 2>/dev/null || echo "No logs found"
-  fi
-  echo "=== Showing dist-clock logs ==="
-  find "${SRC_DIR}"/hadrian/dist-clock -name "*.log" -exec echo "=== {} ===" \; -exec cat {} \; 2>/dev/null || echo "No dist-clock logs found"
-  echo "=== Showing config.log if exists ==="
-  find "${SRC_DIR}"/hadrian/dist-clock -name "config.log" -exec cat {} \; 2>/dev/null || echo "No config.log found"
   exit 1
 else
   echo "=== Cabal build SUCCEEDED ==="
 fi
-"${_hadrian_build[@]}" stage1:exe:ghc-bin -V --flavour=release --progress-info=unicorn
+
+# ---| Stage 1: Cross-compiler |---
+
+# Disable copy for cross-compilation - force building the cross binary
+# Change the cross-compile copy condition to never match
+perl -i -pe 's/\(True, s\) \| s > stage0InTree ->/\(False, s\) | s > stage0InTree \&\& False ->/' "${SRC_DIR}"/hadrian/src/Rules/Program.hs
+"${_hadrian_build[@]}" stage1:exe:ghc-bin -VV --flavour=quickest --progress-info=unicorn
+run_and_log "stage1_ghc-pkg" "${_hadrian_build[@]}" stage1:exe:ghc-pkg --flavour=quickest --docs=none --progress-info=none
+run_and_log "stage1_hsc2hs"  "${_hadrian_build[@]}" stage1:exe:hsc2hs --flavour=quickest --docs=none --progress-info=none
 
 "${SRC_DIR}"/_build/stage0/bin/arm64-apple-darwin20.0.0-ghc --version || { echo "Stage0 GHC failed to report version"; exit 1; }
 

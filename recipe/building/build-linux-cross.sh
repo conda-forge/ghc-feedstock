@@ -100,19 +100,12 @@ run_and_log "stage1_hsc2hs"  "${_hadrian_build[@]}" stage1:exe:hsc2hs --flavour=
 
 settings_file="${SRC_DIR}"/_build/stage0/lib/settings
 update_linux_link_flags "${settings_file}"
-run_and_log "stage1_lib" "${_hadrian_build[@]}" stage1:lib:ghc --flavour=quickest --docs=none --progress-info=none
+run_and_log "stage1_lib" "${_hadrian_build[@]}" stage1:lib:ghc -VV --flavour=quickest --docs=none --progress-info=none
 update_linux_link_flags "${settings_file}"
 
 # Redifine hadrian to avoid rebuilding via the build script
 _hadrian_bin=$(find "${SRC_DIR}"/hadrian/dist-newstyle/build -name hadrian -type f -executable | head -1)
 _hadrian_build=("${_hadrian_bin}" "-j${CPU_COUNT}" "--directory" "${SRC_DIR}")
-
-# DBG: # Verify that stage 1 produces cross exec
-# DBG: mkdir -p "${SRC_DIR}"/_tmp/
-# DBG: cat > "${SRC_DIR}"/_tmp/hello.hs << EOF
-# DBG: main = putStrLn "Hello conda-forge"
-# DBG: EOF
-# DBG: "${SRC_DIR}"/_build/ghc-stage1 "${SRC_DIR}"/_tmp/hello.hs -o "${SRC_DIR}"/_tmp/hello && file "${SRC_DIR}"/_tmp/hello | grep OpenPOWER
 
 # ---| Stage 2: Cross-compiled bin/libs |---
 
@@ -121,8 +114,6 @@ export GHC="${SRC_DIR}"/_build/ghc-stage1
 run_and_log "stage2_ghc-bin" "${_hadrian_build[@]}" stage2:exe:ghc-bin --flavour=release --docs=none --progress-info=none
 run_and_log "stage2_ghc-pkg" "${_hadrian_build[@]}" stage2:exe:ghc-pkg --flavour=release --docs=none --progress-info=none
 run_and_log "stage2_hsc2hs" "${_hadrian_build[@]}" stage2:exe:hsc2hs --flavour=release --docs=none --progress-info=none
-
-# DBG: file "${SRC_DIR}"/_build/stage1/bin/"${ghc_target}"-ghc | grep "OpenPOWER"
 
 # This does not seem needed as the _build/stage1 libs are already cross
 # We would have to modify the recipe in order to workaround the fact that the cross used
