@@ -143,6 +143,11 @@ echo "Using llvm-ar: ${_llvm_ar}"
   QuickCheck \
   unordered-containers \
   extra \
+  Cabal-syntax \
+  filepattern \
+  Cabal \
+  shake \
+  hadrian \
   2>&1 | tee "${SRC_DIR}"/cabal-clock-verbose.log
 _cabal_exit_code=${PIPESTATUS[0]}
 cd -
