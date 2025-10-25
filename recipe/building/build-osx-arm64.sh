@@ -106,21 +106,29 @@ export CC="${BUILD_PREFIX}/bin/${conda_host}-clang"
 export CXX="${BUILD_PREFIX}/bin/${conda_host}-clang++"
 export AS="${BUILD_PREFIX}/bin/${conda_host}-as"
 export LD="${BUILD_PREFIX}/bin/${conda_host}-ld"
-echo "===== CABAL ====="
+echo "===== CABAL DEBUG TEST ====="
+echo "About to test cabal build of clock package"
+echo "CC_FOR_BUILD=${CC_FOR_BUILD}"
+echo "CC=${CC}"
+echo "CXX=${CXX}"
+
 set +e  # Temporarily disable exit on error to capture the exit code
-(cd "${SRC_DIR}"/hadrian && \
- "${CABAL}" v2-build \
-   --verbose=3 \
-   --builddir=dist-clock \
-   --keep-going \
-   --ghc-options="-v4 -keep-tmp-files -ddump-to-file" \
-   --with-gcc="${CC_FOR_BUILD}" \
-   clock 2>&1 | tee "${SRC_DIR}"/cabal-clock-verbose.log)
-_cabal_exit_code=$?
+cd "${SRC_DIR}"/hadrian
+"${CABAL}" v2-build \
+  --verbose=3 \
+  --builddir=dist-clock \
+  --keep-going \
+  --ghc-options="-v4 -keep-tmp-files -ddump-to-file" \
+  --with-gcc="${CC_FOR_BUILD}" \
+  clock 2>&1 | tee "${SRC_DIR}"/cabal-clock-verbose.log
+_cabal_exit_code=${PIPESTATUS[0]}
+cd -
 set -e  # Re-enable exit on error
 
+echo "===== CABAL EXIT CODE: ${_cabal_exit_code} ====="
+
 if [[ $_cabal_exit_code -ne 0 ]]; then
-  echo "=== Cabal build failed with exit code ${_cabal_exit_code} ==="
+  echo "=== Cabal build FAILED with exit code ${_cabal_exit_code} ==="
   echo "=== Showing Cabal package log ==="
   if [[ -f "${SRC_DIR}/.cabal/logs/ghc-9.6.7/clck-0.8.4-0ff7fcfa.log" ]]; then
     cat "${SRC_DIR}/.cabal/logs/ghc-9.6.7/clck-0.8.4-0ff7fcfa.log"
@@ -133,6 +141,8 @@ if [[ $_cabal_exit_code -ne 0 ]]; then
   echo "=== Showing config.log if exists ==="
   find "${SRC_DIR}"/hadrian/dist-clock -name "config.log" -exec cat {} \; 2>/dev/null || echo "No config.log found"
   exit 1
+else
+  echo "=== Cabal build SUCCEEDED ==="
 fi
 "${_hadrian_build[@]}" stage1:exe:ghc-bin -V --flavour=release --progress-info=unicorn
 
