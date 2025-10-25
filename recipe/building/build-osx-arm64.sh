@@ -126,7 +126,17 @@ echo "Using llvm-ar: ${_llvm_ar}"
   --ghc-options="-v4 -keep-tmp-files -ddump-to-file" \
   --with-gcc="${CC_FOR_BUILD}" \
   --with-ar="${_llvm_ar}" \
-  clock file-io heaps js-dgtable js-flot js-jquery 2>&1 | tee "${SRC_DIR}"/cabal-clock-verbose.log
+  clock \
+  file-io \
+  heaps \
+  js-dgtable \
+  js-flot \
+  js-jquery \
+  directory \
+  os-string \
+  splitmix \
+  utf8-string \
+  2>&1 | tee "${SRC_DIR}"/cabal-clock-verbose.log
 _cabal_exit_code=${PIPESTATUS[0]}
 cd -
 set -e  # Re-enable exit on error
