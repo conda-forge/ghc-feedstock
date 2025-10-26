@@ -88,9 +88,10 @@ _hadrian_build=("${SRC_DIR}"/hadrian/build "-j${CPU_COUNT}")
 # Bug in ghc-bootstrap for libiconv2
 bootstrap_settings="${osx_64_env}"/ghc-bootstrap/lib/ghc-"${PKG_VERSION}"/lib/settings
 perl -pi -e "s#[^ ]+/usr/lib/libiconv2.tbd##" "${bootstrap_settings}"
-perl -pi -e "s#(\(\"ar command\", \")[^\"]*#\$1${AR_STAGE0}#" "${bootstrap_settings}"
-# perl -pi -e "s#(\(\"ranlib command\", \")[^\"]*#\$1llvm-ranlib#" "${bootstrap_settings}"
-grep -E '(ar|ranlib) command' "${bootstrap_settings}" || echo "Pattern not found"
+perl -pi -e "s#(C compiler flags\", \")#\$1-v #" "${bootstrap_settings}"
+perl -pi -e "s#(ar command\", \")[^\"]*#\$1${AR_STAGE0}#" "${bootstrap_settings}"
+perl -pi -e "s#(ranlib command\", \")[^\"]*#\$1llvm-ranlib#" "${bootstrap_settings}"
+perl -pi -e "s#((llc|opt|clang) command\", \")[^\"]*#\$1${conda_target}-\$2#" "${bootstrap_settings}"
 
 cat "${bootstrap_settings}"
 
