@@ -153,7 +153,11 @@ _hadrian_build=("${_hadrian}" "-j${CPU_COUNT}")
   export LD="${BUILD_PREFIX}/bin/${conda_host}-ld"
   
   perl -i -pe 's/\(True, s\) \| s > stage0InTree ->/\(False, s\) | s > stage0InTree \&\& False ->/' "${SRC_DIR}"/hadrian/src/Rules/Program.hs
-  (set +e && (run_and_log "stage1_ghc-bin" "${_hadrian_build[@]}" stage1:exe:ghc-bin --flavour=quickest --progress-info=none || true) && set -e)
+  
+  set +e
+  run_and_log "stage1_ghc-bin" "${_hadrian_build[@]}" stage1:exe:ghc-bin --flavour=quickest --progress-info=none || true
+  set -e
+  
   rm -f "${SRC_DIR}"/_build/stageBoot/utils/hsc2hs/build/c/cbits/utils.o
   "${_hadrian_build[@]}" stage1:exe:ghc-bin --flavour=quickest --progress-info=unicorn
   run_and_log "stage1_ghc-pkg" "${_hadrian_build[@]}" stage1:exe:ghc-pkg --flavour=quickest --docs=none --progress-info=none
