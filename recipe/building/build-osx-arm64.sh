@@ -138,8 +138,8 @@ else
   echo "=== Cabal build SUCCEEDED ==="
 fi
 
-_hadrian=$(find "${SRC_DIR}" -name hadrian -type f -executable | head -1)
-_hadrian_build=("${_hardrian}" "-j${CPU_COUNT}")
+_hadrian=$(find "${SRC_DIR}" -name hadrian -type f | head -1)
+_hadrian_build=("${_hadrian}" "-j${CPU_COUNT}")
 
 # ---| Stage 1: Cross-compiler |---
 
