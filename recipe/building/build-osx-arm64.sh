@@ -91,7 +91,7 @@ perl -pi -e "s#[^ ]+/usr/lib/libiconv2.tbd##" "${bootstrap_settings}"
 perl -pi -e "s#(C compiler flags\", \")#\$1-v #" "${bootstrap_settings}"
 perl -pi -e "s#(ar command\", \")[^\"]*#\$1${AR_STAGE0}#" "${bootstrap_settings}"
 perl -pi -e "s#(ranlib command\", \")[^\"]*#\$1llvm-ranlib#" "${bootstrap_settings}"
-perl -pi -e "s#((llc|opt|clang) command\", \")[^\"]*#\$1${conda_target}-\$2#" "${bootstrap_settings}"
+perl -pi -e "s#((llc|opt|clang) command\", \")[^\"]*#\$1${conda_host}-\$2#" "${bootstrap_settings}"
 
 cat "${bootstrap_settings}"
 
@@ -138,16 +138,27 @@ else
   echo "=== Cabal build SUCCEEDED ==="
 fi
 
+_hadrian=$(find "${SRC_DIR}" -name hadrian -type f -executable | head -1)
+_hadrian_build=("${_hardrian}" "-j${CPU_COUNT}")
+
 # ---| Stage 1: Cross-compiler |---
 
 # Disable copy for cross-compilation - force building the cross binary
 # Change the cross-compile copy condition to never match
-perl -i -pe 's/\(True, s\) \| s > stage0InTree ->/\(False, s\) | s > stage0InTree \&\& False ->/' "${SRC_DIR}"/hadrian/src/Rules/Program.hs
-run_and_log "stage1_ghc-bin" "${_hadrian_build[@]}" stage1:exe:ghc-bin --flavour=quickest --progress-info=none || true
-rm -f "${SRC_DIR}"/_build/stageBoot/utils/hsc2hs/build/c/cbits/utils.o
-"${_hadrian_build[@]}" stage1:exe:ghc-bin --flavour=quickest --progress-info=unicorn
-run_and_log "stage1_ghc-pkg" "${_hadrian_build[@]}" stage1:exe:ghc-pkg --flavour=quickest --docs=none --progress-info=none
-run_and_log "stage1_hsc2hs"  "${_hadrian_build[@]}" stage1:exe:hsc2hs --flavour=quickest --docs=none --progress-info=none
+( 
+  export AR="${AR_STAGE0}"
+  export AS="${BUILD_PREFIX}/bin/${conda_host}-as"
+  export CC="${BUILD_PREFIX}/bin/${conda_host}-clang"
+  export CXX="${BUILD_PREFIX}/bin/${conda_host}-clang++"
+  export LD="${BUILD_PREFIX}/bin/${conda_host}-ld"
+  
+  perl -i -pe 's/\(True, s\) \| s > stage0InTree ->/\(False, s\) | s > stage0InTree \&\& False ->/' "${SRC_DIR}"/hadrian/src/Rules/Program.hs
+  (set +e && (run_and_log "stage1_ghc-bin" "${_hadrian_build[@]}" stage1:exe:ghc-bin --flavour=quickest --progress-info=none || true) && set -e)
+  rm -f "${SRC_DIR}"/_build/stageBoot/utils/hsc2hs/build/c/cbits/utils.o
+  "${_hadrian_build[@]}" stage1:exe:ghc-bin --flavour=quickest --progress-info=unicorn
+  run_and_log "stage1_ghc-pkg" "${_hadrian_build[@]}" stage1:exe:ghc-pkg --flavour=quickest --docs=none --progress-info=none
+  run_and_log "stage1_hsc2hs"  "${_hadrian_build[@]}" stage1:exe:hsc2hs --flavour=quickest --docs=none --progress-info=none
+)
 
 "${SRC_DIR}"/_build/stage0/bin/arm64-apple-darwin20.0.0-ghc --version || { echo "Stage0 GHC failed to report version"; exit 1; }
 
