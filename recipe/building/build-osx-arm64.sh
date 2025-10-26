@@ -157,6 +157,9 @@ _hadrian_build=("${_hadrian}" "-j${CPU_COUNT}")
   echo ".";echo ".";echo ".";echo ".";
   rm -f "${SRC_DIR}"/_build/stageBoot/utils/hsc2hs/build/c/cbits/utils.o
   ls -l "${BUILD_PREFIX}/bin/${conda_host}-clang"
+  ls -l "${BUILD_PREFIX}/bin/clang-19"
+  ls -l "${BUILD_PREFIX}/bin/${conda_host}-ld"
+  ls -l "${BUILD_PREFIX}/bin/ld"
   "${BUILD_PREFIX}/bin/${conda_host}-clang" -v
   "${BUILD_PREFIX}/bin/clang-19" -v
   "${_hadrian_build[@]}" stage1:exe:ghc-bin -VV --flavour=quickest --progress-info=unicorn
