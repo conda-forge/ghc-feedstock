@@ -41,9 +41,7 @@ mkdir -p "${CABAL_DIR}" && "${CABAL}" user-config init
 run_and_log "cabal-update" "${CABAL}" v2-update
 
 # Configure and build GHC
-echo $(find "${BUILD_PREFIX}" -name llvm-ar)
 AR_STAGE0=$(find "${BUILD_PREFIX}" -name llvm-ar | head -1)
-export AR_STAGE0
 
 SYSTEM_CONFIG=(
   --target="${target_alias}"
@@ -76,12 +74,12 @@ run_and_log "configure" ./configure -v "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@
 settings_file="${SRC_DIR}"/hadrian/cfg/system.config
 perl -pi -e "s#${BUILD_PREFIX}/bin/##" "${settings_file}"
 perl -pi -e "s#(=\s+)(ar|clang|clang\+\+|llc|nm|objdump|opt|ranlib)\$#\$1${conda_target}-\$2#" "${settings_file}"
-perl -pi -e "s#(system-ar\s*?=\s+).*#\$1${AR_STAGE0}#" "${settings_file}"
-perl -pi -e "s#(conf-gcc-linker-args-stage[12]\s*?=\s+)#\$1-Wl,-L${PREFIX}/lib -Wl,-rpath,${PREFIX}/lib #" "${settings_file}"
-perl -pi -e "s#(conf-ld-linker-args-stage[12]\s*?=\s+)#\$1-L${PREFIX}/lib -rpath ${PREFIX}/lib #" "${settings_file}"
-perl -pi -e "s#(settings-c-compiler-link-flags\s*?=\s+)#\$1-Wl,-L${PREFIX}/lib -Wl,-rpath,${PREFIX}/lib #" "${settings_file}"
-perl -pi -e "s#(settings-ar-command\s*?=\s+)#\$1${conda_target}-ar#" "${settings_file}"
-perl -pi -e "s#(settings-ld-flags\s*?=\s+)#\$1-L${PREFIX}/lib -rpath ${PREFIX}/lib #" "${settings_file}"
+perl -pi -e "s#(system-ar\s*?=\s).*#\$1${AR_STAGE0}#" "${settings_file}"
+perl -pi -e "s#(conf-gcc-linker-args-stage[12]\s*?=\s)#\$1-Wl,-L${PREFIX}/lib -Wl,-rpath,${PREFIX}/lib #" "${settings_file}"
+perl -pi -e "s#(conf-ld-linker-args-stage[12]\s*?=\s)#\$1-L${PREFIX}/lib -rpath ${PREFIX}/lib #" "${settings_file}"
+perl -pi -e "s#(settings-c-compiler-link-flags\s*?=\s)#\$1-Wl,-L${PREFIX}/lib -Wl,-rpath,${PREFIX}/lib #" "${settings_file}"
+perl -pi -e "s#(settings-ar-command\s*?=\s)#\$1${conda_target}-ar#" "${settings_file}"
+perl -pi -e "s#(settings-ld-flags\s*?=\s)#\$1-L${PREFIX}/lib -rpath ${PREFIX}/lib #" "${settings_file}"
 
 cat "${settings_file}"
 
@@ -90,9 +88,11 @@ _hadrian_build=("${SRC_DIR}"/hadrian/build "-j${CPU_COUNT}")
 # Bug in ghc-bootstrap for libiconv2
 bootstrap_settings="${osx_64_env}"/ghc-bootstrap/lib/ghc-"${PKG_VERSION}"/lib/settings
 perl -pi -e "s#[^ ]+/usr/lib/libiconv2.tbd##" "${bootstrap_settings}"
-perl -pi -e "s#(\(\"ar command\", \")[^\"]*#\$1${AR}#" "${bootstrap_settings}"
-perl -pi -e "s#(\(\"ranlib command\", \")[^\"]*#\$1llvm-ranlib#" "${bootstrap_settings}"
+perl -pi -e "s#(\(\"ar command\", \")[^\"]*#\$1${AR_STAGE0}#" "${bootstrap_settings}"
+# perl -pi -e "s#(\(\"ranlib command\", \")[^\"]*#\$1llvm-ranlib#" "${bootstrap_settings}"
 grep -E '(ar|ranlib) command' "${bootstrap_settings}" || echo "Pattern not found"
+
+cat "${bootstrap_settings}"
 
 # This will not generate ghc-toolchain-bin or the .ghc-toolchain (possibly due to x-platform)
 run_and_log "ghc-configure" ./configure "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}"
@@ -102,7 +102,7 @@ pushd "${SRC_DIR}"/hadrian
   export CABFLAGS=(--enable-shared --enable-executable-dynamic -j)
   "${CABAL}" v2-build \
     --with-gcc="${CC_FOR_BUILD}" \
-    --with-ar="${AR}" \
+    --with-ar="${AR_STAGE0}" \
     -j \
     clock \
     file-io \
