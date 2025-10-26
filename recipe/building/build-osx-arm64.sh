@@ -95,9 +95,6 @@ perl -pi -e "s#((llc|opt|clang) command\", \")[^\"]*#\$1${conda_host}-\$2#" "${b
 
 cat "${bootstrap_settings}"
 
-# This will not generate ghc-toolchain-bin or the .ghc-toolchain (possibly due to x-platform)
-run_and_log "ghc-configure" ./configure "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}"
-
 # Build hadrian with cabal outside script
 pushd "${SRC_DIR}"/hadrian
   export CABFLAGS=(--enable-shared --enable-executable-dynamic -j)
