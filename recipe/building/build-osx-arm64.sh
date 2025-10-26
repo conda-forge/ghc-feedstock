@@ -42,8 +42,8 @@ run_and_log "cabal-update" "${CABAL}" v2-update
 
 # Configure and build GHC
 echo $(find "${BUILD_PREFIX}" -name llvm-ar)
-AR=$(find "${BUILD_PREFIX}" -name llvm-ar | head -1)
-export AR
+AR_STAGE0=$(find "${BUILD_PREFIX}" -name llvm-ar | head -1)
+export AR_STAGE0
 
 SYSTEM_CONFIG=(
   --target="${target_alias}"
@@ -65,7 +65,7 @@ CONFIGURE_ARGS=(
   ac_cv_path_ac_pt_CC="${BUILD_PREFIX}/bin/${conda_target}-clang"
   ac_cv_path_ac_pt_CXX="${BUILD_PREFIX}/bin/${conda_target}-clang++"
   LDFLAGS="-L${PREFIX}/lib ${LDFLAGS:-}"
-  AR_STAGE0="${AR}"
+  AR_STAGE0="${AR_STAGE0}"
   CC_STAGE0="${CC_FOR_BUILD}"
   LD_STAGE0="${BUILD_PREFIX}/bin/${conda_host}-ld"
 )
@@ -76,7 +76,7 @@ run_and_log "configure" ./configure -v "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@
 settings_file="${SRC_DIR}"/hadrian/cfg/system.config
 perl -pi -e "s#${BUILD_PREFIX}/bin/##" "${settings_file}"
 perl -pi -e "s#(=\s+)(ar|clang|clang\+\+|llc|nm|objdump|opt|ranlib)\$#\$1${conda_target}-\$2#" "${settings_file}"
-perl -pi -e "s#(system-ar\s*?=\s+).*#\$1${AR}#" "${settings_file}"
+perl -pi -e "s#(system-ar\s*?=\s+).*#\$1${AR_STAGE0}#" "${settings_file}"
 perl -pi -e "s#(conf-gcc-linker-args-stage[12]\s*?=\s+)#\$1-Wl,-L${PREFIX}/lib -Wl,-rpath,${PREFIX}/lib #" "${settings_file}"
 perl -pi -e "s#(conf-ld-linker-args-stage[12]\s*?=\s+)#\$1-L${PREFIX}/lib -rpath ${PREFIX}/lib #" "${settings_file}"
 perl -pi -e "s#(settings-c-compiler-link-flags\s*?=\s+)#\$1-Wl,-L${PREFIX}/lib -Wl,-rpath,${PREFIX}/lib #" "${settings_file}"
@@ -142,6 +142,8 @@ fi
 # Disable copy for cross-compilation - force building the cross binary
 # Change the cross-compile copy condition to never match
 perl -i -pe 's/\(True, s\) \| s > stage0InTree ->/\(False, s\) | s > stage0InTree \&\& False ->/' "${SRC_DIR}"/hadrian/src/Rules/Program.hs
+run_and_log "stage1_ghc-bin" "${_hadrian_build[@]}" stage1:exe:ghc-bin --flavour=quickest --progress-info=none || true
+rm -f "${SRC_DIR}"/_build/stageBoot/utils/hsc2hs/build/c/cbits/utils.o
 "${_hadrian_build[@]}" stage1:exe:ghc-bin --flavour=quickest --progress-info=unicorn
 run_and_log "stage1_ghc-pkg" "${_hadrian_build[@]}" stage1:exe:ghc-pkg --flavour=quickest --docs=none --progress-info=none
 run_and_log "stage1_hsc2hs"  "${_hadrian_build[@]}" stage1:exe:hsc2hs --flavour=quickest --docs=none --progress-info=none
@@ -150,8 +152,7 @@ run_and_log "stage1_hsc2hs"  "${_hadrian_build[@]}" stage1:exe:hsc2hs --flavour=
 
 # 9.12+: export DYLD_INSERT_LIBRARIES="${BUILD_PREFIX}/lib/libiconv.dylib:${BUILD_PREFIX}/lib/libffi.dylib${DYLD_INSERT_LIBRARIES:+:}${DYLD_INSERT_LIBRARIES:-}"
 # export DYLD_INSERT_LIBRARIES="${BUILD_PREFIX}/lib/libiconv.dylib:${BUILD_PREFIX}/lib/libffi.dylib${DYLD_INSERT_LIBRARIES:+:}${DYLD_INSERT_LIBRARIES:-}"
-run_and_log "stage1_lib" "${_hadrian_build[@]}" stage1:lib:ghc --flavour=release --docs=none --progress-info=none || true
-"${_hadrian_build[@]}" stage1:lib:ghc -VV --flavour=release --docs=none --progress-info=unicorn
+run_and_log "stage1_lib" "${_hadrian_build[@]}" stage1:lib:ghc --flavour=release --docs=none --progress-info=none
 
 run_and_log "stage2_exe" "${_hadrian_build[@]}" stage2:exe:ghc-bin --flavour=release --freeze1 --docs=none --progress-info=none
 run_and_log "build_all" "${_hadrian_build[@]}" --flavour=release --freeze1 --freeze2 --docs=no-sphinx-pdfs --progress-info=none
