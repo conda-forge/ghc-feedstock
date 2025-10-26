@@ -41,7 +41,9 @@ mkdir -p "${CABAL_DIR}" && "${CABAL}" user-config init
 run_and_log "cabal-update" "${CABAL}" v2-update
 
 # Configure and build GHC
-AR_STAGE0=$(find "${BUILD_PREFIX}" -name llvm-ar | head -1)
+export AR_STAGE0=$(find "${BUILD_PREFIX}" -name llvm-ar | head -1)
+export CC_STAGE0="${CC_FOR_BUILD}"
+export LD_STAGE0="${BUILD_PREFIX}/bin/${conda_host}-ld"
 
 SYSTEM_CONFIG=(
   --target="${target_alias}"
@@ -58,14 +60,7 @@ CONFIGURE_ARGS=(
   --with-gmp-libraries="${PREFIX}"/lib
   --with-iconv-includes="${PREFIX}"/include
   --with-iconv-libraries="${PREFIX}"/lib
-  ac_cv_lib_ffi_ffi_call=yes
-  ac_cv_prog_CC="${BUILD_PREFIX}/bin/${conda_target}-clang"
-  ac_cv_path_ac_pt_CC="${BUILD_PREFIX}/bin/${conda_target}-clang"
-  ac_cv_path_ac_pt_CXX="${BUILD_PREFIX}/bin/${conda_target}-clang++"
   LDFLAGS="-L${PREFIX}/lib ${LDFLAGS:-}"
-  AR_STAGE0="${AR_STAGE0}"
-  CC_STAGE0="${CC_FOR_BUILD}"
-  LD_STAGE0="${BUILD_PREFIX}/bin/${conda_host}-ld"
 )
 
 run_and_log "configure" ./configure -v "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}" || { cat config.log; exit 1; }
@@ -143,6 +138,10 @@ _hadrian_build=("${_hadrian}" "-j${CPU_COUNT}")
 # Disable copy for cross-compilation - force building the cross binary
 # Change the cross-compile copy condition to never match
 ( 
+  export ac_cv_lib_ffi_ffi_call=yes
+  export ac_cv_prog_CC="${BUILD_PREFIX}/bin/${conda_target}-clang"
+  export ac_cv_path_ac_pt_CC="${BUILD_PREFIX}/bin/${conda_target}-clang"
+  export ac_cv_path_ac_pt_CXX="${BUILD_PREFIX}/bin/${conda_target}-clang++"
   export AR="${AR_STAGE0}"
   export AS="${BUILD_PREFIX}/bin/${conda_host}-as"
   export CC="${BUILD_PREFIX}/bin/${conda_host}-clang"
