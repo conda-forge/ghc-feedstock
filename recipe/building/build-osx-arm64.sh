@@ -60,6 +60,10 @@ CONFIGURE_ARGS=(
   --with-gmp-libraries="${PREFIX}"/lib
   --with-iconv-includes="${PREFIX}"/include
   --with-iconv-libraries="${PREFIX}"/lib
+  ac_cv_lib_ffi_ffi_call=yes
+  ac_cv_prog_CC="${BUILD_PREFIX}/bin/${conda_target}-clang"
+  ac_cv_path_ac_pt_CC="${BUILD_PREFIX}/bin/${conda_target}-clang"
+  ac_cv_path_ac_pt_CXX="${BUILD_PREFIX}/bin/${conda_target}-clang++"
   LDFLAGS="-L${PREFIX}/lib ${LDFLAGS:-}"
 )
 
@@ -138,10 +142,6 @@ _hadrian_build=("${_hadrian}" "-j${CPU_COUNT}")
 # Disable copy for cross-compilation - force building the cross binary
 # Change the cross-compile copy condition to never match
 ( 
-  export ac_cv_lib_ffi_ffi_call=yes
-  export ac_cv_prog_CC="${BUILD_PREFIX}/bin/${conda_target}-clang"
-  export ac_cv_path_ac_pt_CC="${BUILD_PREFIX}/bin/${conda_target}-clang"
-  export ac_cv_path_ac_pt_CXX="${BUILD_PREFIX}/bin/${conda_target}-clang++"
   export AR="${AR_STAGE0}"
   export AS="${BUILD_PREFIX}/bin/${conda_host}-as"
   export CC="${BUILD_PREFIX}/bin/${conda_host}-clang"
