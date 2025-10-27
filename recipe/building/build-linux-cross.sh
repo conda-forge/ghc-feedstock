@@ -26,9 +26,9 @@ conda create -y \
     --platform linux-64 \
     -c conda-forge \
     cabal==3.10.3.0 \
-    binutils_impl_linux-64==2.43 \
     ghc-bootstrap=="${PKG_VERSION}" \
     sysroot_linux-64==2.17
+    # binutils_impl_linux-64==2.43 \
 
 libc2_17_env=$(conda info --envs | grep libc2.17_env | awk '{print $2}')
 ghc_path="${libc2_17_env}"/ghc-bootstrap/bin
@@ -36,15 +36,29 @@ export GHC="${ghc_path}"/ghc
 
 "${ghc_path}"/ghc-pkg recache
 
-conda_build_sysroot="${libc2_17_env}"/"${conda_host}"/sysroot
 
-CFLAGS=$(echo "$CFLAGS" | sed 's/-march=[^ ]*/-march=nocona/g' | sed 's/-mtune=[^ ]*/-mtune=haswell/g' | sed 's/  */ /g' | sed 's/^ *//' | sed 's/ *$//')
-CXXFLAGS=$(echo "$CXXFLAGS" | sed 's/-march=[^ ]*/-march=nocona/g' | sed 's/-mtune=[^ ]*/-mtune=haswell/g' | sed 's/  */ /g' | sed 's/^ *//' | sed 's/ *$//')
-CPPFLAGS=$(echo "$CPPFLAGS" | sed 's/-march=[^ ]*/-march=nocona/g' | sed 's/-mtune=[^ ]*/-mtune=haswell/g' | sed 's/  */ /g' | sed 's/^ *//' | sed 's/ *$//')
+if [[ "${target_arch}" == "aarch64" ]]; then
+  CROSS_CFLAGS=$(echo "$CFLAGS" | sed 's/-march=[^ ]*/-march=armv8-a/g' | sed 's/-mtune=[^ ]*/-mtune=generic/g' | sed 's/  */ /g' | sed 's/^ *//' | sed 's/ *$//')
+  CROSS_CXXFLAGS=$(echo "$CXXFLAGS" | sed 's/-march=[^ ]*/-march=armv8-a/g' | sed 's/-mtune=[^ ]*/-mtune=generic/g' | sed 's/  */ /g' | sed 's/^ *//' | sed 's/ *$//')
+  CROSS_CPPFLAGS=$(echo "$CPPFLAGS" | sed 's/-march=[^ ]*/-march=armv8-a/g' | sed 's/-mtune=[^ ]*/-mtune=generic/g' | sed 's/  */ /g' | sed 's/^ *//' | sed 's/ *$//')
+elif [[ "${target_arch}" == "ppc64le" ]]; then
+  # -mcpu=power8 -mtune=power8
+  CROSS_CFLAGS=$(echo "$CFLAGS" | sed 's/-march=[^ ]*/-march=power8/g' | sed 's/-mtune=[^ ]*/-mtune=power8/g' | sed 's/  */ /g' | sed 's/^ *//' | sed 's/ *$//')
+  CROSS_CXXFLAGS=$(echo "$CXXFLAGS" | sed 's/-march=[^ ]*/-march=power8/g' | sed 's/-mtune=[^ ]*/-mtune=power8/g' | sed 's/  */ /g' | sed 's/^ *//' | sed 's/ *$//')
+  CROSS_CPPFLAGS=$(echo "$CPPFLAGS" | sed 's/-march=[^ ]*/-march=power8/g' | sed 's/-mtune=[^ ]*/-mtune=power8/g' | sed 's/  */ /g' | sed 's/^ *//' | sed 's/ *$//')
+else
+  # -march=nocona -mtune=haswell
+  CROSS_CFLAGS=$(echo "$CFLAGS" | sed 's/-march=[^ ]*/-march=nocona/g' | sed 's/-mtune=[^ ]*/-mtune=haswell/g' | sed 's/  */ /g' | sed 's/^ *//' | sed 's/ *$//')
+  CROSS_CXXFLAGS=$(echo "$CXXFLAGS" | sed 's/-march=[^ ]*/-march=nocona/g' | sed 's/-mtune=[^ ]*/-mtune=haswell/g' | sed 's/  */ /g' | sed 's/^ *//' | sed 's/ *$//')
+  CROSS_CPPFLAGS=$(echo "$CPPFLAGS" | sed 's/-march=[^ ]*/-march=nocona/g' | sed 's/-mtune=[^ ]*/-mtune=haswell/g' | sed 's/  */ /g' | sed 's/^ *//' | sed 's/ *$//')
+fi
 
-export CFLAGS="--sysroot=${conda_build_sysroot} ${CFLAGS}"
-export CXXFLAGS="--sysroot=${conda_build_sysroot} ${CXXFLAGS}"
-export LDFLAGS="--sysroot=${conda_build_sysroot} ${LDFLAGS}"
+
+# ./configure uses this CFLAGS with the cross-compiler
+# conda_build_sysroot="${libc2_17_env}"/"${conda_host}"/sysroot
+# export CFLAGS="--sysroot=${conda_build_sysroot} ${CFLAGS}"
+# export CXXFLAGS="--sysroot=${conda_build_sysroot} ${CXXFLAGS}"
+# export LDFLAGS="--sysroot=${conda_build_sysroot} ${LDFLAGS}"
 
 export CABAL="${libc2_17_env}"/bin/cabal
 export CABAL_DIR="${SRC_DIR}"/.cabal
