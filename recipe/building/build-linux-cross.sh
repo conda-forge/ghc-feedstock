@@ -44,7 +44,7 @@ CPPFLAGS=$(echo "$CPPFLAGS" | sed 's/-march=[^ ]*/-march=nocona/g' | sed 's/-mtu
 
 export CFLAGS="--sysroot=${conda_build_sysroot} ${CFLAGS}"
 export CXXFLAGS="--sysroot=${conda_build_sysroot} ${CXXFLAGS}"
-export LDFLAGS="--sysroot=${conda_build_sysroot} ${LDLAGS}"
+export LDFLAGS="--sysroot=${conda_build_sysroot} ${LDFLAGS}"
 
 export CABAL="${libc2_17_env}"/bin/cabal
 export CABAL_DIR="${SRC_DIR}"/.cabal
