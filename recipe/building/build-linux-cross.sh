@@ -69,9 +69,17 @@ CONFIGURE_ARGS=(
   --with-gmp-libraries="${PREFIX}"/lib
   --with-iconv-includes="${PREFIX}"/include
   --with-iconv-libraries="${PREFIX}"/lib
+  
   ac_cv_lib_ffi_ffi_call=yes
-  ac_cv_prog_CC="${BUILD_PREFIX}/bin/${conda_target}-clang"
-  ac_cv_prog_CXX="${BUILD_PREFIX}/bin/${conda_target}-clang++"
+  ac_cv_prog_AR="${AR}"
+  ac_cv_prog_AS="${AS}"
+  ac_cv_prog_CC="${CC}"
+  ac_cv_prog_CXX="${CXX}"
+  ac_cv_prog_LD="${LD}"
+  ac_cv_prog_NM="${NM}"
+  ac_cv_prog_OBJDUMP="${OBJDUMP}"
+  ac_cv_prog_RANLIB="${RANLIB}"
+  
   AR="${conda_target}"-ar
   AS="${conda_target}"-as
   CC="${conda_target}"-clang
@@ -80,10 +88,13 @@ CONFIGURE_ARGS=(
   NM="${conda_target}"-nm
   OBJDUMP="${conda_target}"-objdump
   RANLIB="${conda_target}"-ranlib
+  
   LDFLAGS="-L${PREFIX}/lib ${LDFLAGS:-}"
 )
 
-run_and_log "ghc-configure" ./configure "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}"
+(
+  run_and_log "configure" ./configure -v "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}" || { cat config.log; exit 1; }
+)
 
 # Fix host configuration to use x86_64, target cross
 settings_file="${SRC_DIR}"/hadrian/cfg/system.config

@@ -61,14 +61,28 @@ CONFIGURE_ARGS=(
   --with-gmp-libraries="${PREFIX}"/lib
   --with-iconv-includes="${PREFIX}"/include
   --with-iconv-libraries="${PREFIX}"/lib
+  
   ac_cv_lib_ffi_ffi_call=yes
   ac_cv_prog_CC="${BUILD_PREFIX}/bin/${conda_target}-clang"
   ac_cv_path_ac_pt_CC="${BUILD_PREFIX}/bin/${conda_target}-clang"
   ac_cv_path_ac_pt_CXX="${BUILD_PREFIX}/bin/${conda_target}-clang++"
+  
+  AR="${BUILD_PREFIX}"/bin/"${conda_target}"-ar
+  AS="${BUILD_PREFIX}"/bin/"${conda_target}"-as
+  CC="${BUILD_PREFIX}"/bin/"${conda_target}"-clang
+  CXX="${BUILD_PREFIX}"/bin/"${conda_target}"-clang++
+  LD="${BUILD_PREFIX}"/bin/"${conda_target}"-ld
+  NM="${BUILD_PREFIX}"/bin/"${conda_target}"-nm
+  OBJDUMP="${BUILD_PREFIX}"/bin/"${conda_target}"-objdump
+  RANLIB="${BUILD_PREFIX}"/bin/"${conda_target}"-ranlib
+  
   LDFLAGS="-L${PREFIX}/lib ${LDFLAGS:-}"
+  
 )
 
-run_and_log "configure" ./configure -v "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}" || { cat config.log; exit 1; }
+(
+  run_and_log "configure" ./configure -v "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}" || { cat config.log; exit 1; }
+)
 
 # Fix host configuration to use x86_64, target cross
 (
@@ -192,16 +206,19 @@ run_and_log "stage2_exe" "${_hadrian_build[@]}" stage2:exe:ghc-bin --flavour=rel
 run_and_log "build_all" "${_hadrian_build[@]}" --flavour=release --freeze1 --freeze2 --docs=no-sphinx-pdfs --progress-info=none
 run_and_log "install" "${_hadrian_build[@]}" install --prefix="${PREFIX}" --flavour=release --freeze1 --freeze2 --docs=none --progress-info=none || true
 
-# Create links of aarch64-conda-linux-gnu-xxx to xxx
+ls -l1 "${PREFIX}"/{bin,lib}/*
+
+# Create links of <triplet>-xxx to xxx
 pushd "${PREFIX}"/bin
-  for bin in arm64-apple-darwin20.0.0-*; do
-    ln -s "${bin}" "${bin#arm64-apple-darwin20.0.0-}"
+  for bin in ghc ghci ghc-pkg hp2ps hsc2hs; do
+    if [[ -f "${ghc_target}-${bin}" ]] && [[ ! -f "${bin}" ]]; then
+      ln -sf "${ghc_target}-${bin}" "${bin}"
+    fi
   done
 popd
 
-pushd "${PREFIX}"/lib
-  if [[ -d arm64-apple-darwin20.0.0-ghc-"${PKG_VERSION}" ]]; then
-    mv arm64-apple-darwin20.0.0-ghc-"${PKG_VERSION}" ghc-"${PKG_VERSION}"
-    ln -s ghc-"${PKG_VERSION}" arm64-apple-darwin20.0.0-ghc-"${PKG_VERSION}"
-  fi
-popd
+if [[ -d "${PREFIX}"/lib/${ghc_target}-ghc-"${PKG_VERSION}" ]]; then
+  # $PREFIX/lib/cross-conda-linux-gnu-ghc-9.12.2 -> $PREFIX/lib/ghc-9.12.2
+  mv "${PREFIX}"/lib/"${ghc_target}"-ghc-"${PKG_VERSION}" "${PREFIX}"/lib/ghc-"${PKG_VERSION}"
+  ln -sf "${PREFIX}"/lib/ghc-"${PKG_VERSION}" "${PREFIX}"/lib/"${ghc_target}"-ghc-"${PKG_VERSION}"
+fi
