@@ -37,9 +37,9 @@ export GHC="${ghc_path}"/ghc
 "${ghc_path}"/ghc-pkg recache
 
 conda_build_sysroot="${libc2_17_env}"/"${conda_host}"/sysroot
-export CFLAGS="--sysroot=${conda_build_sysroot}"
-export CXXFLAGS="--sysroot=${conda_build_sysroot}"
-export LDFLAGS="--sysroot=${conda_build_sysroot}"
+export CFLAGS="--sysroot=${conda_build_sysroot} ${CFLAGS}"
+export CXXFLAGS="--sysroot=${conda_build_sysroot} ${CXXFLAGS}"
+export LDFLAGS="--sysroot=${conda_build_sysroot} ${LDFLAGS}"
 
 export CABAL="${libc2_17_env}"/bin/cabal
 export CABAL_DIR="${SRC_DIR}"/.cabal
@@ -103,7 +103,7 @@ update_linux_link_flags "${settings_file}"
 run_and_log "stage1_lib" "${_hadrian_build[@]}" stage1:lib:ghc -VV --flavour=quickest --docs=none --progress-info=none
 update_linux_link_flags "${settings_file}"
 
-# Redifine hadrian to avoid rebuilding via the build script
+# Redefine hadrian to avoid rebuilding via the build script
 _hadrian_bin=$(find "${SRC_DIR}"/hadrian/dist-newstyle/build -name hadrian -type f -executable | head -1)
 _hadrian_build=("${_hadrian_bin}" "-j${CPU_COUNT}" "--directory" "${SRC_DIR}")
 

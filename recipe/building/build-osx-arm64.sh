@@ -75,13 +75,15 @@ settings_file="${SRC_DIR}"/hadrian/cfg/system.config
 perl -pi -e "s#${BUILD_PREFIX}/bin/##" "${settings_file}"
 perl -pi -e "s#(=\s+)(ar|clang|clang\+\+|llc|nm|objdump|opt|ranlib)\$#\$1${conda_target}-\$2#" "${settings_file}"
 perl -pi -e "s#(system-ar\s*?=\s).*#\$1${AR_STAGE0}#" "${settings_file}"
+perl -pi -e "s#(conf-cc-args-stage0\s*?=\s).*#\$1--target=${conda_host}#" "${settings_file}"
+perl -pi -e "s#(conf-gcc-linker-args-stage0\s*?=\s).*#\$1--target=${conda_host}#" "${settings_file}"
 perl -pi -e "s#(conf-gcc-linker-args-stage[12]\s*?=\s)#\$1-Wl,-L${PREFIX}/lib -Wl,-rpath,${PREFIX}/lib #" "${settings_file}"
 perl -pi -e "s#(conf-ld-linker-args-stage[12]\s*?=\s)#\$1-L${PREFIX}/lib -rpath ${PREFIX}/lib #" "${settings_file}"
 perl -pi -e "s#(settings-c-compiler-link-flags\s*?=\s)#\$1-Wl,-L${PREFIX}/lib -Wl,-rpath,${PREFIX}/lib #" "${settings_file}"
 perl -pi -e "s#(settings-ar-command\s*?=\s).*#\$1${conda_target}-ar#" "${settings_file}"
 perl -pi -e "s#(settings-ld-flags\s*?=\s)#\$1-L${PREFIX}/lib -rpath ${PREFIX}/lib #" "${settings_file}"
-
 cat "${settings_file}"
+unset settings_file
 
 _hadrian_build=("${SRC_DIR}"/hadrian/build "-j${CPU_COUNT}")
 
@@ -89,57 +91,59 @@ _hadrian_build=("${SRC_DIR}"/hadrian/build "-j${CPU_COUNT}")
 bootstrap_settings="${osx_64_env}"/ghc-bootstrap/lib/ghc-"${PKG_VERSION}"/lib/settings
 perl -pi -e "s#[^ ]+/usr/lib/libiconv2.tbd##" "${bootstrap_settings}"
 perl -pi -e "s#(C compiler flags\", \")#\$1-v -fno-lto #" "${bootstrap_settings}"
-perl -pi -e 's#(C\+\+ compiler flags", "[^"]*)#$1 -fno-lto#' "${settings_file}"
+perl -pi -e 's#(C\+\+ compiler flags", "[^"]*)#$1 -fno-lto#' "${bootstrap_settings}"
 # Don't add -fuse-ld=lld during build (bootstrap compiler doesn't support it)
-perl -pi -e "s#(C compiler link flags\", \"[^\"]*)#\$1 -fuse-ld=lld -fno-lto#" "${settings_file}"
+perl -pi -e "s#(C compiler link flags\", \"[^\"]*)#\$1 -fuse-ld=lld -fno-lto#" "${bootstrap_settings}"
 perl -pi -e "s#(ar command\", \")[^\"]*#\$1${AR_STAGE0}#" "${bootstrap_settings}"
 perl -pi -e "s#(ranlib command\", \")[^\"]*#\$1llvm-ranlib#" "${bootstrap_settings}"
 perl -pi -e "s#((llc|opt|clang) command\", \")[^\"]*#\$1${conda_host}-\$2#" "${bootstrap_settings}"
-
 cat "${bootstrap_settings}"
+unset bootstrap_settings
 
 # Build hadrian with cabal outside script
-pushd "${SRC_DIR}"/hadrian
-  export CABFLAGS=(--enable-shared --enable-executable-dynamic -j)
-  "${CABAL}" v2-build \
-    --with-gcc="${CC_FOR_BUILD}" \
-    --with-ar="${AR_STAGE0}" \
-    -j \
-    clock \
-    file-io \
-    heaps \
-    js-dgtable \
-    js-flot \
-    js-jquery \
-    directory \
-    os-string \
-    splitmix \
-    utf8-string \
-    hashable \
-    process \
-    primitive \
-    random \
-    QuickCheck \
-    unordered-containers \
-    extra \
-    Cabal-syntax \
-    filepattern \
-    Cabal \
-    shake \
-    hadrian \
-    2>&1 | tee "${SRC_DIR}"/cabal-verbose.log
-    _cabal_exit_code=${PIPESTATUS[0]}
-popd
+(
+  pushd "${SRC_DIR}"/hadrian
+    export CABFLAGS=(--enable-shared --enable-executable-dynamic -j)
+    "${CABAL}" v2-build \
+      --with-gcc="${CC_FOR_BUILD}" \
+      --with-ar="${AR_STAGE0}" \
+      -j \
+      clock \
+      file-io \
+      heaps \
+      js-dgtable \
+      js-flot \
+      js-jquery \
+      directory \
+      os-string \
+      splitmix \
+      utf8-string \
+      hashable \
+      process \
+      primitive \
+      random \
+      QuickCheck \
+      unordered-containers \
+      extra \
+      Cabal-syntax \
+      filepattern \
+      Cabal \
+      shake \
+      hadrian \
+      2>&1 | tee "${SRC_DIR}"/cabal-verbose.log
+      _cabal_exit_code=${PIPESTATUS[0]}
+  popd
 
-if [[ $_cabal_exit_code -ne 0 ]]; then
-  echo "=== Cabal build FAILED with exit code ${_cabal_exit_code} ==="
-  exit 1
-else
-  echo "=== Cabal build SUCCEEDED ==="
-fi
+  if [[ $_cabal_exit_code -ne 0 ]]; then
+    echo "=== Cabal build FAILED with exit code ${_cabal_exit_code} ==="
+    exit 1
+  else
+    echo "=== Cabal build SUCCEEDED ==="
+  fi
+)
 
-_hadrian=$(find "${SRC_DIR}" -name hadrian -type f | head -1)
-_hadrian_build=("${_hadrian}" "-j${CPU_COUNT}")
+_hadrian_bin=$(find "${SRC_DIR}"/hadrian/dist-newstyle/build -name hadrian -type f | head -1)
+_hadrian_build=("${_hadrian_bin}" "-j${CPU_COUNT}" "--directory" "${SRC_DIR}")
 
 # ---| Stage 1: Cross-compiler |---
 
