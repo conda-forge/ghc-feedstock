@@ -30,6 +30,7 @@ conda create -y \
 
 osx_64_env=$(conda info --envs | grep osx64_env | awk '{print $2}')
 ghc_path="${osx_64_env}"/ghc-bootstrap/bin
+
 export GHC="${ghc_path}"/ghc
 
 "${ghc_path}"/ghc-pkg recache
@@ -87,7 +88,10 @@ _hadrian_build=("${SRC_DIR}"/hadrian/build "-j${CPU_COUNT}")
 # Bug in ghc-bootstrap for libiconv2
 bootstrap_settings="${osx_64_env}"/ghc-bootstrap/lib/ghc-"${PKG_VERSION}"/lib/settings
 perl -pi -e "s#[^ ]+/usr/lib/libiconv2.tbd##" "${bootstrap_settings}"
-perl -pi -e "s#(C compiler flags\", \")#\$1-v #" "${bootstrap_settings}"
+perl -pi -e "s#(C compiler flags\", \")#\$1-v -fno-lto #" "${bootstrap_settings}"
+perl -pi -e 's#(C\+\+ compiler flags", "[^"]*)#$1 -fno-lto#' "${settings_file}"
+# Don't add -fuse-ld=lld during build (bootstrap compiler doesn't support it)
+perl -pi -e "s#(C compiler link flags\", \"[^\"]*)#\$1 -fuse-ld=lld -fno-lto#" "${settings_file}"
 perl -pi -e "s#(ar command\", \")[^\"]*#\$1${AR_STAGE0}#" "${bootstrap_settings}"
 perl -pi -e "s#(ranlib command\", \")[^\"]*#\$1llvm-ranlib#" "${bootstrap_settings}"
 perl -pi -e "s#((llc|opt|clang) command\", \")[^\"]*#\$1${conda_host}-\$2#" "${bootstrap_settings}"
@@ -147,6 +151,10 @@ _hadrian_build=("${_hadrian}" "-j${CPU_COUNT}")
   export CC="${BUILD_PREFIX}/bin/${conda_host}-clang"
   export CXX="${BUILD_PREFIX}/bin/${conda_host}-clang++"
   export LD="${BUILD_PREFIX}/bin/${conda_host}-ld"
+  
+  ln -sf "${BUILD_PREFIX}/bin/${conda_host}-ar" "${BUILD_PREFIX}"/bin/ar
+  ln -sf "${BUILD_PREFIX}/bin/${conda_host}-as" "${BUILD_PREFIX}"/bin/as
+  ln -sf "${BUILD_PREFIX}/bin/${conda_host}-ld" "${BUILD_PREFIX}"/bin/ld
   
   perl -i -pe 's/\(True, s\) \| s > stage0InTree ->/\(False, s\) | s > stage0InTree \&\& False ->/' "${SRC_DIR}"/hadrian/src/Rules/Program.hs
   
