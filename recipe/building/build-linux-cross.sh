@@ -37,9 +37,14 @@ export GHC="${ghc_path}"/ghc
 "${ghc_path}"/ghc-pkg recache
 
 conda_build_sysroot="${libc2_17_env}"/"${conda_host}"/sysroot
+
+CFLAGS=$(echo "$CFLAGS" | sed 's/-march=[^ ]*/-march=nocona/g' | sed 's/-mtune=[^ ]*/-mtune=haswell/g' | sed 's/  */ /g' | sed 's/^ *//' | sed 's/ *$//')
+CXXFLAGS=$(echo "$CXXFLAGS" | sed 's/-march=[^ ]*/-march=nocona/g' | sed 's/-mtune=[^ ]*/-mtune=haswell/g' | sed 's/  */ /g' | sed 's/^ *//' | sed 's/ *$//')
+CPPFLAGS=$(echo "$CPPFLAGS" | sed 's/-march=[^ ]*/-march=nocona/g' | sed 's/-mtune=[^ ]*/-mtune=haswell/g' | sed 's/  */ /g' | sed 's/^ *//' | sed 's/ *$//')
+
 export CFLAGS="--sysroot=${conda_build_sysroot} ${CFLAGS}"
 export CXXFLAGS="--sysroot=${conda_build_sysroot} ${CXXFLAGS}"
-export LDFLAGS="--sysroot=${conda_build_sysroot} ${LDFLAGS}"
+export LDFLAGS="--sysroot=${conda_build_sysroot} ${LDLAGS}"
 
 export CABAL="${libc2_17_env}"/bin/cabal
 export CABAL_DIR="${SRC_DIR}"/.cabal
@@ -65,6 +70,8 @@ CONFIGURE_ARGS=(
   --with-iconv-includes="${PREFIX}"/include
   --with-iconv-libraries="${PREFIX}"/lib
   ac_cv_lib_ffi_ffi_call=yes
+  ac_cv_prog_CC="${BUILD_PREFIX}/bin/${conda_target}-clang"
+  ac_cv_prog_CXX="${BUILD_PREFIX}/bin/${conda_target}-clang++"
   AR="${conda_target}"-ar
   AS="${conda_target}"-as
   CC="${conda_target}"-clang
