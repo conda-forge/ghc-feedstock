@@ -36,30 +36,6 @@ export GHC="${ghc_path}"/ghc
 
 "${ghc_path}"/ghc-pkg recache
 
-
-if [[ "${target_arch}" == "aarch64" ]]; then
-  CROSS_CFLAGS=$(echo "$CFLAGS" | sed 's/-march=[^ ]*/-march=armv8-a/g' | sed 's/-mtune=[^ ]*/-mtune=generic/g' | sed 's/  */ /g' | sed 's/^ *//' | sed 's/ *$//')
-  CROSS_CXXFLAGS=$(echo "$CXXFLAGS" | sed 's/-march=[^ ]*/-march=armv8-a/g' | sed 's/-mtune=[^ ]*/-mtune=generic/g' | sed 's/  */ /g' | sed 's/^ *//' | sed 's/ *$//')
-  CROSS_CPPFLAGS=$(echo "$CPPFLAGS" | sed 's/-march=[^ ]*/-march=armv8-a/g' | sed 's/-mtune=[^ ]*/-mtune=generic/g' | sed 's/  */ /g' | sed 's/^ *//' | sed 's/ *$//')
-elif [[ "${target_arch}" == "ppc64le" ]]; then
-  # -mcpu=power8 -mtune=power8
-  CROSS_CFLAGS=$(echo "$CFLAGS" | sed 's/-march=[^ ]*/-march=power8/g' | sed 's/-mtune=[^ ]*/-mtune=power8/g' | sed 's/  */ /g' | sed 's/^ *//' | sed 's/ *$//')
-  CROSS_CXXFLAGS=$(echo "$CXXFLAGS" | sed 's/-march=[^ ]*/-march=power8/g' | sed 's/-mtune=[^ ]*/-mtune=power8/g' | sed 's/  */ /g' | sed 's/^ *//' | sed 's/ *$//')
-  CROSS_CPPFLAGS=$(echo "$CPPFLAGS" | sed 's/-march=[^ ]*/-march=power8/g' | sed 's/-mtune=[^ ]*/-mtune=power8/g' | sed 's/  */ /g' | sed 's/^ *//' | sed 's/ *$//')
-else
-  # -march=nocona -mtune=haswell
-  CROSS_CFLAGS=$(echo "$CFLAGS" | sed 's/-march=[^ ]*/-march=nocona/g' | sed 's/-mtune=[^ ]*/-mtune=haswell/g' | sed 's/  */ /g' | sed 's/^ *//' | sed 's/ *$//')
-  CROSS_CXXFLAGS=$(echo "$CXXFLAGS" | sed 's/-march=[^ ]*/-march=nocona/g' | sed 's/-mtune=[^ ]*/-mtune=haswell/g' | sed 's/  */ /g' | sed 's/^ *//' | sed 's/ *$//')
-  CROSS_CPPFLAGS=$(echo "$CPPFLAGS" | sed 's/-march=[^ ]*/-march=nocona/g' | sed 's/-mtune=[^ ]*/-mtune=haswell/g' | sed 's/  */ /g' | sed 's/^ *//' | sed 's/ *$//')
-fi
-
-
-# ./configure uses this CFLAGS with the cross-compiler
-# conda_build_sysroot="${libc2_17_env}"/"${conda_host}"/sysroot
-# export CFLAGS="--sysroot=${conda_build_sysroot} ${CFLAGS}"
-# export CXXFLAGS="--sysroot=${conda_build_sysroot} ${CXXFLAGS}"
-# export LDFLAGS="--sysroot=${conda_build_sysroot} ${LDFLAGS}"
-
 export CABAL="${libc2_17_env}"/bin/cabal
 export CABAL_DIR="${SRC_DIR}"/.cabal
 
@@ -103,14 +79,9 @@ CONFIGURE_ARGS=(
   ac_cv_prog_ac_ct_LLC="${conda_target}"-llc
   ac_cv_prog_ac_ct_OPT="${conda_target}"-opt
 
-  # AR="${conda_target}"-ar
-  # AS="${conda_target}"-as
-  # CC="${conda_target}"-clang
-  # CXX="${conda_target}"-clang++
-  # LD="${conda_target}"-ld
-  # NM="${conda_target}"-nm
-  # OBJDUMP="${conda_target}"-objdump
-  # RANLIB="${conda_target}"-ranlib
+  AR_STAGE0="${BUILD_PREFIX}/bin/${conda_host}-ar"
+  CC_STAGE0="${CC_FOR_BUILD} --sysroot=${libc2.17_env}/${conda_host}/sysroot"
+  LD_STAGE0="${BUILD_PREFIX}/bin/${conda_host}-ld --sysroot=${libc2.17_env}/${conda_host}/sysroot"
   
   LDFLAGS="-L${PREFIX}/lib ${LDFLAGS:-}"
 )
@@ -120,15 +91,60 @@ CONFIGURE_ARGS=(
 )
 
 # Fix host configuration to use x86_64, target cross
-settings_file="${SRC_DIR}"/hadrian/cfg/system.config
-perl -pi -e "s#${BUILD_PREFIX}/bin/##" "${settings_file}"
-perl -pi -e "s#(=\s+)(ar|clang|clang\+\+|llc|nm|opt|ranlib)\$#\$1${conda_target}-\$2#" "${settings_file}"
-perl -pi -e "s#(conf-gcc-linker-args-stage[12].*?= )#\$1-Wl,-L${PREFIX}/lib -Wl,-rpath,${PREFIX}/lib #" "${settings_file}"
-perl -pi -e "s#(conf-ld-linker-args-stage[12].*?= )#\$1-L${PREFIX}/lib -rpath ${PREFIX}/lib #" "${settings_file}"
-perl -pi -e "s#(settings-c-compiler-link-flags.*?= )#\$1-Wl,-L${PREFIX}/lib -Wl,-rpath,${PREFIX}/lib #" "${settings_file}"
-perl -pi -e "s#(settings-ld-flags.*?= )#\$1-L${PREFIX}/lib -rpath ${PREFIX}/lib #" "${settings_file}"
+(
+  settings_file="${SRC_DIR}"/hadrian/cfg/system.config
+  perl -pi -e "s#${BUILD_PREFIX}/bin/##" "${settings_file}"
+  perl -pi -e "s#(=\s+)(ar|clang|clang\+\+|llc|nm|opt|ranlib)\$#\$1${conda_target}-\$2#" "${settings_file}"
+  perl -pi -e "s#(conf-gcc-linker-args-stage[12].*?= )#\$1-Wl,-L${PREFIX}/lib -Wl,-rpath,${PREFIX}/lib #" "${settings_file}"
+  perl -pi -e "s#(conf-ld-linker-args-stage[12].*?= )#\$1-L${PREFIX}/lib -rpath ${PREFIX}/lib #" "${settings_file}"
+  perl -pi -e "s#(settings-c-compiler-link-flags.*?= )#\$1-Wl,-L${PREFIX}/lib -Wl,-rpath,${PREFIX}/lib #" "${settings_file}"
+  perl -pi -e "s#(settings-ld-flags.*?= )#\$1-L${PREFIX}/lib -rpath ${PREFIX}/lib #" "${settings_file}"
+)
 
-_hadrian_build=("${SRC_DIR}"/hadrian/build "-j${CPU_COUNT}")
+# Build hadrian with cabal outside script
+(
+  pushd "${SRC_DIR}"/hadrian
+    export CABFLAGS=(--enable-shared --enable-executable-dynamic -j)
+    "${CABAL}" v2-build -v \
+      --with-gcc="${CC_FOR_BUILD}" \
+      --with-ar="${AR_STAGE0}" \
+      -j \
+      clock \
+      file-io \
+      heaps \
+      js-dgtable \
+      js-flot \
+      js-jquery \
+      directory \
+      os-string \
+      splitmix \
+      utf8-string \
+      hashable \
+      process \
+      primitive \
+      random \
+      QuickCheck \
+      unordered-containers \
+      extra \
+      Cabal-syntax \
+      filepattern \
+      Cabal \
+      shake \
+      hadrian \
+      2>&1 | tee "${SRC_DIR}"/cabal-verbose.log
+      _cabal_exit_code=${PIPESTATUS[0]}
+  popd
+
+  if [[ $_cabal_exit_code -ne 0 ]]; then
+    echo "=== Cabal build FAILED with exit code ${_cabal_exit_code} ==="
+    exit 1
+  else
+    echo "=== Cabal build SUCCEEDED ==="
+  fi
+)
+
+_hadrian_bin=$(find "${SRC_DIR}"/hadrian/dist-newstyle/build -name hadrian -type f | head -1)
+_hadrian_build=("${_hadrian_bin}" "-j${CPU_COUNT}" "--directory" "${SRC_DIR}")
 
 # ---| Stage 1: Cross-compiler |---
 

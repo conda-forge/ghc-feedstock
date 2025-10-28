@@ -43,8 +43,6 @@ run_and_log "cabal-update" "${CABAL}" v2-update
 
 # Configure and build GHC
 export AR_STAGE0=$(find "${BUILD_PREFIX}" -name llvm-ar | head -1)
-export CC_STAGE0="${CC_FOR_BUILD}"
-export LD_STAGE0="${BUILD_PREFIX}/bin/${conda_host}-ld"
 
 SYSTEM_CONFIG=(
   --target="${target_alias}"
@@ -63,9 +61,26 @@ CONFIGURE_ARGS=(
   --with-iconv-libraries="${PREFIX}"/lib
   
   ac_cv_lib_ffi_ffi_call=yes
-  ac_cv_prog_CC="${BUILD_PREFIX}/bin/${conda_target}-clang"
-  ac_cv_path_ac_pt_CC="${BUILD_PREFIX}/bin/${conda_target}-clang"
-  ac_cv_path_ac_pt_CXX="${BUILD_PREFIX}/bin/${conda_target}-clang++"
+  
+  ac_cv_prog_AR="${AR}"
+  ac_cv_prog_AS="${AS}"
+  ac_cv_prog_CC="${CC} --sysroot=${CONDA_BUILD_SYSROOT}"
+  ac_cv_prog_CXX="${CXX} --sysroot=${CONDA_BUILD_SYSROOT}"
+  ac_cv_prog_LD="${LD} --sysroot=${CONDA_BUILD_SYSROOT}"
+  ac_cv_prog_NM="${NM}"
+  ac_cv_prog_OBJDUMP="${OBJDUMP}"
+  ac_cv_prog_RANLIB="${RANLIB}"
+  
+  ac_cv_path_ac_pt_AR="${AR}"
+  ac_cv_path_ac_pt_NM="${NM}"
+  ac_cv_path_ac_pt_OBJDUMP="${OBJDUMP}"
+  ac_cv_path_ac_pt_RANLIB="${RANLIB}"
+
+  ac_cv_prog_ac_ct_LLC="${conda_target}"-llc
+  ac_cv_prog_ac_ct_OPT="${conda_target}"-opt
+
+  CC_STAGE0="${CC_FOR_BUILD}"
+  LD_STAGE0="${BUILD_PREFIX}/bin/${conda_host}-ld"
   
   AR="${BUILD_PREFIX}"/bin/"${conda_target}"-ar
   AS="${BUILD_PREFIX}"/bin/"${conda_target}"-as
