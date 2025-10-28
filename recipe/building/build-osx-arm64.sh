@@ -228,14 +228,14 @@ ls -l1 "${PREFIX}"/{bin,lib}/*
 # Create links of <triplet>-xxx to xxx
 pushd "${PREFIX}"/bin
   for bin in ghc ghci ghc-pkg hp2ps hsc2hs; do
-    if [[ -f "${ghc_target}-${bin}" ]] && [[ ! -f "${bin}" ]]; then
-      ln -sf "${ghc_target}-${bin}" "${bin}"
+    if [[ -f "${conda_target}-${bin}" ]] && [[ ! -f "${bin}" ]]; then
+      ln -sf "${conda_target}-${bin}" "${bin}"
     fi
   done
 popd
 
-if [[ -d "${PREFIX}"/lib/${ghc_target}-ghc-"${PKG_VERSION}" ]]; then
+if [[ -d "${PREFIX}"/lib/${conda_target}-ghc-"${PKG_VERSION}" ]]; then
   # $PREFIX/lib/cross-conda-linux-gnu-ghc-9.12.2 -> $PREFIX/lib/ghc-9.12.2
-  mv "${PREFIX}"/lib/"${ghc_target}"-ghc-"${PKG_VERSION}" "${PREFIX}"/lib/ghc-"${PKG_VERSION}"
-  ln -sf "${PREFIX}"/lib/ghc-"${PKG_VERSION}" "${PREFIX}"/lib/"${ghc_target}"-ghc-"${PKG_VERSION}"
+  mv "${PREFIX}"/lib/"${conda_target}"-ghc-"${PKG_VERSION}" "${PREFIX}"/lib/ghc-"${PKG_VERSION}"
+  ln -sf "${PREFIX}"/lib/ghc-"${PKG_VERSION}" "${PREFIX}"/lib/"${conda_target}"-ghc-"${PKG_VERSION}"
 fi

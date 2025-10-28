@@ -45,6 +45,8 @@ run_and_log "cabal-update" "${CABAL}" v2-update
 
 # Configure and build GHC
 export AR_STAGE0="${BUILD_PREFIX}/bin/${conda_host}-ar"
+export CC_STAGE0="${CC_FOR_BUILD}"
+export LD_STAGE0="${BUILD_PREFIX}/bin/${conda_host}-ld"
 
 SYSTEM_CONFIG=(
   --target="${ghc_target}"
@@ -84,18 +86,13 @@ CONFIGURE_ARGS=(
   ac_cv_prog_ac_ct_LLC="${conda_target}"-llc
   ac_cv_prog_ac_ct_OPT="${conda_target}"-opt
 
-  CC_STAGE0="${CC_FOR_BUILD}"
-  LD_STAGE0="${BUILD_PREFIX}/bin/${conda_host}-ld -L${libc2_17_env}/${conda_host}/lib -L${libc2_17_env}/${conda_host}/sysroot/usr/lib"
-  
-  CFLAGS="--sysroot=${CONDA_BUILD_SYSROOT} ${CFLAGS:-}"
-  CPPDFLAGS="--sysroot=${CONDA_BUILD_SYSROOT} ${CPPFLAGS:-}"
-  CXXFLAGS="--sysroot=${CONDA_BUILD_SYSROOT} ${CXXFLAGS:-}"
   LDFLAGS="-L${PREFIX}/lib ${LDFLAGS:-}"
 )
 
-(
-  run_and_log "configure" ./configure -v "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}" || { cat config.log; exit 1; }
-)
+# Disable trying to use libc 2.20 (we use 2.17) - export since it is needed for the sub-packages configuration during the build
+export ac_cv_func_statx=no
+export ac_cv_have_decl_statx=no
+run_and_log "configure" ./configure -v "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}" || { cat config.log; exit 1; }
 
 # Fix host configuration to use x86_64, target cross
 (
@@ -112,11 +109,15 @@ CONFIGURE_ARGS=(
 # Build hadrian with cabal outside script
 (
   pushd "${SRC_DIR}"/hadrian
+    export CFLAGS="--sysroot=${CONDA_BUILD_SYSROOT} -march=nocona -mtune=haswell -ftree-vectorize -fPIC -fstack-protector-strong -fno-plt -O2 -ffunction-sections -pipe -isystem $PREFIX/include -fdebug-prefix-map=$SRC_DIR=/usr/local/src/conda/ghc-${PKG_VERSION} -fdebug-prefix-map=$PREFIX=/usr/local/src/conda-prefix"
+    export LDFLAGS="-L${libc2_17_env}/${conda_host}/lib -L${libc2_17_env}/${conda_host}/sysroot/usr/lib ${LDFLAGS:-}"
+    
     export CABFLAGS=(--enable-shared --enable-executable-dynamic -j)
     "${CABAL}" v2-build \
-      --with-ghc="${GHC}" \
-      --with-gcc="${CC_FOR_BUILD}" \
       --with-ar="${AR_STAGE0}" \
+      --with-gcc="${CC_STAGE0}" \
+      --with-ghc="${GHC}" \
+      --with-ld="${LD_STAGE0}" \
       -j \
       clock \
       file-io \
@@ -144,18 +145,8 @@ CONFIGURE_ARGS=(
       _cabal_exit_code=${PIPESTATUS[0]}
 
     if [[ $_cabal_exit_code -ne 0 ]]; then
-      echo "=== DEBUG: Cabal build FAILED with exit code ${_cabal_exit_code} ==="
-      "${CABAL}" v2-build -v3 \
-        --with-ghc="${GHC}" \
-        --with-gcc="${CC_FOR_BUILD}" \
-        --with-ar="${AR_STAGE0}" \
-        directory \
-        2>&1 | tee "${SRC_DIR}"/cabal-verbose.log
-        _cabal_exit_code=${PIPESTATUS[0]}
-      if [[ $_cabal_exit_code -ne 0 ]]; then
-        echo "=== Cabal build FAILED with exit code ${_cabal_exit_code} ==="
-        exit 1
-      fi
+      echo "=== Cabal build FAILED with exit code ${_cabal_exit_code} ==="
+      exit 1
     else
       echo "=== Cabal build SUCCEEDED ==="
     fi
