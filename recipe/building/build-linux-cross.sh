@@ -85,23 +85,32 @@ CONFIGURE_ARGS=(
   --with-iconv-libraries="${PREFIX}"/lib
   
   ac_cv_lib_ffi_ffi_call=yes
+  
   ac_cv_prog_AR="${AR}"
   ac_cv_prog_AS="${AS}"
-  ac_cv_prog_CC="${CC}"
-  ac_cv_prog_CXX="${CXX}"
-  ac_cv_prog_LD="${LD}"
+  ac_cv_prog_CC="${CC} --sysroot=${CONDA_BUILD_SYSROOT}"
+  ac_cv_prog_CXX="${CXX} --sysroot=${CONDA_BUILD_SYSROOT}"
+  ac_cv_prog_LD="${LD} --sysroot=${CONDA_BUILD_SYSROOT}"
   ac_cv_prog_NM="${NM}"
   ac_cv_prog_OBJDUMP="${OBJDUMP}"
   ac_cv_prog_RANLIB="${RANLIB}"
   
-  AR="${conda_target}"-ar
-  AS="${conda_target}"-as
-  CC="${conda_target}"-clang
-  CXX="${conda_target}"-clang++
-  LD="${conda_target}"-ld
-  NM="${conda_target}"-nm
-  OBJDUMP="${conda_target}"-objdump
-  RANLIB="${conda_target}"-ranlib
+  ac_cv_path_ac_pt_AR="${AR}"
+  ac_cv_path_ac_pt_NM="${NM}"
+  ac_cv_path_ac_pt_OBJDUMP="${OBJDUMP}"
+  ac_cv_path_ac_pt_RANLIB="${RANLIB}"
+
+  ac_cv_prog_ac_ct_LLC="${conda_target}"-llc
+  ac_cv_prog_ac_ct_OPT="${conda_target}"-opt
+
+  # AR="${conda_target}"-ar
+  # AS="${conda_target}"-as
+  # CC="${conda_target}"-clang
+  # CXX="${conda_target}"-clang++
+  # LD="${conda_target}"-ld
+  # NM="${conda_target}"-nm
+  # OBJDUMP="${conda_target}"-objdump
+  # RANLIB="${conda_target}"-ranlib
   
   LDFLAGS="-L${PREFIX}/lib ${LDFLAGS:-}"
 )
