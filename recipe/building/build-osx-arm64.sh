@@ -64,8 +64,8 @@ CONFIGURE_ARGS=(
   
   ac_cv_prog_AR="${AR}"
   ac_cv_prog_AS="${AS}"
-  ac_cv_prog_CC="${CC} --sysroot=${CONDA_BUILD_SYSROOT}"
-  ac_cv_prog_CXX="${CXX} --sysroot=${CONDA_BUILD_SYSROOT}"
+  ac_cv_prog_CC="${CC}"
+  ac_cv_prog_CXX="${CXX}"
   ac_cv_prog_LD="${LD}"
   ac_cv_prog_NM="${NM}"
   # ac_cv_prog_OBJDUMP="${OBJDUMP:-objdump}"
@@ -91,6 +91,9 @@ CONFIGURE_ARGS=(
   OBJDUMP="${BUILD_PREFIX}"/bin/"${conda_target}"-objdump
   RANLIB="${BUILD_PREFIX}"/bin/"${conda_target}"-ranlib
   
+  CFLAGS="--sysroot=${CONDA_BUILD_SYSROOT} ${CFLAGS:-}"
+  CPPFLAGS="--sysroot=${CONDA_BUILD_SYSROOT} ${CPPFLAGS:-}"
+  CXXFLAGS="--sysroot=${CONDA_BUILD_SYSROOT} ${CXXFLAGS:-}"
   LDFLAGS="-L${PREFIX}/lib ${LDFLAGS:-}"
 )
 
@@ -162,14 +165,14 @@ CONFIGURE_ARGS=(
       hadrian \
       2>&1 | tee "${SRC_DIR}"/cabal-verbose.log
       _cabal_exit_code=${PIPESTATUS[0]}
-  popd
 
-  if [[ $_cabal_exit_code -ne 0 ]]; then
-    echo "=== Cabal build FAILED with exit code ${_cabal_exit_code} ==="
-    exit 1
-  else
-    echo "=== Cabal build SUCCEEDED ==="
-  fi
+    if [[ $_cabal_exit_code -ne 0 ]]; then
+      echo "=== Cabal build FAILED with exit code ${_cabal_exit_code} ==="
+      exit 1
+    else
+      echo "=== Cabal build SUCCEEDED ==="
+    fi
+  popd
 )
 
 _hadrian_bin=$(find "${SRC_DIR}"/hadrian/dist-newstyle/build -name hadrian -type f | head -1)

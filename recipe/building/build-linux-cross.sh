@@ -85,12 +85,12 @@ CONFIGURE_ARGS=(
   ac_cv_prog_ac_ct_OPT="${conda_target}"-opt
 
   CC_STAGE0="${CC_FOR_BUILD} --sysroot=${libc2_17_env}/${conda_host}/sysroot"
-  LD_STAGE0="${BUILD_PREFIX}/bin/${conda_host}-ld --sysroot=${libc2_17_env}/${conda_host}/sysroot"
+  LD_STAGE0="${BUILD_PREFIX}/bin/${conda_host}-ld -L${libc2_17_env}/${conda_host}/lib -L${libc2_17_env}/${conda_host}/sysroot/usr/lib"
   
   CFLAGS="--sysroot=${CONDA_BUILD_SYSROOT} ${CFLAGS:-}"
-  CPPDFLAGS="--sysroot=${CONDA_BUILD_SYSROOT} ${CPPDFLAGS:-}"
-  CXXFLAGS="--sysroot=${CONDA_BUILD_SYSROOT} ${CXXDFLAGS:-}"
-  LDFLAGS="-L${PREFIX}/lib --sysroot=${CONDA_BUILD_SYSROOT} ${LDFLAGS:-}"
+  CPPDFLAGS="--sysroot=${CONDA_BUILD_SYSROOT} ${CPPFLAGS:-}"
+  CXXFLAGS="--sysroot=${CONDA_BUILD_SYSROOT} ${CXXFLAGS:-}"
+  LDFLAGS="-L${PREFIX}/lib ${LDFLAGS:-}"
 )
 
 (
