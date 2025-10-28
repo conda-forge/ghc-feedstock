@@ -68,12 +68,12 @@ CONFIGURE_ARGS=(
   ac_cv_prog_CXX="${CXX} --sysroot=${CONDA_BUILD_SYSROOT}"
   ac_cv_prog_LD="${LD} --sysroot=${CONDA_BUILD_SYSROOT}"
   ac_cv_prog_NM="${NM}"
-  ac_cv_prog_OBJDUMP="${OBJDUMP}"
+  # ac_cv_prog_OBJDUMP="${OBJDUMP:-objdump}"
   ac_cv_prog_RANLIB="${RANLIB}"
   
   ac_cv_path_ac_pt_AR="${AR}"
   ac_cv_path_ac_pt_NM="${NM}"
-  ac_cv_path_ac_pt_OBJDUMP="${OBJDUMP}"
+  # ac_cv_path_ac_pt_OBJDUMP="${OBJDUMP:-objdump}"
   ac_cv_path_ac_pt_RANLIB="${RANLIB}"
 
   ac_cv_prog_ac_ct_LLC="${conda_target}"-llc
