@@ -84,7 +84,7 @@ CONFIGURE_ARGS=(
   ac_cv_prog_ac_ct_LLC="${conda_target}"-llc
   ac_cv_prog_ac_ct_OPT="${conda_target}"-opt
 
-  CC_STAGE0="${CC_FOR_BUILD} --sysroot=${libc2_17_env}/${conda_host}/sysroot"
+  CC_STAGE0="${CC_FOR_BUILD}"
   LD_STAGE0="${BUILD_PREFIX}/bin/${conda_host}-ld -L${libc2_17_env}/${conda_host}/lib -L${libc2_17_env}/${conda_host}/sysroot/usr/lib"
   
   CFLAGS="--sysroot=${CONDA_BUILD_SYSROOT} ${CFLAGS:-}"
@@ -149,28 +149,7 @@ CONFIGURE_ARGS=(
         --with-ghc="${GHC}" \
         --with-gcc="${CC_FOR_BUILD}" \
         --with-ar="${AR_STAGE0}" \
-        clock \
-        file-io \
-        heaps \
-        js-dgtable \
-        js-flot \
-        js-jquery \
         directory \
-        os-string \
-        splitmix \
-        utf8-string \
-        hashable \
-        process \
-        primitive \
-        random \
-        QuickCheck \
-        unordered-containers \
-        extra \
-        Cabal-syntax \
-        filepattern \
-        Cabal \
-        shake \
-        hadrian \
         2>&1 | tee "${SRC_DIR}"/cabal-verbose.log
         _cabal_exit_code=${PIPESTATUS[0]}
       if [[ $_cabal_exit_code -ne 0 ]]; then
