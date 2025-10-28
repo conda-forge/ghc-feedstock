@@ -67,9 +67,9 @@ CONFIGURE_ARGS=(
   
   ac_cv_prog_AR="${AR}"
   ac_cv_prog_AS="${AS}"
-  ac_cv_prog_CC="${CC} --sysroot=${CONDA_BUILD_SYSROOT}"
-  ac_cv_prog_CXX="${CXX} --sysroot=${CONDA_BUILD_SYSROOT}"
-  ac_cv_prog_LD="${LD} --sysroot=${CONDA_BUILD_SYSROOT}"
+  ac_cv_prog_CC="${CC}"
+  ac_cv_prog_CXX="${CXX}"
+  ac_cv_prog_LD="${LD}"
   ac_cv_prog_NM="${NM}"
   ac_cv_prog_OBJDUMP="${OBJDUMP}"
   ac_cv_prog_RANLIB="${RANLIB}"
@@ -87,7 +87,10 @@ CONFIGURE_ARGS=(
   CC_STAGE0="${CC_FOR_BUILD} --sysroot=${libc2_17_env}/${conda_host}/sysroot"
   LD_STAGE0="${BUILD_PREFIX}/bin/${conda_host}-ld --sysroot=${libc2_17_env}/${conda_host}/sysroot"
   
-  LDFLAGS="-L${PREFIX}/lib ${LDFLAGS:-}"
+  CFLAGS="--sysroot=${CONDA_BUILD_SYSROOT} ${CFLAGS:-}"
+  CPPDFLAGS="--sysroot=${CONDA_BUILD_SYSROOT} ${CPPDFLAGS:-}"
+  CXXFLAGS="--sysroot=${CONDA_BUILD_SYSROOT} ${CXXDFLAGS:-}"
+  LDFLAGS="-L${PREFIX}/lib --sysroot=${CONDA_BUILD_SYSROOT} ${LDFLAGS:-}"
 )
 
 (
@@ -103,13 +106,14 @@ CONFIGURE_ARGS=(
   perl -pi -e "s#(conf-ld-linker-args-stage[12].*?= )#\$1-L${PREFIX}/lib -rpath ${PREFIX}/lib #" "${settings_file}"
   perl -pi -e "s#(settings-c-compiler-link-flags.*?= )#\$1-Wl,-L${PREFIX}/lib -Wl,-rpath,${PREFIX}/lib #" "${settings_file}"
   perl -pi -e "s#(settings-ld-flags.*?= )#\$1-L${PREFIX}/lib -rpath ${PREFIX}/lib #" "${settings_file}"
+  cat "${settings_file}"
 )
 
 # Build hadrian with cabal outside script
 (
   pushd "${SRC_DIR}"/hadrian
     export CABFLAGS=(--enable-shared --enable-executable-dynamic -j)
-    "${CABAL}" v2-build -v \
+    "${CABAL}" v2-build \
       --with-ghc="${GHC}" \
       --with-gcc="${CC_FOR_BUILD}" \
       --with-ar="${AR_STAGE0}" \
@@ -138,14 +142,45 @@ CONFIGURE_ARGS=(
       hadrian \
       2>&1 | tee "${SRC_DIR}"/cabal-verbose.log
       _cabal_exit_code=${PIPESTATUS[0]}
-  popd
 
-  if [[ $_cabal_exit_code -ne 0 ]]; then
-    echo "=== Cabal build FAILED with exit code ${_cabal_exit_code} ==="
-    exit 1
-  else
-    echo "=== Cabal build SUCCEEDED ==="
-  fi
+    if [[ $_cabal_exit_code -ne 0 ]]; then
+      echo "=== DEBUG: Cabal build FAILED with exit code ${_cabal_exit_code} ==="
+      "${CABAL}" v2-build -v3 \
+        --with-ghc="${GHC}" \
+        --with-gcc="${CC_FOR_BUILD}" \
+        --with-ar="${AR_STAGE0}" \
+        clock \
+        file-io \
+        heaps \
+        js-dgtable \
+        js-flot \
+        js-jquery \
+        directory \
+        os-string \
+        splitmix \
+        utf8-string \
+        hashable \
+        process \
+        primitive \
+        random \
+        QuickCheck \
+        unordered-containers \
+        extra \
+        Cabal-syntax \
+        filepattern \
+        Cabal \
+        shake \
+        hadrian \
+        2>&1 | tee "${SRC_DIR}"/cabal-verbose.log
+        _cabal_exit_code=${PIPESTATUS[0]}
+      if [[ $_cabal_exit_code -ne 0 ]]; then
+        echo "=== Cabal build FAILED with exit code ${_cabal_exit_code} ==="
+        exit 1
+      fi
+    else
+      echo "=== Cabal build SUCCEEDED ==="
+    fi
+  popd
 )
 
 _hadrian_bin=$(find "${SRC_DIR}"/hadrian/dist-newstyle/build -name hadrian -type f | head -1)
