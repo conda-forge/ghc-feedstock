@@ -34,6 +34,7 @@ libc2_17_env=$(conda info --envs | grep libc2.17_env | awk '{print $2}')
 ghc_path="${libc2_17_env}"/ghc-bootstrap/bin
 export GHC="${ghc_path}"/ghc
 
+"${GHC}" --version
 "${ghc_path}"/ghc-pkg recache
 
 export CABAL="${libc2_17_env}"/bin/cabal
@@ -72,6 +73,8 @@ CONFIGURE_ARGS=(
   ac_cv_prog_NM="${NM}"
   ac_cv_prog_OBJDUMP="${OBJDUMP}"
   ac_cv_prog_RANLIB="${RANLIB}"
+  ac_cv_prog_LLC="${conda_target}"-llc
+  ac_cv_prog_OPT="${conda_target}"-opt
   
   ac_cv_path_ac_pt_AR="${AR}"
   ac_cv_path_ac_pt_NM="${NM}"
@@ -107,6 +110,7 @@ CONFIGURE_ARGS=(
   pushd "${SRC_DIR}"/hadrian
     export CABFLAGS=(--enable-shared --enable-executable-dynamic -j)
     "${CABAL}" v2-build -v \
+      --with-ghc="${GHC}" \
       --with-gcc="${CC_FOR_BUILD}" \
       --with-ar="${AR_STAGE0}" \
       -j \
