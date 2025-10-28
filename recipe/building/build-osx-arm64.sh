@@ -92,7 +92,6 @@ CONFIGURE_ARGS=(
   RANLIB="${BUILD_PREFIX}"/bin/"${conda_target}"-ranlib
   
   LDFLAGS="-L${PREFIX}/lib ${LDFLAGS:-}"
-  
 )
 
 (

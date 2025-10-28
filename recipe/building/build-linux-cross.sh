@@ -80,7 +80,7 @@ CONFIGURE_ARGS=(
   ac_cv_prog_ac_ct_OPT="${conda_target}"-opt
 
   AR_STAGE0="${BUILD_PREFIX}/bin/${conda_host}-ar"
-  CC_STAGE0="${CC_FOR_BUILD} --sysroot=${libc2.17_env}/${conda_host}/sysroot"
+  CC_STAGE0="${CC_FOR_BUILD} --sysroot=${libc2_17_env}/${conda_host}/sysroot"
   LD_STAGE0="${BUILD_PREFIX}/bin/${conda_host}-ld --sysroot=${libc2_17_env}/${conda_host}/sysroot"
   
   LDFLAGS="-L${PREFIX}/lib ${LDFLAGS:-}"
