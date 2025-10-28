@@ -43,6 +43,8 @@ mkdir -p "${CABAL_DIR}" && "${CABAL}" user-config init
 run_and_log "cabal-update" "${CABAL}" v2-update
 
 # Configure and build GHC
+export AR_STAGE0="${BUILD_PREFIX}/bin/${conda_host}-ar"
+
 SYSTEM_CONFIG=(
   --target="${ghc_target}"
   --prefix="${PREFIX}"
@@ -79,7 +81,6 @@ CONFIGURE_ARGS=(
   ac_cv_prog_ac_ct_LLC="${conda_target}"-llc
   ac_cv_prog_ac_ct_OPT="${conda_target}"-opt
 
-  AR_STAGE0="${BUILD_PREFIX}/bin/${conda_host}-ar"
   CC_STAGE0="${CC_FOR_BUILD} --sysroot=${libc2_17_env}/${conda_host}/sysroot"
   LD_STAGE0="${BUILD_PREFIX}/bin/${conda_host}-ld --sysroot=${libc2_17_env}/${conda_host}/sysroot"
   

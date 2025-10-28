@@ -66,7 +66,7 @@ CONFIGURE_ARGS=(
   ac_cv_prog_AS="${AS}"
   ac_cv_prog_CC="${CC} --sysroot=${CONDA_BUILD_SYSROOT}"
   ac_cv_prog_CXX="${CXX} --sysroot=${CONDA_BUILD_SYSROOT}"
-  ac_cv_prog_LD="${LD} --sysroot=${CONDA_BUILD_SYSROOT}"
+  ac_cv_prog_LD="${LD}"
   ac_cv_prog_NM="${NM}"
   # ac_cv_prog_OBJDUMP="${OBJDUMP:-objdump}"
   ac_cv_prog_RANLIB="${RANLIB}"
@@ -118,18 +118,18 @@ CONFIGURE_ARGS=(
 )
 
 # Bug in ghc-bootstrap for libiconv2
-bootstrap_settings="${osx_64_env}"/ghc-bootstrap/lib/ghc-"${PKG_VERSION}"/lib/settings
-perl -pi -e "s#[^ ]+/usr/lib/libiconv2.tbd##" "${bootstrap_settings}"
-perl -pi -e "s#(C compiler flags\", \")#\$1-v -fno-lto #" "${bootstrap_settings}"
-perl -pi -e 's#(C\+\+ compiler flags", "[^"]*)#$1 -fno-lto#' "${bootstrap_settings}"
-# Don't add -fuse-ld=lld during build (bootstrap compiler doesn't support it)
-perl -pi -e "s#(C compiler link flags\", \"[^\"]*)#\$1 -fno-lto#" "${bootstrap_settings}"
-perl -pi -e "s#(ar command\", \")[^\"]*#\$1${AR_STAGE0}#" "${bootstrap_settings}"
-perl -pi -e "s#(ranlib command\", \")[^\"]*#\$1llvm-ranlib#" "${bootstrap_settings}"
-perl -pi -e "s#((llc|opt|clang) command\", \")[^\"]*#\$1${conda_host}-\$2#" "${bootstrap_settings}"
-cat "${bootstrap_settings}"
-unset bootstrap_settings
-
+(
+  bootstrap_settings="${osx_64_env}"/ghc-bootstrap/lib/ghc-"${PKG_VERSION}"/lib/settings
+  perl -pi -e "s#[^ ]+/usr/lib/libiconv2.tbd##" "${bootstrap_settings}"
+  perl -pi -e "s#(C compiler flags\", \")#\$1-v -fno-lto #" "${bootstrap_settings}"
+  perl -pi -e 's#(C\+\+ compiler flags", "[^"]*)#$1 -fno-lto#' "${bootstrap_settings}"
+  # Don't add -fuse-ld=lld during build (bootstrap compiler doesn't support it)
+  perl -pi -e "s#(C compiler link flags\", \"[^\"]*)#\$1 -fno-lto#" "${bootstrap_settings}"
+  perl -pi -e "s#(ar command\", \")[^\"]*#\$1${AR_STAGE0}#" "${bootstrap_settings}"
+  perl -pi -e "s#(ranlib command\", \")[^\"]*#\$1llvm-ranlib#" "${bootstrap_settings}"
+  perl -pi -e "s#((llc|opt|clang) command\", \")[^\"]*#\$1${conda_host}-\$2#" "${bootstrap_settings}"
+  cat "${bootstrap_settings}"
+)
 # Build hadrian with cabal outside script
 (
   pushd "${SRC_DIR}"/hadrian
