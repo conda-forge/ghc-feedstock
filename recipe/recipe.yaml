@@ -59,11 +59,17 @@ requirements:
         - gmp
         - libffi
         - libiconv
-        - ncurses
+        - if: unix
+          then: ncurses
   host:
     - gmp
     - libiconv
     - libffi
+    - if: unix
+      then: ncurses
+  ignore_run_exports:
+    - if: unix
+      then: ncurses
     
 tests:
   - package_contents:
