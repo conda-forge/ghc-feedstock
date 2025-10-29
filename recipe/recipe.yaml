@@ -64,10 +64,6 @@ requirements:
     - gmp
     - libiconv
     - libffi
-    - zstd
-    - if: unix
-      then:
-        - ncurses
     
 tests:
   - package_contents:

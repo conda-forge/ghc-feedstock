@@ -28,7 +28,6 @@ conda create -y \
     cabal==3.10.3.0 \
     ghc-bootstrap=="${PKG_VERSION}" \
     sysroot_linux-64==2.17
-    # binutils_impl_linux-64==2.43 \
 
 libc2_17_env=$(conda info --envs | grep libc2.17_env | awk '{print $2}')
 ghc_path="${libc2_17_env}"/ghc-bootstrap/bin
@@ -44,10 +43,6 @@ mkdir -p "${CABAL_DIR}" && "${CABAL}" user-config init
 run_and_log "cabal-update" "${CABAL}" v2-update
 
 # Configure and build GHC
-export AR_STAGE0="${BUILD_PREFIX}/bin/${conda_host}-ar"
-export CC_STAGE0="${CC_FOR_BUILD}"
-export LD_STAGE0="${BUILD_PREFIX}/bin/${conda_host}-ld"
-
 SYSTEM_CONFIG=(
   --target="${ghc_target}"
   --prefix="${PREFIX}"
@@ -65,33 +60,28 @@ CONFIGURE_ARGS=(
   --with-iconv-includes="${PREFIX}"/include
   --with-iconv-libraries="${PREFIX}"/lib
   
-  ac_cv_lib_ffi_ffi_call=yes
+  ac_cv_path_AR="${BUILD_PREFIX}"/bin/"${conda_target}"-ar
+  ac_cv_path_AS="${BUILD_PREFIX}"/bin/"${conda_target}"-as
+  ac_cv_path_CC="${BUILD_PREFIX}"/bin/"${conda_target}"-clang
+  ac_cv_path_CXX="${BUILD_PREFIX}"/bin/"${conda_target}"-clang++
+  ac_cv_path_LD="${BUILD_PREFIX}"/bin/"${conda_target}"-ld
+  ac_cv_path_NM="${BUILD_PREFIX}"/bin/"${conda_target}"-nm
+  ac_cv_path_OBJDUMP="${BUILD_PREFIX}"/bin/"${conda_target}"-objdump
+  ac_cv_path_RANLIB="${BUILD_PREFIX}"/bin/"${conda_target}"-ranlib
+  ac_cv_path_LLC="${BUILD_PREFIX}"/bin/"${conda_target}"-llc
+  ac_cv_path_OPT="${BUILD_PREFIX}"/bin/"${conda_target}"-opt
   
-  ac_cv_prog_AR="${AR}"
-  ac_cv_prog_AS="${AS}"
-  ac_cv_prog_CC="${CC}"
-  ac_cv_prog_CXX="${CXX}"
-  ac_cv_prog_LD="${LD}"
-  ac_cv_prog_NM="${NM}"
-  ac_cv_prog_OBJDUMP="${OBJDUMP}"
-  ac_cv_prog_RANLIB="${RANLIB}"
-  ac_cv_prog_LLC="${conda_target}"-llc
-  ac_cv_prog_OPT="${conda_target}"-opt
-  
-  ac_cv_path_ac_pt_AR="${AR}"
-  ac_cv_path_ac_pt_NM="${NM}"
-  ac_cv_path_ac_pt_OBJDUMP="${OBJDUMP}"
-  ac_cv_path_ac_pt_RANLIB="${RANLIB}"
-
-  ac_cv_prog_ac_ct_LLC="${conda_target}"-llc
-  ac_cv_prog_ac_ct_OPT="${conda_target}"-opt
-
   LDFLAGS="-L${PREFIX}/lib ${LDFLAGS:-}"
 )
 
 # Disable trying to use libc 2.20 (we use 2.17) - export since it is needed for the sub-packages configuration during the build
+export AR_STAGE0="${BUILD_PREFIX}/bin/${conda_host}-ar"
+export CC_STAGE0="${CC_FOR_BUILD}"
+export LD_STAGE0="${BUILD_PREFIX}/bin/${conda_host}-ld"
+
 export ac_cv_func_statx=no
 export ac_cv_have_decl_statx=no
+export ac_cv_lib_ffi_ffi_call=yes
 run_and_log "configure" ./configure -v "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}" || { cat config.log; exit 1; }
 
 # Fix host configuration to use x86_64, target cross
@@ -112,12 +102,13 @@ run_and_log "configure" ./configure -v "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@
     export CFLAGS="--sysroot=${CONDA_BUILD_SYSROOT} -march=nocona -mtune=haswell -ftree-vectorize -fPIC -fstack-protector-strong -fno-plt -O2 -ffunction-sections -pipe -isystem $PREFIX/include -fdebug-prefix-map=$SRC_DIR=/usr/local/src/conda/ghc-${PKG_VERSION} -fdebug-prefix-map=$PREFIX=/usr/local/src/conda-prefix"
     export LDFLAGS="-L${libc2_17_env}/${conda_host}/lib -L${libc2_17_env}/${conda_host}/sysroot/usr/lib ${LDFLAGS:-}"
     
-    export CABFLAGS=(--enable-shared --enable-executable-dynamic -j)
     "${CABAL}" v2-build \
       --with-ar="${AR_STAGE0}" \
       --with-gcc="${CC_STAGE0}" \
       --with-ghc="${GHC}" \
       --with-ld="${LD_STAGE0}" \
+      --enable-shared \
+      --enable-executable-dynamic \
       -j \
       clock \
       file-io \
@@ -193,9 +184,9 @@ bindist_dir=$(find "${SRC_DIR}"/_build/bindist -name "ghc-${PKG_VERSION}-${ghc_t
 if [[ -n "${bindist_dir}" ]]; then
   pushd "${bindist_dir}"
     # Configure the binary distribution with proper cross-compilation settings
-    CC="${conda_host}"-clang \
-    CXX="${conda_host}"-clang++ \
-    ./configure --prefix="${PREFIX}" --target="${ghc_target}"
+    ac_cv_path_CC="${BUILD_PREFIX}"/bin/"${conda_host}"-clang \
+    ac_cv_path_CXX="${BUILD_PREFIX}"/bin/"${conda_host}"-clang++ \
+    ./configure --prefix="${PREFIX}" --target="${ghc_target}" || { cat config.log; exit 1; }
  
     # Install (update_package_db fails due to cross ghc-pkg)
     run_and_log "make_install" make install_bin install_lib install_man
