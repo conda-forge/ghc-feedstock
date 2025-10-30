@@ -13,6 +13,7 @@ unset host_alias
 export PATH="${_BUILD_PREFIX}/ghc-bootstrap/bin${PATH:+:}${PATH:-}"
 export CABAL="${_BUILD_PREFIX}/bin/cabal"
 export CABAL_DIR="${SRC_DIR}\\.cabal"
+export GHC="${BUILD_PREFIX}\\ghc-bootstrap\\bin\\ghc.exe"
 
 cd "${SRC_DIR}"
 
@@ -35,10 +36,6 @@ if [ -z "$MSVC_VERSION_DIR" ]; then
   echo "Warning: Could not find MSVC tools directory, using fallback path"
   MSVC_VERSION_DIR="C:/Program Files/Microsoft Visual Studio/2022/Enterprise/VC/Tools/MSVC/14.38.33130"
 fi
-
-# CABAL will be set by ultimate-cabal-wrapper.sh
-# export CABAL="${SRC_DIR}\\bootstrap-cabal\\cabal.exe"
-export GHC="${BUILD_PREFIX}\\ghc-bootstrap\\bin\\ghc.exe"
 
 # Export LIB with the dynamic path
 export LIB="${BUILD_PREFIX}/Library/lib;${PREFIX}/Library/lib;C:/Program Files (x86)/Windows Kits/10/Lib/10.0.26100.0/um/x64;${MSVC_VERSION_DIR}/lib/x64${LIB:+;}${LIB:-}"
