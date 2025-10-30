@@ -7,10 +7,13 @@ source "${RECIPE_DIR}"/building/common.sh
 
 export PATH="${_SRC_DIR}/bootstrap-ghc/bin${PATH:+:}${PATH:-}"
 export CABAL="${_BUILD_PREFIX}/bin/cabal"
-export CABAL_DIR="${_SRC_DIR}/.cabal"
+export CABAL_DIR="${SRC_DIR}\\.cabal"
 
-mkdir -p "${CABAL_DIR}" && "${CABAL}" user-config init
-run_and_log "cabal-update" "${CABAL}" v2-update
+cd "${SRC_DIR}"
+
+mkdir -p ".cabal" && "${CABAL}" user-config init
+#run_and_log "cabal-update" "${CABAL}" v2-update
+"${CABAL}" v2-update
 
 # Prepare python environment
 export PYTHON=$(find "${BUILD_PREFIX}" -name python.exe | head -1)
