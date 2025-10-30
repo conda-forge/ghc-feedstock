@@ -5,10 +5,16 @@ _log_index=0
 
 source "${RECIPE_DIR}"/building/common.sh
 
+conda_host="${build_alias}"
 conda_target="${host_alias}"
 
-unset build_alias
-unset host_alias
+ghc_host="${conda_host/w64/unknown}"
+ghc_target="${conda_target/w64/unknown}"
+_build_alias=${build_alias}
+_host_alias=${host_alias}
+
+export build_alias="${ghc_host}"
+export host_alias="${ghc_host}"
 
 export PATH="${_BUILD_PREFIX}/ghc-bootstrap/bin${PATH:+:}${PATH:-}"
 export CABAL="${_BUILD_PREFIX}/bin/cabal"
@@ -48,12 +54,13 @@ _hadrian_build=("${_SRC_DIR}"/hadrian/build.bat)
 
 # Configure and build GHC
 SYSTEM_CONFIG=(
-  --host="${conda_target}"
+  --host="${ghc_target}"
   --prefix="${_PREFIX}"
 )
 
 # Add stack protector flags to ensure proper stack checking
 CONFIGURE_ARGS=(
+  --enable-distro-toolchain
   --with-system-libffi=yes
   --with-curses-includes="${_PREFIX}"/include
   --with-curses-libraries="${_PREFIX}"/lib
@@ -83,6 +90,8 @@ export ac_cv_lib_ffi_ffi_call=yes
 export AR_STAGE0=${AR}
 export CC_STAGE0=${CC}
 export LD_STAGE0=${LD}
+
+export WINDOWS_TOOLCHAIN_AUTOCONF=no
 
 CFLAGS="${CFLAGS//-nostdlib/} -v -fno-stack-check -fno-stack-protector" \
 CXXFLAGS="${CXXFLAGS//-nostdlib/} -v -fno-stack-check -fno-stack-protector" \
