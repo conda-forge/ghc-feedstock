@@ -16,13 +16,18 @@ _host_alias=${host_alias}
 export build_alias="${ghc_host}"
 export host_alias="${ghc_host}"
 
-export PATH="${_BUILD_PREFIX}/ghc-bootstrap/bin${PATH:+:}${PATH:-}"
+export PATH="${_BUILD_PREFIX}/ghc-bootstrap/bin:/c/Windows/System32${PATH:+:}${PATH:-}"
 export CABAL="${_BUILD_PREFIX}/bin/cabal"
 export CABAL_DIR="${SRC_DIR}\\.cabal"
 export GHC="${BUILD_PREFIX}\\ghc-bootstrap\\bin\\ghc.exe"
 
 echo "${PATH}"
 echo "${WINDRES}"
+echo $(find "${BUILD_PREFIX}" -name "${WINDRES}")
+
+# Bug in ghc-bootstrap
+perl -ip -e "s#%CONDA_PREFIX%\\Library\\x86_64-w64-mingw32\\bin\\windres.exe#${BUILD_PREFIX}\\Library\\bin\\${WINDRES}#" "${_BUILD_PREFIX}"/ghc-bootstrap/bin/windres.bat
+grep WINDRES_CMD "${_BUILD_PREFIX}"/ghc-bootstrap/bin/windres.bat
 
 cd "${SRC_DIR}"
 
@@ -84,6 +89,7 @@ CONFIGURE_ARGS=(
   ac_cv_path_RANLIB="${GCC_RANLIB}"
   ac_cv_path_LLC="${_BUILD_PREFIX}"/Library/bin/"${conda_target}"-llc
   ac_cv_path_OPT="${_BUILD_PREFIX}"/Library/bin/"${conda_target}"-opt
+  ac_cv_path_WINDRES="${WINDRES}"
 )
 
 # Configure with environment variables that help debugging
