@@ -26,7 +26,7 @@ echo "${WINDRES}"
 echo $(find "${BUILD_PREFIX}" -name "${WINDRES}")
 
 # Bug in ghc-bootstrap
-perl -ip -e "s#%CONDA_PREFIX%\\Library\\x86_64-w64-mingw32\\bin\\windres.exe#${BUILD_PREFIX}\\Library\\bin\\${WINDRES}#" "${_BUILD_PREFIX}"/ghc-bootstrap/bin/windres.bat
+perl -pi -e "s#=.*windres.exe#=${BUILD_PREFIX}\\Library\\bin\\${WINDRES}#" "${_BUILD_PREFIX}"/ghc-bootstrap/bin/windres.bat
 grep WINDRES_CMD "${_BUILD_PREFIX}"/ghc-bootstrap/bin/windres.bat
 
 cd "${SRC_DIR}"
