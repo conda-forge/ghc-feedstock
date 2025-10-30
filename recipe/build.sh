@@ -33,7 +33,7 @@ cp "${RECIPE_DIR}/activate.sh" "${PREFIX}/etc/conda/activate.d/${PKG_NAME}_activ
 settings_file=$(find "${PREFIX}"/lib/ -name settings | head -1)
 perl -pi -e "s#(${BUILD_PREFIX}|${PREFIX})/(bin|lib)/##g" "${settings_file}"
 
-# Find all the .dylib libs with the '-ghc<version>' extension and link them to non-'-ghc<version>'
+# Find all the dynamic libraries libs with the '-ghc<version>' extension and link them to non-'-ghc<version>'
 find "${PREFIX}/lib" -name "*-ghc${PKG_VERSION}.dylib" -o -name "*-ghc${PKG_VERSION}.so" | while read -r lib; do
   base_lib="${lib//-ghc${PKG_VERSION}./.}"
   if [[ ! -e "$base_lib" ]]; then
@@ -47,10 +47,7 @@ done
 # arch="${arch#*-}"
 # arch="${arch//arm64/aarch64}"
 #
-# # 9.6.7
-# pushd "${PREFIX}/share/doc/${arch}-${target_platform%%-*}-ghc-${PKG_VERSION}" || true
-# # 9.12+
-# # pushd "${PREFIX}/share/doc/${arch}-${target_platform%%-*}-ghc-${PKG_VERSION}-inplace" || true
+# pushd "${PREFIX}/share/doc/${arch}-${target_platform%%-*}-ghc-${PKG_VERSION}-inplace" || true
 #   for file in */LICENSE; do
 #     cp "${file///-}" "${SRC_DIR}"/license_files
 #   done
