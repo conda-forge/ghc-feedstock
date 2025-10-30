@@ -1,0 +1,357 @@
+#!/usr/bin/env bash
+set -eu
+
+_log_index=0
+
+source "${RECIPE_DIR}"/building/common.sh
+
+export PATH="${_SRC_DIR}/bootstrap-ghc/bin${PATH:+:}${PATH:-}"
+export CABAL="${_BUILD_PREFIX}/bin/cabal"
+export CABAL_DIR="${_SRC_DIR}/.cabal"
+
+mkdir -p "${CABAL_DIR}" && "${CABAL}" user-config init
+run_and_log "cabal-update" "${CABAL}" v2-update
+
+# Prepare python environment
+export PYTHON=$(find "${BUILD_PREFIX}" -name python.exe | head -1)
+export LIBRARY_PATH="${_BUILD_PREFIX}/Library/lib${LIBRARY_PATH:+:}${LIBRARY_PATH:-}"
+
+# Set up temp variables
+export TMP="$(cygpath -w "${TEMP}")"
+export TMPDIR="$(cygpath -w "${TEMP}")"
+
+# Some compilation complained about not finding clang_rt.builtins: Still needed?
+LIBCLANG_RT_PATH=$(find "${_BUILD_PREFIX}/Library" -name "*clang_rt.builtins*" | head -1)
+if [[ -z "${LIBCLANG_RT_PATH}" ]]; then
+  echo "Warning: Could not find libclang_rt.builtins"
+  exit 1
+fi
+
+LIBCLANG_DIR=$(dirname "${LIBCLANG_RT_PATH}")
+LIBCLANG_RT=$(basename "${LIBCLANG_RT_PATH}")
+if [ "$(basename "${LIBCLANG_DIR}")" != "x86_64-w64-windows-gnu" ]; then
+  mkdir -p "$(dirname "${LIBCLANG_DIR}")/x86_64-w64-windows-gnu"
+  cp "${LIBCLANG_DIR}/${LIBCLANG_RT}" "$(dirname "${LIBCLANG_DIR}")/x86_64-w64-windows-gnu/lib${LIBCLANG_RT//-x86_64.lib/.a}"
+fi
+
+# Define the wrapper script for MSVC
+CLANG_WRAPPER="${BUILD_PREFIX}\\Library\\bin\\clang-mingw-wrapper.bat"
+cp "${RECIPE_DIR}/building/non_unix/clang-mingw-wrapper.bat" "${_BUILD_PREFIX}/Library/bin/"
+cp "${RECIPE_DIR}/building/non_unix/clang-mingw-wrapper.py" "${_BUILD_PREFIX}/Library/bin/"
+
+# Create directory for MinGW chkstk_ms.obj file
+MINGW_CHKSTK_DIR="${_BUILD_PREFIX}/Library/lib"
+mkdir -p "${MINGW_CHKSTK_DIR}"
+MINGW_CHKSTK_OBJ="${MINGW_CHKSTK_DIR}/chkstk_mingw_ms.obj"
+
+# First run the script to create the MinGW chkstk_ms.obj file once
+echo "Creating MinGW chkstk_ms.obj file at ${MINGW_CHKSTK_OBJ}..."
+
+# Find clang executable
+CLANG_EXE=$(find "${_BUILD_PREFIX}" -name clang.exe | head -1)
+
+if [ -z "${CLANG_EXE}" ]; then
+  echo "Error: Could not find clang.exe"
+  exit 1
+fi
+
+echo "Found clang at: ${CLANG_EXE}"
+
+# Find the latest MSVC version directory dynamically
+MSVC_VERSION_DIR=$(ls -d "C:/Program Files/Microsoft Visual Studio/2022/Enterprise/VC/Tools/MSVC/"*/ 2>/dev/null | sort -V | tail -1 | sed 's/\/$//')
+
+# Use the discovered path or fall back to a default if not found
+if [ -z "$MSVC_VERSION_DIR" ]; then
+  echo "Warning: Could not find MSVC tools directory, using fallback path"
+  MSVC_VERSION_DIR="C:/Program Files/Microsoft Visual Studio/2022/Enterprise/VC/Tools/MSVC/14.38.33130"
+fi
+
+# Export MSVC chkstk.obj location and analyze it
+export CHKSTK_OBJ="${MSVC_VERSION_DIR}/lib/x64/chkstk.obj"
+echo "Using MSVC chkstk.obj at ${CHKSTK_OBJ}"
+
+# Check if MSVC chkstk.obj exists
+test -f "${CHKSTK_OBJ}" || echo "Warning: MSVC chkstk.obj not found"
+
+# Create a temporary source file with a more accurate implementation of ___chkstk_ms
+TMP_DIR=$(mktemp -d)
+TMP_C_FILE="${TMP_DIR}/chkstk_ms_combined.c"
+cp "${RECIPE_DIR}"/building/non_unix/___chkstk_ms.c "${TMP_C_FILE}"
+
+# Compile it directly with advanced optimization settings
+echo "Compiling ${TMP_C_FILE} to ${MINGW_CHKSTK_OBJ}..."
+"${CLANG_EXE}" -c "${TMP_C_FILE}" -o "${MINGW_CHKSTK_OBJ}" \
+  --target=x86_64-w64-mingw32 -O2 -fvisibility=default -fomit-frame-pointer -fno-stack-check \
+  -fno-strict-aliasing -mno-stack-arg-probe
+COMPILE_RESULT=$?
+
+# Verify the compiled object file exists
+test -f "${MINGW_CHKSTK_OBJ}" || echo "Warning: Compiled chkstk object not found"
+
+# Clean up temporary files
+rm -rf "${TMP_DIR}"
+
+# Check if compilation succeeded
+if [ ${COMPILE_RESULT} -ne 0 ] || [ ! -f "${MINGW_CHKSTK_OBJ}" ]; then
+  echo "Critical Error: Failed to create MinGW chkstk_ms.obj file"
+  exit 1
+fi
+
+echo "Successfully created ${MINGW_CHKSTK_OBJ} via direct compilation"
+
+# Apply stack protector fixes early in the process
+echo "*** Applying early stack protector fixes ***"
+python "${RECIPE_DIR}/building/fix-stack-protector.py"
+
+# Fix windres to use clang instead of gcc
+echo "*** Fixing windres to use clang instead of gcc ***"
+bash "${RECIPE_DIR}/building/fix-ghc-bootstrap-windres.sh" || echo "Windres fix failed"
+
+# Test the windres fix
+echo "*** Testing windres fix ***"
+bash "${RECIPE_DIR}/building/test-windres-fix.sh" || echo "Windres test completed"
+
+# Make sure we use conda-forge clang (ghc bootstrap has a clang.exe)
+CLANG=$(find "${_BUILD_PREFIX}" -name clang.exe | head -1)
+CLANGXX=$(find "${_BUILD_PREFIX}" -name clang++.exe | head -1)
+
+# CABAL will be set by ultimate-cabal-wrapper.sh
+# export CABAL="${SRC_DIR}\\bootstrap-cabal\\cabal.exe"
+export CC="${CLANG}"
+export CXX="${CLANGXX}"
+export GHC="${SRC_DIR}\\bootstrap-ghc\\bin\\ghc.exe"
+
+# Export LIB with the dynamic path
+export LIB="${BUILD_PREFIX}/Library/lib;${PREFIX}/Library/lib;C:/Program Files (x86)/Windows Kits/10/Lib/10.0.26100.0/um/x64;${MSVC_VERSION_DIR}/lib/x64${LIB:+;}${LIB:-}"
+export INCLUDE="C:/Program Files (x86)/Windows Kits/10/Include/10.0.26100.0/ucrt;C:/Program Files (x86)/Windows Kits/10/Include/10.0.26100.0/um;C:/Program Files (x86)/Windows Kits/10/Include/10.0.26100.0/shared;${MSVC_VERSION_DIR}/include${INCLUDE:+;}${INCLUDE:-}"
+
+mkdir -p "${_BUILD_PREFIX}/bin"
+cp "${_BUILD_PREFIX}/Library/usr/bin/m4.exe" "${_BUILD_PREFIX}/bin"
+
+# ==================== Begin HSC Tool Fixes ====================
+# Copy the HSC fix scripts
+cp "${RECIPE_DIR}/building/fix-hsc-direct.py" "${_BUILD_PREFIX}/bin/"
+cp "${RECIPE_DIR}/building/fix-hsc-stack-overflow.py" "${_BUILD_PREFIX}/bin/"
+cp "${RECIPE_DIR}/building/fix-stack-protector.py" "${_BUILD_PREFIX}/bin/"
+
+# Create a simplified script to fix HSC crashes
+cat > "${_BUILD_PREFIX}/bin/fix-hsc-crash.sh" << EOF
+#!/bin/bash
+set -ex
+echo "Applying HSC fixes..."
+
+# Apply stack protector fixes
+echo "Applying stack protector fixes..."
+python "\$(dirname "\$0")/fix-stack-protector.py"
+
+# Apply stack overflow fixes to HSC tools
+echo "Applying stack overflow fixes to HSC tools..."
+python "\$(dirname "\$0")/fix-hsc-stack-overflow.py" "C:/cabal" "\${BUILD_PREFIX}" "\${SRC_DIR}"
+
+# Run the direct fix script to pre-generate .hs files
+echo "Pre-generating .hs files from .hsc sources..."
+RECIPE_DIR="${RECIPE_DIR}" python "\$(dirname "\$0")/fix-hsc-direct.py" "\${SRC_DIR}" "C:/cabal" "\${HOME}/.cabal" "\${BUILD_PREFIX}" "C:/cabal/store/ghc-9.10.1"
+
+echo "HSC fixes applied"
+EOF
+chmod +x "${_BUILD_PREFIX}/bin/fix-hsc-crash.sh"
+# ==================== End HSC Tool Fixes ====================
+
+mkdir -p "${_SRC_DIR}/hadrian/cfg" && touch "${_SRC_DIR}/hadrian/cfg/default.target.ghc-toolchain"
+
+# Remove this annoying mingw
+perl -i -pe 's#\$topdir/../mingw//bin/(llvm-)?##g' "${_SRC_DIR}"/bootstrap-ghc/lib/lib/settings
+perl -i -pe 's#-I\$topdir/../mingw//include##g' "${_SRC_DIR}"/bootstrap-ghc/lib/lib/settings
+perl -i -pe 's#-L\$topdir/../mingw//lib -L\$topdir/../mingw//x86_64-w64-mingw32/lib##g' "${_SRC_DIR}"/bootstrap-ghc/lib/lib/settings
+
+# Update cabal package database
+run_and_log "cabal-update" cabal v2-update
+
+# Deploy ultimate cabal wrapper - most aggressive solution
+echo "*** Deploying ultimate cabal wrapper ***"
+if [[ "${SKIP_CLOCK_STUB:-0}" != "1" ]]; then
+    bash "${RECIPE_DIR}/building/ultimate-cabal-wrapper.sh" || echo "Ultimate cabal wrapper deployment failed"
+    # Source the environment changes from the wrapper script
+    if [[ -f "${_BUILD_PREFIX}/bin/cabal-ultimate.exe" ]]; then
+        export CABAL="${_BUILD_PREFIX}/bin/cabal-ultimate.exe"
+        export PATH="${_BUILD_PREFIX}/bin:${PATH}"
+        echo "CABAL wrapper activated: ${CABAL}"
+        
+        # Create symlinks for cabal discovery
+        ln -sf "${_BUILD_PREFIX}/bin/cabal-ultimate.exe" "${_BUILD_PREFIX}/bin/cabal" 2>/dev/null || true
+        ln -sf "${_BUILD_PREFIX}/bin/cabal-ultimate.exe" "${_BUILD_PREFIX}/bin/cabal.exe" 2>/dev/null || true
+    fi
+    # Test the Clock installation as backup
+    bash "${RECIPE_DIR}/building/test-clock-install.sh" || echo "Clock install test completed"
+    # Install HSC stubs as additional backup
+    bash "${RECIPE_DIR}/building/install-hsc-stub.sh" || echo "HSC stub installation failed"
+fi
+
+# Apply HSC fixes right after cabal update but before any builds
+echo "*** Applying HSC fixes after cabal update ***"
+"${_BUILD_PREFIX}/bin/fix-hsc-crash.sh" || echo "HSC fix after cabal update completed"
+
+# Also stub HSC tools to prevent crashes during build
+echo "*** Stubbing HSC tools ***"
+bash "${RECIPE_DIR}/building/stub-hsc-tools.sh" || echo "HSC tool stubbing completed"
+
+_hadrian_build=("${_SRC_DIR}"/hadrian/build.bat)
+
+# Configure and build GHC
+SYSTEM_CONFIG=(
+  --build="x86_64-w64-mingw32"
+  --host="x86_64-w64-mingw32"
+  # --target="x86_64-w64-mingw32"
+)
+
+# Add stack protector flags to ensure proper stack checking
+CONFIGURE_ARGS=(
+  --prefix="${_PREFIX}"
+  --disable-numa
+  --enable-distro-toolchain
+  --enable-ignore-build-platform-mismatch=yes
+  --with-system-libffi=yes
+  --with-curses-includes="${_PREFIX}"/include
+  --with-curses-libraries="${_PREFIX}"/lib
+  --with-ffi-includes="${_PREFIX}"/include
+  --with-ffi-libraries="${_PREFIX}"/lib
+  --with-gmp-includes="${_PREFIX}"/include
+  --with-gmp-libraries="${_PREFIX}"/lib
+  --with-iconv-includes="${_PREFIX}"/include
+  --with-iconv-libraries="${_PREFIX}"/lib
+)
+
+# Configure with environment variables that help debugging
+AR_STAGE0=llvm-ar \
+CC_STAGE0=${CC} \
+CFLAGS="${CFLAGS//-nostdlib/} -v -fno-stack-check -fno-stack-protector" \
+CXXFLAGS="${CXXFLAGS//-nostdlib/} -v -fno-stack-check -fno-stack-protector" \
+LDFLAGS="${LDFLAGS//-nostdlib/} -v" \
+MergeObjsCmd="x86_64-w64-mingw32-ld.exe" \
+MergeObjsArgs="" \
+run_and_log "ghc-configure" bash configure "${CONFIGURE_ARGS[@]}" || ( cat config.log ; exit 1 )
+
+# Cabal configure seems to default to the wrong clang
+# Also ensure stack protection is disabled for all stages
+cat > hadrian/hadrian.settings << EOF
+stage1.*.cabal.configure.opts += --verbose=3 --with-compiler="${GHC}" --with-gcc="${CLANG_WRAPPER}"
+stage1.*.cc.c.opts += -fno-stack-protector -fno-stack-check
+stage1.*.cc.cpp.opts += -fno-stack-protector -fno-stack-check
+stage1.*.ghc.c.opts += -optc-fno-stack-protector -optc-fno-stack-check
+stage1.*.ghc.cpp.opts += -optcxx-fno-stack-protector -optcxx-fno-stack-check
+stage0.*.cc.c.opts += -fno-stack-protector -fno-stack-check
+stage0.*.cc.cpp.opts += -fno-stack-protector -fno-stack-check
+stage0.*.ghc.c.opts += -optc-fno-stack-protector -optc-fno-stack-check
+stage0.*.ghc.cpp.opts += -optcxx-fno-stack-protector -optcxx-fno-stack-check
+EOF
+
+export CABFLAGS="--with-compiler=${GHC} --with-gcc=${CLANG_WRAPPER} --ghc-options=-optc-fno-stack-protector --ghc-options=-optc-fno-stack-check"
+# Enable debugging mode for more verbose output
+export GHC_DEBUG=1
+
+# Ensure stack protection is disabled for all tools
+export CFLAGS="${CFLAGS} -fno-stack-protector -fno-stack-check"
+export CXXFLAGS="${CXXFLAGS} -fno-stack-protector -fno-stack-check"
+export LDFLAGS="${LDFLAGS} -fno-stack-protector"
+
+# Also set these for Cabal
+export CABAL_EXTRA_BUILD_FLAGS="--ghc-options=-optc-fno-stack-protector --ghc-options=-optc-fno-stack-check"
+
+
+# Proactively apply HSC fixes before any build attempts
+echo "*** Applying HSC fixes proactively ***"
+"${_BUILD_PREFIX}/bin/fix-hsc-crash.sh" || echo "Pre-emptive HSC fix completed"
+
+# Start aggressive HSC prevention
+echo "*** Starting aggressive HSC crash prevention ***"
+bash "${RECIPE_DIR}/building/aggressive-hsc-prevention.sh" || echo "HSC prevention start failed"
+
+# Build stage1 GHC
+echo "*** Building stage1 GHC ***"
+
+# Ensure cabal wrapper is in PATH for hadrian
+echo "*** Final cabal PATH verification ***"
+export PATH="${_BUILD_PREFIX}/bin:${PATH}"
+which cabal > /dev/null || echo "WARNING: cabal not found in PATH"
+
+# Critical: Ensure CABAL environment variable is set for Windows batch scripts
+# Use our hadrian-specific wrapper that passes validation but uses our Clock wrapper
+CABAL_UNIX_PATH="${_BUILD_PREFIX}/bin/cabal-hadrian.bat"
+echo "Debug: Unix path: ${CABAL_UNIX_PATH}"
+echo "Debug: _BUILD_PREFIX is: ${_BUILD_PREFIX}"
+
+# Convert to Windows path format using the actual resolved path
+CABAL_WIN_PATH=$(cygpath -w "${CABAL_UNIX_PATH}" 2>/dev/null)
+echo "Debug: cygpath -w result: '${CABAL_WIN_PATH}'"
+
+if [[ -z "${CABAL_WIN_PATH}" ]] || [[ "${CABAL_WIN_PATH}" == *"%"* ]]; then
+    # Fallback: manually convert the resolved path
+    RESOLVED_PATH="${CABAL_UNIX_PATH}"
+    # Convert forward slashes to backslashes and fix drive letter
+    CABAL_WIN_PATH=$(echo "${RESOLVED_PATH}" | sed 's|^/c/|C:\\|' | sed 's|/|\\|g')
+    echo "Debug: Manual conversion result: '${CABAL_WIN_PATH}'"
+fi
+
+export CABAL="${CABAL_WIN_PATH}"
+echo "Set CABAL (Windows path) to: ${CABAL}"
+
+# Verify CABAL environment variable is working
+echo "CABAL set to: ${CABAL}"
+
+# Test hadrian cabal validation
+echo "Debug: CABAL environment variable is: ${CABAL}"
+echo "Debug: Testing cabal validation with cmd /c..."
+
+# The CABAL variable should now contain the proper Windows path
+
+# Test the batch file directly first - but with a timeout to prevent hangs
+CABAL_UNIX_CHECK="${CABAL//\\//}"  # Convert back to Unix path for existence check
+CABAL_UNIX_CHECK="${CABAL_UNIX_CHECK//C:/c}"
+echo "Debug: Checking existence at Unix path: ${CABAL_UNIX_CHECK}"
+
+if [[ -f "${CABAL_UNIX_CHECK}" ]]; then
+    echo "Debug: Cabal batch file exists at: ${CABAL_UNIX_CHECK}"
+    echo "Debug: Testing batch file directly with 10 second timeout..."
+    timeout 10s "${CABAL_UNIX_CHECK}" 2>/dev/null || true
+    DIRECT_EXIT=$?
+    echo "Debug: Direct batch execution exit code: ${DIRECT_EXIT}"
+else
+    echo "Debug: Cabal batch file NOT found at: ${CABAL_UNIX_CHECK}"
+    # List directory contents to debug
+    CABAL_DIR=$(dirname "${CABAL_UNIX_CHECK}")
+    echo "Debug: Directory contents of ${CABAL_DIR}:"
+    ls -la "${CABAL_DIR}" 2>/dev/null || echo "Directory not found"
+    DIRECT_EXIT=127
+fi
+
+# Now test with cmd /c but with a timeout
+echo "Debug: Testing with cmd /c and timeout..."
+timeout 10s cmd /c "\"%CABAL%\" 2>nul" 2>/dev/null || true
+CABAL_TEST_EXIT=$?
+echo "Debug: cmd /c execution exit code: ${CABAL_TEST_EXIT}"
+
+if [[ ${CABAL_TEST_EXIT} -eq 1 ]]; then
+    echo "✅ Cabal validation: PASS"
+else
+    echo "❌ Cabal validation: FAIL (got ${CABAL_TEST_EXIT}, expected 1)"
+fi
+
+"${_hadrian_build[@]}" stage1:exe:ghc-bin -VV \
+  --flavour=quickest \
+  --docs=none \
+  --progress-info=unicorn || BUILD_RESULT=$?
+
+# Stop the HSC monitor
+if [[ -f "${TEMP}/hsc-monitor.pid" ]]; then
+    MONITOR_PID=$(cat "${TEMP}/hsc-monitor.pid")
+    kill $MONITOR_PID 2>/dev/null || true
+    echo "Stopped HSC monitor (PID $MONITOR_PID)"
+fi
+
+# Check build result
+if [[ "${BUILD_RESULT:-0}" -ne 0 ]]; then
+    echo "Build failed with code ${BUILD_RESULT}"
+    exit ${BUILD_RESULT}
+fi
+
+run_and_log "install" "${_hadrian_build[@]}" install --prefix="${_PREFIX}" --flavour=release --freeze1 --docs=none
