@@ -16,7 +16,7 @@ _host_alias=${host_alias}
 export build_alias="${ghc_host}"
 export host_alias="${ghc_host}"
 
-export PATH="${_BUILD_PREFIX}/ghc-bootstrap/bin:/c/Windows/System32${PATH:+:}${PATH:-}"
+export PATH="${_BUILD_PREFIX}/ghc-bootstrap/bin${PATH:+:}${PATH:-}:/c/Windows/System32"
 export CABAL="${_BUILD_PREFIX}/bin/cabal"
 export CABAL_DIR="${SRC_DIR}\\.cabal"
 export GHC="${BUILD_PREFIX}\\ghc-bootstrap\\bin\\ghc.exe"
