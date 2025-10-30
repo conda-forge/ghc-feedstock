@@ -73,8 +73,8 @@ CONFIGURE_ARGS=(
 
   ac_cv_path_AR="${BUILD_PREFIX}"/bin/"${conda_target}"-ar
   ac_cv_path_AS="${BUILD_PREFIX}"/bin/"${conda_target}"-as
-  ac_cv_path_CC="${BUILD_PREFIX}"/bin/"${conda_target}"-clang
-  ac_cv_path_CXX="${BUILD_PREFIX}"/bin/"${conda_target}"-clang++
+  ac_cv_path_CC="${BUILD_PREFIX}"/bin/"${conda_target}"-gcc
+  ac_cv_path_CXX="${BUILD_PREFIX}"/bin/"${conda_target}"-g++
   ac_cv_path_LD="${BUILD_PREFIX}"/bin/"${conda_target}"-ld
   ac_cv_path_NM="${BUILD_PREFIX}"/bin/"${conda_target}"-nm
   ac_cv_path_OBJDUMP="${BUILD_PREFIX}"/bin/"${conda_target}"-objdump
@@ -100,10 +100,9 @@ MergeObjsCmd="${LD}" \
 MergeObjsArgs="" \
 run_and_log "ghc-configure" bash configure "${CONFIGURE_ARGS[@]}" || ( cat config.log ; exit 1 )
 
-# Cabal configure seems to default to the wrong clang
 # Also ensure stack protection is disabled for all stages
 cat > ${_SRC_DIR}/hadrian/hadrian.settings << EOF
-stage1.*.cabal.configure.opts += --verbose=3 --with-compiler="${GHC}" --with-gcc="${CLANG_WRAPPER}"
+stage1.*.cabal.configure.opts += --verbose=3 --with-compiler="${GHC}"
 stage1.*.cc.c.opts += -fno-stack-protector -fno-stack-check
 stage1.*.cc.cpp.opts += -fno-stack-protector -fno-stack-check
 stage1.*.ghc.c.opts += -optc-fno-stack-protector -optc-fno-stack-check
