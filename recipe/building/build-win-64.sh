@@ -62,33 +62,33 @@ SYSTEM_CONFIG=(
 CONFIGURE_ARGS=(
   --enable-distro-toolchain
   --with-system-libffi=yes
-  --with-curses-includes="${_PREFIX}"/include
-  --with-curses-libraries="${_PREFIX}"/lib
-  --with-ffi-includes="${_PREFIX}"/include
-  --with-ffi-libraries="${_PREFIX}"/lib
-  --with-gmp-includes="${_PREFIX}"/include
-  --with-gmp-libraries="${_PREFIX}"/lib
-  --with-iconv-includes="${_PREFIX}"/include
-  --with-iconv-libraries="${_PREFIX}"/lib
+  --with-curses-includes="${_PREFIX}"/Library/include
+  --with-curses-libraries="${_PREFIX}"/Library/lib
+  --with-ffi-includes="${_PREFIX}"/Library/include
+  --with-ffi-libraries="${_PREFIX}"/Library/lib
+  --with-gmp-includes="${_PREFIX}"/Library/include
+  --with-gmp-libraries="${_PREFIX}"/Library/lib
+  --with-iconv-includes="${_PREFIX}"/Library/include
+  --with-iconv-libraries="${_PREFIX}"/Library/lib
 
-  ac_cv_path_AR="${BUILD_PREFIX}"/bin/"${conda_target}"-ar
-  ac_cv_path_AS="${BUILD_PREFIX}"/bin/"${conda_target}"-as
-  ac_cv_path_CC="${BUILD_PREFIX}"/bin/"${conda_target}"-gcc
-  ac_cv_path_CXX="${BUILD_PREFIX}"/bin/"${conda_target}"-g++
-  ac_cv_path_LD="${BUILD_PREFIX}"/bin/"${conda_target}"-ld
-  ac_cv_path_NM="${BUILD_PREFIX}"/bin/"${conda_target}"-nm
-  ac_cv_path_OBJDUMP="${BUILD_PREFIX}"/bin/"${conda_target}"-objdump
-  ac_cv_path_RANLIB="${BUILD_PREFIX}"/bin/"${conda_target}"-ranlib
-  ac_cv_path_LLC="${BUILD_PREFIX}"/bin/"${conda_target}"-llc
-  ac_cv_path_OPT="${BUILD_PREFIX}"/bin/"${conda_target}"-opt
+  ac_cv_path_AR="${GCC_AR}"
+  ac_cv_path_AS="${_BUILD_PREFIX}"/Library/bin/"${conda_target}"-as
+  ac_cv_path_CC="${GCC}"
+  ac_cv_path_CXX="${GXX}"
+  ac_cv_path_LD="${_BUILD_PREFIX}"/Library/bin/"${conda_target}"-ld
+  ac_cv_path_NM="${GCC_NM}"
+  ac_cv_path_OBJDUMP="${_BUILD_PREFIX}"/Library/bin/"${conda_target}"-objdump
+  ac_cv_path_RANLIB="${GCC_RANLIB}"
+  ac_cv_path_LLC="${_BUILD_PREFIX}"/Library/bin/"${conda_target}"-llc
+  ac_cv_path_OPT="${_BUILD_PREFIX}"/Library/bin/"${conda_target}"-opt
   
 )
 
 # Configure with environment variables that help debugging
 export ac_cv_lib_ffi_ffi_call=yes
 # export AR_STAGE0=llvm-ar
-export AR_STAGE0=${AR}
-export CC_STAGE0=${CC}
+export AR_STAGE0=${GCC_AR}
+export CC_STAGE0=${GCC}
 export LD_STAGE0=${LD}
 
 export WINDOWS_TOOLCHAIN_AUTOCONF=no
