@@ -81,11 +81,12 @@ CONFIGURE_ARGS=(
   ac_cv_path_RANLIB="${GCC_RANLIB}"
   ac_cv_path_LLC="${_BUILD_PREFIX}"/Library/bin/"${conda_target}"-llc
   ac_cv_path_OPT="${_BUILD_PREFIX}"/Library/bin/"${conda_target}"-opt
-  
+  ac_cv_path_WINDRES="${_BUILD_PREFIX}"/Library/bin/"${conda_target}"-windres
 )
 
 # Configure with environment variables that help debugging
 export ac_cv_lib_ffi_ffi_call=yes
+
 # export AR_STAGE0=llvm-ar
 export AR_STAGE0=${GCC_AR}
 export CC_STAGE0=${GCC}
