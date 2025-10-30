@@ -99,18 +99,6 @@ fi
 
 echo "Successfully created ${MINGW_CHKSTK_OBJ} via direct compilation"
 
-# Apply stack protector fixes early in the process
-echo "*** Applying early stack protector fixes ***"
-python "${RECIPE_DIR}/building/fix-stack-protector.py"
-
-# Fix windres to use clang instead of gcc
-echo "*** Fixing windres to use clang instead of gcc ***"
-bash "${RECIPE_DIR}/building/fix-ghc-bootstrap-windres.sh" || echo "Windres fix failed"
-
-# Test the windres fix
-echo "*** Testing windres fix ***"
-bash "${RECIPE_DIR}/building/test-windres-fix.sh" || echo "Windres test completed"
-
 # Make sure we use conda-forge clang (ghc bootstrap has a clang.exe)
 CLANG=$(find "${_BUILD_PREFIX}" -name clang.exe | head -1)
 CLANGXX=$(find "${_BUILD_PREFIX}" -name clang++.exe | head -1)
@@ -128,88 +116,18 @@ export INCLUDE="C:/Program Files (x86)/Windows Kits/10/Include/10.0.26100.0/ucrt
 mkdir -p "${_BUILD_PREFIX}/bin"
 cp "${_BUILD_PREFIX}/Library/usr/bin/m4.exe" "${_BUILD_PREFIX}/bin"
 
-# ==================== Begin HSC Tool Fixes ====================
-# Copy the HSC fix scripts
-cp "${RECIPE_DIR}/building/fix-hsc-direct.py" "${_BUILD_PREFIX}/bin/"
-cp "${RECIPE_DIR}/building/fix-hsc-stack-overflow.py" "${_BUILD_PREFIX}/bin/"
-cp "${RECIPE_DIR}/building/fix-stack-protector.py" "${_BUILD_PREFIX}/bin/"
-
-# Create a simplified script to fix HSC crashes
-cat > "${_BUILD_PREFIX}/bin/fix-hsc-crash.sh" << EOF
-#!/bin/bash
-set -ex
-echo "Applying HSC fixes..."
-
-# Apply stack protector fixes
-echo "Applying stack protector fixes..."
-python "\$(dirname "\$0")/fix-stack-protector.py"
-
-# Apply stack overflow fixes to HSC tools
-echo "Applying stack overflow fixes to HSC tools..."
-python "\$(dirname "\$0")/fix-hsc-stack-overflow.py" "C:/cabal" "\${BUILD_PREFIX}" "\${SRC_DIR}"
-
-# Run the direct fix script to pre-generate .hs files
-echo "Pre-generating .hs files from .hsc sources..."
-RECIPE_DIR="${RECIPE_DIR}" python "\$(dirname "\$0")/fix-hsc-direct.py" "\${SRC_DIR}" "C:/cabal" "\${HOME}/.cabal" "\${BUILD_PREFIX}" "C:/cabal/store/ghc-9.10.1"
-
-echo "HSC fixes applied"
-EOF
-chmod +x "${_BUILD_PREFIX}/bin/fix-hsc-crash.sh"
-# ==================== End HSC Tool Fixes ====================
-
-mkdir -p "${_SRC_DIR}/hadrian/cfg" && touch "${_SRC_DIR}/hadrian/cfg/default.target.ghc-toolchain"
-
-# Remove this annoying mingw
-perl -i -pe 's#\$topdir/../mingw//bin/(llvm-)?##g' "${_SRC_DIR}"/bootstrap-ghc/lib/lib/settings
-perl -i -pe 's#-I\$topdir/../mingw//include##g' "${_SRC_DIR}"/bootstrap-ghc/lib/lib/settings
-perl -i -pe 's#-L\$topdir/../mingw//lib -L\$topdir/../mingw//x86_64-w64-mingw32/lib##g' "${_SRC_DIR}"/bootstrap-ghc/lib/lib/settings
-
-# Update cabal package database
-run_and_log "cabal-update" cabal v2-update
-
-# Deploy ultimate cabal wrapper - most aggressive solution
-echo "*** Deploying ultimate cabal wrapper ***"
-if [[ "${SKIP_CLOCK_STUB:-0}" != "1" ]]; then
-    bash "${RECIPE_DIR}/building/ultimate-cabal-wrapper.sh" || echo "Ultimate cabal wrapper deployment failed"
-    # Source the environment changes from the wrapper script
-    if [[ -f "${_BUILD_PREFIX}/bin/cabal-ultimate.exe" ]]; then
-        export CABAL="${_BUILD_PREFIX}/bin/cabal-ultimate.exe"
-        export PATH="${_BUILD_PREFIX}/bin:${PATH}"
-        echo "CABAL wrapper activated: ${CABAL}"
-        
-        # Create symlinks for cabal discovery
-        ln -sf "${_BUILD_PREFIX}/bin/cabal-ultimate.exe" "${_BUILD_PREFIX}/bin/cabal" 2>/dev/null || true
-        ln -sf "${_BUILD_PREFIX}/bin/cabal-ultimate.exe" "${_BUILD_PREFIX}/bin/cabal.exe" 2>/dev/null || true
-    fi
-    # Test the Clock installation as backup
-    bash "${RECIPE_DIR}/building/test-clock-install.sh" || echo "Clock install test completed"
-    # Install HSC stubs as additional backup
-    bash "${RECIPE_DIR}/building/install-hsc-stub.sh" || echo "HSC stub installation failed"
-fi
-
-# Apply HSC fixes right after cabal update but before any builds
-echo "*** Applying HSC fixes after cabal update ***"
-"${_BUILD_PREFIX}/bin/fix-hsc-crash.sh" || echo "HSC fix after cabal update completed"
-
-# Also stub HSC tools to prevent crashes during build
-echo "*** Stubbing HSC tools ***"
-bash "${RECIPE_DIR}/building/stub-hsc-tools.sh" || echo "HSC tool stubbing completed"
-
 _hadrian_build=("${_SRC_DIR}"/hadrian/build.bat)
 
 # Configure and build GHC
 SYSTEM_CONFIG=(
   --build="x86_64-w64-mingw32"
   --host="x86_64-w64-mingw32"
+  --prefix="${_PREFIX}"
   # --target="x86_64-w64-mingw32"
 )
 
 # Add stack protector flags to ensure proper stack checking
 CONFIGURE_ARGS=(
-  --prefix="${_PREFIX}"
-  --disable-numa
-  --enable-distro-toolchain
-  --enable-ignore-build-platform-mismatch=yes
   --with-system-libffi=yes
   --with-curses-includes="${_PREFIX}"/include
   --with-curses-libraries="${_PREFIX}"/lib
@@ -219,11 +137,26 @@ CONFIGURE_ARGS=(
   --with-gmp-libraries="${_PREFIX}"/lib
   --with-iconv-includes="${_PREFIX}"/include
   --with-iconv-libraries="${_PREFIX}"/lib
+
+  ac_cv_path_AR="${BUILD_PREFIX}"/bin/"${conda_target}"-ar
+  ac_cv_path_AS="${BUILD_PREFIX}"/bin/"${conda_target}"-as
+  ac_cv_path_CC="${BUILD_PREFIX}"/bin/"${conda_target}"-clang
+  ac_cv_path_CXX="${BUILD_PREFIX}"/bin/"${conda_target}"-clang++
+  ac_cv_path_LD="${BUILD_PREFIX}"/bin/"${conda_target}"-ld
+  ac_cv_path_NM="${BUILD_PREFIX}"/bin/"${conda_target}"-nm
+  ac_cv_path_OBJDUMP="${BUILD_PREFIX}"/bin/"${conda_target}"-objdump
+  ac_cv_path_RANLIB="${BUILD_PREFIX}"/bin/"${conda_target}"-ranlib
+  ac_cv_path_LLC="${BUILD_PREFIX}"/bin/"${conda_target}"-llc
+  ac_cv_path_OPT="${BUILD_PREFIX}"/bin/"${conda_target}"-opt
+  
 )
 
 # Configure with environment variables that help debugging
-AR_STAGE0=llvm-ar \
-CC_STAGE0=${CC} \
+export ac_cv_lib_ffi_ffi_call=yes
+export AR_STAGE0=llvm-ar
+export CC_STAGE0=${CC}
+export LD_STAGE0=${LD}
+
 CFLAGS="${CFLAGS//-nostdlib/} -v -fno-stack-check -fno-stack-protector" \
 CXXFLAGS="${CXXFLAGS//-nostdlib/} -v -fno-stack-check -fno-stack-protector" \
 LDFLAGS="${LDFLAGS//-nostdlib/} -v" \
@@ -233,7 +166,7 @@ run_and_log "ghc-configure" bash configure "${CONFIGURE_ARGS[@]}" || ( cat confi
 
 # Cabal configure seems to default to the wrong clang
 # Also ensure stack protection is disabled for all stages
-cat > hadrian/hadrian.settings << EOF
+cat > ${_SRC_DIR}/hadrian/hadrian.settings << EOF
 stage1.*.cabal.configure.opts += --verbose=3 --with-compiler="${GHC}" --with-gcc="${CLANG_WRAPPER}"
 stage1.*.cc.c.opts += -fno-stack-protector -fno-stack-check
 stage1.*.cc.cpp.opts += -fno-stack-protector -fno-stack-check
@@ -262,10 +195,6 @@ export CABAL_EXTRA_BUILD_FLAGS="--ghc-options=-optc-fno-stack-protector --ghc-op
 echo "*** Applying HSC fixes proactively ***"
 "${_BUILD_PREFIX}/bin/fix-hsc-crash.sh" || echo "Pre-emptive HSC fix completed"
 
-# Start aggressive HSC prevention
-echo "*** Starting aggressive HSC crash prevention ***"
-bash "${RECIPE_DIR}/building/aggressive-hsc-prevention.sh" || echo "HSC prevention start failed"
-
 # Build stage1 GHC
 echo "*** Building stage1 GHC ***"
 
@@ -274,79 +203,10 @@ echo "*** Final cabal PATH verification ***"
 export PATH="${_BUILD_PREFIX}/bin:${PATH}"
 which cabal > /dev/null || echo "WARNING: cabal not found in PATH"
 
-# Critical: Ensure CABAL environment variable is set for Windows batch scripts
-# Use our hadrian-specific wrapper that passes validation but uses our Clock wrapper
-CABAL_UNIX_PATH="${_BUILD_PREFIX}/bin/cabal-hadrian.bat"
-echo "Debug: Unix path: ${CABAL_UNIX_PATH}"
-echo "Debug: _BUILD_PREFIX is: ${_BUILD_PREFIX}"
-
-# Convert to Windows path format using the actual resolved path
-CABAL_WIN_PATH=$(cygpath -w "${CABAL_UNIX_PATH}" 2>/dev/null)
-echo "Debug: cygpath -w result: '${CABAL_WIN_PATH}'"
-
-if [[ -z "${CABAL_WIN_PATH}" ]] || [[ "${CABAL_WIN_PATH}" == *"%"* ]]; then
-    # Fallback: manually convert the resolved path
-    RESOLVED_PATH="${CABAL_UNIX_PATH}"
-    # Convert forward slashes to backslashes and fix drive letter
-    CABAL_WIN_PATH=$(echo "${RESOLVED_PATH}" | sed 's|^/c/|C:\\|' | sed 's|/|\\|g')
-    echo "Debug: Manual conversion result: '${CABAL_WIN_PATH}'"
-fi
-
-export CABAL="${CABAL_WIN_PATH}"
-echo "Set CABAL (Windows path) to: ${CABAL}"
-
-# Verify CABAL environment variable is working
-echo "CABAL set to: ${CABAL}"
-
-# Test hadrian cabal validation
-echo "Debug: CABAL environment variable is: ${CABAL}"
-echo "Debug: Testing cabal validation with cmd /c..."
-
-# The CABAL variable should now contain the proper Windows path
-
-# Test the batch file directly first - but with a timeout to prevent hangs
-CABAL_UNIX_CHECK="${CABAL//\\//}"  # Convert back to Unix path for existence check
-CABAL_UNIX_CHECK="${CABAL_UNIX_CHECK//C:/c}"
-echo "Debug: Checking existence at Unix path: ${CABAL_UNIX_CHECK}"
-
-if [[ -f "${CABAL_UNIX_CHECK}" ]]; then
-    echo "Debug: Cabal batch file exists at: ${CABAL_UNIX_CHECK}"
-    echo "Debug: Testing batch file directly with 10 second timeout..."
-    timeout 10s "${CABAL_UNIX_CHECK}" 2>/dev/null || true
-    DIRECT_EXIT=$?
-    echo "Debug: Direct batch execution exit code: ${DIRECT_EXIT}"
-else
-    echo "Debug: Cabal batch file NOT found at: ${CABAL_UNIX_CHECK}"
-    # List directory contents to debug
-    CABAL_DIR=$(dirname "${CABAL_UNIX_CHECK}")
-    echo "Debug: Directory contents of ${CABAL_DIR}:"
-    ls -la "${CABAL_DIR}" 2>/dev/null || echo "Directory not found"
-    DIRECT_EXIT=127
-fi
-
-# Now test with cmd /c but with a timeout
-echo "Debug: Testing with cmd /c and timeout..."
-timeout 10s cmd /c "\"%CABAL%\" 2>nul" 2>/dev/null || true
-CABAL_TEST_EXIT=$?
-echo "Debug: cmd /c execution exit code: ${CABAL_TEST_EXIT}"
-
-if [[ ${CABAL_TEST_EXIT} -eq 1 ]]; then
-    echo "✅ Cabal validation: PASS"
-else
-    echo "❌ Cabal validation: FAIL (got ${CABAL_TEST_EXIT}, expected 1)"
-fi
-
 "${_hadrian_build[@]}" stage1:exe:ghc-bin -VV \
   --flavour=quickest \
   --docs=none \
   --progress-info=unicorn || BUILD_RESULT=$?
-
-# Stop the HSC monitor
-if [[ -f "${TEMP}/hsc-monitor.pid" ]]; then
-    MONITOR_PID=$(cat "${TEMP}/hsc-monitor.pid")
-    kill $MONITOR_PID 2>/dev/null || true
-    echo "Stopped HSC monitor (PID $MONITOR_PID)"
-fi
 
 # Check build result
 if [[ "${BUILD_RESULT:-0}" -ne 0 ]]; then
