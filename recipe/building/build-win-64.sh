@@ -21,8 +21,8 @@ export CABAL="${_BUILD_PREFIX}/bin/cabal"
 export CABAL_DIR="${SRC_DIR}\\.cabal"
 export GHC="${BUILD_PREFIX}\\ghc-bootstrap\\bin\\ghc.exe"
 
-echo $(find /c -name "findstr*")
-echo $(find "${_BUILD_PREFIX}" -name "windres*")
+echo $(find /c -name "*findstr*")
+echo $(find "${_BUILD_PREFIX}" -name "*windres*")
 
 cd "${SRC_DIR}"
 
@@ -84,7 +84,6 @@ CONFIGURE_ARGS=(
   ac_cv_path_RANLIB="${GCC_RANLIB}"
   ac_cv_path_LLC="${_BUILD_PREFIX}"/Library/bin/"${conda_target}"-llc
   ac_cv_path_OPT="${_BUILD_PREFIX}"/Library/bin/"${conda_target}"-opt
-  ac_cv_path_WINDRES="${_BUILD_PREFIX}"/Library/bin/"${conda_target}"-windres
 )
 
 # Configure with environment variables that help debugging
