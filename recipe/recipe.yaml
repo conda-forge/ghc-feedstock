@@ -15,6 +15,7 @@ source:
         then:
           - patches/skip-mingw-copy-conda.patch
           - patches/fix-ghc-bignum-intree-gmp-check.patch
+          - patches/force-system-gmp-windows.patch
       - if: osx and arm64
         then:
           - patches/patch-rpath-macos.patch
