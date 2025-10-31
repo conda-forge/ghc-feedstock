@@ -110,6 +110,12 @@ MergeObjsCmd="${LD}" \
 MergeObjsArgs="" \
 run_and_log "ghc-configure" bash configure "${CONFIGURE_ARGS[@]}" || ( cat config.log ; exit 1 )
 
+# Fix Python path in system.config (configure sets Linux path, we need Windows)
+_PYTHON_WIN=$(cygpath -w "${PYTHON}")
+perl -pi -e "s#(^python\\s*=).*#\$1 ${_PYTHON_WIN}#" "${SRC_DIR}"/hadrian/cfg/system.config
+echo "=== Updated Python in system.config ==="
+grep "^python" "${SRC_DIR}"/hadrian/cfg/system.config
+
 # Also ensure stack protection is disabled for all stages
 cat > ${_SRC_DIR}/hadrian/hadrian.settings << EOF
 stage1.*.cabal.configure.opts += --verbose=3 --with-compiler="${GHC}"
