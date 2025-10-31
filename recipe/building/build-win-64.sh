@@ -35,7 +35,14 @@ mkdir -p ".cabal" && "${CABAL}" user-config init
 run_and_log "cabal-update" "${CABAL}" v2-update
 
 # Prepare python environment
-export PYTHON=$(find "${BUILD_PREFIX}" -name python.exe | head -1)
+# Use conda's Python directly, NOT venv Python
+export PYTHON="${BUILD_PREFIX}/python.exe"
+if [[ ! -f "${PYTHON}" ]]; then
+  echo "ERROR: Python not found at ${PYTHON}"
+  find "${BUILD_PREFIX}" -name python.exe
+  exit 1
+fi
+echo "=== Using Python: ${PYTHON} ==="
 export LIBRARY_PATH="${_BUILD_PREFIX}/Library/lib${LIBRARY_PATH:+:}${LIBRARY_PATH:-}"
 
 # Set up temp variables
@@ -111,9 +118,11 @@ MergeObjsArgs="" \
 run_and_log "ghc-configure" bash configure "${CONFIGURE_ARGS[@]}" || ( cat config.log ; exit 1 )
 
 # Fix Python path in system.config (configure sets Linux path, we need Windows)
-_PYTHON_WIN=$(cygpath -w "${PYTHON}")
-perl -pi -e "s#(^python\\s*=).*#\$1 ${_PYTHON_WIN}#" "${SRC_DIR}"/hadrian/cfg/system.config
+# Use forward slashes to avoid escape sequence issues (\n, \t, \b, etc.)
+_PYTHON_UNIX=$(cygpath -u "${PYTHON}")
+perl -pi -e "s#(^python\\s*=).*#\$1 ${_PYTHON_UNIX}#" "${SRC_DIR}"/hadrian/cfg/system.config
 echo "=== Updated Python in system.config ==="
+grep "^python" "${SRC_DIR}"/hadrian/cfg/system.config
 
 # Also ensure stack protection is disabled for all stages
 cat > ${_SRC_DIR}/hadrian/hadrian.settings << EOF
