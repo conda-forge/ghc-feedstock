@@ -126,8 +126,6 @@ run_and_log "ghc-configure" bash configure "${CONFIGURE_ARGS[@]}" || ( cat confi
 # Use forward slashes to avoid escape sequence issues (\n, \t, \b, etc.)
 _PYTHON_UNIX=$(cygpath -u "${PYTHON}")
 perl -pi -e "s#(^python\\s*=).*#\$1 ${_PYTHON_UNIX}#" "${SRC_DIR}"/hadrian/cfg/system.config
-echo "=== Updated Python in system.config ==="
-grep "^python" "${SRC_DIR}"/hadrian/cfg/system.config
 
 # Also ensure stack protection is disabled for all stages
 cat > ${_SRC_DIR}/hadrian/hadrian.settings << EOF
