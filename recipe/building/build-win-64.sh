@@ -70,6 +70,7 @@ SYSTEM_CONFIG=(
 CONFIGURE_ARGS=(
   --enable-distro-toolchain
   --with-system-libffi=yes
+  --with-intree-gmp=no
   --with-curses-includes="${_PREFIX}"/Library/include
   --with-curses-libraries="${_PREFIX}"/Library/lib
   --with-ffi-includes="${_PREFIX}"/Library/include
