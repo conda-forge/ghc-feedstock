@@ -137,17 +137,7 @@ echo "*** Building stage1 GHC ***"
 # Ensure cabal wrapper is in PATH for hadrian
 echo "*** Final cabal PATH verification ***"
 export PATH="${_BUILD_PREFIX}/bin:${PATH}"
-which cabal > /dev/null || echo "WARNING: cabal not found in PATH"
 
-"${_hadrian_build[@]}" stage1:exe:ghc-bin -VV \
-  --flavour=quickest \
-  --docs=none \
-  --progress-info=unicorn || BUILD_RESULT=$?
-
-# Check build result
-if [[ "${BUILD_RESULT:-0}" -ne 0 ]]; then
-    echo "Build failed with code ${BUILD_RESULT}"
-    exit ${BUILD_RESULT}
-fi
+run_and_log "stage1" "${_hadrian_build[@]}" stage1:exe:ghc-bin --flavour=quickest --docs=none --progress-info=none
 
 run_and_log "install" "${_hadrian_build[@]}" install --prefix="${_PREFIX}" --flavour=release --freeze1 --docs=none
