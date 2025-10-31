@@ -12,7 +12,9 @@ source:
       - if: aarch64 or ppc64le or arm64
         then: patches/skip-bindist-recache-crosscompile.patch
       - if: not unix
-        then: patches/skip-mingw-copy-conda.patch
+        then:
+          - patches/skip-mingw-copy-conda.patch
+          - patches/fix-ghc-bignum-intree-gmp-check.patch
       - if: osx and arm64
         then:
           - patches/patch-rpath-macos.patch
@@ -57,6 +59,7 @@ requirements:
         - m2-sed
         - m2-tar
         - m2-which
+        - m2-xz
 
     - if: build_platform != target_platform
       then:
