@@ -1,0 +1,28 @@
+--- a/hadrian/src/Settings/Builders/Cc.hs
++++ b/hadrian/src/Settings/Builders/Cc.hs
+@@ -23,6 +23,9 @@ ccBuilderArgs = do
+     where
+         findCDepExpr depType = do
+             output <- getOutput
++            input <- getInput
++            includes <- cIncludeArgs
++            putBuild $ "=== FindCDep DEBUG: input=" ++ input ++ " output=" ++ output ++ " includes=" ++ show includes
+             mconcat [ arg "-E"
+                     , arg "-MM", arg "-MG"
+                     , arg "-MF", arg output
+--- a/hadrian/src/Rules/Compile.hs
++++ b/hadrian/src/Rules/Compile.hs
+@@ -281,6 +281,13 @@ needDependencies lang context@Context {..} src depFile = do
+     parseFile :: FilePath -> Action [String]
+     parseFile file = do
+         input <- liftIO $ readFile file
++        putBuild $ "=== PARSING .d file: " ++ file
++        putBuild $ "=== .d file contents:\n" ++ input
+         case parseMakefile input of
+-            [(_file, deps)] -> return deps
++            [(_file, deps)] -> do
++                putBuild $ "=== Dependencies found: " ++ show deps
++                let notFound = filter (\d -> d == takeFileName d) deps
++                putBuild $ "=== Files not found (basename only): " ++ show notFound
++                return deps
+             _               -> return []

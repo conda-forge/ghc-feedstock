@@ -28,6 +28,18 @@ WINDRES_PATH="${BUILD_PREFIX//\\/\\\\}\\\\Library\\\\bin\\\\${WINDRES}"
 perl -pi -e "s#WINDRES_CMD=.*windres\.exe#WINDRES_CMD=${WINDRES_PATH}#" "${_BUILD_PREFIX}"/ghc-bootstrap/bin/windres.bat
 perl -pi -e 's/findstr/C:\\Windows\\System32\\findstr/g' "${_BUILD_PREFIX}"/ghc-bootstrap/bin/windres.bat
 
+# Update Stage0 settings file with conda include paths for Windows build
+_SETTINGS_FILE="${_BUILD_PREFIX}/ghc-bootstrap/lib/settings"
+if [[ -f "${_SETTINGS_FILE}" ]]; then
+  echo "=== Updating Stage0 settings with conda include paths ==="
+  # Add -I flags to C compiler flags for ffi.h, gmp.h, etc.
+  perl -pi -e 's/(C compiler flags", ")([^"]*)(")/\1\2 -I${PREFIX}\/Library\/include -I${BUILD_PREFIX}\/Library\/include\3/' "${_SETTINGS_FILE}"
+  perl -pi -e 's/(C\+\+ compiler flags", ")([^"]*)(")/\1\2 -I${PREFIX}\/Library\/include -I${BUILD_PREFIX}\/Library\/include\3/' "${_SETTINGS_FILE}"
+  grep "C compiler flags\|C++ compiler flags" "${_SETTINGS_FILE}"
+else
+  echo "WARNING: Stage0 settings file not found at ${_SETTINGS_FILE}"
+fi
+
 cd "${SRC_DIR}"
 
 mkdir -p ".cabal" && "${CABAL}" user-config init
@@ -115,8 +127,9 @@ export LD_STAGE0=${LD}
 
 export WINDOWS_TOOLCHAIN_AUTOCONF=no
 
-CFLAGS="${CFLAGS//-nostdlib/} -v -fno-stack-check -fno-stack-protector" \
-CXXFLAGS="${CXXFLAGS//-nostdlib/} -v -fno-stack-check -fno-stack-protector" \
+# Add conda include paths to CFLAGS so C compiler can find ffi.h, gmp.h, etc.
+CFLAGS="${CFLAGS//-nostdlib/} -v -fno-stack-check -fno-stack-protector -I${PREFIX}/Library/include -I${BUILD_PREFIX}/Library/include" \
+CXXFLAGS="${CXXFLAGS//-nostdlib/} -v -fno-stack-check -fno-stack-protector -I${PREFIX}/Library/include -I${BUILD_PREFIX}/Library/include" \
 LDFLAGS="${LDFLAGS//-nostdlib/} -v" \
 MergeObjsCmd="${LD}" \
 MergeObjsArgs="" \
@@ -126,6 +139,11 @@ run_and_log "ghc-configure" bash configure "${CONFIGURE_ARGS[@]}" || ( cat confi
 # Use forward slashes to avoid escape sequence issues (\n, \t, \b, etc.)
 _PYTHON_UNIX=$(cygpath -u "${PYTHON}")
 perl -pi -e "s#(^python\\s*=).*#\$1 ${_PYTHON_UNIX}#" "${SRC_DIR}"/hadrian/cfg/system.config
+
+# Ensure CFLAGS/CXXFLAGS include conda headers for the build phase too
+export CFLAGS="${CFLAGS} -fno-stack-protector -fno-stack-check -I${PREFIX}/Library/include -I${BUILD_PREFIX}/Library/include"
+export CXXFLAGS="${CXXFLAGS} -fno-stack-protector -fno-stack-check -I${PREFIX}/Library/include -I${BUILD_PREFIX}/Library/include"
+export LDFLAGS="${LDFLAGS} -fno-stack-protector"
 
 # Also ensure stack protection is disabled for all stages
 cat > ${_SRC_DIR}/hadrian/hadrian.settings << EOF
