@@ -27,7 +27,6 @@ export CC="${GCC}"
 WINDRES_PATH="${BUILD_PREFIX//\\/\\\\}\\\\Library\\\\bin\\\\${WINDRES}"
 perl -pi -e "s#WINDRES_CMD=.*windres\.exe#WINDRES_CMD=${WINDRES_PATH}#" "${_BUILD_PREFIX}"/ghc-bootstrap/bin/windres.bat
 perl -pi -e 's/findstr/C:\\Windows\\System32\\findstr/g' "${_BUILD_PREFIX}"/ghc-bootstrap/bin/windres.bat
-cat "${_BUILD_PREFIX}"/ghc-bootstrap/bin/windres.bat
 
 cd "${SRC_DIR}"
 
@@ -36,7 +35,6 @@ run_and_log "cabal-update" "${CABAL}" v2-update
 
 # Prepare python environment
 # Use conda's Python directly, NOT venv Python
-export PYTHON="${BUILD_PREFIX}/python.exe"
 if [[ ! -f "${PYTHON}" ]]; then
   echo "ERROR: Python not found at ${PYTHON}"
   find "${BUILD_PREFIX}" -name python.exe
