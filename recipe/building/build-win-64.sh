@@ -22,7 +22,8 @@ export CABAL_DIR="${SRC_DIR}\\.cabal"
 export GHC="${BUILD_PREFIX}\\ghc-bootstrap\\bin\\ghc.exe"
 
 # Bug in ghc-bootstrap
-perl -pi -e "s#WINDRES_CMD=.*windres\.exe#WINDRES_CMD=${BUILD_PREFIX}\\\\Library\\\\bin\\\\${WINDRES}#" "${_BUILD_PREFIX}"/ghc-bootstrap/bin/windres.bat
+WINDRES_PATH="${BUILD_PREFIX//\\/\\\\}\\\\Library\\\\bin\\\\${WINDRES}"
+perl -pi -e "s#WINDRES_CMD=.*windres\.exe#WINDRES_CMD=${WINDRES_PATH}#" "${_BUILD_PREFIX}"/ghc-bootstrap/bin/windres.bat
 cat "${_BUILD_PREFIX}"/ghc-bootstrap/bin/windres.bat
 
 cd "${SRC_DIR}"
