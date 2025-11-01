@@ -1,0 +1,34 @@
+--- a/hadrian/src/Rules/Generate.hs
++++ b/hadrian/src/Rules/Generate.hs
+@@ -296,6 +296,13 @@
+             settingWord s = read <$> setting s
+         ws <- settingWord TargetWordSize
+         return $ toCabalBool (ws == 8)
++    -- Add FFI and Libdw include directories from configure
++    , interpolateVar "FFIIncludeDir" $ do
++        ffiDirs <- settingList ConfFfiIncludeDirs
++        return $ unwords ffiDirs
++    , interpolateVar "LibdwIncludeDir" $ do
++        libdwDirs <- settingList ConfLibdwIncludeDirs
++        return $ unwords libdwDirs
+     ]
+   where
+     flag = interpolateCabalFlag
+--- a/rts/rts.cabal.in
++++ b/rts/rts.cabal.in
+@@ -201,10 +201,13 @@
+       if !flag(smp)
+          cpp-options: -DNOSMP
+
++      -- Package-relative include dirs (prepended with rts/)
+       include-dirs: include
+-                    @FFIIncludeDir@
+-                    @LibdwIncludeDir@
+
++      -- Absolute include dirs from system dependencies (not prepended)
++      -- FFI and libdw from configure --with-ffi-includes
++      extra-include-dirs: @FFIIncludeDir@
++                          @LibdwIncludeDir@
+
+       includes: Rts.h
+       install-includes: Cmm.h HsFFI.h MachDeps.h Rts.h RtsAPI.h Stg.h
