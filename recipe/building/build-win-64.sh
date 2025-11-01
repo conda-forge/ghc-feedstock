@@ -73,9 +73,7 @@ fi
 export LIB="${BUILD_PREFIX}/Library/lib;${PREFIX}/Library/lib;C:/Program Files (x86)/Windows Kits/10/Lib/10.0.26100.0/um/x64;${MSVC_VERSION_DIR}/lib/x64${LIB:+;}${LIB:-}"
 
 # Export INCLUDE with conda libraries FIRST (for ffi.h, gmp.h, iconv.h, etc.)
-_PREFIX_WIN=$(cygpath -w "${PREFIX}")
-_BUILD_PREFIX_WIN=$(cygpath -w "${BUILD_PREFIX}")
-export INCLUDE="${_PREFIX_WIN}/Library/include;${_BUILD_PREFIX_WIN}/Library/include;C:/Program Files (x86)/Windows Kits/10/Include/10.0.26100.0/ucrt;C:/Program Files (x86)/Windows Kits/10/Include/10.0.26100.0/um;C:/Program Files (x86)/Windows Kits/10/Include/10.0.26100.0/shared;${MSVC_VERSION_DIR}/include${INCLUDE:+;}${INCLUDE:-}"
+export INCLUDE="${PREFIX}/Library/include;${BUILD_PREFIX}/Library/include;C:/Program Files (x86)/Windows Kits/10/Include/10.0.26100.0/ucrt;C:/Program Files (x86)/Windows Kits/10/Include/10.0.26100.0/um;C:/Program Files (x86)/Windows Kits/10/Include/10.0.26100.0/shared;${MSVC_VERSION_DIR}/include${INCLUDE:+;}${INCLUDE:-}"
 echo "=== INCLUDE path (with conda headers first) ==="
 echo "${INCLUDE}" | tr ';' '\n' | head -5
 
@@ -135,6 +133,8 @@ MergeObjsCmd="${LD}" \
 MergeObjsArgs="" \
 run_and_log "ghc-configure" bash configure "${CONFIGURE_ARGS[@]}" || ( cat config.log ; exit 1 )
 
+cat "${SRC_DIR}"/hadrian/system.config
+
 # Fix Python path in system.config (configure sets Linux path, we need Windows)
 # Use forward slashes to avoid escape sequence issues (\n, \t, \b, etc.)
 _PYTHON_UNIX=$(cygpath -u "${PYTHON}")
@@ -174,7 +174,9 @@ echo "*** Building stage1 GHC ***"
 echo "*** Final cabal PATH verification ***"
 export PATH="${_BUILD_PREFIX}/bin:${PATH}"
 
-# run_and_log "stage1" "${_hadrian_build[@]}" stage1:exe:ghc-bin --flavour=quickest --docs=none --progress-info=none
-"${_hadrian_build[@]}" stage1:exe:ghc-bin --flavour=quickest --docs=none --progress-info=none
+run_and_log "stage1" "${_hadrian_build[@]}" stage1:exe:ghc-bin --flavour=quickest --docs=none --progress-info=none
+# "${_hadrian_build[@]}" stage1:exe:ghc-bin --flavour=quickest --docs=none --progress-info=none
+
+cat "${SRC_DIR}"/_build/stage0/lib/settings
 
 run_and_log "install" "${_hadrian_build[@]}" install --prefix="${_PREFIX}" --flavour=release --freeze1 --docs=none
