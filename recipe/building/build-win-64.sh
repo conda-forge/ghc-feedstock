@@ -19,7 +19,7 @@ export host_alias="${ghc_host}"
 export PATH="${_BUILD_PREFIX}/ghc-bootstrap/bin${PATH:+:}${PATH:-}:/c/Windows/System32"
 export CABAL="${_BUILD_PREFIX}/bin/cabal"
 export CABAL_DIR="${SRC_DIR}\\.cabal"
-export PYTHON="${BUILD_PREFIX}/python.exe"
+export _PYTHON="${_BUILD_PREFIX}/python.exe"
 export GHC="${BUILD_PREFIX}\\ghc-bootstrap\\bin\\ghc.exe"
 # Explicitely set CC to GCC (needed for a 'weak' ghc-bootstrap)
 export CC="${GCC}"
@@ -35,8 +35,8 @@ if [[ -f "${settings_file}" ]]; then
   echo "=== Updating bootstrap settings with conda include paths ==="
   # Add -I flags to C compiler flags for ffi.h, gmp.h, etc.
   # CRITICAL: Use _PREFIX (Unix paths) NOT PREFIX (Windows paths with \b escape sequences)
-  perl -pi -e "s/(C compiler flags\", \")([^\"]*)(\")/\$1\$2 -I${_PREFIX}\/Library\/include -I${_BUILD_PREFIX}\/Library\/include\$3/" "${settings_file}"
-  perl -pi -e "s/(C\+\+ compiler flags\", \")([^\"]*)(\")/\$1\$2 -I${_PREFIX}\/Library\/include -I${_BUILD_PREFIX}\/Library\/include\$3/" "${settings_file}"
+  perl -pi -e "s/(C compiler flags\", \")([^\"]*)(\")/\$1\$2 -I${_PREFIX}/Library/include -I${_BUILD_PREFIX}/Library/include\$3/" "${settings_file}"
+  perl -pi -e "s/(C\+\+ compiler flags\", \")([^\"]*)(\")/\$1\$2 -I${_PREFIX}/Library/include -I${_BUILD_PREFIX}/Library/include\$3/" "${settings_file}"
   grep "C compiler flags\|C++ compiler flags" "${settings_file}"
 else
   echo "WARNING: Stage0 settings file not found at ${settings_file}"
@@ -117,8 +117,8 @@ export LD_STAGE0=${LD}
 export WINDOWS_TOOLCHAIN_AUTOCONF=no
 
 # Add conda include paths to CFLAGS so C compiler can find ffi.h, gmp.h, etc.
-CFLAGS="${CFLAGS//-nostdlib/} -v -fno-stack-check -fno-stack-protector -I${PREFIX}/Library/include -I${BUILD_PREFIX}/Library/include" \
-CXXFLAGS="${CXXFLAGS//-nostdlib/} -v -fno-stack-check -fno-stack-protector -I${PREFIX}/Library/include -I${BUILD_PREFIX}/Library/include" \
+CFLAGS="${CFLAGS//-nostdlib/} -v -fno-stack-check -fno-stack-protector -I${_PREFIX}/Library/include -I${_BUILD_PREFIX}/Library/include" \
+CXXFLAGS="${CXXFLAGS//-nostdlib/} -v -fno-stack-check -fno-stack-protector -I${_PREFIX}/Library/include -I${_BUILD_PREFIX}/Library/include" \
 LDFLAGS="${LDFLAGS//-nostdlib/} -v" \
 MergeObjsCmd="${LD}" \
 MergeObjsArgs="" \
@@ -128,8 +128,7 @@ cat "${_SRC_DIR}"/hadrian/cfg/system.config
 
 # Fix Python path in system.config (configure sets Linux path, we need Windows)
 # Use forward slashes to avoid escape sequence issues (\n, \t, \b, etc.)
-_PYTHON_UNIX=$(cygpath -u "${PYTHON}")
-perl -pi -e "s#(^python\\s*=).*#\$1 ${_PYTHON_UNIX}#" "${SRC_DIR}"/hadrian/cfg/system.config
+perl -pi -e "s#(^python\\s*=).*#\$1 ${_PYTHON}#" "${_SRC_DIR}"/hadrian/cfg/system.config
 
 # Ensure CFLAGS/CXXFLAGS include conda headers for the build phase too
 export CFLAGS="${CFLAGS} -fno-stack-protector -fno-stack-check -I${PREFIX}/Library/include -I${BUILD_PREFIX}/Library/include"
