@@ -19,6 +19,7 @@ export host_alias="${ghc_host}"
 export PATH="${_BUILD_PREFIX}/ghc-bootstrap/bin${PATH:+:}${PATH:-}:/c/Windows/System32"
 export CABAL="${_BUILD_PREFIX}/bin/cabal"
 export CABAL_DIR="${SRC_DIR}\\.cabal"
+export PYTHON="${BUILD_PREFIX}/python.exe"
 export GHC="${BUILD_PREFIX}\\ghc-bootstrap\\bin\\ghc.exe"
 # Explicitely set CC to GCC (needed for a 'weak' ghc-bootstrap)
 export CC="${GCC}"
@@ -29,15 +30,15 @@ perl -pi -e "s#WINDRES_CMD=.*windres\.exe#WINDRES_CMD=${WINDRES_PATH}#" "${_BUIL
 perl -pi -e 's/findstr/C:\\Windows\\System32\\findstr/g' "${_BUILD_PREFIX}"/ghc-bootstrap/bin/windres.bat
 
 # Update Stage0 settings file with conda include paths for Windows build
-_SETTINGS_FILE="${_BUILD_PREFIX}/ghc-bootstrap/lib/settings"
-if [[ -f "${_SETTINGS_FILE}" ]]; then
-  echo "=== Updating Stage0 settings with conda include paths ==="
+settings_file="${_BUILD_PREFIX}/ghc-bootstrap/lib/settings"
+if [[ -f "${settings_file}" ]]; then
+  echo "=== Updating bootstrap settings with conda include paths ==="
   # Add -I flags to C compiler flags for ffi.h, gmp.h, etc.
-  perl -pi -e 's/(C compiler flags", ")([^"]*)(")/\1\2 -I${PREFIX}\/Library\/include -I${BUILD_PREFIX}\/Library\/include\3/' "${_SETTINGS_FILE}"
-  perl -pi -e 's/(C\+\+ compiler flags", ")([^"]*)(")/\1\2 -I${PREFIX}\/Library\/include -I${BUILD_PREFIX}\/Library\/include\3/' "${_SETTINGS_FILE}"
-  grep "C compiler flags\|C++ compiler flags" "${_SETTINGS_FILE}"
+  perl -pi -e "s/(C compiler flags", ")([^"]*)(")/\$1\$2 -I${PREFIX}/Library/include -I${BUILD_PREFIX}/Library/include\$3/" "${settings_file}"
+  perl -pi -e "s/(C\+\+ compiler flags", ")([^"]*)(")/\$1\$2 -I${PREFIX}/Library/include -I${BUILD_PREFIX}/Library/include\$3/" "${settings_file}"
+  grep "C compiler flags\|C++ compiler flags" "${settings_file}"
 else
-  echo "WARNING: Stage0 settings file not found at ${_SETTINGS_FILE}"
+  echo "WARNING: Stage0 settings file not found at ${settings_file}"
 fi
 
 cd "${SRC_DIR}"
@@ -45,15 +46,6 @@ cd "${SRC_DIR}"
 mkdir -p ".cabal" && "${CABAL}" user-config init
 run_and_log "cabal-update" "${CABAL}" v2-update
 
-# Prepare python environment
-# Use conda's Python directly, NOT venv Python
-export PYTHON="${BUILD_PREFIX}/python.exe"
-if [[ ! -f "${PYTHON}" ]]; then
-  echo "ERROR: Python not found at ${PYTHON}"
-  find "${BUILD_PREFIX}" -name python.exe
-  exit 1
-fi
-echo "=== Using Python: ${PYTHON} ==="
 export LIBRARY_PATH="${_BUILD_PREFIX}/Library/lib${LIBRARY_PATH:+:}${LIBRARY_PATH:-}"
 
 # Set up temp variables
@@ -74,8 +66,6 @@ export LIB="${BUILD_PREFIX}/Library/lib;${PREFIX}/Library/lib;C:/Program Files (
 
 # Export INCLUDE with conda libraries FIRST (for ffi.h, gmp.h, iconv.h, etc.)
 export INCLUDE="${PREFIX}/Library/include;${BUILD_PREFIX}/Library/include;C:/Program Files (x86)/Windows Kits/10/Include/10.0.26100.0/ucrt;C:/Program Files (x86)/Windows Kits/10/Include/10.0.26100.0/um;C:/Program Files (x86)/Windows Kits/10/Include/10.0.26100.0/shared;${MSVC_VERSION_DIR}/include${INCLUDE:+;}${INCLUDE:-}"
-echo "=== INCLUDE path (with conda headers first) ==="
-echo "${INCLUDE}" | tr ';' '\n' | head -5
 
 mkdir -p "${_BUILD_PREFIX}/bin"
 cp "${_BUILD_PREFIX}/Library/usr/bin/m4.exe" "${_BUILD_PREFIX}/bin"
@@ -133,6 +123,7 @@ MergeObjsCmd="${LD}" \
 MergeObjsArgs="" \
 run_and_log "ghc-configure" bash configure "${CONFIGURE_ARGS[@]}" || ( cat config.log ; exit 1 )
 
+ls"${_SRC_DIR}"/hadrian/
 cat "${_SRC_DIR}"/hadrian/system.config
 
 # Fix Python path in system.config (configure sets Linux path, we need Windows)
