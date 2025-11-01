@@ -163,9 +163,21 @@ echo "*** Building stage1 GHC ***"
 # Ensure cabal wrapper is in PATH for hadrian
 echo "*** Final cabal PATH verification ***"
 export PATH="${_BUILD_PREFIX}/bin:${PATH}"
+grep -A 10 "include-dirs:" rts/rts.cabal.in
 
 run_and_log "stage1" "${_hadrian_build[@]}" stage1:exe:ghc-bin --flavour=quickest --docs=none --progress-info=none
 # "${_hadrian_build[@]}" stage1:exe:ghc-bin --flavour=quickest --docs=none --progress-info=none
+settings_file="${_SRC_DIR}"/_build/stage0/lib/settings
+if [[ -f "${settings_file}" ]]; then
+  echo "=== Updating Stage0 settings with conda include paths ==="
+  # Add -I flags to C compiler flags for ffi.h, gmp.h, etc.
+  # CRITICAL: Use _PREFIX (Unix paths) NOT PREFIX (Windows paths with \b escape sequences)
+  perl -pi -e "s#(C compiler flags\", \")([^\"]*)(\")#\$1\$2 -I${_PREFIX}/Library/include -I${_BUILD_PREFIX}/Library/include\$3#" "${settings_file}"
+  perl -pi -e "s#(C\+\+ compiler flags\", \")([^\"]*)(\")#\$1\$2 -I${_PREFIX}/Library/include -I${_BUILD_PREFIX}/Library/include\$3#" "${settings_file}"
+  grep "C compiler flags\|C++ compiler flags" "${settings_file}"
+else
+  echo "WARNING: Stage0 settings file not found at ${settings_file}"
+fi
 
 cat "${_SRC_DIR}"/_build/stage0/lib/settings
 
