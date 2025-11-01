@@ -149,16 +149,6 @@ stage0.*.ghc.c.opts += -optc-fno-stack-protector -optc-fno-stack-check
 stage0.*.ghc.cpp.opts += -optcxx-fno-stack-protector -optcxx-fno-stack-check
 EOF
 
-  echo "=== Waiting for Hadrian to generate rts.cabal ==="
-  for i in {1..60}; do
-    if [[ -f "${SRC_DIR}"/rts/rts.cabal ]]; then
-      echo "=== GENERATED rts.cabal found! Checking FFI paths ==="
-      grep -n "include-dirs\|extra-include-dirs\|/c/bld" "${SRC_DIR}"/rts/rts.cabal | head -20
-      break
-    fi
-    sleep 1
-  done
-
 export CABFLAGS="--with-compiler=${GHC} --ghc-options=-optc-fno-stack-protector --ghc-options=-optc-fno-stack-check"
 # Enable debugging mode for more verbose output
 export GHC_DEBUG=1
@@ -176,7 +166,7 @@ echo "*** Final cabal PATH verification ***"
 export PATH="${_BUILD_PREFIX}/bin:${PATH}"
 grep -A 10 "include-dirs:" rts/rts.cabal.in
 
-run_and_log "stage1" "${_hadrian_build[@]}" stage1:exe:ghc-bin --flavour=quickest --docs=none --progress-info=none
+run_and_log "stage1_ghc" "${_hadrian_build[@]}" stage1:exe:ghc-bin --flavour=quickest --docs=none --progress-info=none
 # "${_hadrian_build[@]}" stage1:exe:ghc-bin --flavour=quickest --docs=none --progress-info=none
 settings_file="${_SRC_DIR}"/_build/stage0/lib/settings
 if [[ -f "${settings_file}" ]]; then
@@ -190,6 +180,22 @@ else
   echo "WARNING: Stage0 settings file not found at ${settings_file}"
 fi
 
+  echo "=== Waiting for Hadrian to generate rts.cabal ==="
+  for i in {1..60}; do
+    if [[ -f "${SRC_DIR}"/rts/rts.cabal ]]; then
+      echo "=== GENERATED rts.cabal found! Checking FFI paths ==="
+      grep -n "include-dirs\|extra-include-dirs\|/c/bld" "${SRC_DIR}"/rts/rts.cabal | head -20
+      break
+    fi
+    sleep 1
+  done
+
+run_and_log "stage1_pkg" "${_hadrian_build[@]}" stage1:exe:ghc-pkg --flavour=quickest --docs=none --progress-info=none
+run_and_log "stage1_hs" "${_hadrian_build[@]}" stage1:exe:hsc2hs --flavour=quickest --docs=none --progress-info=none
+run_and_log "stage1_lib" "${_hadrian_build[@]}" stage1:lib:ghc --flavour=quickest --docs=none --progress-info=none
+
 cat "${_SRC_DIR}"/_build/stage0/lib/settings
 
-run_and_log "install" "${_hadrian_build[@]}" install --prefix="${_PREFIX}" --flavour=release --freeze1 --docs=none
+run_and_log "stage2_exe" "${_hadrian_build[@]}" stage2:exe:ghc-bin --flavour=release --freeze1 --docs=none --progress-info=none
+run_and_log "stage2_lib" "${_hadrian_build[@]}" stage2:lib:ghc --flavour=release --freeze1 --docs=none --progress-info=none
+run_and_log "install" "${_hadrian_build[@]}" install --prefix="${_PREFIX}" --flavour=release --freeze1 --freeze2 --docs=none
