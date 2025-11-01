@@ -133,7 +133,7 @@ MergeObjsCmd="${LD}" \
 MergeObjsArgs="" \
 run_and_log "ghc-configure" bash configure "${CONFIGURE_ARGS[@]}" || ( cat config.log ; exit 1 )
 
-cat "${SRC_DIR}"/hadrian/system.config
+cat "${_SRC_DIR}"/hadrian/system.config
 
 # Fix Python path in system.config (configure sets Linux path, we need Windows)
 # Use forward slashes to avoid escape sequence issues (\n, \t, \b, etc.)
@@ -177,6 +177,6 @@ export PATH="${_BUILD_PREFIX}/bin:${PATH}"
 run_and_log "stage1" "${_hadrian_build[@]}" stage1:exe:ghc-bin --flavour=quickest --docs=none --progress-info=none
 # "${_hadrian_build[@]}" stage1:exe:ghc-bin --flavour=quickest --docs=none --progress-info=none
 
-cat "${SRC_DIR}"/_build/stage0/lib/settings
+cat "${_SRC_DIR}"/_build/stage0/lib/settings
 
 run_and_log "install" "${_hadrian_build[@]}" install --prefix="${_PREFIX}" --flavour=release --freeze1 --docs=none
