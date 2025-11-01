@@ -123,8 +123,7 @@ MergeObjsCmd="${LD}" \
 MergeObjsArgs="" \
 run_and_log "ghc-configure" bash configure "${CONFIGURE_ARGS[@]}" || ( cat config.log ; exit 1 )
 
-ls "${_SRC_DIR}"/hadrian/
-cat "${_SRC_DIR}"/hadrian/system.config
+cat "${_SRC_DIR}"/hadrian/cfg/system.config
 
 # Fix Python path in system.config (configure sets Linux path, we need Windows)
 # Use forward slashes to avoid escape sequence issues (\n, \t, \b, etc.)
