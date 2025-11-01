@@ -22,6 +22,11 @@ set _BUILD_PREFIX=%_BUILD_PREFIX:D:=/d/%
 set _SRC_DIR=%_SRC_DIR:D:=/d/%
 set _RECIPE_DIR=%_RECIPE_DIR:D:=/d/%
 
+set _PREFIX=%_PREFIX://=/%
+set _BUILD_PREFIX=%_BUILD_PREFIX://=/%
+set _SRC_DIR=%_SRC_DIR://=/%
+set _RECIPE_DIR=%_RECIPE_DIR://=/%
+
 set MSYSTEM=MINGW64
 set MSYS2_PATH_TYPE=inherit
 set MSYS2_ARG_CONV_EXCL="*"
