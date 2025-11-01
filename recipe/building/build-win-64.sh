@@ -125,6 +125,7 @@ MergeObjsArgs="" \
 run_and_log "ghc-configure" bash configure "${CONFIGURE_ARGS[@]}" || ( cat config.log ; exit 1 )
 
 cat "${_SRC_DIR}"/hadrian/cfg/system.config
+echo $(find ${_BUILD_PREFIX} ${_PREFIX} -name "libssp*.dll")
 
 # Fix Python path in system.config (configure sets Linux path, we need Windows)
 # Use forward slashes to avoid escape sequence issues (\n, \t, \b, etc.)
@@ -147,6 +148,16 @@ stage0.*.cc.cpp.opts += -fno-stack-protector -fno-stack-check
 stage0.*.ghc.c.opts += -optc-fno-stack-protector -optc-fno-stack-check
 stage0.*.ghc.cpp.opts += -optcxx-fno-stack-protector -optcxx-fno-stack-check
 EOF
+
+  echo "=== Waiting for Hadrian to generate rts.cabal ==="
+  for i in {1..60}; do
+    if [[ -f "${SRC_DIR}"/rts/rts.cabal ]]; then
+      echo "=== GENERATED rts.cabal found! Checking FFI paths ==="
+      grep -n "include-dirs\|extra-include-dirs\|/c/bld" "${SRC_DIR}"/rts/rts.cabal | head -20
+      break
+    fi
+    sleep 1
+  done
 
 export CABFLAGS="--with-compiler=${GHC} --ghc-options=-optc-fno-stack-protector --ghc-options=-optc-fno-stack-check"
 # Enable debugging mode for more verbose output
