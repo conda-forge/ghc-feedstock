@@ -159,6 +159,9 @@ done
 (
   bootstrap_settings="${osx_64_env}"/ghc-bootstrap/lib/ghc-9.6.7/lib/settings
   perl -pi -e "s#[^ ]+/usr/lib/libiconv2.tbd##" "${bootstrap_settings}"
+  # CRITICAL: Remove -Qunused-arguments to prevent malformed -optc -optc-Qunused-arguments
+  # This flag causes GHC to generate invalid compiler invocations that break C compilation
+  perl -pi -e "s# -Qunused-arguments##g" "${bootstrap_settings}"
   # CRITICAL: Add --target flag to force C compiler to target x86_64, not arm64
   # Without this, clang defaults to arm64 on arm64 runners even when building for x86_64
   perl -pi -e "s#(C compiler flags\", \")#\$1-v -fno-lto --target=${conda_host} #" "${bootstrap_settings}"
