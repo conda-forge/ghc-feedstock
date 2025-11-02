@@ -55,6 +55,12 @@ SYSTEM_CONFIG=(
   --prefix="${PREFIX}"
 )
 
+# CRITICAL: Remove -Qunused-arguments from CFLAGS/CXXFLAGS BEFORE configure
+# This flag from conda-forge causes GHC to generate malformed: -optc -optc-Qunused-arguments
+# Which corrupts the clang output path to: -o ptc-Qunused-arguments
+export CFLAGS="${CFLAGS//-Qunused-arguments/}"
+export CXXFLAGS="${CXXFLAGS//-Qunused-arguments/}"
+
 CONFIGURE_ARGS=(
   --with-system-libffi=yes
   --with-curses-includes="${PREFIX}"/include
@@ -113,6 +119,9 @@ if [ -f "${SRC_DIR}/hadrian/cfg/default.host.target" ]; then
   perl -pi -e "s#--target=${conda_target}##g" "${SRC_DIR}/hadrian/cfg/default.host.target"
   perl -pi -e "s#--target=${target_alias}##g" "${SRC_DIR}/hadrian/cfg/default.host.target"
   perl -pi -e "s#--target=arm64[^ \"]*##g" "${SRC_DIR}/hadrian/cfg/default.host.target"
+  # Remove -Qunused-arguments to prevent malformed -optc flags
+  perl -pi -e 's#"-Qunused-arguments"##g' "${SRC_DIR}/hadrian/cfg/default.host.target"
+  perl -pi -e 's#, "-Qunused-arguments"##g' "${SRC_DIR}/hadrian/cfg/default.host.target"
 fi
 
 # Fix default.target (defines target platform - but also affects stageBoot via optc flags)
@@ -124,6 +133,9 @@ if [ -f "${SRC_DIR}/hadrian/cfg/default.target" ]; then
   perl -pi -e 's#, "--target=arm64[^"]*"##g' "${SRC_DIR}/hadrian/cfg/default.target"
   perl -pi -e "s#--target=${conda_target}##g" "${SRC_DIR}/hadrian/cfg/default.target"
   perl -pi -e "s#--target=${target_alias}##g" "${SRC_DIR}/hadrian/cfg/default.target"
+  # Remove -Qunused-arguments to prevent malformed -optc flags
+  perl -pi -e 's#"-Qunused-arguments"##g' "${SRC_DIR}/hadrian/cfg/default.target"
+  perl -pi -e 's#, "-Qunused-arguments"##g' "${SRC_DIR}/hadrian/cfg/default.target"
 fi
 
 # CRITICAL: Fix architecture defines for cross-compilation
