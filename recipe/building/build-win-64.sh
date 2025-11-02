@@ -44,7 +44,19 @@ fi
 
 cd "${SRC_DIR}"
 
+# Clean any stale .cabal directory that might have permission issues
+# This prevents "you don't have permission to modify this file" errors on package.cache
+echo "=== Cleaning stale .cabal directory to prevent permission issues ==="
+rm -rf "${SRC_DIR}/.cabal" || true
+rm -rf "${HOME}/.cabal" || true
+
 mkdir -p ".cabal" && "${CABAL}" user-config init
+
+# Configure Cabal to use single-threaded builds on Windows to avoid race conditions
+# This prevents parallel ghc-pkg updates from conflicting on package.cache
+echo "=== Configuring Cabal for single-threaded builds ==="
+echo "jobs: 1" >> "${SRC_DIR}/.cabal/config"
+
 run_and_log "cabal-update" "${CABAL}" v2-update
 
 export LIBRARY_PATH="${_BUILD_PREFIX}/Library/lib${LIBRARY_PATH:+:}${LIBRARY_PATH:-}"
