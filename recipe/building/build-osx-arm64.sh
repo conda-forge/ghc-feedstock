@@ -134,10 +134,12 @@ done
 (
   bootstrap_settings="${osx_64_env}"/ghc-bootstrap/lib/ghc-9.6.7/lib/settings
   perl -pi -e "s#[^ ]+/usr/lib/libiconv2.tbd##" "${bootstrap_settings}"
-  perl -pi -e "s#(C compiler flags\", \")#\$1-v -fno-lto #" "${bootstrap_settings}"
-  perl -pi -e 's#(C\+\+ compiler flags", "[^"]*)#$1 -fno-lto#' "${bootstrap_settings}"
+  # CRITICAL: Add --target flag to force C compiler to target x86_64, not arm64
+  # Without this, clang defaults to arm64 on arm64 runners even when building for x86_64
+  perl -pi -e "s#(C compiler flags\", \")#\$1-v -fno-lto --target=${conda_host} #" "${bootstrap_settings}"
+  perl -pi -e "s#(C\\+\\+ compiler flags\", \")#\$1-fno-lto --target=${conda_host} #" "${bootstrap_settings}"
   # Don't add -fuse-ld=lld during build (bootstrap compiler doesn't support it)
-  perl -pi -e "s#(C compiler link flags\", \"[^\"]*)#\$1 -fno-lto#" "${bootstrap_settings}"
+  perl -pi -e "s#(C compiler link flags\", \"[^\"]*)#\$1 -fno-lto --target=${conda_host}#" "${bootstrap_settings}"
   perl -pi -e "s#(ar command\", \")[^\"]*#\$1${AR_STAGE0}#" "${bootstrap_settings}"
   perl -pi -e "s#(ranlib command\", \")[^\"]*#\$1llvm-ranlib#" "${bootstrap_settings}"
   perl -pi -e "s#((llc|opt|clang) command\", \")[^\"]*#\$1${conda_host}-\$2#" "${bootstrap_settings}"

@@ -93,10 +93,16 @@ update_settings_link_flags() {
   local settings_file="$1"
   local toolchain="${2:-$CONDA_TOOLCHAIN_HOST}"
   local prefix="${3:-$PREFIX}"
-  
+
   if [[ "${target_platform}" == "linux-"* ]]; then
     perl -pi -e 's#(C compiler flags", "[^"]*)#$1 -Wno-strict-prototypes#' "${settings_file}"
     perl -pi -e 's#(C\+\+ compiler flags", "[^"]*)#$1 -Wno-strict-prototypes#' "${settings_file}"
+
+    # PowerPC 64-bit little-endian: Must use ABI v2 (not v1 which has .opd sections)
+    if [[ "${TARGET_ARCH:-${target_arch:-}}" == "ppc64le" || "${host_alias}" == *"ppc64le"* || "${target_platform}" == *"ppc64le"* ]]; then
+      perl -pi -e 's#(C compiler flags", "[^"]*)#$1 -mabi=elfv2#' "${settings_file}"
+      perl -pi -e 's#(C\+\+ compiler flags", "[^"]*)#$1 -mabi=elfv2#' "${settings_file}"
+    fi
 
     perl -pi -e "s#(C compiler link flags\", \"[^\"]*)#\$1 -Wl,-L${BUILD_PREFIX}/lib -Wl,-L${prefix}/lib -Wl,-rpath,${BUILD_PREFIX}/lib -Wl,-rpath,${prefix}/lib#" "${settings_file}"
     perl -pi -e "s#(ld flags\", \"[^\"]*)#\$1 -L${BUILD_PREFIX}/lib -L${prefix}/lib -rpath ${BUILD_PREFIX}/lib -rpath ${prefix}/lib#" "${settings_file}"
@@ -143,9 +149,19 @@ update_installed_settings() {
 
 update_linux_link_flags() {
   local settings_file="$1"
-  
+
+  # Base compiler flags for all Linux platforms
   perl -pi -e 's#(C compiler flags", "[^"]*)#$1 -Wno-strict-prototypes#' "${settings_file}"
   perl -pi -e 's#(C\+\+ compiler flags", "[^"]*)#$1 -Wno-strict-prototypes#' "${settings_file}"
+
+  # PowerPC 64-bit little-endian: Must use ABI v2 (not v1 which has .opd sections)
+  # The -mabi=elfv2 flag explicitly tells the compiler to use ELF v2 ABI
+  # This prevents "error: .opd not allowed in ABI version 2" linker errors
+  if [[ "${TARGET_ARCH:-${target_arch:-}}" == "ppc64le" || "${host_alias}" == *"ppc64le"* || "${target_platform}" == *"ppc64le"* ]]; then
+    perl -pi -e 's#(C compiler flags", "[^"]*)#$1 -mabi=elfv2#' "${settings_file}"
+    perl -pi -e 's#(C\+\+ compiler flags", "[^"]*)#$1 -mabi=elfv2#' "${settings_file}"
+  fi
+
   perl -pi -e "s#(C compiler link flags\", \"[^\"]*)#\$1 -Wl,-L${BUILD_PREFIX}/lib -Wl,-L${PREFIX}/lib -Wl,-rpath,${BUILD_PREFIX}/lib -Wl,-rpath,${PREFIX}/lib#" "${settings_file}"
   perl -pi -e "s#(ld flags\", \"[^\"]*)#\$1 -L${BUILD_PREFIX}/lib -L${PREFIX}/lib -rpath ${BUILD_PREFIX}/lib -rpath ${PREFIX}/lib#" "${settings_file}"
   perl -pi -e "s#\"[/\w]*?(ar|clang|clang\+\+|ld|ranlib|llc|objdump|opt)\"#\"${CONDA_TOOLCHAIN_HOST}-\$1\"#" "${settings_file}"
