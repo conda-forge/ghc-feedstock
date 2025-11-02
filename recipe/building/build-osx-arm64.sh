@@ -44,6 +44,12 @@ run_and_log "cabal-update" "${CABAL}" v2-update
 # Configure and build GHC
 export AR_STAGE0=$(find "${BUILD_PREFIX}" -name llvm-ar | head -1)
 
+# Export STAGE0 tools as environment variables (needed by GHC configure and sub-packages)
+# These ensure stage0 (bootstrap) binaries are built for the BUILD platform (x86_64)
+export CC_STAGE0="${CC_FOR_BUILD}"
+export LD_STAGE0="${BUILD_PREFIX}/bin/${conda_host}-ld"
+export AS_STAGE0="${BUILD_PREFIX}/bin/${conda_host}-as"
+
 SYSTEM_CONFIG=(
   --target="${target_alias}"
   --prefix="${PREFIX}"
@@ -59,29 +65,23 @@ CONFIGURE_ARGS=(
   --with-gmp-libraries="${PREFIX}"/lib
   --with-iconv-includes="${PREFIX}"/include
   --with-iconv-libraries="${PREFIX}"/lib
-  
+
   ac_cv_lib_ffi_ffi_call=yes
-  
-  ac_cv_prog_AR="${AR}"
-  ac_cv_prog_AS="${AS}"
-  ac_cv_prog_CC="${CC}"
-  ac_cv_prog_CXX="${CXX}"
-  ac_cv_prog_LD="${LD}"
-  ac_cv_prog_NM="${NM}"
-  # ac_cv_prog_OBJDUMP="${OBJDUMP:-objdump}"
-  ac_cv_prog_RANLIB="${RANLIB}"
-  
-  ac_cv_path_ac_pt_AR="${AR}"
-  ac_cv_path_ac_pt_NM="${NM}"
-  # ac_cv_path_ac_pt_OBJDUMP="${OBJDUMP:-objdump}"
-  ac_cv_path_ac_pt_RANLIB="${RANLIB}"
+
+  ac_cv_path_AR="${BUILD_PREFIX}"/bin/"${conda_target}"-ar
+  ac_cv_path_AS="${BUILD_PREFIX}"/bin/"${conda_target}"-as
+  ac_cv_path_CC="${BUILD_PREFIX}"/bin/"${conda_target}"-clang
+  ac_cv_path_CXX="${BUILD_PREFIX}"/bin/"${conda_target}"-clang++
+  ac_cv_path_LD="${BUILD_PREFIX}"/bin/"${conda_target}"-ld
+  ac_cv_path_NM="${BUILD_PREFIX}"/bin/"${conda_target}"-nm
+  ac_cv_path_OBJDUMP="${BUILD_PREFIX}"/bin/"${conda_target}"-objdump
+  ac_cv_path_RANLIB="${BUILD_PREFIX}"/bin/"${conda_target}"-ranlib
+  ac_cv_path_LLC="${BUILD_PREFIX}"/bin/"${conda_target}"-llc
+  ac_cv_path_OPT="${BUILD_PREFIX}"/bin/"${conda_target}"-opt
 
   ac_cv_prog_ac_ct_LLC="${conda_target}"-llc
   ac_cv_prog_ac_ct_OPT="${conda_target}"-opt
 
-  CC_STAGE0="${CC_FOR_BUILD}"
-  LD_STAGE0="${BUILD_PREFIX}/bin/${conda_host}-ld"
-  
   AR="${BUILD_PREFIX}"/bin/"${conda_target}"-ar
   AS="${BUILD_PREFIX}"/bin/"${conda_target}"-as
   CC="${BUILD_PREFIX}"/bin/"${conda_target}"-clang
@@ -90,7 +90,7 @@ CONFIGURE_ARGS=(
   NM="${BUILD_PREFIX}"/bin/"${conda_target}"-nm
   OBJDUMP="${BUILD_PREFIX}"/bin/"${conda_target}"-objdump
   RANLIB="${BUILD_PREFIX}"/bin/"${conda_target}"-ranlib
-  
+
   CFLAGS="--sysroot=${CONDA_BUILD_SYSROOT} ${CFLAGS:-}"
   CPPFLAGS="--sysroot=${CONDA_BUILD_SYSROOT} ${CPPFLAGS:-}"
   CXXFLAGS="--sysroot=${CONDA_BUILD_SYSROOT} ${CXXFLAGS:-}"
