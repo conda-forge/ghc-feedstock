@@ -201,13 +201,19 @@ _hadrian_build=("${_hadrian_bin}" "-j${CPU_COUNT}" "--directory" "${SRC_DIR}")
 
 # Disable copy for cross-compilation - force building the cross binary
 # Change the cross-compile copy condition to never match
-( 
+(
   export AR="${AR_STAGE0}"
   export AS="${BUILD_PREFIX}/bin/${conda_host}-as"
   export CC="${BUILD_PREFIX}/bin/${conda_host}-clang"
   export CXX="${BUILD_PREFIX}/bin/${conda_host}-clang++"
   export LD="${BUILD_PREFIX}/bin/${conda_host}-ld"
-  
+
+  # CRITICAL: Remove -Qunused-arguments from CFLAGS/CXXFLAGS to prevent malformed -optc flags
+  # This flag causes GHC to generate: -optc -optc-Qunused-arguments (malformed)
+  # Instead of: -optc -Qunused-arguments (correct)
+  export CFLAGS="${CFLAGS//-Qunused-arguments/}"
+  export CXXFLAGS="${CXXFLAGS//-Qunused-arguments/}"
+
   ln -sf "${BUILD_PREFIX}/bin/${conda_host}-ar" "${BUILD_PREFIX}"/bin/ar
   ln -sf "${BUILD_PREFIX}/bin/${conda_host}-as" "${BUILD_PREFIX}"/bin/as
   ln -sf "${BUILD_PREFIX}/bin/${conda_host}-ld" "${BUILD_PREFIX}"/bin/ld
