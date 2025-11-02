@@ -119,9 +119,13 @@ if [ -f "${SRC_DIR}/hadrian/cfg/default.host.target" ]; then
   perl -pi -e "s#--target=${conda_target}##g" "${SRC_DIR}/hadrian/cfg/default.host.target"
   perl -pi -e "s#--target=${target_alias}##g" "${SRC_DIR}/hadrian/cfg/default.host.target"
   perl -pi -e "s#--target=arm64[^ \"]*##g" "${SRC_DIR}/hadrian/cfg/default.host.target"
-  # Remove -Qunused-arguments to prevent malformed -optc flags
-  perl -pi -e 's#"-Qunused-arguments"##g' "${SRC_DIR}/hadrian/cfg/default.host.target"
-  perl -pi -e 's#, "-Qunused-arguments"##g' "${SRC_DIR}/hadrian/cfg/default.host.target"
+  # Remove -Qunused-arguments preserving list syntax
+  # Handle: ["-Qunused-arguments", "other"] -> ["other"]
+  perl -pi -e 's#"-Qunused-arguments",\s*##g' "${SRC_DIR}/hadrian/cfg/default.host.target"
+  # Handle: ["other", "-Qunused-arguments"] -> ["other"]
+  perl -pi -e 's#,\s*"-Qunused-arguments"##g' "${SRC_DIR}/hadrian/cfg/default.host.target"
+  # Handle: ["-Qunused-arguments"] -> []
+  perl -pi -e 's#\["-Qunused-arguments"\]#[]#g' "${SRC_DIR}/hadrian/cfg/default.host.target"
 fi
 
 # Fix default.target (defines target platform - but also affects stageBoot via optc flags)
@@ -133,9 +137,13 @@ if [ -f "${SRC_DIR}/hadrian/cfg/default.target" ]; then
   perl -pi -e 's#, "--target=arm64[^"]*"##g' "${SRC_DIR}/hadrian/cfg/default.target"
   perl -pi -e "s#--target=${conda_target}##g" "${SRC_DIR}/hadrian/cfg/default.target"
   perl -pi -e "s#--target=${target_alias}##g" "${SRC_DIR}/hadrian/cfg/default.target"
-  # Remove -Qunused-arguments to prevent malformed -optc flags
-  perl -pi -e 's#"-Qunused-arguments"##g' "${SRC_DIR}/hadrian/cfg/default.target"
-  perl -pi -e 's#, "-Qunused-arguments"##g' "${SRC_DIR}/hadrian/cfg/default.target"
+  # Remove -Qunused-arguments preserving list syntax
+  # Handle: ["-Qunused-arguments", "other"] -> ["other"]
+  perl -pi -e 's#"-Qunused-arguments",\s*##g' "${SRC_DIR}/hadrian/cfg/default.target"
+  # Handle: ["other", "-Qunused-arguments"] -> ["other"]
+  perl -pi -e 's#,\s*"-Qunused-arguments"##g' "${SRC_DIR}/hadrian/cfg/default.target"
+  # Handle: ["-Qunused-arguments"] -> []
+  perl -pi -e 's#\["-Qunused-arguments"\]#[]#g' "${SRC_DIR}/hadrian/cfg/default.target"
 fi
 
 # CRITICAL: Fix architecture defines for cross-compilation
