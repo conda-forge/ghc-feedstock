@@ -132,7 +132,7 @@ done
 
 # Bug in ghc-bootstrap for libiconv2
 (
-  bootstrap_settings="${osx_64_env}"/ghc-bootstrap/lib/ghc-"${PKG_VERSION}"/lib/settings
+  bootstrap_settings="${osx_64_env}"/ghc-bootstrap/lib/ghc-9.6.7/lib/settings
   perl -pi -e "s#[^ ]+/usr/lib/libiconv2.tbd##" "${bootstrap_settings}"
   perl -pi -e "s#(C compiler flags\", \")#\$1-v -fno-lto #" "${bootstrap_settings}"
   perl -pi -e 's#(C\+\+ compiler flags", "[^"]*)#$1 -fno-lto#' "${bootstrap_settings}"
