@@ -1,0 +1,10 @@
+--- a/rts/win32/ConsoleHandler.c
++++ b/rts/win32/ConsoleHandler.c
+@@ -11,6 +11,7 @@
+ #include "RtsUtils.h"
+ #include "AsyncMIO.h"
+ #include "RtsSignals.h"
++#include "ThreadLabels.h"
+
+ extern int stg_InstallConsoleEvent(int action, StgStablePtr *handler);
+
