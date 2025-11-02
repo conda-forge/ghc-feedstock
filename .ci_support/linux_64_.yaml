@@ -1,5 +1,5 @@
 binutils_version:
-- '2.43'
+- '2.44'
 c_compiler:
 - clang
 c_compiler_version:
@@ -21,7 +21,7 @@ docker_image:
 gmp:
 - '6'
 libffi:
-- '3.4'
+- '3.5'
 libiconv:
 - '1'
 ncurses:
@@ -31,5 +31,3 @@ target_platform:
 zip_keys:
 - - c_compiler_version
   - cxx_compiler_version
-zstd:
-- '1.5'

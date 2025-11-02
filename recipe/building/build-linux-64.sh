@@ -33,11 +33,6 @@ CONFIGURE_ARGS=(
 )
 run_and_log "ghc-configure" bash configure "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}"
 
-export CABFLAGS=(--enable-shared --enable-executable-dynamic -j)
-for pkg in hadrian; do
-  (cd  "${SRC_DIR}"/hadrian/ && ${CABAL} v2-build "${CABFLAGS[@]}" --ghc-options="-dynamic -shared -fPIC -optl-dynamic -optl-Wl,-rpath,${PREFIX}/lib -optl-L${PREFIX}/lib -optl-liconv -optl-lffi -optl-lgmp -optl-ltinfo -optl-ltinfow" "${pkg}")
-done
-
 run_and_log "stage1_exe" "${_hadrian_build[@]}" stage1:exe:ghc-bin --flavour=release
 update_settings_link_flags "${SRC_DIR}"/_build/stage0/lib/settings
 
