@@ -101,6 +101,16 @@ CONFIGURE_ARGS=(
   run_and_log "configure" ./configure -v "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}" || { cat config.log; exit 1; }
 )
 
+# CRITICAL: Fix architecture defines for cross-compilation
+# During cross-compile from x86_64 to ARM64, configure sets x86_64_HOST_ARCH
+# but we need arm64/aarch64 defines for the target architecture
+find "${SRC_DIR}" -name "*.buildinfo" -o -name "setup-config" | while read -r file; do
+  if [ -f "$file" ]; then
+    perl -pi -e 's/-Dx86_64_HOST_ARCH=1/-Daarch64_HOST_ARCH=1/g' "$file"
+    perl -pi -e 's/-Ddarwin_HOST_OS=1/-Ddarwin_HOST_OS=1/g' "$file"  # Keep darwin_HOST_OS
+  fi
+done
+
 # Fix host configuration to use x86_64, target cross
 (
   settings_file="${SRC_DIR}"/hadrian/cfg/system.config
@@ -193,6 +203,16 @@ _hadrian_build=("${_hadrian_bin}" "-j${CPU_COUNT}" "--directory" "${SRC_DIR}")
 )
 
 "${SRC_DIR}"/_build/stage0/bin/arm64-apple-darwin20.0.0-ghc --version || { echo "Stage0 GHC failed to report version"; exit 1; }
+
+# CRITICAL: Fix architecture defines in all generated config files before building libraries
+# The time library and others will generate setup-config files with wrong HOST_ARCH
+echo "Fixing architecture defines in build files..."
+find "${SRC_DIR}/_build" -name "*.buildinfo" -o -name "setup-config" | while read -r file; do
+  if [ -f "$file" ] && grep -q "x86_64_HOST_ARCH" "$file" 2>/dev/null; then
+    perl -pi -e 's/-Dx86_64_HOST_ARCH=1/-Daarch64_HOST_ARCH=1/g' "$file"
+    echo "Fixed architecture defines in: $file"
+  fi
+done
 
 # 9.12+: export DYLD_INSERT_LIBRARIES="${BUILD_PREFIX}/lib/libiconv.dylib:${BUILD_PREFIX}/lib/libffi.dylib${DYLD_INSERT_LIBRARIES:+:}${DYLD_INSERT_LIBRARIES:-}"
 # export DYLD_INSERT_LIBRARIES="${BUILD_PREFIX}/lib/libiconv.dylib:${BUILD_PREFIX}/lib/libffi.dylib${DYLD_INSERT_LIBRARIES:+:}${DYLD_INSERT_LIBRARIES:-}"
