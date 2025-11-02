@@ -79,6 +79,14 @@ export AR_STAGE0="${BUILD_PREFIX}/bin/${conda_host}-ar"
 export CC_STAGE0="${CC_FOR_BUILD}"
 export LD_STAGE0="${BUILD_PREFIX}/bin/${conda_host}-ld"
 
+# PowerPC 64-bit little-endian: CRITICAL - Must use ABI v2
+# Add -mabi=elfv2 to CFLAGS/CXXFLAGS BEFORE configure to ensure it's baked into settings
+if [[ "${target_arch}" == "ppc64le" ]]; then
+  export CFLAGS="${CFLAGS:-} -mabi=elfv2"
+  export CXXFLAGS="${CXXFLAGS:-} -mabi=elfv2"
+  echo "PowerPC64LE detected: Added -mabi=elfv2 to CFLAGS/CXXFLAGS"
+fi
+
 export ac_cv_func_statx=no
 export ac_cv_have_decl_statx=no
 export ac_cv_lib_ffi_ffi_call=yes

@@ -101,6 +101,18 @@ CONFIGURE_ARGS=(
   run_and_log "configure" ./configure -v "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}" || { cat config.log; exit 1; }
 )
 
+# CRITICAL: Fix stageBoot C compiler target flags to x86_64 (not arm64)
+# After configure, GHC generates a settings file that's used by all stages
+# For cross-compilation, it sets target=arm64 globally, but stageBoot must target x86_64
+# We need to override the C compiler flags to remove the arm64 target
+if [ -f "${SRC_DIR}/hadrian/cfg/default.host.target" ]; then
+  # Remove any --target=arm64 flags from the default configuration
+  perl -pi -e "s#--target=${conda_target}##g" "${SRC_DIR}/hadrian/cfg/default.host.target"
+  perl -pi -e "s#--target=${target_alias}##g" "${SRC_DIR}/hadrian/cfg/default.host.target"
+  # Add --target=${conda_host} for x86_64
+  perl -pi -e "s#(conf-cc-args-stage0\s*=\s*)(.*)#\$1--target=${conda_host} \$2#" "${SRC_DIR}/hadrian/cfg/default.host.target"
+fi
+
 # CRITICAL: Fix architecture defines for cross-compilation
 # During cross-compile from x86_64 to ARM64, configure sets x86_64_HOST_ARCH
 # but we need arm64/aarch64 defines for the target architecture
