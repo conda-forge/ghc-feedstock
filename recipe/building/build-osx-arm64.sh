@@ -141,27 +141,6 @@ CONFIGURE_ARGS=(
       --with-gcc="${CC_FOR_BUILD}" \
       --with-ar="${AR_STAGE0}" \
       -j \
-      clock \
-      file-io \
-      heaps \
-      js-dgtable \
-      js-flot \
-      js-jquery \
-      directory \
-      os-string \
-      splitmix \
-      utf8-string \
-      hashable \
-      process \
-      primitive \
-      random \
-      QuickCheck \
-      unordered-containers \
-      extra \
-      Cabal-syntax \
-      filepattern \
-      Cabal \
-      shake \
       hadrian \
       2>&1 | tee "${SRC_DIR}"/cabal-verbose.log
       _cabal_exit_code=${PIPESTATUS[0]}
