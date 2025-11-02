@@ -78,9 +78,18 @@ run_and_log "ghc-configure" bash configure "${SYSTEM_CONFIG[@]}" "${CONFIGURE_AR
 perl -pi -e 's#"--target=[\w-]+"#"--target=x86_64-unknown-linux","--sysroot=$ENV{BUILD_PREFIX}/x86_64-conda-linux-gnu/sysroot"#'  "${SRC_DIR}"/hadrian/cfg/default.host.target
 perl -pi -e 's/aarch64/x86_64/;s/ArchAArch64/ArchX86_64/' "${SRC_DIR}"/hadrian/cfg/default.host.target
 
+# Add -D_GNU_SOURCE to host compiler for glibc 2.17 statx syscall compatibility
+perl -pi -e 's#(prgFlags = \["-Qunused-arguments")#$1,"-D_GNU_SOURCE"#' "${SRC_DIR}"/hadrian/cfg/default.host.target
+# Also add to HsCpp preprocessor
+perl -pi -e 's#(HsCpp.*prgFlags = \["-E","-undef","-traditional")#$1,"-D_GNU_SOURCE"#' "${SRC_DIR}"/hadrian/cfg/default.host.target
+
 perl -pi -e 's#"--target=[\w-]+"#"--target=aarch64-unknown-linux","--sysroot=$ENV{BUILD_PREFIX}/aarch64-conda-linux-gnu/sysroot"#'  "${SRC_DIR}"/hadrian/cfg/default.target
 perl -pi -e 's#"--target=[\w-]+"#"--target=aarch64-unknown-linux","--sysroot=$ENV{BUILD_PREFIX}/aarch64-conda-linux-gnu/sysroot"#'  "${SRC_DIR}"/hadrian/cfg/default.target
-# perl -pi -e 's#(settings-llvm-as-command = )([\w-]+)#\1"\2 --target=x86_64-unknown-linux"#'  "${SRC_DIR}"/hadrian/cfg/system.config
+
+# Add -D_GNU_SOURCE to expose statx syscall for glibc 2.17 compatibility
+perl -pi -e 's#(prgFlags = \["-Qunused-arguments")#$1,"-D_GNU_SOURCE"#' "${SRC_DIR}"/hadrian/cfg/default.target
+# Also add to HsCpp preprocessor for target
+perl -pi -e 's#(HsCpp.*prgFlags = \["-E","-undef","-traditional")#$1,"-D_GNU_SOURCE"#' "${SRC_DIR}"/hadrian/cfg/default.target
 
 perl -pi -e 's#(settings-llvm-as-command = )([\w-]+)#\1aarch64-conda-linux-gnu-as#'  "${SRC_DIR}"/hadrian/cfg/system.config
 

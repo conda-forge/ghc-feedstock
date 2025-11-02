@@ -41,17 +41,9 @@ find "${PREFIX}/lib" -name "*-ghc${PKG_VERSION}.dylib" -o -name "*-ghc${PKG_VERS
   fi
 done
 
-# # Add package licenses
-# arch="-${target_platform#*-}"
-# arch="${arch//-64/-x86_64}"
-# arch="${arch#*-}"
-# arch="${arch//arm64/aarch64}"
-
-# # 9.6.7
-# pushd "${PREFIX}/share/doc/${arch}-${target_platform%%-*}-ghc-${PKG_VERSION}" || true
-# # 9.12+
-# # pushd "${PREFIX}/share/doc/${arch}-${target_platform%%-*}-ghc-${PKG_VERSION}-inplace" || true
-#   for file in */LICENSE; do
-#     cp "${file///-}" "${SRC_DIR}"/license_files
-#   done
-# popd
+# Find licenses
+for lic_file in $(find "${SRC_DIR}"/libraries/*/LICENSE); do
+  folder=$(dirname "${lic_file}")
+  mkdir -p "${SRC_DIR}"/license_files/"${folder}"
+  cp "${lic_file}" "${SRC_DIR}"/license_files/"${folder}"
+done
