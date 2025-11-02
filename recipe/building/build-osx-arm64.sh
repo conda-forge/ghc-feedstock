@@ -102,15 +102,28 @@ CONFIGURE_ARGS=(
 )
 
 # CRITICAL: Fix stageBoot C compiler target flags to x86_64 (not arm64)
-# After configure, GHC generates a settings file that's used by all stages
-# For cross-compilation, it sets target=arm64 globally, but stageBoot must target x86_64
-# We need to override the C compiler flags to remove the arm64 target
+# After configure, GHC generates Hadrian config files that define compiler flags for each stage
+# For cross-compilation, configure sets target=arm64 which affects ALL stages including stageBoot
+# We need to ensure stageBoot uses x86_64 target (build platform), not arm64 (target platform)
+
+# Fix default.host.target (defines host platform configuration)
 if [ -f "${SRC_DIR}/hadrian/cfg/default.host.target" ]; then
-  # Remove any --target=arm64 flags from the default configuration
+  echo "Fixing ${SRC_DIR}/hadrian/cfg/default.host.target for stageBoot x86_64 target"
+  # Remove any arm64 target flags that apply to stageBoot
   perl -pi -e "s#--target=${conda_target}##g" "${SRC_DIR}/hadrian/cfg/default.host.target"
   perl -pi -e "s#--target=${target_alias}##g" "${SRC_DIR}/hadrian/cfg/default.host.target"
-  # Add --target=${conda_host} for x86_64
-  perl -pi -e "s#(conf-cc-args-stage0\s*=\s*)(.*)#\$1--target=${conda_host} \$2#" "${SRC_DIR}/hadrian/cfg/default.host.target"
+  perl -pi -e "s#--target=arm64[^ \"]*##g" "${SRC_DIR}/hadrian/cfg/default.host.target"
+fi
+
+# Fix default.target (defines target platform - but also affects stageBoot via optc flags)
+if [ -f "${SRC_DIR}/hadrian/cfg/default.target" ]; then
+  echo "Fixing ${SRC_DIR}/hadrian/cfg/default.target to remove stageBoot arm64 flags"
+  # The ccProgram in default.target should use cross-compile tools (arm64) for stage1+
+  # But we need to ensure no global --target=arm64 flags leak into stageBoot
+  # Remove -Qunused-arguments followed by --target=arm64 patterns
+  perl -pi -e 's#, "--target=arm64[^"]*"##g' "${SRC_DIR}/hadrian/cfg/default.target"
+  perl -pi -e "s#--target=${conda_target}##g" "${SRC_DIR}/hadrian/cfg/default.target"
+  perl -pi -e "s#--target=${target_alias}##g" "${SRC_DIR}/hadrian/cfg/default.target"
 fi
 
 # CRITICAL: Fix architecture defines for cross-compilation
