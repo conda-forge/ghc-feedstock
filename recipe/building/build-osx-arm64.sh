@@ -86,6 +86,26 @@ CONFIGURE_ARGS=(
 
 (
   run_and_log "configure" ./configure -v "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}" || { cat config.log; exit 1; }
+
+  # DEBUG: Show ALL Hadrian config files to diagnose CFLAGS/toolchain issue
+  echo "=========================================="
+  echo "=== DEBUG: ALL HADRIAN CONFIG FILES ==="
+  echo "=========================================="
+
+  for file in "${SRC_DIR}"/hadrian/cfg/*; do
+    if [[ -f "${file}" ]]; then
+      echo ""
+      echo "╔════════════════════════════════════════╗"
+      echo "║ FILE: ${file}"
+      echo "╚════════════════════════════════════════╝"
+      cat "${file}"
+      echo ""
+    fi
+  done
+
+  echo "=========================================="
+  echo "=== END DEBUG: ALL HADRIAN CONFIG FILES ==="
+  echo "=========================================="
 )
 
 # Fix default.host.target (defines host platform configuration)
