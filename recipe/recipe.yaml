@@ -129,7 +129,7 @@ tests:
         - if: linux
           then: ld_impl_${{ target_platform }} ${{ binutils_version }}
         - if: osx
-          then: lld
+          then: lld ${{ c_compiler_version }}.*
 
   - script:
       - if: not osx
@@ -162,7 +162,7 @@ tests:
         - if: linux
           then: ld_impl_${{ target_platform }} ${{ binutils_version }}
         - if: osx
-          then: lld
+          then: lld ${{ c_compiler_version }}.*
 
   - script:
       - printf 'import System.Posix.Signals\nmain = installHandler sigTERM Default Nothing >> putStrLn "Signal test"\n' > signal_test.hs
@@ -181,7 +181,7 @@ tests:
         - if: linux
           then: ld_impl_${{ target_platform }} ${{ binutils_version }}
         - if: osx
-          then: lld
+          then: lld ${{ c_compiler_version }}.*
 
 
 about:
