@@ -104,29 +104,41 @@ CONFIGURE_ARGS=(
   --with-gmp-libraries="${_PREFIX}"/Library/lib
   --with-iconv-includes="${_PREFIX}"/Library/include
   --with-iconv-libraries="${_PREFIX}"/Library/lib
-
-  ac_cv_path_AR="${GCC_AR}"
-  ac_cv_path_AS="${_BUILD_PREFIX}"/Library/bin/"${conda_target}"-as
-  ac_cv_path_CC="${GCC}"
-  ac_cv_path_CXX="${GXX}"
-  ac_cv_path_LD="${_BUILD_PREFIX}"/Library/bin/"${conda_target}"-ld
-  ac_cv_path_NM="${GCC_NM}"
-  ac_cv_path_OBJDUMP="${_BUILD_PREFIX}"/Library/bin/"${conda_target}"-objdump
-  ac_cv_path_RANLIB="${GCC_RANLIB}"
-  ac_cv_path_LLC="${_BUILD_PREFIX}"/Library/bin/"${conda_target}"-llc
-  ac_cv_path_OPT="${_BUILD_PREFIX}"/Library/bin/"${conda_target}"-opt
-  ac_cv_path_WINDRES="${WINDRES}"
 )
+
+# Export autoconf cache variables BEFORE configure runs
+# These must be in the environment for autoconf to read them
+export ac_cv_path_AR="${GCC_AR}"
+export ac_cv_path_AS="${_BUILD_PREFIX}/Library/bin/${conda_target}-as"
+export ac_cv_path_CC="${GCC}"
+export ac_cv_path_CXX="${GXX}"
+export ac_cv_path_LD="${_BUILD_PREFIX}/Library/bin/${conda_target}-ld"
+export ac_cv_path_NM="${GCC_NM}"
+export ac_cv_path_OBJDUMP="${_BUILD_PREFIX}/Library/bin/${conda_target}-objdump"
+export ac_cv_path_RANLIB="${GCC_RANLIB}"
+export ac_cv_path_LLC="${_BUILD_PREFIX}/Library/bin/${conda_target}-llc"
+export ac_cv_path_OPT="${_BUILD_PREFIX}/Library/bin/${conda_target}-opt"
+export ac_cv_path_WINDRES="${_BUILD_PREFIX}/Library/bin/${conda_target}-windres"
+export ac_cv_path_DLLWRAP="${_BUILD_PREFIX}/Library/bin/${conda_target}-dllwrap"
 
 # Configure with environment variables that help debugging
 export ac_cv_lib_ffi_ffi_call=yes
+
+# Force use of conda-provided toolchain and libraries (not inplace MinGW)
+export UseSystemMingw=YES
+export WindowsToolchainAutoconf=NO
+export WINDOWS_TOOLCHAIN_AUTOCONF=no
+
+# Force use of system libffi (conda-provided)
+export UseSystemFfi=YES
+export ac_cv_use_system_libffi=yes
 
 # export AR_STAGE0=llvm-ar
 export AR_STAGE0=${GCC_AR}
 export CC_STAGE0=${GCC}
 export LD_STAGE0=${LD}
-
-export WINDOWS_TOOLCHAIN_AUTOCONF=no
+export WINDRES="${_BUILD_PREFIX}/Library/bin/${conda_target}-windres"
+export DLLWRAP="${_BUILD_PREFIX}/Library/bin/${conda_target}-dllwrap"
 
 # Add conda include paths to CFLAGS so C compiler can find ffi.h, gmp.h, etc.
 CFLAGS="${CFLAGS//-nostdlib/} -v -fno-stack-check -fno-stack-protector -I${_PREFIX}/Library/include -I${_BUILD_PREFIX}/Library/include" \
@@ -146,7 +158,34 @@ echo "=== Converting FFI paths to Windows format in system.config ==="
 perl -pi -e 's#^ffi-include-dir\s*=\s*/c/#ffi-include-dir   = C:/#' "${SRC_DIR}"/hadrian/cfg/system.config
 perl -pi -e 's#^ffi-lib-dir\s*=\s*/c/#ffi-lib-dir       = C:/#' "${SRC_DIR}"/hadrian/cfg/system.config
 perl -pi -e 's#^([a-z-]+dir)\s*=\s*/c/#$1 = C:/#g' "${SRC_DIR}"/hadrian/cfg/system.config
-cat "${SRC_DIR}"/hadrian/cfg/system.config | grep "include-dir\|lib-dir"
+
+echo "=== Fixing windres and dllwrap paths in system.config ==="
+# Ensure windres and dllwrap are not set to 'false'
+perl -pi -e "s#^windres\\s*=\\s*false\\s*\$#windres = ${WINDRES}#" "${SRC_DIR}"/hadrian/cfg/system.config
+perl -pi -e "s#^dllwrap\\s*=\\s*false\\s*\$#dllwrap = ${DLLWRAP}#" "${SRC_DIR}"/hadrian/cfg/system.config
+# Also fix if they're empty or wrong path
+if ! grep -q "^windres.*windres" "${SRC_DIR}"/hadrian/cfg/system.config; then
+  echo "windres = ${WINDRES}" >> "${SRC_DIR}"/hadrian/cfg/system.config
+fi
+if ! grep -q "^dllwrap.*dllwrap" "${SRC_DIR}"/hadrian/cfg/system.config; then
+  echo "dllwrap = ${DLLWRAP}" >> "${SRC_DIR}"/hadrian/cfg/system.config
+fi
+
+echo "=== Forcing system toolchain and libffi settings ==="
+# Force use of conda toolchain (not inplace MinGW)
+perl -pi -e 's#^use-system-mingw\s*=\s*.*$#use-system-mingw = YES#' "${SRC_DIR}"/hadrian/cfg/system.config
+perl -pi -e 's#^windows-toolchain-autoconf\s*=\s*.*$#windows-toolchain-autoconf = NO#' "${SRC_DIR}"/hadrian/cfg/system.config
+# Force use of conda libffi
+perl -pi -e 's#^use-system-ffi\s*=\s*.*$#use-system-ffi = YES#' "${SRC_DIR}"/hadrian/cfg/system.config
+# Add settings if they don't exist
+if ! grep -q "^use-system-mingw" "${SRC_DIR}"/hadrian/cfg/system.config; then
+  echo "use-system-mingw = YES" >> "${SRC_DIR}"/hadrian/cfg/system.config
+fi
+if ! grep -q "^use-system-ffi" "${SRC_DIR}"/hadrian/cfg/system.config; then
+  echo "use-system-ffi = YES" >> "${SRC_DIR}"/hadrian/cfg/system.config
+fi
+
+cat "${SRC_DIR}"/hadrian/cfg/system.config | grep "include-dir\|lib-dir\|windres\|dllwrap\|system-mingw\|system-ffi"
 
 # Ensure CFLAGS/CXXFLAGS include conda headers for the build phase too
 export CFLAGS="${CFLAGS} -fno-stack-protector -fno-stack-check -I${PREFIX}/Library/include -I${BUILD_PREFIX}/Library/include"
