@@ -158,7 +158,7 @@ echo "=== Converting FFI paths to Windows format in system.config ==="
 perl -pi -e 's#^ffi-include-dir\s*=\s*/c/#ffi-include-dir   = C:/#' "${SRC_DIR}"/hadrian/cfg/system.config
 perl -pi -e 's#^ffi-lib-dir\s*=\s*/c/#ffi-lib-dir       = C:/#' "${SRC_DIR}"/hadrian/cfg/system.config
 perl -pi -e 's#^([a-z-]+dir)\s*=\s*/c/#$1 = C:/#g' "${SRC_DIR}"/hadrian/cfg/system.config
-
+perl -pi -e 's#^(intree-gmp\s*=\s*).*#$1NO#" "${SRC_DIR}"/hadrian/cfg/system.config
 echo "=== Fixing windres and dllwrap paths in system.config ==="
 # Ensure windres and dllwrap are not set to 'false'
 perl -pi -e "s#^(settings-dll-wrap-command = ).*#\$1${DLLWRAP}#" "${SRC_DIR}"/hadrian/cfg/system.config
@@ -224,16 +224,6 @@ else
   echo "WARNING: Stage0 settings file not found at ${settings_file}"
 fi
 
-  echo "=== Waiting for Hadrian to generate rts.cabal ==="
-  for i in {1..60}; do
-    if [[ -f "${SRC_DIR}"/rts/rts.cabal ]]; then
-      echo "=== GENERATED rts.cabal found! Checking FFI paths ==="
-      grep -n "include-dirs\|extra-include-dirs\|/c/bld" "${SRC_DIR}"/rts/rts.cabal | head -20
-      break
-    fi
-    sleep 1
-  done
-
 run_and_log "stage1_pkg" "${_hadrian_build[@]}" stage1:exe:ghc-pkg --flavour=quickest --docs=none --progress-info=none
 run_and_log "stage1_hs" "${_hadrian_build[@]}" stage1:exe:hsc2hs --flavour=quickest --docs=none --progress-info=none
 run_and_log "stage1_lib" "${_hadrian_build[@]}" stage1:lib:ghc --flavour=quickest --docs=none --progress-info=none || { \
@@ -243,8 +233,9 @@ run_and_log "stage1_lib" "${_hadrian_build[@]}" stage1:lib:ghc --flavour=quickes
   exit 1; \
 }
   
-
-
+perl -pi -e "s#((dllwrap|windresllc|opt|clang) command\", \")[^\"]*#\$1${conda_target}-\$2#" "${settings_file}"
+perl -pi -e "s#(Use inplace MinGW toolchain\", \")[^\"]*#\$1NO#" "${settings_file}"
+perl -pi -e "s#(Use LibFFI\", \")[^\"]*#\$1NO#" "${settings_file}"
 cat "${_SRC_DIR}"/_build/stage0/lib/settings
 
 run_and_log "stage2_exe" "${_hadrian_build[@]}" stage2:exe:ghc-bin --flavour=release --freeze1 --docs=none --progress-info=none
