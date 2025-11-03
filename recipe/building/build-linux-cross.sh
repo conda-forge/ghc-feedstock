@@ -111,15 +111,15 @@ export ac_cv_lib_ffi_ffi_call=yes
 export ac_cv_func_posix_spawn_file_actions_addchdir_np=no
 run_and_log "configure" ./configure -v "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}" || { cat config.log; exit 1; }
 
-# PowerPC: Patch .ghc-toolchain files to add -mabi=elfv2
+# PowerPC: Patch ALL hadrian config files to add -mabi=elfv2
+# GHC 9.10.2 has use-ghc-toolchain=NO, so it uses default.target, not .ghc-toolchain
+# But we patch both for compatibility with future versions
 if [[ "${target_arch}" == "ppc64le" || "${target_arch}" == "powerpc64le" ]]; then
-  for toolchain_file in "${SRC_DIR}"/hadrian/cfg/*.ghc-toolchain; do
-    if [[ -f "${toolchain_file}" ]]; then
-      echo "Patching ${toolchain_file} to add -mabi=elfv2"
-      # Add -mabi=elfv2 to C compiler flags (insert before -Qunused-arguments)
-      perl -pi -e 's/(prgFlags = \[[^\]]*)("-Qunused-arguments")/$1"-mabi=elfv2",$2/g' "${toolchain_file}"
-      # Also add to C++ compiler flags
-      perl -pi -e 's/(cxxProgram = Program.*prgFlags = \[[^\]]*)(\])/$1,"-mabi=elfv2"$2/g' "${toolchain_file}"
+  for config_file in "${SRC_DIR}"/hadrian/cfg/default.target "${SRC_DIR}"/hadrian/cfg/default.host.target "${SRC_DIR}"/hadrian/cfg/*.ghc-toolchain; do
+    if [[ -f "${config_file}" ]]; then
+      echo "Patching ${config_file} to add -mabi=elfv2"
+      # Add -mabi=elfv2 before -Qunused-arguments in prgFlags
+      perl -pi -e 's/"-Qunused-arguments"/"-mabi=elfv2","-Qunused-arguments"/g' "${config_file}"
     fi
   done
 fi
