@@ -1,6 +1,16 @@
 --- a/compiler/GHC/SysTools/BaseDir.hs
 +++ b/compiler/GHC/SysTools/BaseDir.hs
-@@ -176,8 +176,9 @@ findToolDir False top_dir = go 0 (top_dir </> "..") []
+@@ -127,7 +127,8 @@ expandToolDir
+   -> String -> String
+ #if defined(mingw32_HOST_OS)
+ expandToolDir False (Just tool_dir) s = expandPathVar "tooldir" tool_dir s
+-expandToolDir False Nothing         _ = panic "Could not determine $tooldir"
++expandToolDir False Nothing         s = s
++  -- Return string unchanged when tooldir not found (using system toolchain)
+ expandToolDir True  _               s = s
+ #else
+ expandToolDir _ _ s = s
+@@ -176,8 +177,9 @@ findToolDir False top_dir = go 0 (top_dir </> "..") []
          go :: Int -> FilePath -> [FilePath] -> IO (Maybe FilePath)
          go k path tried
 -          | k == maxDepth = throwGhcExceptionIO $
