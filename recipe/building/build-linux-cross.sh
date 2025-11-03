@@ -111,6 +111,19 @@ export ac_cv_lib_ffi_ffi_call=yes
 export ac_cv_func_posix_spawn_file_actions_addchdir_np=no
 run_and_log "configure" ./configure -v "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}" || { cat config.log; exit 1; }
 
+# PowerPC: Patch .ghc-toolchain files to add -mabi=elfv2
+if [[ "${target_arch}" == "ppc64le" || "${target_arch}" == "powerpc64le" ]]; then
+  for toolchain_file in "${SRC_DIR}"/hadrian/cfg/*.ghc-toolchain; do
+    if [[ -f "${toolchain_file}" ]]; then
+      echo "Patching ${toolchain_file} to add -mabi=elfv2"
+      # Add -mabi=elfv2 to C compiler flags (insert before -Qunused-arguments)
+      perl -pi -e 's/(prgFlags = \[[^\]]*)("-Qunused-arguments")/$1"-mabi=elfv2",$2/g' "${toolchain_file}"
+      # Also add to C++ compiler flags
+      perl -pi -e 's/(cxxProgram = Program.*prgFlags = \[[^\]]*)(\])/$1,"-mabi=elfv2"$2/g' "${toolchain_file}"
+    fi
+  done
+fi
+
 # Fix host configuration to use x86_64, target cross
 (
   settings_file="${SRC_DIR}"/hadrian/cfg/system.config
