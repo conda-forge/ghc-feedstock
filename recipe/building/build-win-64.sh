@@ -161,15 +161,10 @@ perl -pi -e 's#^([a-z-]+dir)\s*=\s*/c/#$1 = C:/#g' "${SRC_DIR}"/hadrian/cfg/syst
 
 echo "=== Fixing windres and dllwrap paths in system.config ==="
 # Ensure windres and dllwrap are not set to 'false'
-perl -pi -e "s#^windres\\s*=\\s*false\\s*\$#windres = ${WINDRES}#" "${SRC_DIR}"/hadrian/cfg/system.config
+perl -pi -e "s#^(settings-dll-wrap-command = ).*#\$1${DLLWRAP}#" "${SRC_DIR}"/hadrian/cfg/system.config
+perl -pi -e "s#^(settings-windres-command = ).*#\$1${WINDRES}#" "${SRC_DIR}"/hadrian/cfg/system.config
 perl -pi -e "s#^dllwrap\\s*=\\s*false\\s*\$#dllwrap = ${DLLWRAP}#" "${SRC_DIR}"/hadrian/cfg/system.config
-# Also fix if they're empty or wrong path
-if ! grep -q "^windres.*windres" "${SRC_DIR}"/hadrian/cfg/system.config; then
-  echo "windres = ${WINDRES}" >> "${SRC_DIR}"/hadrian/cfg/system.config
-fi
-if ! grep -q "^dllwrap.*dllwrap" "${SRC_DIR}"/hadrian/cfg/system.config; then
-  echo "dllwrap = ${DLLWRAP}" >> "${SRC_DIR}"/hadrian/cfg/system.config
-fi
+perl -pi -e "s#^windres\\s*=\\s*false\\s*\$#windres = ${WINDRES}#" "${SRC_DIR}"/hadrian/cfg/system.config
 
 echo "=== Forcing system toolchain and libffi settings ==="
 # Force use of conda toolchain (not inplace MinGW)
@@ -177,13 +172,6 @@ perl -pi -e 's#^use-system-mingw\s*=\s*.*$#use-system-mingw = YES#' "${SRC_DIR}"
 perl -pi -e 's#^windows-toolchain-autoconf\s*=\s*.*$#windows-toolchain-autoconf = NO#' "${SRC_DIR}"/hadrian/cfg/system.config
 # Force use of conda libffi
 perl -pi -e 's#^use-system-ffi\s*=\s*.*$#use-system-ffi = YES#' "${SRC_DIR}"/hadrian/cfg/system.config
-# Add settings if they don't exist
-if ! grep -q "^use-system-mingw" "${SRC_DIR}"/hadrian/cfg/system.config; then
-  echo "use-system-mingw = YES" >> "${SRC_DIR}"/hadrian/cfg/system.config
-fi
-if ! grep -q "^use-system-ffi" "${SRC_DIR}"/hadrian/cfg/system.config; then
-  echo "use-system-ffi = YES" >> "${SRC_DIR}"/hadrian/cfg/system.config
-fi
 
 cat "${SRC_DIR}"/hadrian/cfg/system.config | grep "include-dir\|lib-dir\|windres\|dllwrap\|system-mingw\|system-ffi"
 
