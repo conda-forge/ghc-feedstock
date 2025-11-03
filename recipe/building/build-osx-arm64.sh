@@ -55,23 +55,6 @@ SYSTEM_CONFIG=(
   --prefix="${PREFIX}"
 )
 
-# CRITICAL: Remove -Qunused-arguments from CFLAGS/CXXFLAGS BEFORE configure
-# This flag from conda-forge causes GHC to generate malformed: -optc -optc-Qunused-arguments
-# Which corrupts the clang output path to: -o ptc-Qunused-arguments
-# Also clean up whitespace (leading/trailing/multiple) and unset if empty
-TEMP_CFLAGS=$(echo "${CFLAGS//-Qunused-arguments/}" | sed 's/  */ /g; s/^ *//; s/ *$//')
-TEMP_CXXFLAGS=$(echo "${CXXFLAGS//-Qunused-arguments/}" | sed 's/  */ /g; s/^ *//; s/ *$//')
-if [ -z "$TEMP_CFLAGS" ]; then
-  unset CFLAGS
-else
-  export CFLAGS="$TEMP_CFLAGS"
-fi
-if [ -z "$TEMP_CXXFLAGS" ]; then
-  unset CXXFLAGS
-else
-  export CXXFLAGS="$TEMP_CXXFLAGS"
-fi
-
 CONFIGURE_ARGS=(
   --with-system-libffi=yes
   --with-curses-includes="${PREFIX}"/include
@@ -91,23 +74,10 @@ CONFIGURE_ARGS=(
   ac_cv_path_CXX="${BUILD_PREFIX}"/bin/"${conda_target}"-clang++
   ac_cv_path_LD="${BUILD_PREFIX}"/bin/"${conda_target}"-ld
   ac_cv_path_NM="${BUILD_PREFIX}"/bin/"${conda_target}"-nm
-  ac_cv_path_OBJDUMP="${BUILD_PREFIX}"/bin/"${conda_target}"-objdump
   ac_cv_path_RANLIB="${BUILD_PREFIX}"/bin/"${conda_target}"-ranlib
   ac_cv_path_LLC="${BUILD_PREFIX}"/bin/"${conda_target}"-llc
   ac_cv_path_OPT="${BUILD_PREFIX}"/bin/"${conda_target}"-opt
-
-  ac_cv_prog_ac_ct_LLC="${conda_target}"-llc
-  ac_cv_prog_ac_ct_OPT="${conda_target}"-opt
-
-  AR="${BUILD_PREFIX}"/bin/"${conda_target}"-ar
-  AS="${BUILD_PREFIX}"/bin/"${conda_target}"-as
-  CC="${BUILD_PREFIX}"/bin/"${conda_target}"-clang
-  CXX="${BUILD_PREFIX}"/bin/"${conda_target}"-clang++
-  LD="${BUILD_PREFIX}"/bin/"${conda_target}"-ld
-  NM="${BUILD_PREFIX}"/bin/"${conda_target}"-nm
-  OBJDUMP="${BUILD_PREFIX}"/bin/"${conda_target}"-objdump
-  RANLIB="${BUILD_PREFIX}"/bin/"${conda_target}"-ranlib
-
+  
   CFLAGS="--sysroot=${CONDA_BUILD_SYSROOT} ${CFLAGS:-}"
   CPPFLAGS="--sysroot=${CONDA_BUILD_SYSROOT} ${CPPFLAGS:-}"
   CXXFLAGS="--sysroot=${CONDA_BUILD_SYSROOT} ${CXXFLAGS:-}"
@@ -118,44 +88,8 @@ CONFIGURE_ARGS=(
   run_and_log "configure" ./configure -v "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}" || { cat config.log; exit 1; }
 )
 
-# CRITICAL: Fix stageBoot C compiler target flags to x86_64 (not arm64)
-# After configure, GHC generates Hadrian config files that define compiler flags for each stage
-# For cross-compilation, configure sets target=arm64 which affects ALL stages including stageBoot
-# We need to ensure stageBoot uses x86_64 target (build platform), not arm64 (target platform)
-
 # Fix default.host.target (defines host platform configuration)
-if [ -f "${SRC_DIR}/hadrian/cfg/default.host.target" ]; then
-  echo "Fixing ${SRC_DIR}/hadrian/cfg/default.host.target for stageBoot x86_64 target"
-  # Remove any arm64 target flags that apply to stageBoot
-  perl -pi -e "s#--target=${conda_target}##g" "${SRC_DIR}/hadrian/cfg/default.host.target"
-  perl -pi -e "s#--target=${target_alias}##g" "${SRC_DIR}/hadrian/cfg/default.host.target"
-  perl -pi -e "s#--target=arm64[^ \"]*##g" "${SRC_DIR}/hadrian/cfg/default.host.target"
-  # Remove -Qunused-arguments preserving list syntax
-  # Handle: ["-Qunused-arguments", "other"] -> ["other"]
-  perl -pi -e 's#"-Qunused-arguments",\s*##g' "${SRC_DIR}/hadrian/cfg/default.host.target"
-  # Handle: ["other", "-Qunused-arguments"] -> ["other"]
-  perl -pi -e 's#,\s*"-Qunused-arguments"##g' "${SRC_DIR}/hadrian/cfg/default.host.target"
-  # Handle: ["-Qunused-arguments"] -> []
-  perl -pi -e 's#\["-Qunused-arguments"\]#[]#g' "${SRC_DIR}/hadrian/cfg/default.host.target"
-fi
-
-# Fix default.target (defines target platform - but also affects stageBoot via optc flags)
-if [ -f "${SRC_DIR}/hadrian/cfg/default.target" ]; then
-  echo "Fixing ${SRC_DIR}/hadrian/cfg/default.target to remove stageBoot arm64 flags"
-  # The ccProgram in default.target should use cross-compile tools (arm64) for stage1+
-  # But we need to ensure no global --target=arm64 flags leak into stageBoot
-  # Remove -Qunused-arguments followed by --target=arm64 patterns
-  perl -pi -e 's#, "--target=arm64[^"]*"##g' "${SRC_DIR}/hadrian/cfg/default.target"
-  perl -pi -e "s#--target=${conda_target}##g" "${SRC_DIR}/hadrian/cfg/default.target"
-  perl -pi -e "s#--target=${target_alias}##g" "${SRC_DIR}/hadrian/cfg/default.target"
-  # Remove -Qunused-arguments preserving list syntax
-  # Handle: ["-Qunused-arguments", "other"] -> ["other"]
-  perl -pi -e 's#"-Qunused-arguments",\s*##g' "${SRC_DIR}/hadrian/cfg/default.target"
-  # Handle: ["other", "-Qunused-arguments"] -> ["other"]
-  perl -pi -e 's#,\s*"-Qunused-arguments"##g' "${SRC_DIR}/hadrian/cfg/default.target"
-  # Handle: ["-Qunused-arguments"] -> []
-  perl -pi -e 's#\["-Qunused-arguments"\]#[]#g' "${SRC_DIR}/hadrian/cfg/default.target"
-fi
+perl -pi -e "s#--target=(${conda_target}|${target_alias}|arm64[^ \"]*)##g" "${SRC_DIR}/hadrian/cfg/default.host.target"
 
 # CRITICAL: Fix architecture defines for cross-compilation
 # During cross-compile from x86_64 to ARM64, configure sets x86_64_HOST_ARCH
@@ -163,7 +97,6 @@ fi
 find "${SRC_DIR}" -name "*.buildinfo" -o -name "setup-config" | while read -r file; do
   if [ -f "$file" ]; then
     perl -pi -e 's/-Dx86_64_HOST_ARCH=1/-Daarch64_HOST_ARCH=1/g' "$file"
-    perl -pi -e 's/-Ddarwin_HOST_OS=1/-Ddarwin_HOST_OS=1/g' "$file"  # Keep darwin_HOST_OS
   fi
 done
 
@@ -171,17 +104,7 @@ done
 (
   settings_file="${SRC_DIR}"/hadrian/cfg/system.config
   perl -pi -e "s#${BUILD_PREFIX}/bin/##" "${settings_file}"
-  perl -pi -e "s#(=\s+)(ar|clang|clang\+\+|llc|nm|objdump|opt|ranlib)\$#\$1${conda_target}-\$2#" "${settings_file}"
-  perl -pi -e "s#(system-ar\s*?=\s).*#\$1${AR_STAGE0}#" "${settings_file}"
-  perl -pi -e "s#(conf-cc-args-stage0\s*?=\s).*#\$1--target=${conda_host}#" "${settings_file}"
-  perl -pi -e "s#(conf-gcc-linker-args-stage0\s*?=\s).*#\$1--target=${conda_host}#" "${settings_file}"
-  perl -pi -e "s#(conf-gcc-linker-args-stage[12]\s*?=\s)#\$1-Wl,-L${PREFIX}/lib -Wl,-rpath,${PREFIX}/lib #" "${settings_file}"
-  perl -pi -e "s#(conf-ld-linker-args-stage[12]\s*?=\s)#\$1-L${PREFIX}/lib -rpath ${PREFIX}/lib #" "${settings_file}"
-  perl -pi -e "s#(settings-c-compiler-link-flags\s*?=\s)#\$1-Wl,-L${PREFIX}/lib -Wl,-rpath,${PREFIX}/lib #" "${settings_file}"
-  perl -pi -e "s#(settings-ar-command\s*?=\s).*#\$1${conda_target}-ar#" "${settings_file}"
-  perl -pi -e "s#(settings-ld-flags\s*?=\s)#\$1-L${PREFIX}/lib -rpath ${PREFIX}/lib #" "${settings_file}"
-
-  perl -pi -e "s#${conda_target}-(objdump)#\$1#" "${settings_file}"
+  perl -pi -e "s#(=\s+)(ar|clang|clang\+\+|llc|nm|opt|ranlib)\$#\$1${conda_target}-\$2#" "${settings_file}"
 
   cat "${settings_file}"
 )
@@ -190,11 +113,7 @@ done
 (
   bootstrap_settings="${osx_64_env}"/ghc-bootstrap/lib/ghc-9.6.7/lib/settings
   perl -pi -e "s#[^ ]+/usr/lib/libiconv2.tbd##" "${bootstrap_settings}"
-  # CRITICAL: Remove -Qunused-arguments to prevent malformed -optc -optc-Qunused-arguments
-  # This flag causes GHC to generate invalid compiler invocations that break C compilation
-  perl -pi -e "s# -Qunused-arguments##g" "${bootstrap_settings}"
   # CRITICAL: Add --target flag to force C compiler to target x86_64, not arm64
-  # Without this, clang defaults to arm64 on arm64 runners even when building for x86_64
   perl -pi -e "s#(C compiler flags\", \")#\$1-v -fno-lto --target=${conda_host} #" "${bootstrap_settings}"
   perl -pi -e "s#(C\\+\\+ compiler flags\", \")#\$1-fno-lto --target=${conda_host} #" "${bootstrap_settings}"
   # Don't add -fuse-ld=lld during build (bootstrap compiler doesn't support it)
@@ -207,7 +126,7 @@ done
 # Build hadrian with cabal outside script
 (
   pushd "${SRC_DIR}"/hadrian
-    export CABFLAGS=(--enable-shared --enable-executable-dynamic -j)
+    # export CABFLAGS=(--enable-shared --enable-executable-dynamic -j)
     "${CABAL}" v2-build \
       --with-gcc="${CC_FOR_BUILD}" \
       --with-ar="${AR_STAGE0}" \
@@ -239,23 +158,6 @@ _hadrian_build=("${_hadrian_bin}" "-j${CPU_COUNT}" "--directory" "${SRC_DIR}")
   export CXX="${BUILD_PREFIX}/bin/${conda_host}-clang++"
   export LD="${BUILD_PREFIX}/bin/${conda_host}-ld"
 
-  # CRITICAL: Remove -Qunused-arguments from CFLAGS/CXXFLAGS to prevent malformed -optc flags
-  # This flag causes GHC to generate: -optc -optc-Qunused-arguments (malformed)
-  # Instead of: -optc -Qunused-arguments (correct)
-  # Also clean up whitespace (leading/trailing/multiple) and unset if empty
-  TEMP_CFLAGS=$(echo "${CFLAGS//-Qunused-arguments/}" | sed 's/  */ /g; s/^ *//; s/ *$//')
-  TEMP_CXXFLAGS=$(echo "${CXXFLAGS//-Qunused-arguments/}" | sed 's/  */ /g; s/^ *//; s/ *$//')
-  if [ -z "$TEMP_CFLAGS" ]; then
-    unset CFLAGS
-  else
-    export CFLAGS="$TEMP_CFLAGS"
-  fi
-  if [ -z "$TEMP_CXXFLAGS" ]; then
-    unset CXXFLAGS
-  else
-    export CXXFLAGS="$TEMP_CXXFLAGS"
-  fi
-
   ln -sf "${BUILD_PREFIX}/bin/${conda_host}-ar" "${BUILD_PREFIX}"/bin/ar
   ln -sf "${BUILD_PREFIX}/bin/${conda_host}-as" "${BUILD_PREFIX}"/bin/as
   ln -sf "${BUILD_PREFIX}/bin/${conda_host}-ld" "${BUILD_PREFIX}"/bin/ld
@@ -274,6 +176,9 @@ _hadrian_build=("${_hadrian_bin}" "-j${CPU_COUNT}" "--directory" "${SRC_DIR}")
   ls -l "${BUILD_PREFIX}/bin/ld"
   "${BUILD_PREFIX}/bin/${conda_host}-clang" -v
   "${BUILD_PREFIX}/bin/clang-19" -v
+  echo "${CFLAGS}"
+  echo "${CPPFLAGS}"
+  echo "${CXXFLAGS}"
   "${_hadrian_build[@]}" stage1:exe:ghc-bin -VV --flavour=quickest --progress-info=unicorn
   echo ".";echo ".";echo ".";echo ".";
   run_and_log "stage1_ghc-pkg" "${_hadrian_build[@]}" stage1:exe:ghc-pkg --flavour=quickest --docs=none --progress-info=none
