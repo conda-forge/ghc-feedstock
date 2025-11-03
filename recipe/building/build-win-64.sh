@@ -158,7 +158,7 @@ echo "=== Converting FFI paths to Windows format in system.config ==="
 perl -pi -e 's#^ffi-include-dir\s*=\s*/c/#ffi-include-dir   = C:/#' "${SRC_DIR}"/hadrian/cfg/system.config
 perl -pi -e 's#^ffi-lib-dir\s*=\s*/c/#ffi-lib-dir       = C:/#' "${SRC_DIR}"/hadrian/cfg/system.config
 perl -pi -e 's#^([a-z-]+dir)\s*=\s*/c/#$1 = C:/#g' "${SRC_DIR}"/hadrian/cfg/system.config
-perl -pi -e 's#^(intree-gmp\s*=\s*).*#$1NO#" "${SRC_DIR}"/hadrian/cfg/system.config
+perl -pi -e "s#^(intree-gmp\s*=\s*).*#\$1NO#" "${SRC_DIR}"/hadrian/cfg/system.config
 echo "=== Fixing windres and dllwrap paths in system.config ==="
 # Ensure windres and dllwrap are not set to 'false'
 perl -pi -e "s#^(settings-dll-wrap-command = ).*#\$1${DLLWRAP}#" "${SRC_DIR}"/hadrian/cfg/system.config
