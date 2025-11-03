@@ -109,7 +109,8 @@ CONFIGURE_ARGS=(
 )
 
 # Fix default.host.target (defines host platform configuration)
-perl -pi -e "s#--target=(${conda_target}|${target_alias}|arm64[^ \"]*)##g" "${SRC_DIR}/hadrian/cfg/default.host.target"
+# REPLACE --target=arm64 with --target=x86_64 (host runs on BUILD machine, not target)
+perl -pi -e "s#--target=arm64-apple-darwin[^\"]*#--target=${conda_host}#g" "${SRC_DIR}/hadrian/cfg/default.host.target"
 
 # CRITICAL: Fix architecture defines for cross-compilation
 # During cross-compile from x86_64 to ARM64, configure sets x86_64_HOST_ARCH
