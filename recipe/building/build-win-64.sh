@@ -148,6 +148,12 @@ MergeObjsCmd="${LD}" \
 MergeObjsArgs="" \
 run_and_log "ghc-configure" bash configure "${CONFIGURE_ARGS[@]}" || ( cat config.log ; exit 1 )
 
+echo "=== Creating dummy mingw directory to satisfy GHC's hardcoded check ==="
+# GHC has hardcoded check for mingw directory even when "Use inplace MinGW" is NO
+# Create dummy directory so check passes (actual tools come from conda via patched settings)
+mkdir -p "${_SRC_DIR}"/_build/stage0/lib/mingw/bin
+touch "${_SRC_DIR}"/_build/stage0/lib/mingw/bin/.keep
+
 cat "${_SRC_DIR}"/hadrian/cfg/system.config
 echo $(find ${_BUILD_PREFIX} ${_PREFIX} -name "libssp*.dll")
 
