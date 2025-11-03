@@ -59,8 +59,19 @@ SYSTEM_CONFIG=(
 # This flag from conda-forge causes GHC to generate malformed: -optc -optc-Qunused-arguments
 # Which corrupts the clang output path to: -o ptc-Qunused-arguments
 # Also clean up any resulting empty elements or extra whitespace
-export CFLAGS=$(echo "${CFLAGS//-Qunused-arguments/}" | sed 's/^ *//; s/ *$//')
-export CXXFLAGS=$(echo "${CXXFLAGS//-Qunused-arguments/}" | sed 's/^ *//; s/ *$//')
+# If CFLAGS becomes empty, unset it to prevent Cabal from generating standalone -optc flags
+TEMP_CFLAGS=$(echo "${CFLAGS//-Qunused-arguments/}" | sed 's/^ *//; s/ *$//')
+TEMP_CXXFLAGS=$(echo "${CXXFLAGS//-Qunused-arguments/}" | sed 's/^ *//; s/ *$//')
+if [ -z "$TEMP_CFLAGS" ]; then
+  unset CFLAGS
+else
+  export CFLAGS="$TEMP_CFLAGS"
+fi
+if [ -z "$TEMP_CXXFLAGS" ]; then
+  unset CXXFLAGS
+else
+  export CXXFLAGS="$TEMP_CXXFLAGS"
+fi
 
 CONFIGURE_ARGS=(
   --with-system-libffi=yes
@@ -233,8 +244,19 @@ _hadrian_build=("${_hadrian_bin}" "-j${CPU_COUNT}" "--directory" "${SRC_DIR}")
   # This flag causes GHC to generate: -optc -optc-Qunused-arguments (malformed)
   # Instead of: -optc -Qunused-arguments (correct)
   # Also clean up any resulting empty elements or extra whitespace
-  export CFLAGS=$(echo "${CFLAGS//-Qunused-arguments/}" | sed 's/^ *//; s/ *$//')
-  export CXXFLAGS=$(echo "${CXXFLAGS//-Qunused-arguments/}" | sed 's/^ *//; s/ *$//')
+  # If CFLAGS becomes empty, unset it to prevent Cabal from generating standalone -optc flags
+  TEMP_CFLAGS=$(echo "${CFLAGS//-Qunused-arguments/}" | sed 's/^ *//; s/ *$//')
+  TEMP_CXXFLAGS=$(echo "${CXXFLAGS//-Qunused-arguments/}" | sed 's/^ *//; s/ *$//')
+  if [ -z "$TEMP_CFLAGS" ]; then
+    unset CFLAGS
+  else
+    export CFLAGS="$TEMP_CFLAGS"
+  fi
+  if [ -z "$TEMP_CXXFLAGS" ]; then
+    unset CXXFLAGS
+  else
+    export CXXFLAGS="$TEMP_CXXFLAGS"
+  fi
 
   ln -sf "${BUILD_PREFIX}/bin/${conda_host}-ar" "${BUILD_PREFIX}"/bin/ar
   ln -sf "${BUILD_PREFIX}/bin/${conda_host}-as" "${BUILD_PREFIX}"/bin/as

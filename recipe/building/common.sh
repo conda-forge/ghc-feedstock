@@ -100,8 +100,8 @@ update_settings_link_flags() {
 
     # PowerPC 64-bit little-endian: Must use ABI v2 (not v1 which has .opd sections)
     if [[ "${TARGET_ARCH:-${target_arch:-}}" == *"ppc64le"* || "${TARGET_ARCH:-${target_arch:-}}" == *"powerpc64le"* || "${host_alias}" == *"ppc64le"* || "${target_platform}" == *"ppc64le"* ]]; then
-      perl -pi -e 's#(C compiler flags", "[^"]*)#$1 -mabi=elfv2#' "${settings_file}"
-      perl -pi -e 's#(C\+\+ compiler flags", "[^"]*)#$1 -mabi=elfv2#' "${settings_file}"
+      perl -pi -e 's#(C compiler flags", "[^"]*)#$1 -v -mabi=elfv2#' "${settings_file}"
+      perl -pi -e 's#(C\+\+ compiler flags", "[^"]*)#$1 -v -mabi=elfv2#' "${settings_file}"
     fi
 
     perl -pi -e "s#(C compiler link flags\", \"[^\"]*)#\$1 -Wl,-L${BUILD_PREFIX}/lib -Wl,-L${prefix}/lib -Wl,-rpath,${BUILD_PREFIX}/lib -Wl,-rpath,${prefix}/lib#" "${settings_file}"

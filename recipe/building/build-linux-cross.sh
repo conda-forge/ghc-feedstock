@@ -79,6 +79,23 @@ export AR_STAGE0="${BUILD_PREFIX}/bin/${conda_host}-ar"
 export CC_STAGE0="${CC_FOR_BUILD}"
 export LD_STAGE0="${BUILD_PREFIX}/bin/${conda_host}-ld"
 
+# CRITICAL: Remove -Qunused-arguments from CFLAGS/CXXFLAGS BEFORE configure
+# This flag from conda-forge causes GHC to generate malformed: -optc -optc-Qunused-arguments
+# Which corrupts the clang output path to: -o ptc-Qunused-arguments
+# Do this BEFORE platform-specific flags (like -mabi=elfv2 for PowerPC)
+TEMP_CFLAGS=$(echo "${CFLAGS//-Qunused-arguments/}" | sed 's/^ *//; s/ *$//')
+TEMP_CXXFLAGS=$(echo "${CXXFLAGS//-Qunused-arguments/}" | sed 's/^ *//; s/ *$//')
+if [ -z "$TEMP_CFLAGS" ]; then
+  unset CFLAGS
+else
+  export CFLAGS="$TEMP_CFLAGS"
+fi
+if [ -z "$TEMP_CXXFLAGS" ]; then
+  unset CXXFLAGS
+else
+  export CXXFLAGS="$TEMP_CXXFLAGS"
+fi
+
 # PowerPC 64-bit little-endian: CRITICAL - Must use ABI v2
 # Add -mabi=elfv2 to CFLAGS/CXXFLAGS BEFORE configure to ensure it's baked into settings
 if [[ "${target_arch}" == "ppc64le" ]]; then
@@ -150,15 +167,11 @@ update_linux_link_flags "${settings_file}"
 run_and_log "stage1_lib" "${_hadrian_build[@]}" stage1:lib:ghc -VV --flavour=quickest --docs=none --progress-info=none
 update_linux_link_flags "${settings_file}"
 
-# Redefine hadrian to avoid rebuilding via the build script
-_hadrian_bin=$(find "${SRC_DIR}"/hadrian/dist-newstyle/build -name hadrian -type f -executable | head -1)
-_hadrian_build=("${_hadrian_bin}" "-j${CPU_COUNT}" "--directory" "${SRC_DIR}")
-
 # ---| Stage 2: Cross-compiled bin/libs |---
 
 export GHC="${SRC_DIR}"/_build/ghc-stage1
-
-run_and_log "stage2_ghc-bin" "${_hadrian_build[@]}" stage2:exe:ghc-bin --flavour=release --docs=none --progress-info=none
+cat "${settings_file}"
+run_and_log "stage2_ghc-bin" "${_hadrian_build[@]}" stage2:exe:ghc-bin -V --flavour=release --docs=none --progress-info=none
 run_and_log "stage2_ghc-pkg" "${_hadrian_build[@]}" stage2:exe:ghc-pkg --flavour=release --docs=none --progress-info=none
 run_and_log "stage2_hsc2hs" "${_hadrian_build[@]}" stage2:exe:hsc2hs --flavour=release --docs=none --progress-info=none
 
