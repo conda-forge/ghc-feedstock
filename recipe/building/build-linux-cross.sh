@@ -83,8 +83,9 @@ export LD_STAGE0="${BUILD_PREFIX}/bin/${conda_host}-ld"
 # This flag from conda-forge causes GHC to generate malformed: -optc -optc-Qunused-arguments
 # Which corrupts the clang output path to: -o ptc-Qunused-arguments
 # Do this BEFORE platform-specific flags (like -mabi=elfv2 for PowerPC)
-TEMP_CFLAGS=$(echo "${CFLAGS//-Qunused-arguments/}" | sed 's/^ *//; s/ *$//')
-TEMP_CXXFLAGS=$(echo "${CXXFLAGS//-Qunused-arguments/}" | sed 's/^ *//; s/ *$//')
+# Also clean up whitespace (leading/trailing/multiple) and unset if empty
+TEMP_CFLAGS=$(echo "${CFLAGS//-Qunused-arguments/}" | sed 's/  */ /g; s/^ *//; s/ *$//')
+TEMP_CXXFLAGS=$(echo "${CXXFLAGS//-Qunused-arguments/}" | sed 's/  */ /g; s/^ *//; s/ *$//')
 if [ -z "$TEMP_CFLAGS" ]; then
   unset CFLAGS
 else

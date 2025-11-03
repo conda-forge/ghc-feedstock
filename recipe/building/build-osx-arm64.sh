@@ -58,10 +58,9 @@ SYSTEM_CONFIG=(
 # CRITICAL: Remove -Qunused-arguments from CFLAGS/CXXFLAGS BEFORE configure
 # This flag from conda-forge causes GHC to generate malformed: -optc -optc-Qunused-arguments
 # Which corrupts the clang output path to: -o ptc-Qunused-arguments
-# Also clean up any resulting empty elements or extra whitespace
-# If CFLAGS becomes empty, unset it to prevent Cabal from generating standalone -optc flags
-TEMP_CFLAGS=$(echo "${CFLAGS//-Qunused-arguments/}" | sed 's/^ *//; s/ *$//')
-TEMP_CXXFLAGS=$(echo "${CXXFLAGS//-Qunused-arguments/}" | sed 's/^ *//; s/ *$//')
+# Also clean up whitespace (leading/trailing/multiple) and unset if empty
+TEMP_CFLAGS=$(echo "${CFLAGS//-Qunused-arguments/}" | sed 's/  */ /g; s/^ *//; s/ *$//')
+TEMP_CXXFLAGS=$(echo "${CXXFLAGS//-Qunused-arguments/}" | sed 's/  */ /g; s/^ *//; s/ *$//')
 if [ -z "$TEMP_CFLAGS" ]; then
   unset CFLAGS
 else
@@ -243,10 +242,9 @@ _hadrian_build=("${_hadrian_bin}" "-j${CPU_COUNT}" "--directory" "${SRC_DIR}")
   # CRITICAL: Remove -Qunused-arguments from CFLAGS/CXXFLAGS to prevent malformed -optc flags
   # This flag causes GHC to generate: -optc -optc-Qunused-arguments (malformed)
   # Instead of: -optc -Qunused-arguments (correct)
-  # Also clean up any resulting empty elements or extra whitespace
-  # If CFLAGS becomes empty, unset it to prevent Cabal from generating standalone -optc flags
-  TEMP_CFLAGS=$(echo "${CFLAGS//-Qunused-arguments/}" | sed 's/^ *//; s/ *$//')
-  TEMP_CXXFLAGS=$(echo "${CXXFLAGS//-Qunused-arguments/}" | sed 's/^ *//; s/ *$//')
+  # Also clean up whitespace (leading/trailing/multiple) and unset if empty
+  TEMP_CFLAGS=$(echo "${CFLAGS//-Qunused-arguments/}" | sed 's/  */ /g; s/^ *//; s/ *$//')
+  TEMP_CXXFLAGS=$(echo "${CXXFLAGS//-Qunused-arguments/}" | sed 's/  */ /g; s/^ *//; s/ *$//')
   if [ -z "$TEMP_CFLAGS" ]; then
     unset CFLAGS
   else
