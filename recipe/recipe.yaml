@@ -20,6 +20,7 @@ source:
           - patches/add-threadlabels-include-consolehandler.patch
           - patches/fix-windows-utimbuf-type.patch
           - patches/disable-split-sections-windows.patch
+          - patches/skip-mingw-detection-error.patch
           - patches/debug-findcdependencies.patch
       - if: osx and arm64
         then:

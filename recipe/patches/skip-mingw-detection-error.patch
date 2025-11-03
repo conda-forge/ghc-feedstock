@@ -1,0 +1,13 @@
+--- a/compiler/GHC/SysTools/BaseDir.hs
++++ b/compiler/GHC/SysTools/BaseDir.hs
+@@ -176,8 +176,9 @@ findToolDir False top_dir = go 0 (top_dir </> "..") []
+         go :: Int -> FilePath -> [FilePath] -> IO (Maybe FilePath)
+         go k path tried
+-          | k == maxDepth = throwGhcExceptionIO $
+-              InstallationError $ "could not detect mingw toolchain in the following paths: " ++ show tried
++          | k == maxDepth = return Nothing
++              -- Instead of throwing error, return Nothing to use system toolchain
++              -- Original: throwGhcExceptionIO $ InstallationError $ "could not detect mingw toolchain in the following paths: " ++ show tried
+           | otherwise = do
+               let try = path </> "mingw"
+               let tried' = tried ++ [try]
