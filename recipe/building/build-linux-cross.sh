@@ -130,8 +130,6 @@ fi
       --with-gcc="${CC_STAGE0}" \
       --with-ghc="${GHC}" \
       --with-ld="${LD_STAGE0}" \
-      --enable-shared \
-      --enable-executable-dynamic \
       -j \
       hadrian \
       2>&1 | tee "${SRC_DIR}"/cabal-verbose.log
@@ -161,14 +159,30 @@ run_and_log "stage1_hsc2hs"  "${_hadrian_build[@]}" stage1:exe:hsc2hs --flavour=
 
 settings_file="${SRC_DIR}"/_build/stage0/lib/settings
 update_linux_link_flags "${settings_file}"
-run_and_log "stage1_lib" "${_hadrian_build[@]}" stage1:lib:ghc -VV --flavour=quickest --docs=none --progress-info=none
+
+# DEBUG: Dump settings file to verify -mabi=elfv2 is present
+echo "=== DEBUG: Settings file after update_linux_link_flags ==="
+grep -E "C compiler|C\+\+ compiler" "${settings_file}" || true
+echo "=== END DEBUG ==="
+
+# DEBUG: Also check Hadrian config files
+echo "=== DEBUG: Hadrian config files ==="
+if [ -f "${SRC_DIR}/hadrian/cfg/default.target" ]; then
+  echo "--- default.target C compiler flags ---"
+  grep -A 2 "tgtCCompiler" "${SRC_DIR}/hadrian/cfg/default.target" | head -5 || true
+fi
+echo "=== END DEBUG ==="
+
+"${_hadrian_build[@]}" stage1:lib:ghc -VV --flavour=quickest --docs=none --progress-info=none
+# run_and_log "stage1_lib" "${_hadrian_build[@]}" stage1:lib:ghc -VV --flavour=quickest --docs=none --progress-info=none
 update_linux_link_flags "${settings_file}"
 
 # ---| Stage 2: Cross-compiled bin/libs |---
 
 export GHC="${SRC_DIR}"/_build/ghc-stage1
 cat "${settings_file}"
-run_and_log "stage2_ghc-bin" "${_hadrian_build[@]}" stage2:exe:ghc-bin -V --flavour=release --docs=none --progress-info=none
+"${_hadrian_build[@]}" stage2:exe:ghc-bin -VV --flavour=release --docs=none --progress-info=none
+# run_and_log "stage2_ghc-bin" "${_hadrian_build[@]}" stage2:exe:ghc-bin -V --flavour=release --docs=none --progress-info=none
 run_and_log "stage2_ghc-pkg" "${_hadrian_build[@]}" stage2:exe:ghc-pkg --flavour=release --docs=none --progress-info=none
 run_and_log "stage2_hsc2hs" "${_hadrian_build[@]}" stage2:exe:hsc2hs --flavour=release --docs=none --progress-info=none
 
