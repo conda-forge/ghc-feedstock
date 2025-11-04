@@ -79,24 +79,6 @@ export AR_STAGE0="${BUILD_PREFIX}/bin/${conda_host}-ar"
 export CC_STAGE0="${CC_FOR_BUILD}"
 export LD_STAGE0="${BUILD_PREFIX}/bin/${conda_host}-ld"
 
-# CRITICAL: Remove -Qunused-arguments from CFLAGS/CXXFLAGS BEFORE configure
-# This flag from conda-forge causes GHC to generate malformed: -optc -optc-Qunused-arguments
-# Which corrupts the clang output path to: -o ptc-Qunused-arguments
-# Do this BEFORE platform-specific flags (like -mabi=elfv2 for PowerPC)
-# Also clean up whitespace (leading/trailing/multiple) and unset if empty
-TEMP_CFLAGS=$(echo "${CFLAGS//-Qunused-arguments/}" | sed 's/  */ /g; s/^ *//; s/ *$//')
-TEMP_CXXFLAGS=$(echo "${CXXFLAGS//-Qunused-arguments/}" | sed 's/  */ /g; s/^ *//; s/ *$//')
-if [ -z "$TEMP_CFLAGS" ]; then
-  unset CFLAGS
-else
-  export CFLAGS="$TEMP_CFLAGS"
-fi
-if [ -z "$TEMP_CXXFLAGS" ]; then
-  unset CXXFLAGS
-else
-  export CXXFLAGS="$TEMP_CXXFLAGS"
-fi
-
 # PowerPC 64-bit little-endian: CRITICAL - Must use ABI v2
 # Add -mabi=elfv2 to CFLAGS/CXXFLAGS BEFORE configure to ensure it's baked into settings
 if [[ "${target_arch}" == "ppc64le" ]]; then
