@@ -93,11 +93,12 @@ export ac_cv_lib_ffi_ffi_call=yes
 export ac_cv_func_posix_spawn_file_actions_addchdir_np=no
 run_and_log "configure" ./configure -v "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}" || { cat config.log; exit 1; }
 
-# PowerPC: Patch ALL hadrian config files to add -mabi=elfv2
+# PowerPC: Patch TARGET config files to add -mabi=elfv2
 # GHC 9.10.2 has use-ghc-toolchain=NO, so it uses default.target, not .ghc-toolchain
-# But we patch both for compatibility with future versions
+# CRITICAL: Only patch TARGET config (default.target), NOT HOST config (default.host.target)
+# The host.target is for BUILD platform (x86_64), not TARGET platform (ppc64le)
 if [[ "${target_arch}" == "ppc64le" || "${target_arch}" == "powerpc64le" ]]; then
-  for config_file in "${SRC_DIR}"/hadrian/cfg/default.target "${SRC_DIR}"/hadrian/cfg/default.host.target "${SRC_DIR}"/hadrian/cfg/*.ghc-toolchain; do
+  for config_file in "${SRC_DIR}"/hadrian/cfg/default.target "${SRC_DIR}"/hadrian/cfg/*.ghc-toolchain; do
     if [[ -f "${config_file}" ]]; then
       echo "Patching ${config_file} to add -mabi=elfv2"
       # Add -mabi=elfv2 before -Qunused-arguments in prgFlags
