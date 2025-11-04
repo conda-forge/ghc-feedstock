@@ -21,7 +21,6 @@ source:
           - patches/fix-windows-utimbuf-type.patch
           - patches/disable-split-sections-windows.patch
           - patches/skip-mingw-detection-error.patch
-          - patches/debug-findcdependencies.patch
       - if: osx and arm64
         then:
           - patches/patch-rpath-macos.patch

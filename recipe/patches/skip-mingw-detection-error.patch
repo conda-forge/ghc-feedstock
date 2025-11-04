@@ -6,7 +6,7 @@
  expandToolDir False (Just tool_dir) s = expandPathVar "tooldir" tool_dir s
 -expandToolDir False Nothing         _ = panic "Could not determine $tooldir"
 +expandToolDir False Nothing         s = s
-+  -- Return string unchanged when tooldir not found (using system toolchain)
++  -- When mingw not found, settings should already have tool names without $tooldir
  expandToolDir True  _               s = s
  #else
  expandToolDir _ _ s = s
