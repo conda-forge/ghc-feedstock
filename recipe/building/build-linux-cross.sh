@@ -162,7 +162,7 @@ update_linux_link_flags "${settings_file}"
 
 # DEBUG: Dump settings file to verify -mabi=elfv2 is present
 echo "=== DEBUG: Settings file after update_linux_link_flags ==="
-grep -E "C compiler|C\+\+ compiler" "${settings_file}" || true
+grep -E "C compiler|C\+\+ compiler|assembler|Haskell CPP" "${settings_file}" || true
 echo "=== END DEBUG ==="
 
 # DEBUG: Also check Hadrian config files
