@@ -158,12 +158,12 @@ update_linux_link_flags() {
   # The -mabi=elfv2 flag explicitly tells the compiler AND assembler to use ELF v2 ABI
   # This prevents "error: .opd not allowed in ABI version 2" linker errors
   # CRITICAL: Assembly files (.S) need this flag passed to BOTH preprocessor and assembler
+  # For .S files, GHC uses -optc for preprocessor, but we need -Wa, to pass to assembler
   if [[ "${TARGET_ARCH:-${target_arch:-}}" == *"ppc64le"* || "${TARGET_ARCH:-${target_arch:-}}" == *"powerpc64le"* || "${host_alias}" == *"ppc64le"* || "${target_platform}" == *"ppc64le"* ]]; then
-    perl -pi -e 's#(C compiler flags", "[^"]*)#$1 -mabi=elfv2#' "${settings_file}"
-    perl -pi -e 's#(C\+\+ compiler flags", "[^"]*)#$1 -mabi=elfv2#' "${settings_file}"
-    # Also update assembler flags for .S files (assembly with C preprocessor)
+    perl -pi -e 's#(C compiler flags", "[^"]*)#$1 -mabi=elfv2 -Wa,-mabi=elfv2#' "${settings_file}"
+    perl -pi -e 's#(C\+\+ compiler flags", "[^"]*)#$1 -mabi=elfv2 -Wa,-mabi=elfv2#' "${settings_file}"
+    # Also update Haskell CPP flags for .S file preprocessing
     perl -pi -e 's#(Haskell CPP flags", "[^"]*)#$1 -mabi=elfv2#' "${settings_file}"
-    perl -pi -e 's#(assembler flags", "[^"]*)#$1 -mabi=elfv2#' "${settings_file}"
   fi
 
   perl -pi -e "s#(C compiler link flags\", \"[^\"]*)#\$1 -Wl,-L${BUILD_PREFIX}/lib -Wl,-L${PREFIX}/lib -Wl,-rpath,${BUILD_PREFIX}/lib -Wl,-rpath,${PREFIX}/lib#" "${settings_file}"
