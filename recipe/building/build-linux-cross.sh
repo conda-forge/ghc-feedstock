@@ -100,10 +100,9 @@ run_and_log "configure" ./configure -v "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@
 if [[ "${target_arch}" == "ppc64le" || "${target_arch}" == "powerpc64le" ]]; then
   for config_file in "${SRC_DIR}"/hadrian/cfg/default.target "${SRC_DIR}"/hadrian/cfg/*.ghc-toolchain; do
     if [[ -f "${config_file}" ]]; then
-      echo "Patching ${config_file} to add -mabi=elfv2 and -Wa,-mabi=elfv2"
-      # Add BOTH -mabi=elfv2 (for compiler) and -Wa,-mabi=elfv2 (for assembler)
-      # Assembly files (.S) need the flag passed to the assembler via -Wa,
-      perl -pi -e 's/"-Qunused-arguments"/"-mabi=elfv2","-Wa,-mabi=elfv2","-Qunused-arguments"/g' "${config_file}"
+      echo "Patching ${config_file} to add -mabi=elfv2"
+      # Add -mabi=elfv2 before -Qunused-arguments in prgFlags
+      perl -pi -e 's/"-Qunused-arguments"/"-mabi=elfv2","-Qunused-arguments"/g' "${config_file}"
     fi
   done
 fi
