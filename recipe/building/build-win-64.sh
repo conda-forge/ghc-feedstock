@@ -149,7 +149,6 @@ MergeObjsArgs="" \
 run_and_log "ghc-configure" bash configure "${CONFIGURE_ARGS[@]}" || ( cat config.log ; exit 1 )
 
 cat "${_SRC_DIR}"/hadrian/cfg/system.config
-echo $(find ${_BUILD_PREFIX} ${_PREFIX} -name "libssp*.dll")
 
 # Fix Python path in system.config (configure sets Linux path, we need Windows)
 # Use forward slashes to avoid escape sequence issues (\n, \t, \b, etc.)
@@ -179,6 +178,9 @@ cat "${SRC_DIR}"/hadrian/cfg/system.config | grep "include-dir\|lib-dir\|windres
 export CFLAGS="${CFLAGS} -fno-stack-protector -fno-stack-check -I${PREFIX}/Library/include -I${BUILD_PREFIX}/Library/include"
 export CXXFLAGS="${CXXFLAGS} -fno-stack-protector -fno-stack-check -I${PREFIX}/Library/include -I${BUILD_PREFIX}/Library/include"
 export LDFLAGS="${LDFLAGS} -fno-stack-protector"
+export CABFLAGS="--with-compiler=${GHC} --ghc-options=-optc-fno-stack-protector --ghc-options=-optc-fno-stack-check"
+# Enable debugging mode for more verbose output
+# export GHC_DEBUG=1
 
 # Also ensure stack protection is disabled for all stages
 cat > ${_SRC_DIR}/hadrian/hadrian.settings << EOF
@@ -192,15 +194,6 @@ stage0.*.cc.cpp.opts += -fno-stack-protector -fno-stack-check
 stage0.*.ghc.c.opts += -optc-fno-stack-protector -optc-fno-stack-check
 stage0.*.ghc.cpp.opts += -optcxx-fno-stack-protector -optcxx-fno-stack-check
 EOF
-
-export CABFLAGS="--with-compiler=${GHC} --ghc-options=-optc-fno-stack-protector --ghc-options=-optc-fno-stack-check"
-# Enable debugging mode for more verbose output
-export GHC_DEBUG=1
-
-# Ensure stack protection is disabled for all tools
-export CFLAGS="${CFLAGS} -fno-stack-protector -fno-stack-check"
-export CXXFLAGS="${CXXFLAGS} -fno-stack-protector -fno-stack-check"
-export LDFLAGS="${LDFLAGS} -fno-stack-protector"
 
 # Build stage1 GHC
 echo "*** Building stage1 GHC ***"
