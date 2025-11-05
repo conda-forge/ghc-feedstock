@@ -254,6 +254,24 @@ if [[ -f "${settings_file}" ]]; then
   perl -pi -e 's#-L\$topdir/../mingw//x86_64-w64-mingw32/lib#-L\$topdir/../../Library/bin -L\$topdir/../../Library/x86_64-w64-mingw32/sysroot/usr/lib -Wl,-rpath,\$topdir/../../Library/x86_64-w64-mingw32/sysroot/usr/lib#g' "${settings_file}"
   echo "=== Stage1 settings after patching ==="
   cat "${settings_file}" | grep -A1 "mingw\|C compiler\|LibFFI"
+
+  # Test if ghc.exe can actually run
+  echo "=== Testing Stage1 ghc.exe ==="
+  ghc_exe="${_SRC_DIR}/_build/stage1/bin/ghc.exe"
+  if [[ -f "${ghc_exe}" ]]; then
+    echo "Running: ${ghc_exe} --version"
+    "${ghc_exe}" --version 2>&1 || {
+      exit_code=$?
+      echo "ERROR: ghc.exe failed with exit code ${exit_code}"
+      echo "Trying with --numeric-version:"
+      "${ghc_exe}" --numeric-version 2>&1 || echo "ERROR: --numeric-version also failed"
+      echo "Trying with --info:"
+      "${ghc_exe}" --info 2>&1 || echo "ERROR: --info also failed"
+      echo "Build will likely fail at stage2:lib:ghc configuration"
+    }
+  else
+    echo "WARNING: ghc.exe not found at ${ghc_exe}"
+  fi
 else
   echo "WARNING: Stage1 settings file not found at ${settings_file}"
 fi
