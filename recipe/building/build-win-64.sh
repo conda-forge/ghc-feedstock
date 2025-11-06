@@ -252,8 +252,13 @@ if [[ -f "${settings_file}" ]]; then
   perl -pi -e 's#-I\$topdir/../mingw//include#-I\$topdir/../../Library/include#g' "${settings_file}"
   perl -pi -e 's#-L\$topdir/../mingw//lib#-L\$topdir/../../Library/lib#g' "${settings_file}"
   perl -pi -e 's#-L\$topdir/../mingw//x86_64-w64-mingw32/lib#-L\$topdir/../../Library/bin -L\$topdir/../../Library/x86_64-w64-mingw32/sysroot/usr/lib -Wl,-rpath,\$topdir/../../Library/x86_64-w64-mingw32/sysroot/usr/lib#g' "${settings_file}"
-  echo "=== Stage1 settings after patching ==="
-  cat "${settings_file}" | grep -A1 "mingw\|C compiler\|LibFFI"
+
+  # Fix "32 bit pseudo relocation out of range" error by using high image base
+  perl -pi -e 's#("ld flags", ")("")#$1-Wl,--default-image-base-high$2#' "${settings_file}"
+  perl -pi -e 's#("C compiler link flags", ")("")#$1-Wl,--default-image-base-high$2#' "${settings_file}"
+
+  echo "=== Stage1 settings after patching (COMPLETE FILE) ==="
+  cat "${settings_file}"
 
   # Test if ghc.exe can actually run
   echo "=== Testing Stage1 ghc.exe ==="
