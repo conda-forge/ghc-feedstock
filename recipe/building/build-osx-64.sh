@@ -88,7 +88,8 @@ pushd "${SRC_DIR}"/hadrian
 popd
 
 # run_and_log "stage1_exe" "${_hadrian_build[@]}" stage1:exe:ghc-bin --flavour=release --docs=none --progress-info=none
-"${_hadrian_build[@]}" stage1 -V --flavour=quickest --docs=none --progress-info=none
+"${_hadrian_build[@]}" stage1:exe:ghc-bin -V --flavour=quickest --docs=none --progress-info=none
+"${_hadrian_build[@]}" stage1:lib -V --flavour=quickest --docs=none --progress-info=none
 
 settings_file="${SRC_DIR}"/_build/stage0/lib/settings
 # update_settings_link_flags "${settings_file}"
