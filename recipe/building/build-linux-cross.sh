@@ -81,10 +81,11 @@ export LD_STAGE0="${BUILD_PREFIX}/bin/${conda_host}-ld"
 
 # PowerPC 64-bit little-endian: CRITICAL - Must use ABI v2
 # Add -mabi=elfv2 to CFLAGS/CXXFLAGS BEFORE configure to ensure it's baked into settings
+# Also define powerpc64le_HOST_ARCH and linux_HOST_OS so StgCRunAsm.S compiles the ppc64le implementation
 if [[ "${target_arch}" == "ppc64le" ]]; then
-  export CFLAGS="${CFLAGS:-} -mabi=elfv2"
-  export CXXFLAGS="${CXXFLAGS:-} -mabi=elfv2"
-  echo "PowerPC64LE detected: Added -mabi=elfv2 to CFLAGS/CXXFLAGS"
+  export CFLAGS="${CFLAGS:-} -mabi=elfv2 -Dpowerpc64le_HOST_ARCH -Dlinux_HOST_OS"
+  export CXXFLAGS="${CXXFLAGS:-} -mabi=elfv2 -Dpowerpc64le_HOST_ARCH -Dlinux_HOST_OS"
+  echo "PowerPC64LE detected: Added -mabi=elfv2 -Dpowerpc64le_HOST_ARCH -Dlinux_HOST_OS to CFLAGS/CXXFLAGS"
 fi
 
 export ac_cv_func_statx=no
@@ -93,18 +94,31 @@ export ac_cv_lib_ffi_ffi_call=yes
 export ac_cv_func_posix_spawn_file_actions_addchdir_np=no
 run_and_log "configure" ./configure -v "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}" || { cat config.log; exit 1; }
 
-# PowerPC: Patch TARGET config files to add -mabi=elfv2
+# PowerPC: Patch TARGET config files to add -mabi=elfv2 and architecture macros
 # GHC 9.10.2 has use-ghc-toolchain=NO, so it uses default.target, not .ghc-toolchain
 # CRITICAL: Only patch TARGET config (default.target), NOT HOST config (default.host.target)
 # The host.target is for BUILD platform (x86_64), not TARGET platform (ppc64le)
 if [[ "${target_arch}" == "ppc64le" || "${target_arch}" == "powerpc64le" ]]; then
   for config_file in "${SRC_DIR}"/hadrian/cfg/default.target "${SRC_DIR}"/hadrian/cfg/*.ghc-toolchain; do
     if [[ -f "${config_file}" ]]; then
-      echo "Patching ${config_file} to add -mabi=elfv2"
-      # Add -mabi=elfv2 before -Qunused-arguments in prgFlags
-      perl -pi -e 's/"-Qunused-arguments"/"-mabi=elfv2","-Qunused-arguments"/g' "${config_file}"
+      echo "Patching ${config_file} to add -mabi=elfv2 and -Dpowerpc64le_HOST_ARCH"
+      # Add -mabi=elfv2 and architecture macros before -Qunused-arguments in prgFlags
+      perl -pi -e 's/"-Qunused-arguments"/"-mabi=elfv2","-Dpowerpc64le_HOST_ARCH","-Dlinux_HOST_OS","-Qunused-arguments"/g' "${config_file}"
     fi
   done
+
+  # CRITICAL: Patch ghcplatform.h to add powerpc64le_HOST_ARCH macro
+  # GHC's configure only defines powerpc64_HOST_ARCH (generic 64-bit PowerPC)
+  # But StgCRunAsm.S requires powerpc64le_HOST_ARCH (little-endian specific) to compile ppc64le code
+  # Without this, StgRun symbol is undefined because StgCRunAsm.S skips ppc64le implementation
+  echo "Patching ghcplatform.h to add powerpc64le_HOST_ARCH macro for stage1 RTS"
+  ghcplatform_stage1="${SRC_DIR}/_build/stage1/rts/build/include/ghcplatform.h"
+  if [[ -f "${ghcplatform_stage1}" ]]; then
+    perl -pi -e 's/(#define powerpc64_HOST_ARCH\s+1)/$1\n#define powerpc64le_HOST_ARCH  1/' "${ghcplatform_stage1}"
+    echo "Successfully patched ${ghcplatform_stage1}"
+  else
+    echo "WARNING: ${ghcplatform_stage1} not found - will be generated during RTS configure"
+  fi
 fi
 
 # Fix host configuration to use x86_64, target cross
@@ -176,6 +190,26 @@ echo "=== END DEBUG ==="
 "${_hadrian_build[@]}" stage1:lib:ghc -VV --flavour=quickest --docs=none --progress-info=none
 # run_and_log "stage1_lib" "${_hadrian_build[@]}" stage1:lib:ghc -VV --flavour=quickest --docs=none --progress-info=none
 update_linux_link_flags "${settings_file}"
+
+# PowerPC: Patch ghcplatform.h AFTER stage1 RTS configure (runs during stage1:lib:ghc)
+if [[ "${target_arch}" == "ppc64le" || "${target_arch}" == "powerpc64le" ]]; then
+  echo "Post-stage1: Patching ghcplatform.h to add powerpc64le_HOST_ARCH macro"
+  ghcplatform_stage1="${SRC_DIR}/_build/stage1/rts/build/include/ghcplatform.h"
+  if [[ -f "${ghcplatform_stage1}" ]]; then
+    # Check if already patched
+    if grep -q "^#define powerpc64le_HOST_ARCH" "${ghcplatform_stage1}"; then
+      echo "ghcplatform.h already has powerpc64le_HOST_ARCH macro"
+    else
+      perl -pi -e 's/(#define powerpc64_HOST_ARCH\s+1)/$1\n#define powerpc64le_HOST_ARCH  1/' "${ghcplatform_stage1}"
+      echo "Successfully patched ${ghcplatform_stage1}"
+      # Verify the patch
+      grep -A1 "powerpc64_HOST_ARCH" "${ghcplatform_stage1}" || echo "WARNING: Patch may have failed"
+    fi
+  else
+    echo "ERROR: ${ghcplatform_stage1} not found after stage1:lib:ghc build!"
+    exit 1
+  fi
+fi
 
 # ---| Stage 2: Cross-compiled bin/libs |---
 

@@ -1,32 +1,24 @@
 --- a/rts/StgCRun.c
 +++ b/rts/StgCRun.c
-@@ -530,6 +530,12 @@ StgRunIsImplementedInAssembler(void)
-
- #if defined(powerpc64_HOST_ARCH)
- /* 64-bit PowerPC ELF ABI 1.9
-+ *
-+ * IMPORTANT: This code is for ABI v1 (big-endian) ONLY!
-+ * PowerPC64 little-endian (ppc64le) uses ABI v2 which does NOT have .opd sections.
-+ * When compiling for ppc64le with -mabi=elfv2, _CALL_ELF is defined as 2.
-+ * We check _CALL_ELF != 2 to ensure .opd code is only used for big-endian ABI v1.
-+ * For ppc64le (ABI v2), the implementation is in StgCRunAsm.S instead.
-  *
-  * Stack frame organization (see Figure 3-17, ELF ABI 1.9, p 14)
-  *
-@@ -553,6 +559,8 @@ StgRunIsImplementedInAssembler(void)
-  * the TOC pointer from the function descriptor upon a call to StgReturn.
-  * That TOC pointer is the same as the TOC pointer in StgRun.
-  */
-+#if !defined(_CALL_ELF) || _CALL_ELF != 2
-+// Only use .opd sections for ABI v1 (big-endian). ABI v2 (little-endian) uses StgCRunAsm.S
- static void STG_USED
- StgRunIsImplementedInAssembler(void)
- {
-@@ -650,6 +658,7 @@ StgRunIsImplementedInAssembler(void)
-                 "\tb _restfpr_14\n"
-         : : "i"((RESERVED_C_STACK_BYTES+288+15) & ~15 /*stack frame size*/));
- }
-+#endif // ABI v1 only
-
+@@ -673,6 +673,11 @@ StgRunIsImplementedInAssembler(void)
  #endif
 
+ #if defined(powerpc64_HOST_ARCH)
++#if !defined(_CALL_ELF) || _CALL_ELF != 2
++/*
++ * PowerPC64 ABI v1 (big-endian) - uses .opd sections for function descriptors
++ * For ppc64le (ABI v2, _CALL_ELF==2), skip this section and use StgCRunAsm.S
++ */
+ /* 64-bit PowerPC ELF ABI 1.9
+  *
+  * Stack frame organization (see Figure 3-17, ELF ABI 1.9, p 14)
+@@ -736,7 +741,8 @@ StgRunIsImplementedInAssembler(void)
+         : : "i"((RESERVED_C_STACK_BYTES+288+15) & ~15 /*stack frame size*/));
+ }
+
+-#endif
++#endif /* !defined(_CALL_ELF) || _CALL_ELF != 2 */
++#endif /* powerpc64_HOST_ARCH */
+
+ #if defined(powerpc64le_HOST_ARCH)
+ /* -----------------------------------------------------------------------------
