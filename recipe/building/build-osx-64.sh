@@ -35,8 +35,6 @@ export CABAL_DIR="${SRC_DIR}/.cabal"
 mkdir -p "${CABAL_DIR}" && "${CABAL}" user-config init
 run_and_log "cabal-update" "${CABAL}" v2-update
 
-_hadrian_build=("${SRC_DIR}"/hadrian/build "-j${CPU_COUNT}")
-
 # Configure and build GHC
 SYSTEM_CONFIG=(
   --build="x86_64-apple-darwin13.4.0"
@@ -87,9 +85,12 @@ pushd "${SRC_DIR}"/hadrian
   fi
 popd
 
+_hadrian_bin=$(find "${SRC_DIR}"/hadrian/dist-newstyle/build -name hadrian -type f | head -1)
+_hadrian_build=("${_hadrian_bin}" "-j2" "--directory" "${SRC_DIR}")
+
 # run_and_log "stage1_exe" "${_hadrian_build[@]}" stage1:exe:ghc-bin --flavour=release --docs=none --progress-info=none
-"${_hadrian_build[@]}" stage1:exe:ghc-bin -V --flavour=quickest --docs=none --progress-info=none
-"${_hadrian_build[@]}" stage1:lib -V --flavour=quickest --docs=none --progress-info=none
+"${_hadrian_build[@]}" stage1:exe:ghc-bin -V --flavour=release --docs=none --progress-info=none
+"${_hadrian_build[@]}" stage1:lib:ghc -V --flavour=release --docs=none --progress-info=none
 
 settings_file="${SRC_DIR}"/_build/stage0/lib/settings
 # update_settings_link_flags "${settings_file}"
