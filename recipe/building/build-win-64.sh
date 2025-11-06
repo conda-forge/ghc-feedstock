@@ -254,8 +254,8 @@ if [[ -f "${settings_file}" ]]; then
   perl -pi -e 's#-L\$topdir/../mingw//x86_64-w64-mingw32/lib#-L\$topdir/../../Library/bin -L\$topdir/../../Library/x86_64-w64-mingw32/sysroot/usr/lib -Wl,-rpath,\$topdir/../../Library/x86_64-w64-mingw32/sysroot/usr/lib#g' "${settings_file}"
 
   # Fix "32 bit pseudo relocation out of range" error by using high image base
-  perl -pi -e 's#("ld flags", ")("")#$1-Wl,--default-image-base-high$2#' "${settings_file}"
-  perl -pi -e 's#("C compiler link flags", ")("")#$1-Wl,--default-image-base-high$2#' "${settings_file}"
+  perl -pi -e 's#("ld flags", "")#("ld flags", "-Wl,--default-image-base-high")#' "${settings_file}"
+  perl -pi -e 's#("C compiler link flags", "")#("C compiler link flags", "-Wl,--default-image-base-high")#' "${settings_file}"
 
   echo "=== Stage1 settings after patching (COMPLETE FILE) ==="
   cat "${settings_file}"
