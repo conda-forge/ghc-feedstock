@@ -75,24 +75,34 @@ run_and_log "configure" ./configure "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}"
 set_macos_conda_ar_ranlib "${SRC_DIR}"/hadrian/cfg/default.host.target "${CONDA_TOOLCHAIN_BUILD}"
 set_macos_conda_ar_ranlib "${SRC_DIR}"/hadrian/cfg/default.target "${CONDA_TOOLCHAIN_BUILD}"
 
-cat "${SRC_DIR}"/hadrian/cfg/default.host.target
-echo "TARGET"
-cat "${SRC_DIR}"/hadrian/cfg/default.target
+pushd "${SRC_DIR}"/hadrian
+  "${CABAL}" v2-build -j hadrian 2>&1 | tee "${SRC_DIR}"/cabal-verbose.log
+  _cabal_exit_code=${PIPESTATUS[0]}
 
-run_and_log "stage1_exe" "${_hadrian_build[@]}" stage1:exe:ghc-bin --flavour=release --docs=none --progress-info=none
+  if [[ $_cabal_exit_code -ne 0 ]]; then
+    echo "=== Cabal build FAILED with exit code ${_cabal_exit_code} ==="
+    exit 1
+  else
+    echo "=== Cabal build SUCCEEDED ==="
+  fi
+popd
+
+# run_and_log "stage1_exe" "${_hadrian_build[@]}" stage1:exe:ghc-bin --flavour=release --docs=none --progress-info=none
+"${_hadrian_build[@]}" stage1 -V --flavour=quickest --docs=none --progress-info=none
 
 settings_file="${SRC_DIR}"/_build/stage0/lib/settings
-update_settings_link_flags "${settings_file}"
-set_macos_conda_ar_ranlib "${settings_file}" "${CONDA_TOOLCHAIN_BUILD}"
+# update_settings_link_flags "${settings_file}"
+# set_macos_conda_ar_ranlib "${settings_file}" "${CONDA_TOOLCHAIN_BUILD}"
 
-run_and_log "stage1_lib" "${_hadrian_build[@]}" stage1:lib:ghc --flavour=release --docs=none --progress-info=none
-update_settings_link_flags "${settings_file}"
-set_macos_conda_ar_ranlib "${settings_file}" "${CONDA_TOOLCHAIN_BUILD}"
+# run_and_log "stage1_lib" "${_hadrian_build[@]}" stage1:lib:ghc --flavour=release --docs=none --progress-info=none
+# update_settings_link_flags "${settings_file}"
+# set_macos_conda_ar_ranlib "${settings_file}" "${CONDA_TOOLCHAIN_BUILD}"
 
-run_and_log "stage2_exe" "${_hadrian_build[@]}" stage2:exe:ghc-bin --flavour=release --freeze1 --docs=none --progress-info=none
-update_settings_link_flags "${SRC_DIR}"/_build/stage1/lib/settings
+# run_and_log "stage2_exe" "${_hadrian_build[@]}" stage2:exe:ghc-bin --flavour=release --freeze1 --docs=none --progress-info=none
+# update_settings_link_flags "${SRC_DIR}"/_build/stage1/lib/settings
 
-run_and_log "stage2_lib" "${_hadrian_build[@]}" stage2:lib:ghc --flavour=release --freeze1 --docs=none --progress-info=none
+# run_and_log "stage2_lib" "${_hadrian_build[@]}" stage2:lib:ghc --flavour=release --freeze1 --docs=none --progress-info=none
+"${_hadrian_build[@]}" stage2 -V --flavour=release --freeze1 --docs=none --progress-info=none
 run_and_log "install" "${_hadrian_build[@]}" install --prefix="${PREFIX}" --flavour=release --freeze1 --freeze2 --docs=none --progress-info=none
 
 update_installed_settings
