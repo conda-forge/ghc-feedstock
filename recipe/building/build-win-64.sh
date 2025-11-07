@@ -182,23 +182,14 @@ export CABFLAGS="--with-compiler=${GHC} --ghc-options=-optc-fno-stack-protector 
 # Enable debugging mode for more verbose output
 # export GHC_DEBUG=1
 
-# Also ensure stack protection is disabled for all stages
 # Add high image base for Windows to avoid pseudo relocation errors
 # NOTE: Hadrian looks for this file at <build-root>/hadrian.settings (default: _build/hadrian.settings)
+# Keep this minimal - only critical linker flags needed to fix relocation error
 mkdir -p ${_SRC_DIR}/_build
 cat > ${_SRC_DIR}/_build/hadrian.settings << EOF
-stage1.*.cabal.configure.opts += --verbose=3 --with-compiler="${GHC}"
-stage1.*.cc.c.opts += -fno-stack-protector -fno-stack-check
-stage1.*.cc.cpp.opts += -fno-stack-protector -fno-stack-check
-stage1.*.ghc.c.opts += -optc-fno-stack-protector -optc-fno-stack-check
-stage1.*.ghc.cpp.opts += -optcxx-fno-stack-protector -optcxx-fno-stack-check
 stage1.ghc-bin.ghc.link.opts += -optl-Wl,--default-image-base-high
 stage1.ghc-pkg.ghc.link.opts += -optl-Wl,--default-image-base-high
 stage1.hsc2hs.ghc.link.opts += -optl-Wl,--default-image-base-high
-stage0.*.cc.c.opts += -fno-stack-protector -fno-stack-check
-stage0.*.cc.cpp.opts += -fno-stack-protector -fno-stack-check
-stage0.*.ghc.c.opts += -optc-fno-stack-protector -optc-fno-stack-check
-stage0.*.ghc.cpp.opts += -optcxx-fno-stack-protector -optcxx-fno-stack-check
 EOF
 
 # Build stage1 GHC
