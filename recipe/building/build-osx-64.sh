@@ -89,8 +89,8 @@ _hadrian_bin=$(find "${SRC_DIR}"/hadrian/dist-newstyle/build -name hadrian -type
 _hadrian_build=("${_hadrian_bin}" "-j2" "--directory" "${SRC_DIR}")
 
 # run_and_log "stage1_exe" "${_hadrian_build[@]}" stage1:exe:ghc-bin --flavour=release --docs=none --progress-info=none
-"${_hadrian_build[@]}" stage1:exe:ghc-bin -V --flavour=release --docs=none --progress-info=none
-"${_hadrian_build[@]}" stage1:lib:ghc -V --flavour=release --docs=none --progress-info=none
+"${_hadrian_build[@]}" stage1:exe:ghc-bin -V --flavour=quickest --docs=none --progress-info=none
+"${_hadrian_build[@]}" stage1:lib:ghc -V --flavour=quickest --docs=none --progress-info=none
 
 settings_file="${SRC_DIR}"/_build/stage0/lib/settings
 # update_settings_link_flags "${settings_file}"
@@ -104,8 +104,9 @@ settings_file="${SRC_DIR}"/_build/stage0/lib/settings
 # update_settings_link_flags "${SRC_DIR}"/_build/stage1/lib/settings
 
 # run_and_log "stage2_lib" "${_hadrian_build[@]}" stage2:lib:ghc --flavour=release --freeze1 --docs=none --progress-info=none
-"${_hadrian_build[@]}" stage2 -V --flavour=release --freeze1 --docs=none --progress-info=none
-run_and_log "install" "${_hadrian_build[@]}" install --prefix="${PREFIX}" --flavour=release --freeze1 --freeze2 --docs=none --progress-info=none
+"${_hadrian_build[@]}" stage2:exe:ghc-bin -V --flavour=release+no_profiled_libs --freeze1 --docs=none --progress-info=none
+"${_hadrian_build[@]}" stage2:lib:ghc -V --flavour=release+no_profiled_libs --freeze1 --docs=none --progress-info=none
+run_and_log "install" "${_hadrian_build[@]}" install --prefix="${PREFIX}" --flavour=release+no_profiled_libs --freeze1 --freeze2 --docs=none --progress-info=none
 
 update_installed_settings
 set_macos_conda_ar_ranlib "${settings_file}" "${CONDA_TOOLCHAIN_BUILD}"
