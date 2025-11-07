@@ -184,7 +184,9 @@ export CABFLAGS="--with-compiler=${GHC} --ghc-options=-optc-fno-stack-protector 
 
 # Also ensure stack protection is disabled for all stages
 # Add high image base for Windows to avoid pseudo relocation errors
-cat > ${_SRC_DIR}/hadrian/hadrian.settings << EOF
+# NOTE: Hadrian looks for this file at <build-root>/hadrian.settings (default: _build/hadrian.settings)
+mkdir -p ${_SRC_DIR}/_build
+cat > ${_SRC_DIR}/_build/hadrian.settings << EOF
 stage1.*.cabal.configure.opts += --verbose=3 --with-compiler="${GHC}"
 stage1.*.cc.c.opts += -fno-stack-protector -fno-stack-check
 stage1.*.cc.cpp.opts += -fno-stack-protector -fno-stack-check
