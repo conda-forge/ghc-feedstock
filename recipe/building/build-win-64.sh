@@ -184,12 +184,13 @@ export CABFLAGS="--with-compiler=${GHC} --ghc-options=-optc-fno-stack-protector 
 
 # Add high image base for Windows to avoid pseudo relocation errors
 # NOTE: Hadrian looks for this file at <build-root>/hadrian.settings (default: _build/hadrian.settings)
-# Keep this minimal - only critical linker flags needed to fix relocation error
+# Use --image-base=0x180000000 to set high base address and avoid 32-bit relocation overflow
+# This is the standard high image base for large x64 executables on Windows
 mkdir -p ${_SRC_DIR}/_build
 cat > ${_SRC_DIR}/_build/hadrian.settings << EOF
-stage1.ghc-bin.ghc.link.opts += -optl-Wl,--default-image-base-high
-stage1.ghc-pkg.ghc.link.opts += -optl-Wl,--default-image-base-high
-stage1.hsc2hs.ghc.link.opts += -optl-Wl,--default-image-base-high
+stage1.ghc-bin.ghc.link.opts += -optl-Wl,--image-base=0x180000000
+stage1.ghc-pkg.ghc.link.opts += -optl-Wl,--image-base=0x180000000
+stage1.hsc2hs.ghc.link.opts += -optl-Wl,--image-base=0x180000000
 EOF
 
 # Build stage1 GHC
@@ -251,8 +252,9 @@ if [[ -f "${settings_file}" ]]; then
   perl -pi -e 's#-L\$topdir/../mingw//x86_64-w64-mingw32/lib#-L\$topdir/../../Library/bin -L\$topdir/../../Library/x86_64-w64-mingw32/sysroot/usr/lib -Wl,-rpath,\$topdir/../../Library/x86_64-w64-mingw32/sysroot/usr/lib#g' "${settings_file}"
 
   # Fix "32 bit pseudo relocation out of range" error by using high image base
-  perl -pi -e 's#("ld flags", "")#("ld flags", "-Wl,--default-image-base-high")#' "${settings_file}"
-  perl -pi -e 's#("C compiler link flags", "")#("C compiler link flags", "-Wl,--default-image-base-high")#' "${settings_file}"
+  # Use --image-base=0x180000000 for standard high base address on x64 Windows
+  perl -pi -e 's#("ld flags", "")#("ld flags", "-Wl,--image-base=0x180000000")#' "${settings_file}"
+  perl -pi -e 's#("C compiler link flags", "")#("C compiler link flags", "-Wl,--image-base=0x180000000")#' "${settings_file}"
 
   echo "=== Stage1 settings after patching (COMPLETE FILE) ==="
   cat "${settings_file}"
