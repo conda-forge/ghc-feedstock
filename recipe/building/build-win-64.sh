@@ -190,12 +190,13 @@ stage1.*.cc.c.opts += -fno-stack-protector -fno-stack-check
 stage1.*.cc.cpp.opts += -fno-stack-protector -fno-stack-check
 stage1.*.ghc.c.opts += -optc-fno-stack-protector -optc-fno-stack-check
 stage1.*.ghc.cpp.opts += -optcxx-fno-stack-protector -optcxx-fno-stack-check
-stage1.*.ghc.hs.opts += -optl-Wl,--default-image-base-high
+stage1.ghc-bin.ghc.link.opts += -optl-Wl,--default-image-base-high
+stage1.ghc-pkg.ghc.link.opts += -optl-Wl,--default-image-base-high
+stage1.hsc2hs.ghc.link.opts += -optl-Wl,--default-image-base-high
 stage0.*.cc.c.opts += -fno-stack-protector -fno-stack-check
 stage0.*.cc.cpp.opts += -fno-stack-protector -fno-stack-check
 stage0.*.ghc.c.opts += -optc-fno-stack-protector -optc-fno-stack-check
 stage0.*.ghc.cpp.opts += -optcxx-fno-stack-protector -optcxx-fno-stack-check
-stage0.*.ghc.hs.opts += -optl-Wl,--default-image-base-high
 EOF
 
 # Build stage1 GHC
