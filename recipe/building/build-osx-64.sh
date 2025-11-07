@@ -93,8 +93,8 @@ _hadrian_build=("${_hadrian_bin}" "-j${CPU_COUNT}" "--directory" "${SRC_DIR}")
 "${_hadrian_build[@]}" stage1:lib:ghc -V --flavour=release+no_profiled_libs --docs=none --progress-info=none
 
 settings_file="${SRC_DIR}"/_build/stage0/lib/settings
-# update_settings_link_flags "${settings_file}"
-# set_macos_conda_ar_ranlib "${settings_file}" "${CONDA_TOOLCHAIN_BUILD}"
+update_settings_link_flags "${settings_file}"
+set_macos_conda_ar_ranlib "${settings_file}" "${CONDA_TOOLCHAIN_BUILD}"
 
 # run_and_log "stage1_lib" "${_hadrian_build[@]}" stage1:lib:ghc --flavour=release+no_profiled_libs --docs=none --progress-info=none
 # update_settings_link_flags "${settings_file}"
