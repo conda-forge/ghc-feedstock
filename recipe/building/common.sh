@@ -138,6 +138,15 @@ update_installed_settings() {
   elif [[ "${target_platform}" == "osx-"* ]]; then
     perl -i -pe "s#(C compiler flags\", \")([^\"]*)#\1\2 -fno-lto#" "${settings_file}"
     perl -i -pe "s#(C\\+\\+ compiler flags\", \")([^\"]*)#\1\2 -fno-lto#" "${settings_file}"
+
+    # CRITICAL FIX: Remove dangerous macOS-specific linker flags that cause runtime crashes
+    # -undefined dynamic_lookup: Causes "strange closure type 0" errors because closure info tables
+    #                            may not be properly linked, leading to uninitialized type tags (GC reads type=0)
+    # -dead_strip: May incorrectly remove closure info tables that linker thinks are "unused"
+    # These flags are added by GHC's default macOS configuration but are incompatible with GHC's closure model
+    perl -i -pe "s#-undefined\\s+dynamic_lookup##g" "${settings_file}"
+    perl -i -pe "s#-dead_strip(_dylibs)?##g" "${settings_file}"
+
     perl -i -pe "s#(C compiler link flags\", \")([^\"]*)#\1\2 -v -fuse-ld=lld -fno-lto -fno-use-linker-plugin -Wl,-L\\\$topdir/../../../lib -Wl,-rpath,\\\$topdir/../../../lib -liconv -Wl,-L\\\$topdir/../lib -Wl,-rpath,\\\$topdir/../lib -liconv_compat#" "${settings_file}"
   fi
   

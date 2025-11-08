@@ -16,14 +16,13 @@ source:
       - if: not unix
         then:
           - patches/skip-mingw-copy-conda.patch
-          # - patches/fix-ghc-bignum-intree-gmp-check.patch
           - patches/force-system-gmp-windows.patch
           - patches/add-ffi-include-dir-substitution.patch
           - patches/debug-findcdependencies.patch
-      # - if: osx and arm64
-      #   then:
-      #     - patches/patch-rpath-macos.patch
-      #     - patches/patch-osname-macos.patch
+      - if: osx and arm64
+        then:
+          # - patches/patch-rpath-macos.patch
+          - patches/patch-osname-macos.patch
 
 build:
   number: 0
@@ -115,12 +114,24 @@ tests:
           else:
             - lib/ghc-${{ version }}/lib/*-ghc-${{ version }}/**
 
+  - script:
+      - if: osx
+        then: |
+          # Diagnostic test for linker flag issues
+          bash test-linker-flags.sh
+    files:
+      source:
+        - test-linker-flags.sh
+    requirements:
+      run:
+        - ${{ compiler('c') }}
+        - lld ${{ c_compiler_version }}.*
+      
   - script: |
       ghc --version
       printf 'main = putStrLn "Hello conda-forge"\n' > hello.hs
       ghc hello.hs -o hello
       nm hello | grep -E "Main.*closure" | head -20 || true
-      ghc -ddump-simpl hello.hs 2>&1 | grep -i closure || true
       nm hello | grep " b " | grep closure  # 'b' = uninitialized data section || true
       ./hello +RTS -c -RTS || true
       ./hello +RTS -G1 -H32m -RTS || true
