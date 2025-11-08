@@ -187,9 +187,9 @@ export CABFLAGS="--with-compiler=${GHC} --ghc-options=-optc-fno-stack-protector 
 # Use high image base (0x180000000) to reduce distance between executable and DLLs
 mkdir -p ${_SRC_DIR}/_build
 cat > ${_SRC_DIR}/_build/hadrian.settings << EOF
-stage1.ghc-bin.ghc.link.opts += -optl-Wl,--image-base=0x180000000
-stage1.ghc-pkg.ghc.link.opts += -optl-Wl,--image-base=0x180000000
-stage1.hsc2hs.ghc.link.opts += -optl-Wl,--image-base=0x180000000
+stage1.ghc-bin.ghc.link.opts += -optl-Wl,--image-base=0x180000000,--disable-dynamicbase
+stage1.ghc-pkg.ghc.link.opts += -optl-Wl,--image-base=0x180000000,--disable-dynamicbase
+stage1.hsc2hs.ghc.link.opts += -optl-Wl,--image-base=0x180000000,--disable-dynamicbase
 EOF
 
 # Build stage1 GHC
@@ -250,8 +250,8 @@ if [[ -f "${settings_file}" ]]; then
   perl -pi -e 's#-L\$topdir/../mingw//lib#-L\$topdir/../../Library/lib#g' "${settings_file}"
   perl -pi -e 's#-L\$topdir/../mingw//x86_64-w64-mingw32/lib#-L\$topdir/../../Library/bin -L\$topdir/../../Library/x86_64-w64-mingw32/sysroot/usr/lib -Wl,-rpath,\$topdir/../../Library/x86_64-w64-mingw32/sysroot/usr/lib#g' "${settings_file}"
 
-  perl -pi -e 's#(ld flags", ")#\1-Wl,--image-base=0x180000000 #' "${settings_file}"
-  perl -pi -e 's#(C compiler link flags", ")#\1-Wl,--image-base=0x180000000 #' "${settings_file}"
+  perl -pi -e 's#(ld flags", ")#\1-Wl,--image-base=0x180000000,--disable-dynamicbase #' "${settings_file}"
+  perl -pi -e 's#(C compiler link flags", ")#\1-Wl,--image-base=0x180000000,--disable-dynamicbase #' "${settings_file}"
 
   echo "=== Stage1 settings after patching (COMPLETE FILE) ==="
   cat "${settings_file}"
