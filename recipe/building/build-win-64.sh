@@ -182,15 +182,15 @@ export CABFLAGS="--with-compiler=${GHC} --ghc-options=-optc-fno-stack-protector 
 # Enable debugging mode for more verbose output
 # export GHC_DEBUG=1
 
-# Add high image base for Windows to avoid pseudo relocation errors
+# Fix MinGW-w64 pseudo relocation errors on Windows
 # NOTE: Hadrian looks for this file at <build-root>/hadrian.settings (default: _build/hadrian.settings)
-# Use --image-base=0x180000000 to set high base address and avoid 32-bit relocation overflow
-# This is the standard high image base for large x64 executables on Windows
+# Problem: 32-bit relocations overflow when DLLs load far from executable (0x18... vs 0x7FFB...)
+# Solution: Try enabling auto-import and disabling problematic optimizations
 mkdir -p ${_SRC_DIR}/_build
 cat > ${_SRC_DIR}/_build/hadrian.settings << EOF
-stage1.ghc-bin.ghc.link.opts += -optl-Wl,--image-base=0x180000000
-stage1.ghc-pkg.ghc.link.opts += -optl-Wl,--image-base=0x180000000
-stage1.hsc2hs.ghc.link.opts += -optl-Wl,--image-base=0x180000000
+stage1.ghc-bin.ghc.link.opts += -optl-Wl,--enable-auto-import
+stage1.ghc-pkg.ghc.link.opts += -optl-Wl,--enable-auto-import
+stage1.hsc2hs.ghc.link.opts += -optl-Wl,--enable-auto-import
 EOF
 
 # Build stage1 GHC
