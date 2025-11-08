@@ -8,14 +8,16 @@ source "${RECIPE_DIR}"/building/common.sh
 conda_host="${build_alias}"
 conda_target="${host_alias}"
 
-host_arch="${conda_host%%-*}"
-target_arch="${conda_target%%-*}"
+# Try using the conda environment vars again
+# host_arch="${conda_host%%-*}"
+# target_arch="${conda_target%%-*}"
 
-ghc_host="${conda_host/darwin*/darwin}"
-ghc_target="${conda_target/darwin*/darwin}"
+# ghc_host="${conda_host/darwin*/darwin}"
+# ghc_target="${conda_target/darwin*/darwin}"
 
-export build_alias="${conda_host}"
-export host_alias="${conda_host}"
+# export build_alias="${conda_host}"
+# export host_alias="${conda_host}"
+
 export target_alias="${conda_target}"
 export host_platform="${build_platform}"
 
@@ -51,7 +53,9 @@ export LD_STAGE0="${BUILD_PREFIX}/bin/${conda_host}-ld"
 export AS_STAGE0="${BUILD_PREFIX}/bin/${conda_host}-as"
 
 SYSTEM_CONFIG=(
-  --target="${target_alias}"
+  --build="${build_alias}"
+  --host="${build_alias}"
+  --target="${host_alias}"
   --prefix="${PREFIX}"
 )
 
@@ -86,26 +90,6 @@ CONFIGURE_ARGS=(
 
 (
   run_and_log "configure" ./configure -v "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}" || { cat config.log; exit 1; }
-
-  # DEBUG: Show ALL Hadrian config files to diagnose CFLAGS/toolchain issue
-  echo "=========================================="
-  echo "=== DEBUG: ALL HADRIAN CONFIG FILES ==="
-  echo "=========================================="
-
-  for file in "${SRC_DIR}"/hadrian/cfg/*; do
-    if [[ -f "${file}" ]]; then
-      echo ""
-      echo "╔════════════════════════════════════════╗"
-      echo "║ FILE: ${file}"
-      echo "╚════════════════════════════════════════╝"
-      cat "${file}"
-      echo ""
-    fi
-  done
-
-  echo "=========================================="
-  echo "=== END DEBUG: ALL HADRIAN CONFIG FILES ==="
-  echo "=========================================="
 )
 
 # Fix default.host.target (defines host platform configuration)
@@ -185,28 +169,13 @@ _hadrian_build=("${_hadrian_bin}" "-j${CPU_COUNT}" "--directory" "${SRC_DIR}")
   
   perl -i -pe 's/\(True, s\) \| s > stage0InTree ->/\(False, s\) | s > stage0InTree \&\& False ->/' "${SRC_DIR}"/hadrian/src/Rules/Program.hs
   
-  set +e
-  run_and_log "stage1_ghc-bin" "${_hadrian_build[@]}" stage1:exe:ghc-bin --flavour=quickest --progress-info=none || true
-  set -e
-  
-  echo ".";echo ".";echo ".";echo ".";
-  rm -f "${SRC_DIR}"/_build/stageBoot/utils/hsc2hs/build/c/cbits/utils.o
-  ls -l "${BUILD_PREFIX}/bin/${conda_host}-clang"
-  ls -l "${BUILD_PREFIX}/bin/clang-19"
-  ls -l "${BUILD_PREFIX}/bin/${conda_host}-ld"
-  ls -l "${BUILD_PREFIX}/bin/ld"
-  "${BUILD_PREFIX}/bin/${conda_host}-clang" -v
-  "${BUILD_PREFIX}/bin/clang-19" -v
-  echo "${CFLAGS}"
-  echo "${CPPFLAGS}"
-  echo "${CXXFLAGS}"
-  "${_hadrian_build[@]}" stage1:exe:ghc-bin -VV --flavour=quickest --progress-info=unicorn
-  echo ".";echo ".";echo ".";echo ".";
-  run_and_log "stage1_ghc-pkg" "${_hadrian_build[@]}" stage1:exe:ghc-pkg --flavour=quickest --docs=none --progress-info=none
-  run_and_log "stage1_hsc2hs"  "${_hadrian_build[@]}" stage1:exe:hsc2hs --flavour=quickest --docs=none --progress-info=none
+  run_and_log "stage1_ghc-bin" "${_hadrian_build[@]}" stage1:exe:ghc-bin --flavour=release --progress-info=none || true
+  run_and_log "stage1_ghc-pkg" "${_hadrian_build[@]}" stage1:exe:ghc-pkg --flavour=release --docs=none --progress-info=none
+  run_and_log "stage1_hsc2hs"  "${_hadrian_build[@]}" stage1:exe:hsc2hs --flavour=release --docs=none --progress-info=none
 )
 
-"${SRC_DIR}"/_build/stage0/bin/arm64-apple-darwin20.0.0-ghc --version || { echo "Stage0 GHC failed to report version"; exit 1; }
+ghc=$(find "${SRC_DIR}"/_build/stage0/bin -name "*ghc" -type f | head -1)
+echo "${ghc}" && "${ghc}" --version || { echo "Stage0 GHC failed to report version"; exit 1; }
 
 # CRITICAL: Fix architecture defines in all generated config files before building libraries
 # The time library and others will generate setup-config files with wrong HOST_ARCH
@@ -220,6 +189,13 @@ done
 
 # 9.12+: export DYLD_INSERT_LIBRARIES="${BUILD_PREFIX}/lib/libiconv.dylib:${BUILD_PREFIX}/lib/libffi.dylib${DYLD_INSERT_LIBRARIES:+:}${DYLD_INSERT_LIBRARIES:-}"
 # export DYLD_INSERT_LIBRARIES="${BUILD_PREFIX}/lib/libiconv.dylib:${BUILD_PREFIX}/lib/libffi.dylib${DYLD_INSERT_LIBRARIES:+:}${DYLD_INSERT_LIBRARIES:-}"
+
+# CRITICAL FIX: Force RTS configure to use darwin not osx
+# autoconf's config.sub normalizes arm64-apple-darwin to aarch64-unknown-osx
+# but GHC's configure only recognizes "darwin" not "osx"
+export ac_cv_build="x86_64-apple-darwin13.4.0"
+export ac_cv_host="aarch64-apple-darwin20.0.0"
+
 run_and_log "stage1_lib" "${_hadrian_build[@]}" stage1:lib:ghc --flavour=release --docs=none --progress-info=none
 
 run_and_log "stage2_exe" "${_hadrian_build[@]}" stage2:exe:ghc-bin --flavour=release --freeze1 --docs=none --progress-info=none
