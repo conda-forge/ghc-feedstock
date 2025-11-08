@@ -19,10 +19,10 @@ source:
           - patches/force-system-gmp-windows.patch
           - patches/add-ffi-include-dir-substitution.patch
           - patches/debug-findcdependencies.patch
-      - if: osx and arm64
-        then:
-          # - patches/patch-rpath-macos.patch
-          - patches/patch-osname-macos.patch
+      # - if: osx and arm64
+      #   then:
+      #     # - patches/patch-rpath-macos.patch
+      #     - patches/patch-osname-macos.patch
 
 build:
   number: 0
