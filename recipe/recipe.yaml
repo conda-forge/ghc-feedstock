@@ -119,6 +119,7 @@ tests:
         then: |
           # Diagnostic test for linker flag issues
           bash test-linker-flags.sh
+        else: echo ""
     files:
       source:
         - test-linker-flags.sh
