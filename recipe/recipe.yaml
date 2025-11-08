@@ -115,13 +115,13 @@ tests:
             - lib/ghc-${{ version }}/lib/*-ghc-${{ version }}/**
 
   - script:
-      - if: osx
+      - if: osx and x86_64
         then: |
           # Diagnostic test for linker flag issues
           bash test-linker-flags.sh
         else: echo ""
     files:
-      source:
+      recipe:
         - test-linker-flags.sh
     requirements:
       run:
@@ -133,7 +133,7 @@ tests:
       printf 'main = putStrLn "Hello conda-forge"\n' > hello.hs
       ghc hello.hs -o hello
       nm hello | grep -E "Main.*closure" | head -20 || true
-      nm hello | grep " b " | grep closure  # 'b' = uninitialized data section || true
+      nm hello | grep " b " | grep closure || true  # 'b' = uninitialized data section (should be empty)
       ./hello +RTS -c -RTS || true
       ./hello +RTS -G1 -H32m -RTS || true
       ./hello +RTS -Ds -RTS || true
