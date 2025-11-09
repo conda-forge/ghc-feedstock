@@ -19,6 +19,10 @@ source:
           - patches/force-system-gmp-windows.patch
           - patches/add-ffi-include-dir-substitution.patch
           - patches/debug-findcdependencies.patch
+      - if: osx
+        then:
+          # Remove dangerous -dead_strip linker flags that cause runtime crashes
+          - patches/remove-dangerous-macos-linker-flags.patch
       # - if: osx and arm64
       #   then:
       #     # - patches/patch-rpath-macos.patch
