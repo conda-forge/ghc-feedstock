@@ -183,13 +183,13 @@ export CABFLAGS="--with-compiler=${GHC} --ghc-options=-optc-fno-stack-protector 
 # export GHC_DEBUG=1
 
 # Fix MinGW-w64 pseudo relocation errors on Windows
-# NOTE: Hadrian looks for this file at <build-root>/hadrian.settings (default: _build/hadrian.settings)
-# Use high image base (0x180000000) to reduce distance between executable and DLLs
+# Official GHC Windows builds use lld (LLVM linker) instead of GNU ld
+# This avoids the 32-bit pseudo relocation issues with large executables
 mkdir -p ${_SRC_DIR}/_build
 cat > ${_SRC_DIR}/_build/hadrian.settings << EOF
-stage1.ghc-bin.ghc.link.opts += -optl-Wl,--image-base=0x180000000,--disable-dynamicbase
-stage1.ghc-pkg.ghc.link.opts += -optl-Wl,--image-base=0x180000000,--disable-dynamicbase
-stage1.hsc2hs.ghc.link.opts += -optl-Wl,--image-base=0x180000000,--disable-dynamicbase
+stage1.ghc-bin.ghc.link.opts += -optl-fuse-ld=lld
+stage1.ghc-pkg.ghc.link.opts += -optl-fuse-ld=lld
+stage1.hsc2hs.ghc.link.opts += -optl-fuse-ld=lld
 EOF
 
 # Build stage1 GHC
@@ -250,8 +250,8 @@ if [[ -f "${settings_file}" ]]; then
   perl -pi -e 's#-L\$topdir/../mingw//lib#-L\$topdir/../../Library/lib#g' "${settings_file}"
   perl -pi -e 's#-L\$topdir/../mingw//x86_64-w64-mingw32/lib#-L\$topdir/../../Library/bin -L\$topdir/../../Library/x86_64-w64-mingw32/sysroot/usr/lib -Wl,-rpath,\$topdir/../../Library/x86_64-w64-mingw32/sysroot/usr/lib#g' "${settings_file}"
 
-  perl -pi -e 's#(ld flags", ")#\1-Wl,--image-base=0x180000000,--disable-dynamicbase #' "${settings_file}"
-  perl -pi -e 's#(C compiler link flags", ")#\1-Wl,--image-base=0x180000000,--disable-dynamicbase #' "${settings_file}"
+  perl -pi -e 's#(ld flags", ")#\1#' "${settings_file}"  # Keep empty, lld is set via C compiler flags
+  perl -pi -e 's#(C compiler link flags", ")#\1-fuse-ld=lld #' "${settings_file}"
 
   echo "=== Stage1 settings after patching (COMPLETE FILE) ==="
   cat "${settings_file}"

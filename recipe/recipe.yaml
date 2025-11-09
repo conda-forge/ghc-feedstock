@@ -131,7 +131,7 @@ tests:
           then: ${{ stdlib('c') }}
         - if: linux
           then: ld_impl_${{ target_platform }} ${{ binutils_version }}
-        - if: osx
+        - if: osx or not unix
           then: lld
 
   - script:
@@ -165,7 +165,7 @@ tests:
         - if: linux
           then: ld_impl_${{ target_platform }} ${{ binutils_version }}
         - if: osx
-          then: lld
+          then: lld or not unix
 
   - script:
       - printf 'import System.Posix.Signals\nmain = installHandler sigTERM Default Nothing >> putStrLn "Signal test"\n' > signal_test.hs
@@ -184,7 +184,7 @@ tests:
         - if: linux
           then: ld_impl_${{ target_platform }} ${{ binutils_version }}
         - if: osx
-          then: lld
+          then: lld or not unix
 
 
 about:
