@@ -15,23 +15,22 @@
      let lib_paths = libraryPaths dflags
      let lib_path_opts = map ("-L"++) lib_paths
 
-@@ -258,12 +257,11 @@ linkBinary' staticLink logger tmpfs dflags unit_env o_files dep_units = do
-                         then map (\f -> Option ("-F" ++ f)) framework_paths
-                         else []
-
-+                      -- CONDA FIX: Remove -dead_strip_dylibs on macOS - related to -dead_strip issue
-                       dead_strip_dylibs
--                        | gopt Opt_WholeArchiveHsLibs dflags = []
--                        | otherwise = if OSDarwin == platformOS platform
+@@ -256,12 +255,11 @@ linkBinary' staticLink logger tmpfs dflags unit_env o_files dep_units = do
+                       ++ pkg_link_opts
+                       ++ pkg_framework_opts
+                       ++ (if platformOS platform == OSDarwin
 -                          --  dead_strip_dylibs, will remove unused dylibs, and thus save
 -                          --  space in the load commands. The -headerpad is necessary so
--                          --  that we can inject more @rpath's later for the leftover
--                          --  dylibs in the runInjectRPaths phase below.
+-                          --  that we can inject more @rpath's later for the left over
+-                          --  libraries during runInjectRpaths phase.
 -                          --
--                          --  See Note [Dynamic linking on macOS]
+-                          --  See Note [Dynamic linking on macOS].
 -                          then [ "-Wl,-dead_strip_dylibs", "-Wl,-headerpad,8000" ]
--                          else []
-+                        = if OSDarwin == platformOS platform
-+                          -- Keep -headerpad but remove -dead_strip_dylibs
++                          -- CONDA FIX: Keep -headerpad but remove -dead_strip_dylibs
++                          -- The -headerpad is necessary so that we can inject more @rpath's
++                          -- later for the left over libraries during runInjectRpaths phase.
++                          --
++                          -- See Note [Dynamic linking on macOS].
 +                          then [ "-Wl,-headerpad,8000" ]
-+                          else []
+                           else [])
+                     ))
