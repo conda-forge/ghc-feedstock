@@ -183,13 +183,13 @@ export CABFLAGS="--with-compiler=${GHC} --ghc-options=-optc-fno-stack-protector 
 # export GHC_DEBUG=1
 
 # Fix MinGW-w64 pseudo relocation errors on Windows
-# Official GHC Windows builds use lld (LLVM linker) instead of GNU ld
-# This avoids the 32-bit pseudo relocation issues with large executables
+# lld doesn't support GCC-generated relocation type 0xe (IMAGE_REL_AMD64_ADDR32NB)
+# Solution: Use static linking for ghc.exe to avoid DLL relocation issues
 mkdir -p ${_SRC_DIR}/_build
 cat > ${_SRC_DIR}/_build/hadrian.settings << EOF
-stage1.ghc-bin.ghc.link.opts += -optl-fuse-ld=lld
-stage1.ghc-pkg.ghc.link.opts += -optl-fuse-ld=lld
-stage1.hsc2hs.ghc.link.opts += -optl-fuse-ld=lld
+stage1.ghc-bin.ghc.link.opts += -optl-static
+stage1.ghc-pkg.ghc.link.opts += -optl-static
+stage1.hsc2hs.ghc.link.opts += -optl-static
 EOF
 
 # Build stage1 GHC
@@ -250,8 +250,8 @@ if [[ -f "${settings_file}" ]]; then
   perl -pi -e 's#-L\$topdir/../mingw//lib#-L\$topdir/../../Library/lib#g' "${settings_file}"
   perl -pi -e 's#-L\$topdir/../mingw//x86_64-w64-mingw32/lib#-L\$topdir/../../Library/bin -L\$topdir/../../Library/x86_64-w64-mingw32/sysroot/usr/lib -Wl,-rpath,\$topdir/../../Library/x86_64-w64-mingw32/sysroot/usr/lib#g' "${settings_file}"
 
-  perl -pi -e 's#(ld flags", ")#\1#' "${settings_file}"  # Keep empty, lld is set via C compiler flags
-  perl -pi -e 's#(C compiler link flags", ")#\1-fuse-ld=lld #' "${settings_file}"
+  perl -pi -e 's#(ld flags", ")#\1#' "${settings_file}"  # Keep empty for now
+  perl -pi -e 's#(C compiler link flags", ")#\1-static #' "${settings_file}"  # Static linking for user programs
 
   echo "=== Stage1 settings after patching (COMPLETE FILE) ==="
   cat "${settings_file}"
