@@ -5,24 +5,11 @@ _log_index=0
 
 source "${RECIPE_DIR}"/building/common.sh
 
-conda_host="${build_alias}"
-conda_target="${host_alias}"
-
-ghc_host="${conda_host/w64/unknown}"
-ghc_target="${conda_target/w64/unknown}"
-_build_alias=${build_alias}
-_host_alias=${host_alias}
-
-export build_alias="${ghc_host}"
-export host_alias="${ghc_host}"
-
 export PATH="${_BUILD_PREFIX}/ghc-bootstrap/bin${PATH:+:}${PATH:-}:/c/Windows/System32"
 export CABAL="${_BUILD_PREFIX}/bin/cabal"
 export CABAL_DIR="${SRC_DIR}\\.cabal"
 export _PYTHON="${_BUILD_PREFIX}/python.exe"
 export GHC="${BUILD_PREFIX}\\ghc-bootstrap\\bin\\ghc.exe"
-# Explicitely set CC to GCC (needed for a 'weak' ghc-bootstrap)
-export CC="${GCC}"
 
 # Bug in ghc-bootstrap
 WINDRES_PATH="${BUILD_PREFIX//\\/\\\\}\\\\Library\\\\bin\\\\${WINDRES}"
@@ -35,6 +22,8 @@ if [[ -f "${settings_file}" ]]; then
   echo "=== Updating bootstrap settings with conda include paths ==="
   # Add -I flags to C compiler flags for ffi.h, gmp.h, etc.
   # CRITICAL: Use _PREFIX (Unix paths) NOT PREFIX (Windows paths with \b escape sequences)
+  perl -pi -e "s#((C|C\+\+|Haskell) compiler command\", \")[^\"]*#${CXX}#" "${settings_file}"
+  
   perl -pi -e "s#(C compiler flags\", \")([^\"]*)(\")#\$1\$2 -I${_PREFIX}/Library/include -I${_BUILD_PREFIX}/Library/include\$3#" "${settings_file}"
   perl -pi -e "s#(C\+\+ compiler flags\", \")([^\"]*)(\")#\$1\$2 -I${_PREFIX}/Library/include -I${_BUILD_PREFIX}/Library/include\$3#" "${settings_file}"
   grep "C compiler flags\|C++ compiler flags" "${settings_file}"
@@ -108,18 +97,18 @@ CONFIGURE_ARGS=(
 
 # Export autoconf cache variables BEFORE configure runs
 # These must be in the environment for autoconf to read them
-export ac_cv_path_AR="${GCC_AR}"
-export ac_cv_path_AS="${_BUILD_PREFIX}/Library/bin/${conda_target}-as"
-export ac_cv_path_CC="${GCC}"
-export ac_cv_path_CXX="${GXX}"
-export ac_cv_path_LD="${_BUILD_PREFIX}/Library/bin/${conda_target}-ld"
-export ac_cv_path_NM="${GCC_NM}"
-export ac_cv_path_OBJDUMP="${_BUILD_PREFIX}/Library/bin/${conda_target}-objdump"
-export ac_cv_path_RANLIB="${GCC_RANLIB}"
-export ac_cv_path_LLC="${_BUILD_PREFIX}/Library/bin/${conda_target}-llc"
-export ac_cv_path_OPT="${_BUILD_PREFIX}/Library/bin/${conda_target}-opt"
-export ac_cv_path_WINDRES="${_BUILD_PREFIX}/Library/bin/${conda_target}-windres"
-export ac_cv_path_DLLWRAP="${_BUILD_PREFIX}/Library/bin/${conda_target}-dllwrap"
+export ac_cv_path_AR="${AR}"
+# export ac_cv_path_AS="${_BUILD_PREFIX}/Library/bin/${conda_target}-as"
+export ac_cv_path_CC="${CC}"
+export ac_cv_path_CXX="${CXX}"
+export ac_cv_path_LD="${LD}"
+export ac_cv_path_NM="${NM}"
+export ac_cv_path_RANLIB="${RANLIB}"
+# export ac_cv_path_OBJDUMP="${_BUILD_PREFIX}/Library/bin/${conda_target}-objdump"
+# export ac_cv_path_LLC="${_BUILD_PREFIX}/Library/bin/${conda_target}-llc"
+# export ac_cv_path_OPT="${_BUILD_PREFIX}/Library/bin/${conda_target}-opt"
+# export ac_cv_path_WINDRES="${_BUILD_PREFIX}/Library/bin/${conda_target}-windres"
+# export ac_cv_path_DLLWRAP="${_BUILD_PREFIX}/Library/bin/${conda_target}-dllwrap"
 
 # Configure with environment variables that help debugging
 export ac_cv_lib_ffi_ffi_call=yes
@@ -134,19 +123,19 @@ export UseSystemFfi=YES
 export ac_cv_use_system_libffi=yes
 
 # export AR_STAGE0=llvm-ar
-export AR_STAGE0=${GCC_AR}
-export CC_STAGE0=${GCC}
+export AR_STAGE0=${AR}
+export CC_STAGE0=${CC}
 export LD_STAGE0=${LD}
-export WINDRES="${_BUILD_PREFIX}/Library/bin/${conda_target}-windres"
-export DLLWRAP="${_BUILD_PREFIX}/Library/bin/${conda_target}-dllwrap"
+# export WINDRES="${_BUILD_PREFIX}/Library/bin/${conda_target}-windres"
+# export DLLWRAP="${_BUILD_PREFIX}/Library/bin/${conda_target}-dllwrap"
 
 # Add conda include paths to CFLAGS so C compiler can find ffi.h, gmp.h, etc.
-CFLAGS="${CFLAGS//-nostdlib/} -v -fno-stack-check -fno-stack-protector -I${_PREFIX}/Library/include -I${_BUILD_PREFIX}/Library/include" \
-CXXFLAGS="${CXXFLAGS//-nostdlib/} -v -fno-stack-check -fno-stack-protector -I${_PREFIX}/Library/include -I${_BUILD_PREFIX}/Library/include" \
-LDFLAGS="${LDFLAGS//-nostdlib/} -v" \
+# CFLAGS="${CFLAGS//-nostdlib/} -v -fno-stack-check -fno-stack-protector -I${_PREFIX}/Library/include -I${_BUILD_PREFIX}/Library/include" \
+# CXXFLAGS="${CXXFLAGS//-nostdlib/} -v -fno-stack-check -fno-stack-protector -I${_PREFIX}/Library/include -I${_BUILD_PREFIX}/Library/include" \
+# LDFLAGS="${LDFLAGS//-nostdlib/} -v" \
 MergeObjsCmd="${LD}" \
 MergeObjsArgs="" \
-run_and_log "ghc-configure" bash configure "${CONFIGURE_ARGS[@]}" || ( cat config.log ; exit 1 )
+run_and_log "ghc-configure" ./configure "${CONFIGURE_ARGS[@]}" || ( cat config.log ; exit 1 )
 
 cat "${_SRC_DIR}"/hadrian/cfg/system.config
 
@@ -160,10 +149,10 @@ perl -pi -e 's#^([a-z-]+dir)\s*=\s*/c/#$1 = C:/#g' "${SRC_DIR}"/hadrian/cfg/syst
 perl -pi -e "s#^(intree-gmp\s*=\s*).*#\$1NO#" "${SRC_DIR}"/hadrian/cfg/system.config
 echo "=== Fixing windres and dllwrap paths in system.config ==="
 # Ensure windres and dllwrap are not set to 'false'
-perl -pi -e "s#^(settings-dll-wrap-command = ).*#\$1${DLLWRAP}#" "${SRC_DIR}"/hadrian/cfg/system.config
-perl -pi -e "s#^(settings-windres-command = ).*#\$1${WINDRES}#" "${SRC_DIR}"/hadrian/cfg/system.config
-perl -pi -e "s#^dllwrap\\s*=\\s*false\\s*\$#dllwrap = ${DLLWRAP}#" "${SRC_DIR}"/hadrian/cfg/system.config
-perl -pi -e "s#^windres\\s*=\\s*false\\s*\$#windres = ${WINDRES}#" "${SRC_DIR}"/hadrian/cfg/system.config
+# perl -pi -e "s#^(settings-dll-wrap-command = ).*#\$1${DLLWRAP}#" "${SRC_DIR}"/hadrian/cfg/system.config
+# perl -pi -e "s#^(settings-windres-command = ).*#\$1${WINDRES}#" "${SRC_DIR}"/hadrian/cfg/system.config
+# perl -pi -e "s#^dllwrap\\s*=\\s*false\\s*\$#dllwrap = ${DLLWRAP}#" "${SRC_DIR}"/hadrian/cfg/system.config
+# perl -pi -e "s#^windres\\s*=\\s*false\\s*\$#windres = ${WINDRES}#" "${SRC_DIR}"/hadrian/cfg/system.config
 
 echo "=== Forcing system toolchain and libffi settings ==="
 # Force use of conda toolchain (not inplace MinGW)
@@ -175,10 +164,10 @@ perl -pi -e 's#^use-system-ffi\s*=\s*.*$#use-system-ffi = YES#' "${SRC_DIR}"/had
 cat "${SRC_DIR}"/hadrian/cfg/system.config | grep "include-dir\|lib-dir\|windres\|dllwrap\|system-mingw\|system-ffi"
 
 # Ensure CFLAGS/CXXFLAGS include conda headers for the build phase too
-export CFLAGS="${CFLAGS} -fno-stack-protector -fno-stack-check -I${PREFIX}/Library/include -I${BUILD_PREFIX}/Library/include"
-export CXXFLAGS="${CXXFLAGS} -fno-stack-protector -fno-stack-check -I${PREFIX}/Library/include -I${BUILD_PREFIX}/Library/include"
-export LDFLAGS="${LDFLAGS} -fno-stack-protector"
-export CABFLAGS="--with-compiler=${GHC} --ghc-options=-optc-fno-stack-protector --ghc-options=-optc-fno-stack-check"
+# export CFLAGS="${CFLAGS} -fno-stack-protector -fno-stack-check -I${PREFIX}/Library/include -I${BUILD_PREFIX}/Library/include"
+# export CXXFLAGS="${CXXFLAGS} -fno-stack-protector -fno-stack-check -I${PREFIX}/Library/include -I${BUILD_PREFIX}/Library/include"
+# export LDFLAGS="${LDFLAGS} -fno-stack-protector"
+# export CABFLAGS="--with-compiler=${GHC} --ghc-options=-optc-fno-stack-protector --ghc-options=-optc-fno-stack-check"
 # Enable debugging mode for more verbose output
 # export GHC_DEBUG=1
 
@@ -186,11 +175,11 @@ export CABFLAGS="--with-compiler=${GHC} --ghc-options=-optc-fno-stack-protector 
 # lld doesn't support GCC-generated relocation type 0xe (IMAGE_REL_AMD64_ADDR32NB)
 # Solution: Use static linking for ghc.exe to avoid DLL relocation issues
 mkdir -p ${_SRC_DIR}/_build
-cat > ${_SRC_DIR}/_build/hadrian.settings << EOF
-stage1.ghc-bin.ghc.link.opts += -optl-static
-stage1.ghc-pkg.ghc.link.opts += -optl-static
-stage1.hsc2hs.ghc.link.opts += -optl-static
-EOF
+# cat > ${_SRC_DIR}/_build/hadrian.settings << EOF
+# stage1.ghc-bin.ghc.link.opts += -optl-static
+# stage1.ghc-pkg.ghc.link.opts += -optl-static
+# stage1.hsc2hs.ghc.link.opts += -optl-static
+# EOF
 
 # Build stage1 GHC
 echo "*** Building stage1 GHC ***"
@@ -223,7 +212,7 @@ run_and_log "stage1_lib" "${_hadrian_build[@]}" stage1:lib:ghc --flavour=quickes
   exit 1; \
 }
   
-perl -pi -e "s#((dllwrap|windres|llc|opt|clang) command\", \")[^\"]*#\$1${conda_target}-\$2#" "${settings_file}"
+# perl -pi -e "s#((dllwrap|windres|llc|opt|clang) command\", \")[^\"]*#\$1${conda_target}-\$2#" "${settings_file}"
 perl -pi -e "s#(Use inplace MinGW toolchain\", \")[^\"]*#\$1NO#" "${settings_file}"
 perl -pi -e "s#(Use LibFFI\", \")[^\"]*#\$1YES#" "${settings_file}"
 
