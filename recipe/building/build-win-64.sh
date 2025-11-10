@@ -127,6 +127,8 @@ export CC_STAGE0=${CC}
 export LD_STAGE0=${LD}
 export CXX_STD_LIB_LIBS="stdc++"
 export CXXFLAGS="--target=x86_64-w64-mingw32 --sysroot=${BUILD_PREFIX}/Library/x86_64-w64-mingw32/sysroot"
+ls ${BUILD_PREFIX}/ghc-bootstrap/bin
+export GHC_PKG="${_BUILD_PREFIX}/ghc-bootstrap/bin/ghc-pkg"
 
 # export WINDRES="${_BUILD_PREFIX}/Library/bin/${conda_target}-windres"
 # export DLLWRAP="${_BUILD_PREFIX}/Library/bin/${conda_target}-dllwrap"
