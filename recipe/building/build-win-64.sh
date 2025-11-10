@@ -76,7 +76,6 @@ _hadrian_build=("${_SRC_DIR}"/hadrian/build.bat)
 
 # Configure and build GHC
 SYSTEM_CONFIG=(
-  --host="${ghc_target}"
   --prefix="${_PREFIX}"
 )
 
