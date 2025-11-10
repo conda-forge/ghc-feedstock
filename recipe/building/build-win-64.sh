@@ -126,6 +126,7 @@ export ac_cv_use_system_libffi=yes
 export AR_STAGE0=${AR}
 export CC_STAGE0=${CC}
 export LD_STAGE0=${LD}
+ls ${_BUILD_PREFIX}/Library/bin/
 # export WINDRES="${_BUILD_PREFIX}/Library/bin/${conda_target}-windres"
 # export DLLWRAP="${_BUILD_PREFIX}/Library/bin/${conda_target}-dllwrap"
 
