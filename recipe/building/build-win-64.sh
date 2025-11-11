@@ -121,8 +121,8 @@ export CXX_STD_LIB_LIBS="stdc++"
 
 # Configure Clang for MinGW cross-compilation
 # CRITICAL: Clang needs explicit target, sysroot, and include paths
-export CFLAGS="--target=x86_64-w64-mingw32 --rtlib=compiler-rt --sysroot=${BUILD_PREFIX}/Library/x86_64-w64-mingw32/sysroot -I${BUILD_PREFIX}/Library/include -I${BUILD_PREFIX}/Library/x86_64-w64-mingw32/sysroot/usr/include ${CFLAGS:-}"
-export CXXFLAGS="--target=x86_64-w64-mingw32 --rtlib=compiler-rt --sysroot=${BUILD_PREFIX}/Library/x86_64-w64-mingw32/sysroot -I${BUILD_PREFIX}/Library/include -I${BUILD_PREFIX}/Library/x86_64-w64-mingw32/sysroot/usr/include ${CXXFLAGS:-}"
+export CFLAGS="--sysroot=${BUILD_PREFIX}/Library/x86_64-w64-mingw32/sysroot -I${BUILD_PREFIX}/Library/include -I${BUILD_PREFIX}/Library/x86_64-w64-mingw32/sysroot/usr/include ${CFLAGS:-}"
+export CXXFLAGS="--sysroot=${BUILD_PREFIX}/Library/x86_64-w64-mingw32/sysroot -I${BUILD_PREFIX}/Library/include -I${BUILD_PREFIX}/Library/x86_64-w64-mingw32/sysroot/usr/include ${CXXFLAGS:-}"
 export LDFLAGS="-nostdlib -L${BUILD_PREFIX}/Library/lib -L${BUILD_PREFIX}/Library/x86_64-w64-mingw32/sysroot/usr/lib"
 
 (
