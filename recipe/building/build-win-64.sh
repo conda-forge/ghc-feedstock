@@ -93,8 +93,6 @@ CONFIGURE_ARGS=(
   --with-gmp-libraries="${_PREFIX}"/Library/lib
   --with-iconv-includes="${_PREFIX}"/Library/include
   --with-iconv-libraries="${_PREFIX}"/Library/lib
-  
-  GHC="${_BUILD_PREFIX}"/ghc-bootstrap/bin/ghc.exe
 )
 
 # Export autoconf cache variables BEFORE configure runs
@@ -133,15 +131,18 @@ export CXXFLAGS="--target=x86_64-w64-mingw32 --sysroot=${BUILD_PREFIX}/Library/x
 
 # export WINDRES="${_BUILD_PREFIX}/Library/bin/${conda_target}-windres"
 # export DLLWRAP="${_BUILD_PREFIX}/Library/bin/${conda_target}-dllwrap"
-
+"${_BUILD_PREFIX}"/ghc-bootstrap/bin/ghc-pkg list
 # Add conda include paths to CFLAGS so C compiler can find ffi.h, gmp.h, etc.
 # CFLAGS="${CFLAGS//-nostdlib/} -v -fno-stack-check -fno-stack-protector -I${_PREFIX}/Library/include -I${_BUILD_PREFIX}/Library/include" \
 # CXXFLAGS="${CXXFLAGS//-nostdlib/} -v -fno-stack-check -fno-stack-protector -I${_PREFIX}/Library/include -I${_BUILD_PREFIX}/Library/include" \
 # LDFLAGS="${LDFLAGS//-nostdlib/} -v" \
-MergeObjsCmd="${LD}" \
-MergeObjsArgs="" \
-run_and_log "ghc-configure" ./configure "${CONFIGURE_ARGS[@]}" || ( cat config.log ; exit 1 )
-
+(
+  export GHC="${_BUILD_PREFIX}"/ghc-bootstrap/bin/ghc.exe
+  
+  MergeObjsCmd="${LD}" \
+  MergeObjsArgs="" \
+  run_and_log "ghc-configure" ./configure "${CONFIGURE_ARGS[@]}" || ( cat config.log ; exit 1 )
+)
 cat "${_SRC_DIR}"/hadrian/cfg/system.config
 
 # Fix Python path in system.config (configure sets Linux path, we need Windows)
