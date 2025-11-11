@@ -1,0 +1,10 @@
+[2025-10-31 20:54:14] Check what Linux builds use for --prefix: grep -n "^  --prefix=" recipe/building/build-linux-*.sh | head -10
+[2025-10-31 20:54:20] Check Linux build prefix usage: grep -n "prefix=" recipe/building/build-linux-64.sh | head -10
+[2025-10-31 20:54:24] List build scripts: ls recipe/building/build-*.sh
+[2025-10-31 20:54:28] Check recipe directory: ls -la recipe/ | head -20
+[2025-10-31 20:54:32] Check current directory: pwd && ls -la | head -20
+[2025-10-31 20:54:37] Check prefix usage in other scripts: grep -n "^  --prefix=" build-linux-64.sh build-osx-64.sh
+[2025-10-31 20:55:03] Replace all _PREFIX with PREFIX: perl -pi -e 's/\$\{_PREFIX\}/\${PREFIX}/g' build-win-64.sh && echo "Fixed all _PREFIX → PREFIX replacements"
+[2025-10-31 20:55:11] PERMISSION REQUEST:  - Claude needs your permission to use Bash
+[2025-10-31 20:56:52] Find .bat files: find ../.. -name "*.bat" -type f 2>/dev/null | head -10
+[2025-10-31 20:57:13] Check if patch is in recipe.yaml: cd ../.. && grep -n "add-ffi-include-dir" recipe/recipe.yaml

@@ -1,0 +1,72 @@
+=== BASH COMMAND EXECUTED ===
+Timestamp: 2025-10-31 20:54:14
+Working Directory: /home/memento/PycharmProjects/Conda-Feedstocks/ghc-feedstock/recipe/building
+Description: Check what Linux builds use for --prefix
+Command: grep -n "^  --prefix=" recipe/building/build-linux-*.sh | head -10
+Permission Request: 
+---
+
+=== BASH COMMAND EXECUTED ===
+Timestamp: 2025-10-31 20:54:20
+Working Directory: /home/memento/PycharmProjects/Conda-Feedstocks/ghc-feedstock/recipe/building
+Description: Check Linux build prefix usage
+Command: grep -n "prefix=" recipe/building/build-linux-64.sh | head -10
+Permission Request: 
+---
+
+=== BASH COMMAND EXECUTED ===
+Timestamp: 2025-10-31 20:54:24
+Working Directory: /home/memento/PycharmProjects/Conda-Feedstocks/ghc-feedstock/recipe/building
+Description: List build scripts
+Command: ls recipe/building/build-*.sh
+Permission Request: 
+---
+
+=== BASH COMMAND EXECUTED ===
+Timestamp: 2025-10-31 20:54:28
+Working Directory: /home/memento/PycharmProjects/Conda-Feedstocks/ghc-feedstock/recipe/building
+Description: Check recipe directory
+Command: ls -la recipe/ | head -20
+Permission Request: 
+---
+
+=== BASH COMMAND EXECUTED ===
+Timestamp: 2025-10-31 20:54:32
+Working Directory: /home/memento/PycharmProjects/Conda-Feedstocks/ghc-feedstock/recipe/building
+Description: Check current directory
+Command: pwd && ls -la | head -20
+Permission Request: 
+---
+
+=== BASH COMMAND EXECUTED ===
+Timestamp: 2025-10-31 20:54:37
+Working Directory: /home/memento/PycharmProjects/Conda-Feedstocks/ghc-feedstock/recipe/building
+Description: Check prefix usage in other scripts
+Command: grep -n "^  --prefix=" build-linux-64.sh build-osx-64.sh
+Permission Request: 
+---
+
+=== BASH COMMAND EXECUTED ===
+Timestamp: 2025-10-31 20:55:03
+Working Directory: /home/memento/PycharmProjects/Conda-Feedstocks/ghc-feedstock/recipe/building
+Description: Replace all _PREFIX with PREFIX
+Command: perl -pi -e 's/\$\{_PREFIX\}/\${PREFIX}/g' build-win-64.sh && echo "Fixed all _PREFIX → PREFIX replacements"
+Permission Request: 
+---
+
+=== BASH COMMAND EXECUTED ===
+Timestamp: 2025-10-31 20:56:52
+Working Directory: /home/memento/PycharmProjects/Conda-Feedstocks/ghc-feedstock/recipe/building
+Description: Find .bat files
+Command: find ../.. -name "*.bat" -type f 2>/dev/null | head -10
+Permission Request: 
+---
+
+=== BASH COMMAND EXECUTED ===
+Timestamp: 2025-10-31 20:57:13
+Working Directory: /home/memento/PycharmProjects/Conda-Feedstocks/ghc-feedstock/recipe/building
+Description: Check if patch is in recipe.yaml
+Command: cd ../.. && grep -n "add-ffi-include-dir" recipe/recipe.yaml
+Permission Request: 
+---
+

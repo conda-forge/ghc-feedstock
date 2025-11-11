@@ -1,0 +1,10 @@
+=== NOTIFICATION RECEIVED ===
+Timestamp: 2025-10-31 20:55:11
+Hook Event: Notification
+Tool Name: 
+Message: Claude needs your permission to use Bash
+Is Permission Request: true
+Full JSON Data:
+{"session_id":"4b4a7571-67f8-4bf5-8990-84a5fb616008","transcript_path":"/home/memento/.claude/projects/-home-memento-PycharmProjects-Conda-Feedstocks-ghc-feedstock/4b4a7571-67f8-4bf5-8990-84a5fb616008.jsonl","cwd":"/home/memento/PycharmProjects/Conda-Feedstocks/ghc-feedstock/recipe/building","hook_event_name":"Notification","message":"Claude needs your permission to use Bash"}
+---
+
