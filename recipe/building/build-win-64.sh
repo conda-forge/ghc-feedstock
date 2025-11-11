@@ -28,12 +28,12 @@ if [[ -f "${settings_file}" ]]; then
   perl -pi -e "s#(Haskell CPP command\", \")[^\"]*#\$1${CC}#" "${settings_file}"
   perl -pi -e "s#(C\+\+ compiler command\", \")[^\"]*#\$1${CXX}#" "${settings_file}"
   
-  perl -pi -e "s#-I\$tooldir/mingw/include#-I${_BUILD_PREFIX}/Library/x86_64-w64-mingw32/sysroot/usr/include#g" "${settings_file}"
+  perl -pi -e "s#-I\\\$tooldir/mingw/include#-I${_BUILD_PREFIX}/Library/x86_64-w64-mingw32/sysroot/usr/include#g" "${settings_file}"
   grep "mingw" "${settings_file}"
   
   perl -pi -e "s#(C compiler flags\", \")([^\"]*)#\$1\$2 -I${_PREFIX}/Library/include#" "${settings_file}"
   perl -pi -e "s#(C\+\+ compiler flags\", \")([^\"]*)#\$1\$2 -I${_PREFIX}/Library/include#" "${settings_file}"
-  perl -pi -e "s#(Haskell CPP flags\", \")[^\"]*#\$1 -I${_PREFIX}/Library/include#" "${settings_file}"
+  perl -pi -e "s#(Haskell CPP flags\", \")[^\"]*#\$1-E -I${_BUILD_PREFIX}/Library/x86_64-w64-mingw32/sysroot/usr/include -I${_PREFIX}/Library/include#" "${settings_file}"
   
   grep "C compiler flags\|C++ compiler flags" "${settings_file}"
 else
@@ -184,6 +184,14 @@ mkdir -p ${_SRC_DIR}/_build
     export CXXFLAGS="--target=x86_64-w64-mingw32 -I${BUILD_PREFIX}/Library/include -I${BUILD_PREFIX}/Library/x86_64-w64-mingw32/sysroot/usr/include ${CXXFLAGS}"
     
     "${CABAL}" v2-build -j hadrian 2>&1 | tee "${SRC_DIR}"/cabal-verbose.log
+    _cabal_exit_code=${PIPESTATUS[0]}
+
+    if [[ $_cabal_exit_code -ne 0 ]]; then
+      echo "=== Cabal build FAILED with exit code ${_cabal_exit_code} ==="
+      exit 1
+    else
+      echo "=== Cabal build SUCCEEDED ==="
+    fi
   popd
 )
 
