@@ -10,6 +10,7 @@ export CABAL="${_BUILD_PREFIX}/bin/cabal"
 export CABAL_DIR="${SRC_DIR}\\.cabal"
 export _PYTHON="${_BUILD_PREFIX}/python.exe"
 export GHC="${BUILD_PREFIX}\\ghc-bootstrap\\bin\\ghc.exe"
+export GHC_PKG="${BUILD_PREFIX}\\ghc-bootstrap\\bin\\ghc-pkg.exe"
 
 # Bug in ghc-bootstrap
 #WINDRES_PATH="${BUILD_PREFIX//\\/\\\\}\\\\Library\\\\bin\\\\${WINDRES}"
@@ -92,7 +93,7 @@ CONFIGURE_ARGS=(
   --with-gmp-libraries="${_PREFIX}"/Library/lib
   --with-iconv-includes="${_PREFIX}"/Library/include
   --with-iconv-libraries="${_PREFIX}"/Library/lib
-  --with-ghc-pkg="${_BUILD_PREFIX}/ghc-bootstrap/bin/ghc-pkg.exe"
+  --with-ghc="${_BUILD_PREFIX}"/ghc-bootstrap/bin/ghc.exe
 )
 
 # Export autoconf cache variables BEFORE configure runs
