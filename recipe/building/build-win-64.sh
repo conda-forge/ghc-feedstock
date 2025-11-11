@@ -27,9 +27,14 @@ if [[ -f "${settings_file}" ]]; then
   perl -pi -e "s#(C compiler command\", \")[^\"]*#\$1${CC}#" "${settings_file}"
   perl -pi -e "s#(Haskell CPP command\", \")[^\"]*#\$1${CC}#" "${settings_file}"
   perl -pi -e "s#(C\+\+ compiler command\", \")[^\"]*#\$1${CXX}#" "${settings_file}"
+  perl -pi -e "s#(Merge objects command\", \")[^\"]*#\$1${LD}#" "${settings_file}"
+  perl -pi -e "s#(ar command\", \")[^\"]*#\$1${AR}#" "${settings_file}"
+  perl -pi -e "s#(ranlib command\", \")[^\"]*#\$1${RANLIB}#" "${settings_file}"
+  perl -pi -e "s#(dllwrap command\", \")[^\"]*#\$1false#" "${settings_file}"
+  perl -pi -e "s#(windres command\", \")[^\"]*#\$1false#" "${settings_file}"
   
+  perl -pi -e "s#(ld is GNU ld\", \")[^\"]*#\$1NO#" "${settings_file}"
   perl -pi -e "s#-I\\\$tooldir/mingw/include#-I${_BUILD_PREFIX}/Library/x86_64-w64-mingw32/sysroot/usr/include#g" "${settings_file}"
-  grep "mingw" "${settings_file}"
   
   perl -pi -e "s#(C compiler flags\", \")([^\"]*)#\$1\$2 -I${_PREFIX}/Library/include#" "${settings_file}"
   perl -pi -e "s#(C\+\+ compiler flags\", \")([^\"]*)#\$1\$2 -I${_PREFIX}/Library/include#" "${settings_file}"
@@ -53,30 +58,29 @@ mkdir -p ".cabal" && "${CABAL}" user-config init
 
 # Configure Cabal to use single-threaded builds on Windows to avoid race conditions
 # This prevents parallel ghc-pkg updates from conflicting on package.cache
-echo "=== Configuring Cabal for single-threaded builds ==="
-echo "jobs: 1" >> "${SRC_DIR}/.cabal/config"
+# echo "=== Configuring Cabal for single-threaded builds ==="
+# echo "jobs: 1" >> "${SRC_DIR}/.cabal/config"
 
 run_and_log "cabal-update" "${CABAL}" v2-update
-
 
 # Set up temp variables
 export TMP="$(cygpath -w "${TEMP}")"
 export TMPDIR="$(cygpath -w "${TEMP}")"
 
-# Find the latest MSVC version directory dynamically
-MSVC_VERSION_DIR=$(ls -d "C:/Program Files/Microsoft Visual Studio/2022/Enterprise/VC/Tools/MSVC/"*/ 2>/dev/null | sort -V | tail -1 | sed 's/\/$//')
-
-# Use the discovered path or fall back to a default if not found
-if [ -z "$MSVC_VERSION_DIR" ]; then
-  echo "Warning: Could not find MSVC tools directory, using fallback path"
-  MSVC_VERSION_DIR="C:/Program Files/Microsoft Visual Studio/2022/Enterprise/VC/Tools/MSVC/14.38.33130"
-fi
-
-# Export LIB with the dynamic path
-export LIB="${BUILD_PREFIX}/Library/lib;${PREFIX}/Library/lib;C:/Program Files (x86)/Windows Kits/10/Lib/10.0.26100.0/um/x64;${MSVC_VERSION_DIR}/lib/x64${LIB:+;}${LIB:-}"
-
-# Export INCLUDE with conda libraries FIRST (for ffi.h, gmp.h, iconv.h, etc.)
-export INCLUDE="${PREFIX}/Library/include;${BUILD_PREFIX}/Library/include;C:/Program Files (x86)/Windows Kits/10/Include/10.0.26100.0/ucrt;C:/Program Files (x86)/Windows Kits/10/Include/10.0.26100.0/um;C:/Program Files (x86)/Windows Kits/10/Include/10.0.26100.0/shared;${MSVC_VERSION_DIR}/include${INCLUDE:+;}${INCLUDE:-}"
+# # Find the latest MSVC version directory dynamically
+# MSVC_VERSION_DIR=$(ls -d "C:/Program Files/Microsoft Visual Studio/2022/Enterprise/VC/Tools/MSVC/"*/ 2>/dev/null | sort -V | tail -1 | sed 's/\/$//')
+# 
+# # Use the discovered path or fall back to a default if not found
+# if [ -z "$MSVC_VERSION_DIR" ]; then
+#   echo "Warning: Could not find MSVC tools directory, using fallback path"
+#   MSVC_VERSION_DIR="C:/Program Files/Microsoft Visual Studio/2022/Enterprise/VC/Tools/MSVC/14.38.33130"
+# fi
+# 
+# # Export LIB with the dynamic path
+# export LIB="${BUILD_PREFIX}/Library/lib;${PREFIX}/Library/lib;C:/Program Files (x86)/Windows Kits/10/Lib/10.0.26100.0/um/x64;${MSVC_VERSION_DIR}/lib/x64${LIB:+;}${LIB:-}"
+# 
+# # Export INCLUDE with conda libraries FIRST (for ffi.h, gmp.h, iconv.h, etc.)
+# export INCLUDE="${PREFIX}/Library/include;${BUILD_PREFIX}/Library/include;C:/Program Files (x86)/Windows Kits/10/Include/10.0.26100.0/ucrt;C:/Program Files (x86)/Windows Kits/10/Include/10.0.26100.0/um;C:/Program Files (x86)/Windows Kits/10/Include/10.0.26100.0/shared;${MSVC_VERSION_DIR}/include${INCLUDE:+;}${INCLUDE:-}"
 
 mkdir -p "${_BUILD_PREFIX}/bin"
 cp "${_BUILD_PREFIX}/Library/usr/bin/m4.exe" "${_BUILD_PREFIX}/bin"
@@ -101,21 +105,6 @@ CONFIGURE_ARGS=(
   --with-iconv-libraries="${_PREFIX}"/Library/lib
 )
 
-# Export autoconf cache variables BEFORE configure runs
-# These must be in the environment for autoconf to read them
-export ac_cv_path_AR="${AR}"
-# export ac_cv_path_AS="${_BUILD_PREFIX}/Library/bin/${conda_target}-as"
-export ac_cv_path_CC="${CC}"
-export ac_cv_path_CXX="${CXX}"
-export ac_cv_path_LD="${LD}"
-export ac_cv_path_NM="${NM}"
-export ac_cv_path_RANLIB="${RANLIB}"
-# export ac_cv_path_OBJDUMP="${_BUILD_PREFIX}/Library/bin/${conda_target}-objdump"
-# export ac_cv_path_LLC="${_BUILD_PREFIX}/Library/bin/${conda_target}-llc"
-# export ac_cv_path_OPT="${_BUILD_PREFIX}/Library/bin/${conda_target}-opt"
-# export ac_cv_path_WINDRES="${_BUILD_PREFIX}/Library/bin/${conda_target}-windres"
-# export ac_cv_path_DLLWRAP="${_BUILD_PREFIX}/Library/bin/${conda_target}-dllwrap"
-
 # Configure with environment variables that help debugging
 export ac_cv_lib_ffi_ffi_call=yes
 
@@ -128,12 +117,13 @@ export WINDOWS_TOOLCHAIN_AUTOCONF=no
 export UseSystemFfi=YES
 export ac_cv_use_system_libffi=yes
 
-# export AR_STAGE0=llvm-ar
-export AR_STAGE0=${AR}
-export CC_STAGE0=${CC}
-export LD_STAGE0=${LD}
 export CXX_STD_LIB_LIBS="stdc++"
-export CXXFLAGS="--target=x86_64-w64-mingw32 --sysroot=${BUILD_PREFIX}/Library/x86_64-w64-mingw32/sysroot"
+
+# Configure Clang for MinGW cross-compilation
+# CRITICAL: Clang needs explicit target, sysroot, and include paths
+export CFLAGS="--target=x86_64-w64-mingw32 --sysroot=${BUILD_PREFIX}/Library/x86_64-w64-mingw32/sysroot -I${BUILD_PREFIX}/Library/include -I${BUILD_PREFIX}/Library/x86_64-w64-mingw32/sysroot/usr/include ${CFLAGS:-}"
+export CXXFLAGS="--target=x86_64-w64-mingw32 --sysroot=${BUILD_PREFIX}/Library/x86_64-w64-mingw32/sysroot -I${BUILD_PREFIX}/Library/include -I${BUILD_PREFIX}/Library/x86_64-w64-mingw32/sysroot/usr/include ${CXXFLAGS:-}"
+export LDFLAGS="-fuse-ld=lld -Wl,--enable-auto-import ${LDFLAGS:-}"
 
 (
   MergeObjsCmd="${LD}" \
