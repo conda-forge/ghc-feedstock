@@ -1,0 +1,203 @@
+context:
+  version: "9.8.4"
+
+package:
+  name: ghc
+  version: ${{ version }}
+
+source:
+  - url: https://downloads.haskell.org/~ghc/${{ version }}/ghc-${{ version }}-src.tar.xz
+    sha256: 17e8188f3c8a5c2f73fb4e35d01032e8dc258835ec876d52c8ad8ee3d24b2fc5
+    patches:
+      # Fix duplicate symbol error when bootstrapping with GHC 9.6.7
+      - patches/fix-duplicate-ghc-unique-counter.patch
+      - if: aarch64 or ppc64le or arm64
+        then: patches/skip-bindist-recache-crosscompile.patch
+      - if: not unix
+        then:
+          - patches/skip-mingw-copy-conda.patch
+          # - patches/fix-ghc-bignum-intree-gmp-check.patch
+          - patches/force-system-gmp-windows.patch
+          - patches/add-ffi-include-dir-substitution.patch
+          - patches/debug-findcdependencies.patch
+      - if: osx and x86
+        then:
+          # Fix FFI_GO_CLOSURES macro redefinition with conda libffi
+          - patches/fix-ffi-go-closures-conflict.patch
+      - if: osx and arm64
+        then:
+      #     - patches/patch-rpath-macos.patch
+          - patches/patch-osname-macos.patch
+
+build:
+  number: 0
+  skip: not unix
+
+requirements:
+  build:
+    - ${{ compiler('c') }}
+    - ${{ compiler('cxx') }}
+    - ${{ stdlib('c') }}
+    - binutils >=${{ binutils_version }}
+    - if: target_platform != "linux-aarch64" and target_platform != "linux-ppc64le"
+      then:
+        - cabal ==3.10.3.0
+        - ghc-bootstrap ==9.6.7
+    - llvm-tools ${{ c_compiler_version }}.*
+    - perl 5.32.*
+    - pkg-config
+    - python 3.10.*
+    - sphinx
+
+    - if: unix
+      then:
+        - autoconf
+        - automake
+        - file
+        - m4
+        - make
+        - sed
+      else:
+        - m2-autoconf
+        - m2-automake-wrapper
+        - m2-bash
+        - m2-findutils
+        - m2-grep
+        - m2-m4
+        - m2-make
+        - m2-sed
+        - m2-which
+
+    - if: build_platform != target_platform
+      then:
+        - gmp
+        - libffi
+        - libiconv
+        - if: unix
+          then: ncurses
+  host:
+    - gmp
+    - libiconv
+    - libffi
+    - if: unix
+      then: ncurses
+  run:
+    - if: unix
+      then: ncurses
+  ignore_run_exports:
+    from_package:
+      - ncurses
+    
+tests:
+  - package_contents:
+      bin:
+        - ghc
+        - ghc-pkg
+        - ghci
+        - hp2ps
+        - hsc2hs
+        - if: build_platform == target_platform
+          then:
+            - haddock
+            - hpc
+            - runghc
+            - runhaskell
+      files:
+        - etc/bash_completion.d/ghc
+        - etc/conda/activate.d/ghc_activate.sh
+        - lib/ghc-${{ version }}/lib/llvm-passes
+        - lib/ghc-${{ version }}/lib/llvm-targets
+        - lib/ghc-${{ version }}/lib/package.conf.d/**
+        - lib/ghc-${{ version }}/lib/ghc-usage.txt
+        - lib/ghc-${{ version }}/lib/ghci-usage.txt
+        - lib/ghc-${{ version }}/lib/settings
+        - lib/ghc-${{ version }}/lib/template-hsc.h
+        - lib/ghc-${{ version }}/lib/ghc-interp.js
+        - lib/ghc-${{ version }}/lib/*-ghc-${{ version }}/*-inplace/*-inplace.a
+
+  - script: |
+      ghc --version
+      printf 'main = putStrLn "Hello conda-forge"\n' > hello.hs
+      ghc hello.hs && ./hello
+    requirements:
+      run:
+        - ${{ compiler('c') }}
+        - libiconv
+        - if: unix
+          then: ${{ stdlib('c') }}
+        - if: linux
+          then: ld_impl_${{ target_platform }} ${{ binutils_version }}
+        - if: osx
+          then: lld ${{ c_compiler_version }}.*
+
+  - script:
+      - if: not osx
+        then:
+          - printf 'main = putStrLn "Hello threaded conda-forge"\n' > hello_t.hs
+          - ghc -threaded hello_t.hs && ./hello_t
+          # - printf 'main = putStrLn "Hello profiled conda-forge"\n' > hello_p.hs
+          # - ghc -v -prof hello_p.hs && ./hello_p
+        else: echo "Profiling fails on osx"
+    requirements:
+      run:
+        - ${{ compiler('c') }}
+        - libiconv
+        - if: unix
+          then: ${{ stdlib('c') }}
+        - if: linux
+          then: ld_impl_${{ target_platform }} ${{ binutils_version }}
+
+  - script: |
+      printf 'main = putStrLn "Hello conda-forge"\n' > hello.hs
+      ghc -dynamic hello.hs && ./hello
+      printf 'main = putStrLn "Hello threaded conda-forge"\n' > hello_t.hs
+      ghc -dynamic -threaded hello_t.hs && ./hello_t
+    requirements:
+      run:
+        - ${{ compiler('c') }}
+        - libiconv
+        - if: unix
+          then: ${{ stdlib('c') }}
+        - if: linux
+          then: ld_impl_${{ target_platform }} ${{ binutils_version }}
+        - if: osx
+          then: lld ${{ c_compiler_version }}.*
+
+  - script:
+      - printf 'import System.Posix.Signals\nmain = installHandler sigTERM Default Nothing >> putStrLn "Signal test"\n' > signal_test.hs
+      - if: unix
+        then: |
+          ghc signal_test.hs
+          ./signal_test
+        else: |
+          echo Skipping signal test on Windows
+    requirements:
+      run:
+        - ${{ compiler('c') }}
+        - libiconv
+        - if: unix
+          then: ${{ stdlib('c') }}
+        - if: linux
+          then: ld_impl_${{ target_platform }} ${{ binutils_version }}
+        - if: osx
+          then: lld ${{ c_compiler_version }}.*
+
+
+about:
+  homepage: https://haskell.org/ghc/
+  license: BSD-3-Clause
+  license_file:
+    - LICENSE
+    - license_files
+  summary: Glorious Glasgow Haskell Compilation System
+  description: |
+    GHC is a state-of-the-art, open source, compiler and interactive environment 
+    for the functional language Haskell.
+  documentation: https://www.haskell.org/ghc/documentation.html
+  repository: https://gitlab.haskell.org/ghc/ghc
+
+extra:
+  recipe-maintainers:
+    - eggzilla
+    - step21
+    - xhochy
