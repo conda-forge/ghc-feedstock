@@ -23,7 +23,7 @@ if [[ -f "${settings_file}" ]]; then
   echo "=== Updating bootstrap settings with conda include paths ==="
   # Add -I flags to C compiler flags for ffi.h, gmp.h, etc.
   # CRITICAL: Use _PREFIX (Unix paths) NOT PREFIX (Windows paths with \b escape sequences)
-  perl -pi -e "s#((C|C\+\+|Haskell) compiler command\", \")[^\"]*#${CXX}#" "${settings_file}"
+  perl -pi -e "s#((C|C\+\+|Haskell) compiler command\", \")[^\"]*#\$1${CXX}#" "${settings_file}"
   
   perl -pi -e "s#(C compiler flags\", \")([^\"]*)(\")#\$1\$2 -I${_PREFIX}/Library/include -I${_BUILD_PREFIX}/Library/include\$3#" "${settings_file}"
   perl -pi -e "s#(C\+\+ compiler flags\", \")([^\"]*)(\")#\$1\$2 -I${_PREFIX}/Library/include -I${_BUILD_PREFIX}/Library/include\$3#" "${settings_file}"
@@ -31,6 +31,7 @@ if [[ -f "${settings_file}" ]]; then
 else
   echo "WARNING: Stage0 settings file not found at ${settings_file}"
 fi
+cat "${settings_file}"
 
 cd "${SRC_DIR}"
 
@@ -131,6 +132,7 @@ export CXXFLAGS="--target=x86_64-w64-mingw32 --sysroot=${BUILD_PREFIX}/Library/x
 
 # export WINDRES="${_BUILD_PREFIX}/Library/bin/${conda_target}-windres"
 # export DLLWRAP="${_BUILD_PREFIX}/Library/bin/${conda_target}-dllwrap"
+
 "${_BUILD_PREFIX}"/ghc-bootstrap/bin/ghc-pkg list
 # Add conda include paths to CFLAGS so C compiler can find ffi.h, gmp.h, etc.
 # CFLAGS="${CFLAGS//-nostdlib/} -v -fno-stack-check -fno-stack-protector -I${_PREFIX}/Library/include -I${_BUILD_PREFIX}/Library/include" \
