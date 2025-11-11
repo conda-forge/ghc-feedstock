@@ -10,7 +10,7 @@ export CABAL="${_BUILD_PREFIX}/bin/cabal"
 export CABAL_DIR="${SRC_DIR}\\.cabal"
 export _PYTHON="${_BUILD_PREFIX}/python.exe"
 export GHC="${BUILD_PREFIX}\\ghc-bootstrap\\bin\\ghc.exe"
-export GHC_PKG="${BUILD_PREFIX}\\ghc-bootstrap\\bin\\ghc-pkg.exe"
+export LIBRARY_PATH="${_BUILD_PREFIX}/Library/lib${LIBRARY_PATH:+:}${LIBRARY_PATH:-}"
 
 # Bug in ghc-bootstrap
 #WINDRES_PATH="${BUILD_PREFIX//\\/\\\\}\\\\Library\\\\bin\\\\${WINDRES}"
@@ -23,7 +23,8 @@ if [[ -f "${settings_file}" ]]; then
   echo "=== Updating bootstrap settings with conda include paths ==="
   # Add -I flags to C compiler flags for ffi.h, gmp.h, etc.
   # CRITICAL: Use _PREFIX (Unix paths) NOT PREFIX (Windows paths with \b escape sequences)
-  perl -pi -e "s#((C|C\+\+|Haskell) compiler command\", \")[^\"]*#\$1${CXX}#" "${settings_file}"
+  perl -pi -e "s#((C|Haskell) compiler command\", \")[^\"]*#\$1${CC}#" "${settings_file}"
+  perl -pi -e "s#((C\+\+) compiler command\", \")[^\"]*#\$1${CXX}#" "${settings_file}"
   
   perl -pi -e "s#(C compiler flags\", \")([^\"]*)(\")#\$1\$2 -I${_PREFIX}/Library/include -I${_BUILD_PREFIX}/Library/include\$3#" "${settings_file}"
   perl -pi -e "s#(C\+\+ compiler flags\", \")([^\"]*)(\")#\$1\$2 -I${_PREFIX}/Library/include -I${_BUILD_PREFIX}/Library/include\$3#" "${settings_file}"
@@ -50,7 +51,6 @@ echo "jobs: 1" >> "${SRC_DIR}/.cabal/config"
 
 run_and_log "cabal-update" "${CABAL}" v2-update
 
-export LIBRARY_PATH="${_BUILD_PREFIX}/Library/lib${LIBRARY_PATH:+:}${LIBRARY_PATH:-}"
 
 # Set up temp variables
 export TMP="$(cygpath -w "${TEMP}")"
@@ -130,17 +130,7 @@ export LD_STAGE0=${LD}
 export CXX_STD_LIB_LIBS="stdc++"
 export CXXFLAGS="--target=x86_64-w64-mingw32 --sysroot=${BUILD_PREFIX}/Library/x86_64-w64-mingw32/sysroot"
 
-# export WINDRES="${_BUILD_PREFIX}/Library/bin/${conda_target}-windres"
-# export DLLWRAP="${_BUILD_PREFIX}/Library/bin/${conda_target}-dllwrap"
-
-"${_BUILD_PREFIX}"/ghc-bootstrap/bin/ghc-pkg list
-# Add conda include paths to CFLAGS so C compiler can find ffi.h, gmp.h, etc.
-# CFLAGS="${CFLAGS//-nostdlib/} -v -fno-stack-check -fno-stack-protector -I${_PREFIX}/Library/include -I${_BUILD_PREFIX}/Library/include" \
-# CXXFLAGS="${CXXFLAGS//-nostdlib/} -v -fno-stack-check -fno-stack-protector -I${_PREFIX}/Library/include -I${_BUILD_PREFIX}/Library/include" \
-# LDFLAGS="${LDFLAGS//-nostdlib/} -v" \
 (
-  export GHC="${_BUILD_PREFIX}"/ghc-bootstrap/bin/ghc.exe
-  
   MergeObjsCmd="${LD}" \
   MergeObjsArgs="" \
   run_and_log "ghc-configure" ./configure "${CONFIGURE_ARGS[@]}" || ( cat config.log ; exit 1 )
@@ -155,12 +145,6 @@ perl -pi -e 's#^ffi-include-dir\s*=\s*/c/#ffi-include-dir   = C:/#' "${SRC_DIR}"
 perl -pi -e 's#^ffi-lib-dir\s*=\s*/c/#ffi-lib-dir       = C:/#' "${SRC_DIR}"/hadrian/cfg/system.config
 perl -pi -e 's#^([a-z-]+dir)\s*=\s*/c/#$1 = C:/#g' "${SRC_DIR}"/hadrian/cfg/system.config
 perl -pi -e "s#^(intree-gmp\s*=\s*).*#\$1NO#" "${SRC_DIR}"/hadrian/cfg/system.config
-echo "=== Fixing windres and dllwrap paths in system.config ==="
-# Ensure windres and dllwrap are not set to 'false'
-# perl -pi -e "s#^(settings-dll-wrap-command = ).*#\$1${DLLWRAP}#" "${SRC_DIR}"/hadrian/cfg/system.config
-# perl -pi -e "s#^(settings-windres-command = ).*#\$1${WINDRES}#" "${SRC_DIR}"/hadrian/cfg/system.config
-# perl -pi -e "s#^dllwrap\\s*=\\s*false\\s*\$#dllwrap = ${DLLWRAP}#" "${SRC_DIR}"/hadrian/cfg/system.config
-# perl -pi -e "s#^windres\\s*=\\s*false\\s*\$#windres = ${WINDRES}#" "${SRC_DIR}"/hadrian/cfg/system.config
 
 echo "=== Forcing system toolchain and libffi settings ==="
 # Force use of conda toolchain (not inplace MinGW)
