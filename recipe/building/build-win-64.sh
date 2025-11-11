@@ -18,17 +18,23 @@ export LIBRARY_PATH="${_BUILD_PREFIX}/Library/lib${LIBRARY_PATH:+:}${LIBRARY_PAT
 perl -pi -e 's/findstr/C:\\Windows\\System32\\findstr/g' "${_BUILD_PREFIX}"/ghc-bootstrap/bin/windres.bat
 
 # Update Stage0 settings file with conda include paths for Windows build
-echo $(find "${_PREFIX}" -name "*ingw*" | head -1)
 settings_file="${_BUILD_PREFIX}/ghc-bootstrap/lib/settings"
 if [[ -f "${settings_file}" ]]; then
   echo "=== Updating bootstrap settings with conda include paths ==="
   # Add -I flags to C compiler flags for ffi.h, gmp.h, etc.
   # CRITICAL: Use _PREFIX (Unix paths) NOT PREFIX (Windows paths with \b escape sequences)
-  perl -pi -e "s#((C|Haskell CPP) compiler command\", \")[^\"]*#\$1${CC}#" "${settings_file}"
-  perl -pi -e "s#((C\+\+) compiler command\", \")[^\"]*#\$1${CXX}#" "${settings_file}"
+  
+  perl -pi -e "s#(C compiler command\", \")[^\"]*#\$1${CC}#" "${settings_file}"
+  perl -pi -e "s#(Haskell CPP command\", \")[^\"]*#\$1${CC}#" "${settings_file}"
+  perl -pi -e "s#(C\+\+ compiler command\", \")[^\"]*#\$1${CXX}#" "${settings_file}"
+  
   perl -pi -e "s#-I\$tooldir/mingw/include#-I${_BUILD_PREFIX}/Library/x86_64-w64-mingw32/sysroot/usr/include#g" "${settings_file}"
-  perl -pi -e "s#(C compiler flags\", \")([^\"]*)(\")#\$1\$2 -I${_PREFIX}/Library/include\$3#" "${settings_file}"
-  perl -pi -e "s#(C\+\+ compiler flags\", \")([^\"]*)(\")#\$1\$2 -I${_PREFIX}/Library/include\$3#" "${settings_file}"
+  grep "mingw" "${settings_file}"
+  
+  perl -pi -e "s#(C compiler flags\", \")([^\"]*)#\$1\$2 -I${_PREFIX}/Library/include#" "${settings_file}"
+  perl -pi -e "s#(C\+\+ compiler flags\", \")([^\"]*)#\$1\$2 -I${_PREFIX}/Library/include#" "${settings_file}"
+  perl -pi -e "s#(Haskell CPP flags\", \")[^\"]*#\$1 -I${_PREFIX}/Library/include#" "${settings_file}"
+  
   grep "C compiler flags\|C++ compiler flags" "${settings_file}"
 else
   echo "WARNING: Stage0 settings file not found at ${settings_file}"
