@@ -18,7 +18,7 @@ export LIBRARY_PATH="${_BUILD_PREFIX}/Library/lib${LIBRARY_PATH:+:}${LIBRARY_PAT
 perl -pi -e 's/findstr/C:\\Windows\\System32\\findstr/g' "${_BUILD_PREFIX}"/ghc-bootstrap/bin/windres.bat
 
 # Update Stage0 settings file with conda include paths for Windows build
-echo $(find "${_BUILD_PREFIX}" -name "*ingw*" | head -1)
+echo $(find "${_PREFIX}" -name "*ingw*" | head -1)
 settings_file="${_BUILD_PREFIX}/ghc-bootstrap/lib/settings"
 if [[ -f "${settings_file}" ]]; then
   echo "=== Updating bootstrap settings with conda include paths ==="
@@ -26,9 +26,9 @@ if [[ -f "${settings_file}" ]]; then
   # CRITICAL: Use _PREFIX (Unix paths) NOT PREFIX (Windows paths with \b escape sequences)
   perl -pi -e "s#((C|Haskell CPP) compiler command\", \")[^\"]*#\$1${CC}#" "${settings_file}"
   perl -pi -e "s#((C\+\+) compiler command\", \")[^\"]*#\$1${CXX}#" "${settings_file}"
-  perl -pi -e 's#-I$tooldir/mingw/include##g' "${settings_file}"
-  perl -pi -e "s#(C compiler flags\", \")([^\"]*)(\")#\$1\$2 -I${_PREFIX}/Library/include -I${_BUILD_PREFIX}/Library/include\$3#" "${settings_file}"
-  perl -pi -e "s#(C\+\+ compiler flags\", \")([^\"]*)(\")#\$1\$2 -I${_PREFIX}/Library/include -I${_BUILD_PREFIX}/Library/include\$3#" "${settings_file}"
+  perl -pi -e "s#-I\$tooldir/mingw/include#-I${_BUILD_PREFIX}/Library/x86_64-w64-mingw32/sysroot/usr/include#g" "${settings_file}"
+  perl -pi -e "s#(C compiler flags\", \")([^\"]*)(\")#\$1\$2 -I${_PREFIX}/Library/include\$3#" "${settings_file}"
+  perl -pi -e "s#(C\+\+ compiler flags\", \")([^\"]*)(\")#\$1\$2 -I${_PREFIX}/Library/include\$3#" "${settings_file}"
   grep "C compiler flags\|C++ compiler flags" "${settings_file}"
 else
   echo "WARNING: Stage0 settings file not found at ${settings_file}"
@@ -74,8 +74,6 @@ export INCLUDE="${PREFIX}/Library/include;${BUILD_PREFIX}/Library/include;C:/Pro
 
 mkdir -p "${_BUILD_PREFIX}/bin"
 cp "${_BUILD_PREFIX}/Library/usr/bin/m4.exe" "${_BUILD_PREFIX}/bin"
-
-_hadrian_build=("${_SRC_DIR}"/hadrian/build.bat)
 
 # Configure and build GHC
 SYSTEM_CONFIG=(
@@ -173,6 +171,19 @@ mkdir -p ${_SRC_DIR}/_build
 # stage1.ghc-pkg.ghc.link.opts += -optl-static
 # stage1.hsc2hs.ghc.link.opts += -optl-static
 # EOF
+
+(
+  pushd "${SRC_DIR}"/hadrian
+    export CFLAGS="--target=x86_64-w64-mingw32 -I${BUILD_PREFIX}/Library/include -I${BUILD_PREFIX}/Library/x86_64-w64-mingw32/sysroot/usr/include ${CFLAGS}"
+    export CXXFLAGS="--target=x86_64-w64-mingw32 -I${BUILD_PREFIX}/Library/include -I${BUILD_PREFIX}/Library/x86_64-w64-mingw32/sysroot/usr/include ${CXXFLAGS}"
+    
+    "${CABAL}" v2-build -j hadrian 2>&1 | tee "${SRC_DIR}"/cabal-verbose.log
+  popd
+)
+
+echo ">$(find ${SRC_DIR}/hadrian/dist-newstyle -name hadrian{,.exe} -type f | head -1)<"
+_hadrian_bin=$(find "${SRC_DIR}"/hadrian/dist-newstyle -name hadrian{,.exe} -type f | head -1)
+_hadrian_build=("${_hadrian_bin}" "-j${CPU_COUNT}" "--directory" "${SRC_DIR}")
 
 # Build stage1 GHC
 echo "*** Building stage1 GHC ***"
