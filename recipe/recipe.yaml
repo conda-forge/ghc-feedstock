@@ -20,7 +20,7 @@ source:
           - patches/force-system-gmp-windows.patch
           - patches/add-ffi-include-dir-substitution.patch
           - patches/debug-findcdependencies.patch
-      - if: osx and x86
+      - if: osx
         then:
           # Fix FFI_GO_CLOSURES macro redefinition with conda libffi
           - patches/fix-ffi-go-closures-conflict.patch
