@@ -55,6 +55,7 @@ requirements:
         - make
         - sed
       else:
+        - libgcc
         - m2-autoconf
         - m2-automake-wrapper
         - m2-bash

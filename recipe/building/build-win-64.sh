@@ -126,8 +126,8 @@ export CXXFLAGS="--target=x86_64-w64-mingw32 --rtlib=compiler-rt --sysroot=${BUI
 export LDFLAGS="-nostdlib -L${BUILD_PREFIX}/Library/lib -L${BUILD_PREFIX}/Library/x86_64-w64-mingw32/sysroot/usr/lib"
 
 (
-  CFLAGS_CONFIGURE=$(echo "${CFLAGS}" | sed 's/-nostdlib//g')
-  CXXFLAGS_CONFIGURE=$(echo "${CXXFLAGS}" | sed 's/-nostdlib//g')
+  CFLAGS_CONFIGURE=$(echo "${CFLAGS}" | sed 's/-nostdlib//g' | sed 's/--target=x86_64-w64-mingw32//g')
+  CXXFLAGS_CONFIGURE=$(echo "${CXXFLAGS}" | sed 's/-nostdlib//g' | sed 's/--target=x86_64-w64-mingw32//g')
   LDFLAGS_CONFIGURE=$(echo "${LDFLAGS}" | sed 's/-nostdlib//g')
   
   CFLAGS="${CFLAGS_CONFIGURE}" \
