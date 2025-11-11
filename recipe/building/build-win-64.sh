@@ -123,7 +123,7 @@ export CXX_STD_LIB_LIBS="stdc++"
 # CRITICAL: Clang needs explicit target, sysroot, and include paths
 export CFLAGS="--target=x86_64-w64-mingw32 --sysroot=${BUILD_PREFIX}/Library/x86_64-w64-mingw32/sysroot -I${BUILD_PREFIX}/Library/include -I${BUILD_PREFIX}/Library/x86_64-w64-mingw32/sysroot/usr/include ${CFLAGS:-}"
 export CXXFLAGS="--target=x86_64-w64-mingw32 --sysroot=${BUILD_PREFIX}/Library/x86_64-w64-mingw32/sysroot -I${BUILD_PREFIX}/Library/include -I${BUILD_PREFIX}/Library/x86_64-w64-mingw32/sysroot/usr/include ${CXXFLAGS:-}"
-# export LDFLAGS="-Wl,--enable-auto-import ${LDFLAGS:-}"
+export LDFLAGS="-nostdlib -L${BUILD_PREFIX}/Library/lib -L${BUILD_PREFIX}/Library/x86_64-w64-mingw32/sysroot/usr/lib"
 
 (
   MergeObjsCmd="${LD}" \
