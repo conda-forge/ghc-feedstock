@@ -124,9 +124,10 @@ export CXX_STD_LIB_LIBS="stdc++"
 
 # Configure Clang for MinGW cross-compilation
 # CRITICAL: Clang needs explicit target, sysroot, and include paths
-UCRT_INCLUDE=$(ls -d "C:/Program Files*x86*/Windows Kits/10/Include/10.0.26100.0/ucrt" 2>/dev/null | sort -V | tail -1 | sed 's/\/$//')
-UM_INCLUDE=$(ls -d "C:/Program Files*x86*/Windows Kits/10/Include/10.0.26100.0/um" 2>/dev/null | sort -V | tail -1 | sed 's/\/$//')
-UM_LIB=$(ls -d "C:/Program Files*x86*/Windows Kits/10/Lib/10.0.26100.0/um/x64" 2>/dev/null | sort -V | tail -1 | sed 's/\/$//')
+UCRT_INCLUDE=$(find /c/Program Files*x86*/Windows Kits/10/Include/${SDK_VERSION} -type d -name ucrt | head -1)
+UM_INCLUDE=$(find /c/Program Files*x86*/Windows Kits/10/Include/${SDK_VERSION} -type d -name um | head -1)
+SHARED_INCLUDE=$(find /c/Program Files*x86*/Windows Kits/10/Include/${SDK_VERSION} -type d -name shared | head -1)
+UM_LIB=$(find /c/Program Files*x86*/Windows Kits/10/Lib/${SDK_VERSION}/um -type d -name x64 | head -1)
 
 export CFLAGS="-I${BUILD_PREFIX}/Library/include -I${UCRT_INCLUDE} -I${UM_INCLUDE} -I${BUILD_PREFIX}/Library/x86_64-w64-mingw32/sysroot/usr/include ${CFLAGS:-}"
 export CXXFLAGS="-I${BUILD_PREFIX}/Library/include -I${UCRT_INCLUDE} -I${UM_INCLUDE} -I${BUILD_PREFIX}/Library/x86_64-w64-mingw32/sysroot/usr/include ${CXXFLAGS:-}"
