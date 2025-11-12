@@ -243,8 +243,10 @@ pushd "${PREFIX}"/bin
     mv "${ghc_target}-ghc-pkg-${PKG_VERSION}" "${conda_target}-ghc-pkg-${PKG_VERSION}"
     rm -f "ghc-pkg" "${ghc_target}-ghc-pkg"
     ln -sf "${conda_target}-ghc-pkg-${PKG_VERSION}" "ghc-pkg"
+  elif [[ -f "${conda_target}-ghc-pkg-${PKG_VERSION}" ]]; then
+    ln -sf "${conda_target}-ghc-pkg-${PKG_VERSION}" "ghc-pkg"
   fi
-  
+    
   for bin in hp2ps hsc2hs; do
     if [[ -f "${conda_target}-${bin}-ghc-${PKG_VERSION}" ]]; then
       rm -f "${bin}"

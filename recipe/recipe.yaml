@@ -21,16 +21,14 @@ source:
       - if: not unix
         then:
           - patches/skip-mingw-copy-conda.patch
-          # - patches/fix-ghc-bignum-intree-gmp-check.patch
           - patches/force-system-gmp-windows.patch
           - patches/add-ffi-include-dir-substitution.patch
           - patches/debug-findcdependencies.patch
-      - if: osx and x86
+      - if: osx
         then:
           - patches/remove-dangerous-macos-linker-flags.patch
       - if: osx and arm64
         then:
-      #     - patches/patch-rpath-macos.patch
           - patches/patch-osname-macos.patch
 
 build:
@@ -87,9 +85,6 @@ requirements:
     - libffi
     - if: unix
       then: ncurses
-  run:
-    - if: osx
-      then: ncurses
     
 tests:
   - package_contents:
@@ -131,7 +126,7 @@ tests:
 
   - script: |
       printf 'main = putStrLn "Hello conda-forge"\n' > hello.hs
-      ghc hello.hs && ./hello
+      ghc -v hello.hs && ./hello
     requirements:
       run:
         - ${{ compiler('c') }}
