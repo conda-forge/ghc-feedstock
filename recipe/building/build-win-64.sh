@@ -33,12 +33,14 @@ if [[ -f "${settings_file}" ]]; then
   perl -pi -e "s#(dllwrap command\", \")[^\"]*#\$1false#" "${settings_file}"
   perl -pi -e "s#(windres command\", \")[^\"]*#\$1false#" "${settings_file}"
   
-  perl -pi -e "s#(ld is GNU ld\", \")[^\"]*#\$1NO#" "${settings_file}"
   perl -pi -e "s#-I\\\$tooldir/mingw/include#-I${_BUILD_PREFIX}/Library/x86_64-w64-mingw32/sysroot/usr/include#g" "${settings_file}"
   
-  perl -pi -e "s#(C compiler flags\", \")([^\"]*)#\$1\$2 -I${_PREFIX}/Library/include#" "${settings_file}"
-  perl -pi -e "s#(C\+\+ compiler flags\", \")([^\"]*)#\$1\$2 -I${_PREFIX}/Library/include#" "${settings_file}"
+  perl -pi -e "s#(C compiler flags\", \")([^\"]*)#\$1\$2 ${CFLAGS} -I${_PREFIX}/Library/include#" "${settings_file}"
+  perl -pi -e "s#(C\+\+ compiler flags\", \")([^\"]*)#\$1\$2 ${CXXFLAGS} -I${_PREFIX}/Library/include#" "${settings_file}"
   perl -pi -e "s#(Haskell CPP flags\", \")[^\"]*#\$1-E -I${_BUILD_PREFIX}/Library/x86_64-w64-mingw32/sysroot/usr/include -I${_PREFIX}/Library/include#" "${settings_file}"
+
+  perl -pi -e "s#(C compiler link flags\", \")[^\"]*#\$1#" "${settings_file}"
+  perl -pi -e "s#(ld is GNU ld\", \")[^\"]*#\$1NO#" "${settings_file}"
   
   grep "C compiler flags\|C++ compiler flags" "${settings_file}"
 else
@@ -131,8 +133,8 @@ export LDFLAGS="-nostdlib -L${BUILD_PREFIX}/Library/lib -L${BUILD_PREFIX}/Librar
   CXXFLAGS_CONFIGURE=$(echo "${CXXFLAGS}" | sed 's/-nostdlib//g' | sed 's/--target=x86_64-w64-mingw32//g')
   LDFLAGS_CONFIGURE=$(echo "${LDFLAGS}" | sed 's/-nostdlib//g')
   
-  CFLAGS="-std=gnu11 ${CFLAGS_CONFIGURE} -fms-extensions" \
-  CXXFLAGS="${CXXFLAGS_CONFIGURE} -fms-extensions" \
+  CFLAGS="-fms-extensions -fdeclspec ${CFLAGS_CONFIGURE}" \
+  CXXFLAGS="-fms-extensions -fdeclspec ${CXXFLAGS_CONFIGURE}" \
   LDFLAGS="${LDFLAGS_CONFIGURE}" \
   MergeObjsCmd="${LD}" \
   MergeObjsArgs="" \
