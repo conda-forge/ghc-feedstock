@@ -131,7 +131,7 @@ export LDFLAGS="-nostdlib -L${BUILD_PREFIX}/Library/lib -L${BUILD_PREFIX}/Librar
   CXXFLAGS_CONFIGURE=$(echo "${CXXFLAGS}" | sed 's/-nostdlib//g' | sed 's/--target=x86_64-w64-mingw32//g')
   LDFLAGS_CONFIGURE=$(echo "${LDFLAGS}" | sed 's/-nostdlib//g')
   
-  CFLAGS="${CFLAGS_CONFIGURE} -fms-extensions" \
+  CFLAGS="-std=gnu11 ${CFLAGS_CONFIGURE} -fms-extensions" \
   CXXFLAGS="${CXXFLAGS_CONFIGURE} -fms-extensions" \
   LDFLAGS="${LDFLAGS_CONFIGURE}" \
   MergeObjsCmd="${LD}" \
