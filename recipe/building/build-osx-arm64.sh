@@ -198,11 +198,7 @@ update_installed_settings
 
 # Create links of cross-conda-linux-gnu-xxx to xxx
 pushd "${PREFIX}"/bin
-  if [[ -f "${ghc_target}-ghc-pkg-${PKG_VERSION}" ]] && [[ ! -f "${conda_target}-ghc-pkg-${PKG_VERSION}" ]]; then
-    mv "${ghc_target}-ghc-pkg-${PKG_VERSION}" "${conda_target}-ghc-pkg-${PKG_VERSION}"
-    rm -f "ghc-pkg" "${ghc_target}-ghc-pkg"
-    ln -sf "${conda_target}-ghc-pkg-${PKG_VERSION}" "ghc-pkg"
-  elif [[ -f "${conda_target}-ghc-pkg-${PKG_VERSION}" ]]; then
+  if [[ -f "${conda_target}-ghc-pkg-${PKG_VERSION}" ]]; then
     ln -sf "${conda_target}-ghc-pkg-${PKG_VERSION}" "ghc-pkg"
   fi
     
@@ -210,21 +206,9 @@ pushd "${PREFIX}"/bin
     if [[ -f "${conda_target}-${bin}-ghc-${PKG_VERSION}" ]]; then
       rm -f "${bin}"
       ln -sf "${conda_target}-${bin}-ghc-${PKG_VERSION}" "${bin}"
-    elif [[ -f "${ghc_target}-${bin}-ghc-${PKG_VERSION}" ]]; then
-      rm -f "${conda_target}-${bin}-${PKG_VERSION}"
-      mv "${ghc_target}-${bin}-ghc-${PKG_VERSION}" "${conda_target}-${bin}-ghc-${PKG_VERSION}"
-      rm -f "${ghc_target}-${bin}"
-      rm -f "${bin}"
-      ln -sf "${conda_target}-${bin}-ghc-${PKG_VERSION}" "${bin}"
     fi
   done
 popd
-
-if [[ -d "${PREFIX}"/lib/${ghc_target}-ghc-"${PKG_VERSION}" ]] && [[ ! -d "${PREFIX}"/lib/ghc-"${PKG_VERSION}" ]]; then
-  # $PREFIX/lib/cross-conda-linux-gnu-ghc-9.12.2 -> $PREFIX/lib/ghc-9.12.2
-  mv "${PREFIX}"/lib/"${ghc_target}"-ghc-"${PKG_VERSION}" "${PREFIX}"/lib/ghc-"${PKG_VERSION}"
-  ln -sf "${PREFIX}"/lib/ghc-"${PKG_VERSION}" "${PREFIX}"/lib/"${ghc_target}"-ghc-"${PKG_VERSION}"
-fi
 
 if [[ -d "${PREFIX}"/lib/${conda_target}-ghc-"${PKG_VERSION}" ]] && [[ ! -d "${PREFIX}"/lib/ghc-"${PKG_VERSION}" ]]; then
   # $PREFIX/lib/cross-conda-linux-gnu-ghc-9.12.2 -> $PREFIX/lib/ghc-9.12.2
@@ -234,10 +218,6 @@ fi
 
 # Create links of cross-conda-linux-gnu-xxx to xxx for ghc
 pushd "${PREFIX}"/lib/ghc-"${PKG_VERSION}"/bin
-  if [[ "${ghc_target}-ghc-${PKG_VERSION}" ]]; then
-    ln -sf "${ghc_target}-ghc-${PKG_VERSION}" ghc-"${PKG_VERSION}"
-    ln -sf "${ghc_target}-ghc-${PKG_VERSION}" ghc
-  fi
   if [[ "${conda_target}-ghc-${PKG_VERSION}" ]]; then
     ln -sf "${conda_target}-ghc-${PKG_VERSION}" ghc-"${PKG_VERSION}"
     ln -sf "${conda_target}-ghc-${PKG_VERSION}" ghc
