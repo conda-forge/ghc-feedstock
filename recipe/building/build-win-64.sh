@@ -116,6 +116,7 @@ export WINDOWS_TOOLCHAIN_AUTOCONF=no
 # Force use of system libffi (conda-provided)
 export UseSystemFfi=YES
 export ac_cv_use_system_libffi=yes
+export ac_cv_prog_cc_c99=""
 
 export CXX_STD_LIB_LIBS="stdc++"
 
