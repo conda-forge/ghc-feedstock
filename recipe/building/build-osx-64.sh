@@ -96,6 +96,8 @@ set_macos_conda_ar_ranlib "${settings_file}" "${CONDA_TOOLCHAIN_BUILD}"
 run_and_log "stage2_exe" "${_hadrian_build[@]}" stage2:exe:ghc-bin --flavour=release+no_profiled_libs --freeze1 --docs=none --progress-info=none
 update_settings_link_flags "${SRC_DIR}"/_build/stage1/lib/settings
 
+run_and_log "stage2_ghc-prim" "${_hadrian_build[@]}" stage2:lib:ghc-prim --flavour=release+no_profiled_libs
+run_and_log "stage2_ghc-bignum" "${_hadrian_build[@]}" stage2:lib:ghc-bignum --flavour=release+no_profiled_libs
 run_and_log "stage2_lib" "${_hadrian_build[@]}" stage2:lib:ghc --flavour=release+no_profiled_libs --freeze1 --docs=none --progress-info=none
 run_and_log "install" "${_hadrian_build[@]}" install --prefix="${PREFIX}" --flavour=release+no_profiled_libs --freeze1 --freeze2 --docs=none --progress-info=none
 

@@ -174,21 +174,19 @@ run_and_log "stage1_ghc-bignum" "${_hadrian_build[@]}" stage1:lib:ghc-bignum --f
 run_and_log "stage1_lib" "${_hadrian_build[@]}" stage1:lib:ghc --flavour=release+no_profiled_libs --docs=none --progress-info=none
 
 run_and_log "stage2_exe" "${_hadrian_build[@]}" stage2:exe:ghc-bin --flavour=release+no_profiled_libs --freeze1 --docs=none --progress-info=none
-run_and_log "bindist"    "${_hadrian_build[@]}" binary-dist --prefix="${PREFIX}" --flavour=release+no_profiled_libs --freeze1 --freeze2 --docs=none --progress-info=none
-
-ls -l1 "${PREFIX}"/{bin,lib}/*
+"${_hadrian_build[@]}" binary-dist --flavour=release+no_profiled_libs --freeze1 --freeze2 --docs=none --progress-info=none
 
 # Now manually install from the bindist with correct configure arguments
-bindist_dir=$(find "${SRC_DIR}"/_build/bindist -name "ghc-${PKG_VERSION}-${ghc_target}" -type d | head -1)
+bindist_dir=$(find "${SRC_DIR}"/_build/bindist -name "ghc-${PKG_VERSION}-${conda_target}" -type d | head -1)
 if [[ -n "${bindist_dir}" ]]; then
   pushd "${bindist_dir}"
     # Configure the binary distribution with proper cross-compilation settings
     ac_cv_path_CC="${BUILD_PREFIX}"/bin/"${conda_host}"-clang \
     ac_cv_path_CXX="${BUILD_PREFIX}"/bin/"${conda_host}"-clang++ \
-    ./configure --prefix="${PREFIX}" --target="${ghc_target}" || { cat config.log; exit 1; }
+    ./configure --prefix="${PREFIX}" --host="${ghc_target}" --target="${ghc_target}" || { cat config.log; exit 1; }
  
     # Install (update_package_db fails due to cross ghc-pkg)
-    run_and_log "make_install" make install_bin install_lib install_man
+    make install_bin install_lib
   popd
 else
   echo "Error: Could not find binary distribution directory"
@@ -196,29 +194,52 @@ else
 fi
 
 # Correct CC/CXX
-settings_file=$(find "${PREFIX}"/lib/ -name settings | head -1)
-if [[ -f "${settings_file}" ]]; then
-  perl -pi -e "s#${host_arch}(-[^ \"]*)#${target_arch}\$1#g" "${settings_file}"
-  perl -pi -e "s#(C compiler link flags\", \"[^\"]*)#\$1 -Wl,-L\\\$topdir/../../../lib -Wl,-rpath,\\\$topdir/../../../lib#" "${settings_file}"
-  perl -pi -e "s#(ld flags\", \"[^\"]*)#\$1 -L\\\$topdir/../../../lib -rpath \\\$topdir/../../../lib#" "${settings_file}"
-  perl -pi -e "s#\"[/\w]*?(ar|clang|clang\+\+|ld|ranlib|llc|opt)\"#\"${conda_target}-\$1\"#" "${settings_file}"
-  cat "${settings_file}"
-else
-  echo "Error: Could not find settins file"
-  exit 1
-fi
+update_installed_settings
 
 # Create links of cross-conda-linux-gnu-xxx to xxx
 pushd "${PREFIX}"/bin
-  for bin in ghc ghci ghc-pkg hp2ps hsc2hs; do
-    if [[ -f "${ghc_target}-${bin}" ]] && [[ ! -f "${bin}" ]]; then
-      ln -sf "${ghc_target}-${bin}" "${bin}"
+  if [[ -f "${ghc_target}-ghc-pkg-${PKG_VERSION}" ]] && [[ ! -f "${conda_target}-ghc-pkg-${PKG_VERSION}" ]]; then
+    mv "${ghc_target}-ghc-pkg-${PKG_VERSION}" "${conda_target}-ghc-pkg-${PKG_VERSION}"
+    rm -f "ghc-pkg" "${ghc_target}-ghc-pkg"
+    ln -sf "${conda_target}-ghc-pkg-${PKG_VERSION}" "ghc-pkg"
+  elif [[ -f "${conda_target}-ghc-pkg-${PKG_VERSION}" ]]; then
+    ln -sf "${conda_target}-ghc-pkg-${PKG_VERSION}" "ghc-pkg"
+  fi
+    
+  for bin in hp2ps hsc2hs; do
+    if [[ -f "${conda_target}-${bin}-ghc-${PKG_VERSION}" ]]; then
+      rm -f "${bin}"
+      ln -sf "${conda_target}-${bin}-ghc-${PKG_VERSION}" "${bin}"
+    elif [[ -f "${ghc_target}-${bin}-ghc-${PKG_VERSION}" ]]; then
+      rm -f "${conda_target}-${bin}-${PKG_VERSION}"
+      mv "${ghc_target}-${bin}-ghc-${PKG_VERSION}" "${conda_target}-${bin}-ghc-${PKG_VERSION}"
+      rm -f "${ghc_target}-${bin}"
+      rm -f "${bin}"
+      ln -sf "${conda_target}-${bin}-ghc-${PKG_VERSION}" "${bin}"
     fi
   done
 popd
 
-if [[ -d "${PREFIX}"/lib/${ghc_target}-ghc-"${PKG_VERSION}" ]]; then
+if [[ -d "${PREFIX}"/lib/${ghc_target}-ghc-"${PKG_VERSION}" ]] && [[ ! -d "${PREFIX}"/lib/ghc-"${PKG_VERSION}" ]]; then
   # $PREFIX/lib/cross-conda-linux-gnu-ghc-9.12.2 -> $PREFIX/lib/ghc-9.12.2
   mv "${PREFIX}"/lib/"${ghc_target}"-ghc-"${PKG_VERSION}" "${PREFIX}"/lib/ghc-"${PKG_VERSION}"
   ln -sf "${PREFIX}"/lib/ghc-"${PKG_VERSION}" "${PREFIX}"/lib/"${ghc_target}"-ghc-"${PKG_VERSION}"
 fi
+
+if [[ -d "${PREFIX}"/lib/${conda_target}-ghc-"${PKG_VERSION}" ]] && [[ ! -d "${PREFIX}"/lib/ghc-"${PKG_VERSION}" ]]; then
+  # $PREFIX/lib/cross-conda-linux-gnu-ghc-9.12.2 -> $PREFIX/lib/ghc-9.12.2
+  mv "${PREFIX}"/lib/"${conda_target}"-ghc-"${PKG_VERSION}" "${PREFIX}"/lib/ghc-"${PKG_VERSION}"
+  ln -sf "${PREFIX}"/lib/ghc-"${PKG_VERSION}" "${PREFIX}"/lib/"${conda_target}"-ghc-"${PKG_VERSION}"
+fi
+
+# Create links of cross-conda-linux-gnu-xxx to xxx for ghc
+pushd "${PREFIX}"/lib/ghc-"${PKG_VERSION}"/bin
+  if [[ "${ghc_target}-ghc-${PKG_VERSION}" ]]; then
+    ln -sf "${ghc_target}-ghc-${PKG_VERSION}" ghc-"${PKG_VERSION}"
+    ln -sf "${ghc_target}-ghc-${PKG_VERSION}" ghc
+  fi
+  if [[ "${conda_target}-ghc-${PKG_VERSION}" ]]; then
+    ln -sf "${conda_target}-ghc-${PKG_VERSION}" ghc-"${PKG_VERSION}"
+    ln -sf "${conda_target}-ghc-${PKG_VERSION}" ghc
+  fi
+popd
