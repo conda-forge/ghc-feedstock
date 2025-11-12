@@ -274,11 +274,11 @@ fi
 # Create links of cross-conda-linux-gnu-xxx to xxx for ghc
 pushd "${PREFIX}"/lib/ghc-"${PKG_VERSION}"/bin
   if [[ "${ghc_target}-ghc-${PKG_VERSION}" ]]; then
-    ln -s "${ghc_target}-ghc-${PKG_VERSION}" ghc-"${PKG_VERSION}"
-    ln -s "${ghc_target}-ghc-${PKG_VERSION}" ghc
+    ln -sf "${ghc_target}-ghc-${PKG_VERSION}" ghc-"${PKG_VERSION}"
+    ln -sf "${ghc_target}-ghc-${PKG_VERSION}" ghc
   fi
   if [[ "${conda_target}-ghc-${PKG_VERSION}" ]]; then
-    ln -s "${conda_target}-ghc-${PKG_VERSION}" ghc-"${PKG_VERSION}"
-    ln -s "${conda_target}-ghc-${PKG_VERSION}" ghc
+    ln -sf "${conda_target}-ghc-${PKG_VERSION}" ghc-"${PKG_VERSION}"
+    ln -sf "${conda_target}-ghc-${PKG_VERSION}" ghc
   fi
 popd
