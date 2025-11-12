@@ -127,7 +127,7 @@ export CXX_STD_LIB_LIBS="stdc++"
 UCRT_INCLUDE=$(ls -d "C:/Program Files*x86*/Windows Kits/10/Include/10.0.26100.0/ucrt" 2>/dev/null | sort -V | tail -1 | sed 's/\/$//')
 UM_INCLUDE=$(ls -d "C:/Program Files*x86*/Windows Kits/10/Include/10.0.26100.0/um" 2>/dev/null | sort -V | tail -1 | sed 's/\/$//')
 UM_LIB=$(ls -d "C:/Program Files*x86*/Windows Kits/10/Lib/10.0.26100.0/um/x64" 2>/dev/null | sort -V | tail -1 | sed 's/\/$//')
-  
+
 export CFLAGS="-I${BUILD_PREFIX}/Library/include -I${UCRT_INCLUDE} -I${UM_INCLUDE} -I${BUILD_PREFIX}/Library/x86_64-w64-mingw32/sysroot/usr/include ${CFLAGS:-}"
 export CXXFLAGS="-I${BUILD_PREFIX}/Library/include -I${UCRT_INCLUDE} -I${UM_INCLUDE} -I${BUILD_PREFIX}/Library/x86_64-w64-mingw32/sysroot/usr/include ${CXXFLAGS:-}"
 export LDFLAGS="-nostdlib -L${BUILD_PREFIX}/Library/lib -L${UM_LIB} -L${BUILD_PREFIX}/Library/x86_64-w64-mingw32/sysroot/usr/lib"
@@ -142,7 +142,7 @@ export LDFLAGS="-nostdlib -L${BUILD_PREFIX}/Library/lib -L${UM_LIB} -L${BUILD_PR
   LDFLAGS="${LDFLAGS_CONFIGURE}" \
   MergeObjsCmd="${LD}" \
   MergeObjsArgs="" \
-  run_and_log "ghc-configure" ./configure "${CONFIGURE_ARGS[@]}" || ( cat config.log ; exit 1 )
+  ./configure "${CONFIGURE_ARGS[@]}" || ( cat config.log ; exit 1 )
 )
 cat "${_SRC_DIR}"/hadrian/cfg/system.config
 
