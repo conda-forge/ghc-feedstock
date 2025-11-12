@@ -124,9 +124,9 @@ export CXX_STD_LIB_LIBS="stdc++"
 
 # Configure Clang for MinGW cross-compilation
 # CRITICAL: Clang needs explicit target, sysroot, and include paths
-export CFLAGS="-I${BUILD_PREFIX}/Library/include -I/C/Program Files \(x86\)/Windows Kits/10/Include/10.0.26100.0/um -I${BUILD_PREFIX}/Library/x86_64-w64-mingw32/sysroot/usr/include ${CFLAGS:-}"
-export CXXFLAGS="-I${BUILD_PREFIX}/Library/include -I/C/Program Files \(x86\)/Windows Kits/10/Include/10.0.26100.0/um -I${BUILD_PREFIX}/Library/x86_64-w64-mingw32/sysroot/usr/include ${CXXFLAGS:-}"
-export LDFLAGS="-nostdlib -L${BUILD_PREFIX}/Library/lib -L/c/Program Files \(x86\)/Windows Kits/10/Lib/10.0.26100.0/um/x64 -L${BUILD_PREFIX}/Library/x86_64-w64-mingw32/sysroot/usr/lib"
+export CFLAGS="-I${BUILD_PREFIX}/Library/include -I/C/Program Files\ \(x86\)/Windows\ Kits/10/Include/10.0.26100.0/um -I${BUILD_PREFIX}/Library/x86_64-w64-mingw32/sysroot/usr/include ${CFLAGS:-}"
+export CXXFLAGS="-I${BUILD_PREFIX}/Library/include -I/C/Program Files\ \(x86\)/Windows\ Kits/10/Include/10.0.26100.0/um -I${BUILD_PREFIX}/Library/x86_64-w64-mingw32/sysroot/usr/include ${CXXFLAGS:-}"
+export LDFLAGS="-nostdlib -L${BUILD_PREFIX}/Library/lib -L/c/Program Files\ \(x86\)/Windows\ Kits/10/Lib/10.0.26100.0/um/x64 -L${BUILD_PREFIX}/Library/x86_64-w64-mingw32/sysroot/usr/lib"
 
 (
   CFLAGS_CONFIGURE=$(echo "${CFLAGS}" | sed 's/-nostdlib//g' | sed 's/--target=x86_64-w64-mingw32//g')
