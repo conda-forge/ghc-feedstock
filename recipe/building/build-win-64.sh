@@ -163,9 +163,11 @@ MINGW_SYSROOT="${BUILD_PREFIX}/Library/x86_64-w64-mingw32/sysroot"
 # -D__MINGW32__: Tell headers we're using MinGW
 # -nostdinc: Skip standard include paths, then add back in correct order
 # Use Clang's builtin headers BEFORE MinGW headers to avoid vadefs.h errors
-CLANG_BUILTIN_INCLUDE=$(${CC} -print-resource-dir)/include
-export CFLAGS="-fms-extensions -fms-compatibility -D__MINGW32__ -nostdinc -isystem ${CLANG_BUILTIN_INCLUDE} -I${BUILD_PREFIX}/Library/include -I${MINGW_SYSROOT}/usr/include ${CFLAGS:-}"
-export CXXFLAGS="-fms-extensions -fms-compatibility -D__MINGW32__ -nostdinc -isystem ${CLANG_BUILTIN_INCLUDE} -I${BUILD_PREFIX}/Library/include -I${MINGW_SYSROOT}/usr/include ${CXXFLAGS:-}"
+# Convert Windows path to Unix for bash compatibility
+CLANG_RESOURCE_DIR=$(${CC} -print-resource-dir | sed 's#\\#/#g' | sed 's#^C:/#/c/#')
+CLANG_BUILTIN_INCLUDE="${CLANG_RESOURCE_DIR}/include"
+export CFLAGS="-fms-extensions -fms-compatibility -D__MINGW32__ -nostdinc -isystem ${CLANG_BUILTIN_INCLUDE} -I${_BUILD_PREFIX}/Library/include -I${MINGW_SYSROOT}/usr/include ${CFLAGS:-}"
+export CXXFLAGS="-fms-extensions -fms-compatibility -D__MINGW32__ -nostdinc -isystem ${CLANG_BUILTIN_INCLUDE} -I${_BUILD_PREFIX}/Library/include -I${MINGW_SYSROOT}/usr/include ${CXXFLAGS:-}"
 export LDFLAGS="-L${BUILD_PREFIX}/Library/lib -L${MINGW_SYSROOT}/usr/lib ${LDFLAGS}"
 
 # Use GNU ld for linking (compatible with MinGW libraries)
