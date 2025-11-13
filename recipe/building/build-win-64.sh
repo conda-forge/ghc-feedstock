@@ -142,12 +142,12 @@ MSVC_VER=$(ls -1 "${MSVC_BASE}" 2>/dev/null | sort -V | tail -1)
 # Get short path for MSVC include (has vcruntime.h)
 MSVC_INCLUDE="${MSVC_BASE}"/"${MSVC_VER}"/include
 
-# Remove -nostdlib for configure tests (need working C runtime)
+# Remove -nostdlib and -fuse-ld=lld for configure tests
+# We need working C runtime and GNU ld (not lld)
 CFLAGS="${CFLAGS//-nostdlib/}"
 CXXFLAGS="${CXXFLAGS//-nostdlib/}"
-
-# Use GNU ld (bfd) with MinGW libraries
-# lld-link doesn't work because GHC uses MinGW-style -l flags (not MSVC .lib files)
+CFLAGS=$(echo "${CFLAGS}" | sed 's/-fuse-ld=lld/-fuse-ld=bfd/g')
+CXXFLAGS=$(echo "${CXXFLAGS}" | sed 's/-fuse-ld=lld/-fuse-ld=bfd/g')
 LDFLAGS=$(echo "${LDFLAGS}" | sed 's/-fuse-ld=lld/-fuse-ld=bfd/g')
 
 # Use MinGW sysroot for headers and libraries
