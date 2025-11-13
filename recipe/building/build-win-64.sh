@@ -142,16 +142,24 @@ MSVC_VER=$(ls -1 "${MSVC_BASE}" 2>/dev/null | sort -V | tail -1)
 # Get short path for MSVC include (has vcruntime.h)
 MSVC_INCLUDE="${MSVC_BASE}"/"${MSVC_VER}"/include
 
-CFLAGS="${CFLAGS//-fuse-ld=lld/-fuse-ld=bfd}"
-CXXFLAGS="${CXXFLAGS//-fuse-ld=lld/-fuse-ld=bfd}"
+# Remove -nostdlib for configure tests (need working C runtime)
 CFLAGS="${CFLAGS//-nostdlib/}"
 CXXFLAGS="${CXXFLAGS//-nostdlib/}"
 
+# Switch to lld-link (MSVC-compatible linker) instead of GNU ld (bfd)
+# lld-link works natively with MSVC runtime libraries (.lib files)
+LDFLAGS=$(echo "${LDFLAGS}" | sed 's/-fuse-ld=bfd/-fuse-ld=lld/g')
+
+# Add MSVC runtime library path (for ucrt.lib, vcruntime.lib, etc.)
+MSVC_LIB="${MSVC_BASE}/${MSVC_VER}/lib/x64"
+MSVC_LIB=$(cygpath -u "$(cygpath -d "${MSVC_LIB}")")
+
 export CFLAGS="-I${BUILD_PREFIX}/Library/include -I${UCRT_INCLUDE} -I${UM_INCLUDE} -I${SHARED_INCLUDE} -I${MSVC_INCLUDE} ${CFLAGS:-}"
 export CXXFLAGS="-I${BUILD_PREFIX}/Library/include -I${UCRT_INCLUDE} -I${UM_INCLUDE} -I${SHARED_INCLUDE} -I${MSVC_INCLUDE} ${CXXFLAGS:-}"
-export LDFLAGS="-L${BUILD_PREFIX}/Library/lib -L${UCRT_LIB} -L${UM_LIB} -lucrt"
+export LDFLAGS="-L${BUILD_PREFIX}/Library/lib -L${UCRT_LIB} -L${UM_LIB} -L${MSVC_LIB} ${LDFLAGS}"
 
-export LD="${BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-ld.exe" \
+# Use lld-link for linking (MSVC-compatible linker)
+export LD="${BUILD_PREFIX}/Library/bin/lld-link.exe"
 
 (
   MergeObjsCmd="${LD}" \
