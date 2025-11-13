@@ -146,20 +146,23 @@ MSVC_INCLUDE="${MSVC_BASE}"/"${MSVC_VER}"/include
 CFLAGS="${CFLAGS//-nostdlib/}"
 CXXFLAGS="${CXXFLAGS//-nostdlib/}"
 
-# Switch to lld-link (MSVC-compatible linker) instead of GNU ld (bfd)
-# lld-link works natively with MSVC runtime libraries (.lib files)
-LDFLAGS=$(echo "${LDFLAGS}" | sed 's/-fuse-ld=bfd/-fuse-ld=lld/g')
+# Use GNU ld (bfd) with MinGW libraries
+# lld-link doesn't work because GHC uses MinGW-style -l flags (not MSVC .lib files)
+LDFLAGS=$(echo "${LDFLAGS}" | sed 's/-fuse-ld=lld/-fuse-ld=bfd/g')
 
-# Add MSVC runtime library path (for ucrt.lib, vcruntime.lib, etc.)
-MSVC_LIB="${MSVC_BASE}/${MSVC_VER}/lib/x64"
-MSVC_LIB=$(cygpath -u "$(cygpath -d "${MSVC_LIB}")")
+# Use MinGW sysroot for headers and libraries
+MINGW_SYSROOT="${BUILD_PREFIX}/Library/x86_64-w64-mingw32/sysroot"
 
-export CFLAGS="-I${BUILD_PREFIX}/Library/include -I${UCRT_INCLUDE} -I${UM_INCLUDE} -I${SHARED_INCLUDE} -I${MSVC_INCLUDE} ${CFLAGS:-}"
-export CXXFLAGS="-I${BUILD_PREFIX}/Library/include -I${UCRT_INCLUDE} -I${UM_INCLUDE} -I${SHARED_INCLUDE} -I${MSVC_INCLUDE} ${CXXFLAGS:-}"
-export LDFLAGS="-L${BUILD_PREFIX}/Library/lib -L${UCRT_LIB} -L${UM_LIB} -L${MSVC_LIB} ${LDFLAGS}"
+# Configure Clang for MinGW target with proper MS extensions
+# -fms-extensions: Enable Microsoft extensions including __declspec
+# -fms-compatibility: Full MSVC compatibility mode
+# --target: Explicit MinGW target triple
+export CFLAGS="--target=x86_64-w64-mingw32 -fms-extensions -fms-compatibility --sysroot=${MINGW_SYSROOT} -I${BUILD_PREFIX}/Library/include -I${MINGW_SYSROOT}/usr/include ${CFLAGS:-}"
+export CXXFLAGS="--target=x86_64-w64-mingw32 -fms-extensions -fms-compatibility --sysroot=${MINGW_SYSROOT} -I${BUILD_PREFIX}/Library/include -I${MINGW_SYSROOT}/usr/include ${CXXFLAGS:-}"
+export LDFLAGS="-L${BUILD_PREFIX}/Library/lib -L${MINGW_SYSROOT}/usr/lib ${LDFLAGS}"
 
-# Use lld-link for linking (MSVC-compatible linker)
-export LD="${BUILD_PREFIX}/Library/bin/lld-link.exe"
+# Use GNU ld for linking (compatible with MinGW libraries)
+export LD="${BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-ld.exe"
 
 (
   MergeObjsCmd="${LD}" \
