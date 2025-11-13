@@ -128,6 +128,8 @@ SDK_PATH_LONG=$(ls -1d /c/Program*Files*x86*/Windows*/10)
 SDK_PATH=$(cygpath -u "$(cygpath -d "${SDK_PATH_LONG}")")
 SDK_VER=$(ls -1 ${SDK_PATH}/Include/ 2>/dev/null | grep "^10\." | sort -V | tail -1)
 
+echo $(find "${SDK_PATH}" -name stdlib.h)
+
 UCRT_INCLUDE="${SDK_PATH}"/Include/"${SDK_VER}"/ucrt
 UM_INCLUDE="${SDK_PATH}"/Include/"${SDK_VER}"/um
 SHARED_INCLUDE="${SDK_PATH}"/Include/"${SDK_VER}"/shared
