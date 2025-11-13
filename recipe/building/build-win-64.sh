@@ -118,7 +118,6 @@ export WINDOWS_TOOLCHAIN_AUTOCONF=no
 # Force use of system libffi (conda-provided)
 export UseSystemFfi=YES
 export ac_cv_use_system_libffi=yes
-export ac_cv_prog_cc_c99=""
 
 export CXX_STD_LIB_LIBS="stdc++"
 
@@ -128,28 +127,21 @@ SDK_PATH_LONG=$(ls -1d /c/Program*Files*x86*/Windows*/10)
 SDK_PATH=$(cygpath -u "$(cygpath -d "${SDK_PATH_LONG}")")
 SDK_VER=$(ls -1 ${SDK_PATH}/Include/ 2>/dev/null | grep "^10\." | sort -V | tail -1)
 
-echo $(find "${SDK_PATH}" -name stdlib.h)
-
 UCRT_INCLUDE="${SDK_PATH}"/Include/"${SDK_VER}"/ucrt
 UM_INCLUDE="${SDK_PATH}"/Include/"${SDK_VER}"/um
 SHARED_INCLUDE="${SDK_PATH}"/Include/"${SDK_VER}"/shared
 UM_LIB="${SDK_PATH}"/Lib/"${SDK_VER}"/x64
 
-echo ${UCRT_INCLUDE}
+CFLAGS="${CFLAGS//-fuse-ld=lld/-fuse-ld=bfd/}"
+CXXFLAGS="${CXXFLAGS//-fuse-ld=lld/-fuse-ld=bfd/}"
 
 export CFLAGS="-I${BUILD_PREFIX}/Library/include -I${UCRT_INCLUDE} -I${UM_INCLUDE} ${CFLAGS:-}"
 export CXXFLAGS="-I${BUILD_PREFIX}/Library/include -I${UCRT_INCLUDE} -I${UM_INCLUDE} ${CXXFLAGS:-}"
-export LDFLAGS="-nostdlib -L${BUILD_PREFIX}/Library/lib -L${UM_LIB}"
+export LDFLAGS="-L${BUILD_PREFIX}/Library/lib -L${UM_LIB}"
+
+export LD="${BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-ld.exe" \
 
 (
-  CFLAGS_CONFIGURE=$(echo "${CFLAGS}" | sed 's/-nostdlib//g' | sed 's/--target=x86_64-w64-mingw32//g')
-  CXXFLAGS_CONFIGURE=$(echo "${CXXFLAGS}" | sed 's/-nostdlib//g' | sed 's/--target=x86_64-w64-mingw32//g')
-  LDFLAGS_CONFIGURE=$(echo "${LDFLAGS}" | sed 's/-nostdlib//g')
-
-  LD="${BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-ld.exe" \
-  CFLAGS="${CFLAGS_CONFIGURE}" \
-  CXXFLAGS="${CXXFLAGS_CONFIGURE}" \
-  LDFLAGS=$(echo "${LDFLAGS_CONFIGURE}" | sed 's/-fuse-ld=lld/-fuse-ld=bfd/g') \
   MergeObjsCmd="${LD}" \
   MergeObjsArgs="" \
   ./configure "${CONFIGURE_ARGS[@]}" || ( cat config.log ; exit 1 )
@@ -194,8 +186,11 @@ mkdir -p ${_SRC_DIR}/_build
 
 (
   pushd "${SRC_DIR}"/hadrian
-    export CFLAGS="--target=x86_64-w64-mingw32 -I${BUILD_PREFIX}/Library/include -I${BUILD_PREFIX}/Library/x86_64-w64-mingw32/sysroot/usr/include ${CFLAGS}"
-    export CXXFLAGS="--target=x86_64-w64-mingw32 -I${BUILD_PREFIX}/Library/include -I${BUILD_PREFIX}/Library/x86_64-w64-mingw32/sysroot/usr/include ${CXXFLAGS}"
+    # export CFLAGS="--target=x86_64-w64-mingw32 -I${BUILD_PREFIX}/Library/include ${CFLAGS}"
+    # export CXXFLAGS="--target=x86_64-w64-mingw32 -I${BUILD_PREFIX}/Library/include ${CXXFLAGS}"
+    # export LDFLAGS=$(echo "${LDFLAGS}" | sed 's/-fuse-ld=lld/-fuse-ld=bfd/g') \
+
+    # export LD="${BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-ld.exe" \
     
     "${CABAL}" v2-build -j hadrian 2>&1 | tee "${SRC_DIR}"/cabal-verbose.log
     _cabal_exit_code=${PIPESTATUS[0]}
