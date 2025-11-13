@@ -148,7 +148,9 @@ CFLAGS="${CFLAGS//-nostdlib/}"
 CXXFLAGS="${CXXFLAGS//-nostdlib/}"
 CFLAGS=$(echo "${CFLAGS}" | sed 's/-fuse-ld=lld/-fuse-ld=bfd/g')
 CXXFLAGS=$(echo "${CXXFLAGS}" | sed 's/-fuse-ld=lld/-fuse-ld=bfd/g')
-LDFLAGS=""
+LDFLAGS=$(echo "${LDFLAGS}" | sed 's/-fuse-ld=lld/-fuse-ld=bfd/g')
+# Remove problematic -Wl,-defaultlib: flags that are MSVC-specific
+LDFLAGS=$(echo "${LDFLAGS}" | sed 's/-Wl,-defaultlib:[^ ]*//g')
 
 # Use MinGW sysroot for headers and libraries
 MINGW_SYSROOT="${BUILD_PREFIX}/Library/x86_64-w64-mingw32/sysroot"
