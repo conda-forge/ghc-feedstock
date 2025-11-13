@@ -132,6 +132,7 @@ UM_INCLUDE="${SDK_PATH}"/Include/"${SDK_VER}"/um
 SHARED_INCLUDE="${SDK_PATH}"/Include/"${SDK_VER}"/shared
 CPPWINRT_INCLUDE="${SDK_PATH}"/Include/"${SDK_VER}"/cppwinrt
 WINRT_INCLUDE="${SDK_PATH}"/Include/"${SDK_VER}"/winrt
+UCRT_LIB="${SDK_PATH}"/Lib/"${SDK_VER}"/ucrt/x64
 UM_LIB="${SDK_PATH}"/Lib/"${SDK_VER}"/x64
 
 MSVC_BASE=$(ls -1d /c/Program*/Microsoft*/*/*/VC/Tools/MSVC 2>/dev/null | sort -V | tail -1)
@@ -146,7 +147,7 @@ CXXFLAGS="${CXXFLAGS//-fuse-ld=lld/-fuse-ld=bfd}"
 
 export CFLAGS="-I${BUILD_PREFIX}/Library/include -I${UCRT_INCLUDE} -I${UM_INCLUDE} -I${SHARED_INCLUDE} -I${MSVC_INCLUDE} ${CFLAGS:-}"
 export CXXFLAGS="-I${BUILD_PREFIX}/Library/include -I${UCRT_INCLUDE} -I${UM_INCLUDE} -I${SHARED_INCLUDE} -I${MSVC_INCLUDE} ${CXXFLAGS:-}"
-export LDFLAGS="-L${BUILD_PREFIX}/Library/lib -L${UM_LIB}"
+export LDFLAGS="-L${BUILD_PREFIX}/Library/lib -L${UCRT_LIB} -L${UM_LIB} -lucrt"
 
 export LD="${BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-ld.exe" \
 
