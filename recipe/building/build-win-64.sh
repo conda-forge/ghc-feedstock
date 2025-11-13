@@ -156,12 +156,13 @@ LDFLAGS=$(echo "${LDFLAGS}" | sed 's/-Wl,-defaultlib:[^ ]*//g')
 # Use MinGW sysroot for headers and libraries
 MINGW_SYSROOT="${BUILD_PREFIX}/Library/x86_64-w64-mingw32/sysroot"
 
-# Configure Clang for MinGW target with proper MS extensions
+# Configure Clang to compile with MSVC mode but link with MinGW libraries
+# Key insight: Let Clang use its native Windows mode, don't force MinGW target
 # -fms-extensions: Enable Microsoft extensions including __declspec
 # -fms-compatibility: Full MSVC compatibility mode
-# --target: Explicit MinGW target triple
-export CFLAGS="--target=x86_64-w64-mingw32 -fms-extensions -fms-compatibility --sysroot=${MINGW_SYSROOT} -I${BUILD_PREFIX}/Library/include -I${MINGW_SYSROOT}/usr/include ${CFLAGS:-}"
-export CXXFLAGS="--target=x86_64-w64-mingw32 -fms-extensions -fms-compatibility --sysroot=${MINGW_SYSROOT} -I${BUILD_PREFIX}/Library/include -I${MINGW_SYSROOT}/usr/include ${CXXFLAGS:-}"
+# Include MinGW headers for compatibility
+export CFLAGS="-fms-extensions -fms-compatibility -I${BUILD_PREFIX}/Library/include -I${MINGW_SYSROOT}/usr/include ${CFLAGS:-}"
+export CXXFLAGS="-fms-extensions -fms-compatibility -I${BUILD_PREFIX}/Library/include -I${MINGW_SYSROOT}/usr/include ${CXXFLAGS:-}"
 export LDFLAGS="-L${BUILD_PREFIX}/Library/lib -L${MINGW_SYSROOT}/usr/lib ${LDFLAGS}"
 
 # Use GNU ld for linking (compatible with MinGW libraries)
