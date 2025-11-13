@@ -130,13 +130,22 @@ SDK_VER=$(ls -1 ${SDK_PATH}/Include/ 2>/dev/null | grep "^10\." | sort -V | tail
 UCRT_INCLUDE="${SDK_PATH}"/Include/"${SDK_VER}"/ucrt
 UM_INCLUDE="${SDK_PATH}"/Include/"${SDK_VER}"/um
 SHARED_INCLUDE="${SDK_PATH}"/Include/"${SDK_VER}"/shared
+CPPWINRT_INCLUDE="${SDK_PATH}"/Include/"${SDK_VER}"/cppwinrt
+WINRT_INCLUDE="${SDK_PATH}"/Include/"${SDK_VER}"/winrt
 UM_LIB="${SDK_PATH}"/Lib/"${SDK_VER}"/x64
+
+MSVC_BASE="/c/Program Files*x86*/Microsoft*Visual*Studio/2022/Enterprise/VC/Tools/MSVC"
+MSVC_VER=$(ls -1 "${MSVC_BASE}" 2>/dev/null | sort -V | tail -1)
+
+# Get short path for MSVC include (has vcruntime.h)
+MSVC_INCLUDE_LONG="${MSVC_BASE}/${MSVC_VER}/include"
+MSVC_INCLUDE=$(cygpath -u "$(cygpath -d "${MSVC_INCLUDE_LONG}")")
 
 CFLAGS="${CFLAGS//-fuse-ld=lld/-fuse-ld=bfd}"
 CXXFLAGS="${CXXFLAGS//-fuse-ld=lld/-fuse-ld=bfd}"
 
-export CFLAGS="-I${BUILD_PREFIX}/Library/include -I${UCRT_INCLUDE} -I${UM_INCLUDE} ${CFLAGS:-}"
-export CXXFLAGS="-I${BUILD_PREFIX}/Library/include -I${UCRT_INCLUDE} -I${UM_INCLUDE} ${CXXFLAGS:-}"
+export CFLAGS="-I${BUILD_PREFIX}/Library/include -I${UCRT_INCLUDE} -I${UM_INCLUDE} -I${SHARED_INCLUDE} -I${MSVC_INCLUDE} ${CFLAGS:-}"
+export CXXFLAGS="-I${BUILD_PREFIX}/Library/include -I${UCRT_INCLUDE} -I${UM_INCLUDE} -I${SHARED_INCLUDE} -I${MSVC_INCLUDE} ${CXXFLAGS:-}"
 export LDFLAGS="-L${BUILD_PREFIX}/Library/lib -L${UM_LIB}"
 
 export LD="${BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-ld.exe" \
