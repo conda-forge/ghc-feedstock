@@ -145,10 +145,11 @@ export LDFLAGS="-nostdlib -L${BUILD_PREFIX}/Library/lib -L${UM_LIB}"
   CFLAGS_CONFIGURE=$(echo "${CFLAGS}" | sed 's/-nostdlib//g' | sed 's/--target=x86_64-w64-mingw32//g')
   CXXFLAGS_CONFIGURE=$(echo "${CXXFLAGS}" | sed 's/-nostdlib//g' | sed 's/--target=x86_64-w64-mingw32//g')
   LDFLAGS_CONFIGURE=$(echo "${LDFLAGS}" | sed 's/-nostdlib//g')
-  
-  CFLAGS="-fms-extensions -fdeclspec ${CFLAGS_CONFIGURE}" \
-  CXXFLAGS="-fms-extensions -fdeclspec ${CXXFLAGS_CONFIGURE}" \
-  LDFLAGS="${LDFLAGS_CONFIGURE}" \
+
+  LD="${BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-ld.exe" \
+  CFLAGS="${CFLAGS_CONFIGURE}" \
+  CXXFLAGS="${CXXFLAGS_CONFIGURE}" \
+  LDFLAGS=$(echo "${LDFLAGS_CONFIGURE}" | sed 's/-fuse-ld=lld/-fuse-ld=bfd/g') \
   MergeObjsCmd="${LD}" \
   MergeObjsArgs="" \
   ./configure "${CONFIGURE_ARGS[@]}" || ( cat config.log ; exit 1 )
