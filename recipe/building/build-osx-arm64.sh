@@ -198,10 +198,12 @@ update_installed_settings
 
 # Create links of cross-conda-linux-gnu-xxx to xxx
 pushd "${PREFIX}"/bin
-  if [[ -f "${conda_target}-ghc-pkg-${PKG_VERSION}" ]]; then
-    ln -sf "${conda_target}-ghc-pkg-${PKG_VERSION}" "ghc-pkg"
-  fi
-    
+  for bin in ghc ghci ghc-pkg; do
+    if [[ -f "${conda_target}-${bin}-${PKG_VERSION}" ]]; then
+      rm -f "${bin}"
+      ln -sf "${conda_target}-${bin}-${PKG_VERSION}" "${bin}"
+    fi
+  done
   for bin in hp2ps hsc2hs; do
     if [[ -f "${conda_target}-${bin}-ghc-${PKG_VERSION}" ]]; then
       rm -f "${bin}"
