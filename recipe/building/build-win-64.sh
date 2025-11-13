@@ -144,6 +144,8 @@ MSVC_INCLUDE="${MSVC_BASE}"/"${MSVC_VER}"/include
 
 CFLAGS="${CFLAGS//-fuse-ld=lld/-fuse-ld=bfd}"
 CXXFLAGS="${CXXFLAGS//-fuse-ld=lld/-fuse-ld=bfd}"
+CFLAGS="${CFLAGS//-nostdlib/}"
+CXXFLAGS="${CXXFLAGS//-nostdlib/}"
 
 export CFLAGS="-I${BUILD_PREFIX}/Library/include -I${UCRT_INCLUDE} -I${UM_INCLUDE} -I${SHARED_INCLUDE} -I${MSVC_INCLUDE} ${CFLAGS:-}"
 export CXXFLAGS="-I${BUILD_PREFIX}/Library/include -I${UCRT_INCLUDE} -I${UM_INCLUDE} -I${SHARED_INCLUDE} -I${MSVC_INCLUDE} ${CXXFLAGS:-}"
