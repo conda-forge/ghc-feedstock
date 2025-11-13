@@ -132,8 +132,8 @@ UM_INCLUDE="${SDK_PATH}"/Include/"${SDK_VER}"/um
 SHARED_INCLUDE="${SDK_PATH}"/Include/"${SDK_VER}"/shared
 UM_LIB="${SDK_PATH}"/Lib/"${SDK_VER}"/x64
 
-CFLAGS="${CFLAGS//-fuse-ld=lld/-fuse-ld=bfd/}"
-CXXFLAGS="${CXXFLAGS//-fuse-ld=lld/-fuse-ld=bfd/}"
+CFLAGS="${CFLAGS//-fuse-ld=lld/-fuse-ld=bfd}"
+CXXFLAGS="${CXXFLAGS//-fuse-ld=lld/-fuse-ld=bfd}"
 
 export CFLAGS="-I${BUILD_PREFIX}/Library/include -I${UCRT_INCLUDE} -I${UM_INCLUDE} ${CFLAGS:-}"
 export CXXFLAGS="-I${BUILD_PREFIX}/Library/include -I${UCRT_INCLUDE} -I${UM_INCLUDE} ${CXXFLAGS:-}"
