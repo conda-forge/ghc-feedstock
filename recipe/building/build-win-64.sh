@@ -123,8 +123,8 @@ export CXX_STD_LIB_LIBS="stdc++"
 
 # Configure Clang for MinGW cross-compilation
 # CRITICAL: Clang needs explicit target, sysroot, and include paths
-SDK_PATH_LONG=$(ls -1d /c/Program*Files*x86*/Windows*/10)
-SDK_PATH=$(cygpath -u "$(cygpath -d "${SDK_PATH_LONG}")")
+SDK_PATH=$(ls -1d /c/Program*Files*x86*/Windows*/10)
+SDK_PATH=$(cygpath -u "$(cygpath -d "${SDK_PATH}")")
 SDK_VER=$(ls -1 ${SDK_PATH}/Include/ 2>/dev/null | grep "^10\." | sort -V | tail -1)
 
 UCRT_INCLUDE="${SDK_PATH}"/Include/"${SDK_VER}"/ucrt
@@ -134,12 +134,12 @@ CPPWINRT_INCLUDE="${SDK_PATH}"/Include/"${SDK_VER}"/cppwinrt
 WINRT_INCLUDE="${SDK_PATH}"/Include/"${SDK_VER}"/winrt
 UM_LIB="${SDK_PATH}"/Lib/"${SDK_VER}"/x64
 
-MSVC_BASE="/c/Program Files*x86*/Microsoft*Visual*Studio/2022/Enterprise/VC/Tools/MSVC"
+MSVC_BASE=$(ls -1d /c/Program Files*x86*/Microsoft*Visual*Studio/2022/Enterprise/VC/Tools/MSVC)
+MSVC_BASE=$(cygpath -u "$(cygpath -d "${MSVC_BASE}")")
 MSVC_VER=$(ls -1 "${MSVC_BASE}" 2>/dev/null | sort -V | tail -1)
 
 # Get short path for MSVC include (has vcruntime.h)
-MSVC_INCLUDE_LONG="${MSVC_BASE}/${MSVC_VER}/include"
-MSVC_INCLUDE=$(cygpath -u "$(cygpath -d "${MSVC_INCLUDE_LONG}")")
+MSVC_INCLUDE="${MSVC_BASE}"/"${MSVC_VER}"/include
 
 CFLAGS="${CFLAGS//-fuse-ld=lld/-fuse-ld=bfd}"
 CXXFLAGS="${CXXFLAGS//-fuse-ld=lld/-fuse-ld=bfd}"
