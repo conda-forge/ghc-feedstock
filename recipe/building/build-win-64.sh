@@ -134,7 +134,7 @@ CPPWINRT_INCLUDE="${SDK_PATH}"/Include/"${SDK_VER}"/cppwinrt
 WINRT_INCLUDE="${SDK_PATH}"/Include/"${SDK_VER}"/winrt
 UM_LIB="${SDK_PATH}"/Lib/"${SDK_VER}"/x64
 
-MSVC_BASE=$(ls -1d /c/Program Files*x86*/Microsoft*Visual*Studio/2022/Enterprise/VC/Tools/MSVC)
+MSVC_BASE=$(ls -1d /c/Program*Files*x86*/Microsoft*Visual*Studio/2022/Enterprise/VC/Tools/MSVC)
 MSVC_BASE=$(cygpath -u "$(cygpath -d "${MSVC_BASE}")")
 MSVC_VER=$(ls -1 "${MSVC_BASE}" 2>/dev/null | sort -V | tail -1)
 
