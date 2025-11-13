@@ -137,9 +137,9 @@ UM_LIB="${SDK_PATH}"/Lib/"${SDK_VER}"/x64
 
 echo ${UCRT_INCLUDE}
 
-export CFLAGS="-I${BUILD_PREFIX}/Library/include -I${UCRT_INCLUDE} -I${UM_INCLUDE} -I${BUILD_PREFIX}/Library/x86_64-w64-mingw32/sysroot/usr/include ${CFLAGS:-}"
-export CXXFLAGS="-I${BUILD_PREFIX}/Library/include -I${UCRT_INCLUDE} -I${UM_INCLUDE} -I${BUILD_PREFIX}/Library/x86_64-w64-mingw32/sysroot/usr/include ${CXXFLAGS:-}"
-export LDFLAGS="-nostdlib -L${BUILD_PREFIX}/Library/lib -L${UM_LIB} -L${BUILD_PREFIX}/Library/x86_64-w64-mingw32/sysroot/usr/lib"
+export CFLAGS="-I${BUILD_PREFIX}/Library/include -I${UCRT_INCLUDE} -I${UM_INCLUDE} ${CFLAGS:-}"
+export CXXFLAGS="-I${BUILD_PREFIX}/Library/include -I${UCRT_INCLUDE} -I${UM_INCLUDE} ${CXXFLAGS:-}"
+export LDFLAGS="-nostdlib -L${BUILD_PREFIX}/Library/lib -L${UM_LIB}"
 
 (
   CFLAGS_CONFIGURE=$(echo "${CFLAGS}" | sed 's/-nostdlib//g' | sed 's/--target=x86_64-w64-mingw32//g')
