@@ -1,0 +1,29 @@
+--- a/hadrian/build-cabal
++++ b/hadrian/build-cabal
+@@ -1,6 +1,13 @@
+ #!/usr/bin/env bash
+ 
+-CABAL="${CABAL:-cabal}"
++# Force use of modern cabal if BUILD_PREFIX is set (conda build environment)
++if [ -n "${BUILD_PREFIX:-}" ] && [ -x "${BUILD_PREFIX}/bin/cabal" ]; then
++    CABAL="${BUILD_PREFIX}/bin/cabal"
++    echo "Using conda cabal: $CABAL"
++else
++    CABAL="${CABAL:-cabal}"
++fi
++
+ GHC="${GHC:-ghc}"
+ CABFLAGS=("--with-compiler=$GHC" "--disable-documentation" "--disable-profiling" "--disable-library-profiling" $CABFLAGS)
+ ( $GHC --info | grep -s '("Support SMP","YES")' > /dev/null ) || CABFLAGS+=("--constraint=hadrian -threaded")
+@@ -23,6 +30,11 @@ fi
+ CABVERSTR=$("$CABAL" --numeric-version)
+ CABVER=( ${CABVERSTR//./ } )
+ 
++# Print cabal version for debugging
++echo "Cabal version: $CABVERSTR"
++# Add extra flags for compatibility
++CABFLAGS+=("--allow-newer" "--allow-older")
++
+ if [ "${CABVER[0]}" -gt 2 -o "${CABVER[0]}" -eq 2 -a "${CABVER[1]}" -ge 2 ];
+ then
+     "$CABAL" --project-file="$PROJ" new-build "${CABFLAGS[@]}" -j exe:hadrian

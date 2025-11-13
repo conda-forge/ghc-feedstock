@@ -1,0 +1,40 @@
+From: Claude AI Assistant
+Date: Mon Nov 11 2025
+Subject: Disable -dynamic-too to avoid race conditions in parallel builds
+
+The -dynamic-too flag causes GHC to build both static (.o) and dynamic
+(.dyn_o) object files in a single invocation. This has known race conditions
+when building with -jN where one module tries to import a .dyn_hi file before
+another parallel job has finished writing it.
+
+Symptoms:
+- "withBinaryFile: does not exist (No such file or directory)" for .dyn_hi files
+- Intermittent failures that depend on build machine speed and parallelism
+- Fails fast on faster machines (aarch64, linux-64), succeeds on slower (ppc64le)
+
+This disables -dynamic-too and forces vanilla and dynamic ways to be built
+separately, which is slower but avoids the race condition.
+
+References:
+- GHC issue #15969: -dynamic-too has race conditions with -jN
+- Affects: GHC 9.8.4 (and earlier versions)
+
+diff --git a/hadrian/src/Settings/Builders/Ghc.hs b/hadrian/src/Settings/Builders/Ghc.hs
+index 1234567..abcdefg 100644
+--- a/hadrian/src/Settings/Builders/Ghc.hs
++++ b/hadrian/src/Settings/Builders/Ghc.hs
+@@ -76,9 +76,10 @@ compileHs = builder (Ghc CompileHs) ? mconcat
+               -- input hash to avoid superfluous recompilation, avoiding
+               -- #18672.
+               arg "-fdiagnostics-color=never"
+-            , (hasVanilla && hasDynamic) ? builder (Ghc CompileHs) ?
+-              platformSupportsSharedLibs ? way vanilla ?
+-              arg "-dynamic-too"
++            -- Disable -dynamic-too to avoid race conditions (GHC #15969)
++            -- Build vanilla and dynamic separately instead
++            -- , (hasVanilla && hasDynamic) ? builder (Ghc CompileHs) ?
++            --   platformSupportsSharedLibs ? way vanilla ?
++            --   arg "-dynamic-too"
+             , commonGhcArgs
+             , ghcLinkArgs
+             , defaultGhcWarningsArgs
