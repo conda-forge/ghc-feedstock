@@ -146,6 +146,7 @@ MSVC_INCLUDE="${MSVC_BASE}"/"${MSVC_VER}"/include
 # We need working C runtime and GNU ld (not lld)
 CFLAGS="${CFLAGS//-nostdlib/}"
 CXXFLAGS="${CXXFLAGS//-nostdlib/}"
+LDFLAGS="${LDFLAGS//-nostdlib/}"
 CFLAGS=$(echo "${CFLAGS}" | sed 's/-fuse-ld=lld/-fuse-ld=bfd/g')
 CXXFLAGS=$(echo "${CXXFLAGS}" | sed 's/-fuse-ld=lld/-fuse-ld=bfd/g')
 LDFLAGS=$(echo "${LDFLAGS}" | sed 's/-fuse-ld=lld/-fuse-ld=bfd/g')
