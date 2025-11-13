@@ -124,7 +124,8 @@ export CXX_STD_LIB_LIBS="stdc++"
 
 # Configure Clang for MinGW cross-compilation
 # CRITICAL: Clang needs explicit target, sysroot, and include paths
-SDK_PATH=$(cygpath -u $(cygpath -d $(ls -1d /c/Program*Files*x86*/Windows*/10)))
+SDK_PATH_LONG=$(ls -1d /c/Program*Files*x86*/Windows*/10)
+SDK_PATH=$(cygpath -u "$(cygpath -d "${SDK_PATH_LONG}")")
 SDK_VER=$(ls -1 ${SDK_PATH}/Include/ 2>/dev/null | grep "^10\." | sort -V | tail -1)
 
 UCRT_INCLUDE="${SDK_PATH}"/Include/"${SDK_VER}"/ucrt
