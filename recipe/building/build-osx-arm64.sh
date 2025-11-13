@@ -183,7 +183,7 @@ if [[ -n "${bindist_dir}" ]]; then
     # Configure the binary distribution with proper cross-compilation settings
     ac_cv_path_CC="${BUILD_PREFIX}"/bin/"${conda_host}"-clang \
     ac_cv_path_CXX="${BUILD_PREFIX}"/bin/"${conda_host}"-clang++ \
-    ./configure --prefix="${PREFIX}" --host="${ghc_target}" --target="${ghc_target}" || { cat config.log; exit 1; }
+    ./configure --prefix="${PREFIX}" --target="${conda_target/darwin*/darwin}" || { cat config.log; exit 1; }
  
     # Install (update_package_db fails due to cross ghc-pkg)
     make install_bin install_lib
