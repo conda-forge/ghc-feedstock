@@ -152,6 +152,9 @@ CXXFLAGS=$(echo "${CXXFLAGS}" | sed 's/-fuse-ld=lld/-fuse-ld=bfd/g')
 LDFLAGS=$(echo "${LDFLAGS}" | sed 's/-fuse-ld=lld/-fuse-ld=bfd/g')
 # Remove problematic -Wl,-defaultlib: flags that are MSVC-specific
 LDFLAGS=$(echo "${LDFLAGS}" | sed 's/-Wl,-defaultlib:[^ ]*//g')
+# Remove -fstack-protector-strong which generates __security_cookie calls incompatible with MinGW+Clang
+CFLAGS=$(echo "${CFLAGS}" | sed 's/-fstack-protector-strong//g')
+CXXFLAGS=$(echo "${CXXFLAGS}" | sed 's/-fstack-protector-strong//g')
 
 # Use MinGW sysroot for headers and libraries
 MINGW_SYSROOT="${BUILD_PREFIX}/Library/x86_64-w64-mingw32/sysroot"
@@ -173,7 +176,9 @@ export CFLAGS="-fms-extensions -fms-compatibility -D__MINGW32__ -D_VA_LIST_DEFIN
 export CXXFLAGS="-fms-extensions -fms-compatibility -D__MINGW32__ -D_VA_LIST_DEFINED -D__GNUC__=13 -Dva_list=__builtin_va_list -isystem ${CLANG_BUILTIN_INCLUDE} -isystem ${_BUILD_PREFIX}/Library/include -isystem ${MINGW_SYSROOT}/usr/include ${CXXFLAGS:-}"
 # Link MinGW C runtime libraries for __security_cookie, __mingw_vfprintf, mainCRTStartup, etc.
 # Note: Using Clang's compiler-rt (via -fms-runtime-lib=dll), not GCC's libgcc
-export LDFLAGS="-L${_BUILD_PREFIX}/Library/lib -L${MINGW_SYSROOT}/usr/lib -lmingw32 -lmoldname -lmingwex -lmsvcrt ${LDFLAGS}"
+# Library order matters: mingw32 first, then moldname, mingwex, msvcrt last
+# Add -lkernel32 -ladvapi32 for Windows API functions
+export LDFLAGS="-L${_BUILD_PREFIX}/Library/lib -L${MINGW_SYSROOT}/usr/lib -lmingw32 -lmoldname -lmingwex -lmsvcrt -lkernel32 -ladvapi32 ${LDFLAGS}"
 
 # Use GNU ld for linking (compatible with MinGW libraries)
 export LD="${BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-ld.exe"
