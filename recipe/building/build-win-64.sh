@@ -148,14 +148,15 @@ CFLAGS=$(echo "${CFLAGS}" | sed "s|%BUILD_PREFIX%|${_BUILD_PREFIX}|g")
 CXXFLAGS=$(echo "${CXXFLAGS}" | sed "s|%BUILD_PREFIX%|${_BUILD_PREFIX}|g")
 LDFLAGS=$(echo "${LDFLAGS}" | sed "s|%BUILD_PREFIX%|${_BUILD_PREFIX}|g")
 
-# Remove -nostdlib and -fuse-ld=lld for configure tests
-# We need working C runtime and GNU ld (not lld)
+# Remove -nostdlib and linker flags for configure tests
+# Let Clang's driver handle linking (it will automatically include compiler-rt builtins)
 CFLAGS="${CFLAGS//-nostdlib/}"
 CXXFLAGS="${CXXFLAGS//-nostdlib/}"
 LDFLAGS="${LDFLAGS//-nostdlib/}"
-CFLAGS=$(echo "${CFLAGS}" | sed 's/-fuse-ld=lld/-fuse-ld=bfd/g')
-CXXFLAGS=$(echo "${CXXFLAGS}" | sed 's/-fuse-ld=lld/-fuse-ld=bfd/g')
-LDFLAGS=$(echo "${LDFLAGS}" | sed 's/-fuse-ld=lld/-fuse-ld=bfd/g')
+# Remove linker flags entirely - Clang will use its default (lld-link for MSVC target)
+CFLAGS=$(echo "${CFLAGS}" | sed 's/-fuse-ld=lld//g' | sed 's/-fuse-ld=bfd//g')
+CXXFLAGS=$(echo "${CXXFLAGS}" | sed 's/-fuse-ld=lld//g' | sed 's/-fuse-ld=bfd//g')
+LDFLAGS=$(echo "${LDFLAGS}" | sed 's/-fuse-ld=lld//g' | sed 's/-fuse-ld=bfd//g')
 # Remove problematic -Wl,-defaultlib: flags that are MSVC-specific
 LDFLAGS=$(echo "${LDFLAGS}" | sed 's/-Wl,-defaultlib:[^ ]*//g')
 # Remove -fstack-protector-strong which generates __security_cookie calls incompatible with MinGW+Clang
@@ -165,10 +166,9 @@ CXXFLAGS=$(echo "${CXXFLAGS}" | sed 's/-fstack-protector-strong//g')
 # Use MinGW sysroot for headers and libraries (use Unix path _BUILD_PREFIX)
 MINGW_SYSROOT="${_BUILD_PREFIX}/Library/x86_64-w64-mingw32/sysroot"
 
-# Configure Clang to compile with GNU extensions for MinGW compatibility
-# Key insight: MinGW headers need GNU built-ins (va_list, etc.)
-# -fms-extensions: Enable Microsoft extensions including __declspec
-# -fms-compatibility: Full MSVC compatibility mode
+# Configure Clang to target MinGW and let it handle linking automatically
+# Key insight: Clang's driver will automatically include compiler-rt builtins
+# --target=x86_64-w64-mingw32: Tell Clang to target MinGW (not MSVC)
 # -D__MINGW32__: Tell headers we're using MinGW
 # -D_VA_LIST_DEFINED: Tell MinGW's vadefs.h that va_list is already defined
 # -D__GNUC__: Pretend to be GCC so vadefs.h doesn't error out
@@ -178,22 +178,13 @@ MINGW_SYSROOT="${_BUILD_PREFIX}/Library/x86_64-w64-mingw32/sysroot"
 # Convert Windows path to Unix for bash compatibility
 CLANG_RESOURCE_DIR=$(${CC} -print-resource-dir | sed 's#\\#/#g' | sed 's#^C:/#/c/#')
 CLANG_BUILTIN_INCLUDE="${CLANG_RESOURCE_DIR}/include"
-export CFLAGS="-fms-extensions -fms-compatibility -D__MINGW32__ -D_VA_LIST_DEFINED -D__GNUC__=13 -Dva_list=__builtin_va_list -isystem ${CLANG_BUILTIN_INCLUDE} -isystem ${_BUILD_PREFIX}/Library/include -isystem ${MINGW_SYSROOT}/usr/include ${CFLAGS:-}"
-export CXXFLAGS="-fms-extensions -fms-compatibility -D__MINGW32__ -D_VA_LIST_DEFINED -D__GNUC__=13 -Dva_list=__builtin_va_list -isystem ${CLANG_BUILTIN_INCLUDE} -isystem ${_BUILD_PREFIX}/Library/include -isystem ${MINGW_SYSROOT}/usr/include ${CXXFLAGS:-}"
-# Link MinGW C runtime libraries for __security_cookie, __mingw_vfprintf, mainCRTStartup, etc.
-# CRITICAL: Library flags must come AFTER object files in link command
-# Use LIBS environment variable (autoconf appends to end of link command)
-# CRT startup files: crt2.o provides mainCRTStartup entry point
-# Compiler builtins: When using GNU ld (-fuse-ld=bfd), we need libgcc for ___chkstk_ms
-# Library order is critical for MinGW linking:
-#   1. mingw32 (must be first - provides __main and other startup code)
-#   2. gcc/gcc_s/gcc_eh (compiler builtins like ___chkstk_ms)
-#   3. moldname, mingwex (MinGW extensions)
-#   4. msvcrt (C runtime)
-#   5. kernel32, advapi32 (Windows API)
+export CFLAGS="--target=x86_64-w64-mingw32 -D__MINGW32__ -D_VA_LIST_DEFINED -D__GNUC__=13 -Dva_list=__builtin_va_list -isystem ${CLANG_BUILTIN_INCLUDE} -isystem ${_BUILD_PREFIX}/Library/include -isystem ${MINGW_SYSROOT}/usr/include ${CFLAGS:-}"
+export CXXFLAGS="--target=x86_64-w64-mingw32 -D__MINGW32__ -D_VA_LIST_DEFINED -D__GNUC__=13 -Dva_list=__builtin_va_list -isystem ${CLANG_BUILTIN_INCLUDE} -isystem ${_BUILD_PREFIX}/Library/include -isystem ${MINGW_SYSROOT}/usr/include ${CXXFLAGS:-}"
+# Let Clang's driver handle linking - it will automatically use appropriate linker and libraries
+# We only need to specify library search paths and additional libraries
 export LDFLAGS="-L${_BUILD_PREFIX}/Library/lib -L${MINGW_SYSROOT}/usr/lib ${LDFLAGS}"
-# Note: Using crt2.o directly for entry point, and libgcc for compiler builtins
-export LIBS="${MINGW_SYSROOT}/usr/lib/crt2.o -lmingw32 -lgcc -lmoldname -lmingwex -lmsvcrt -lgcc -lkernel32 -ladvapi32"
+# MinGW libraries that Clang might not add automatically
+export LIBS="-lmingw32 -lmoldname -lmingwex -lkernel32 -ladvapi32"
 
 # Use GNU ld for linking (compatible with MinGW libraries)
 # CRITICAL: Use Unix path _BUILD_PREFIX not Windows path BUILD_PREFIX
