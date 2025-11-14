@@ -183,11 +183,17 @@ export CXXFLAGS="-fms-extensions -fms-compatibility -D__MINGW32__ -D_VA_LIST_DEF
 # Link MinGW C runtime libraries for __security_cookie, __mingw_vfprintf, mainCRTStartup, etc.
 # CRITICAL: Library flags must come AFTER object files in link command
 # Use LIBS environment variable (autoconf appends to end of link command)
-# Library order matters: mingw32 first, then moldname, mingwex, msvcrt last
 # CRT startup files: crt2.o provides mainCRTStartup entry point
-# Compiler builtins: clang_rt.builtins provides ___chkstk_ms and other compiler intrinsics
-export LDFLAGS="-L${_BUILD_PREFIX}/Library/lib -L${MINGW_SYSROOT}/usr/lib -L${CLANG_RESOURCE_DIR}/lib/windows ${LDFLAGS}"
-export LIBS="${MINGW_SYSROOT}/usr/lib/crt2.o -lmingw32 -lmoldname -lmingwex -lmsvcrt -lkernel32 -ladvapi32 -lclang_rt.builtins-x86_64"
+# Compiler builtins: When using GNU ld (-fuse-ld=bfd), we need libgcc for ___chkstk_ms
+# Library order is critical for MinGW linking:
+#   1. mingw32 (must be first - provides __main and other startup code)
+#   2. gcc/gcc_s/gcc_eh (compiler builtins like ___chkstk_ms)
+#   3. moldname, mingwex (MinGW extensions)
+#   4. msvcrt (C runtime)
+#   5. kernel32, advapi32 (Windows API)
+export LDFLAGS="-L${_BUILD_PREFIX}/Library/lib -L${MINGW_SYSROOT}/usr/lib ${LDFLAGS}"
+# Note: Using crt2.o directly for entry point, and libgcc for compiler builtins
+export LIBS="${MINGW_SYSROOT}/usr/lib/crt2.o -lmingw32 -lgcc -lmoldname -lmingwex -lmsvcrt -lgcc -lkernel32 -ladvapi32"
 
 # Use GNU ld for linking (compatible with MinGW libraries)
 # CRITICAL: Use Unix path _BUILD_PREFIX not Windows path BUILD_PREFIX
