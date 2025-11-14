@@ -142,6 +142,12 @@ MSVC_VER=$(ls -1 "${MSVC_BASE}" 2>/dev/null | sort -V | tail -1)
 # Get short path for MSVC include (has vcruntime.h)
 MSVC_INCLUDE="${MSVC_BASE}"/"${MSVC_VER}"/include
 
+# CRITICAL: Replace %BUILD_PREFIX% with actual Unix paths in conda's environment
+# Conda sets CFLAGS/LDFLAGS with Windows batch variable syntax which bash doesn't expand
+CFLAGS=$(echo "${CFLAGS}" | sed "s|%BUILD_PREFIX%|${_BUILD_PREFIX}|g")
+CXXFLAGS=$(echo "${CXXFLAGS}" | sed "s|%BUILD_PREFIX%|${_BUILD_PREFIX}|g")
+LDFLAGS=$(echo "${LDFLAGS}" | sed "s|%BUILD_PREFIX%|${_BUILD_PREFIX}|g")
+
 # Remove -nostdlib and -fuse-ld=lld for configure tests
 # We need working C runtime and GNU ld (not lld)
 CFLAGS="${CFLAGS//-nostdlib/}"
@@ -156,8 +162,8 @@ LDFLAGS=$(echo "${LDFLAGS}" | sed 's/-Wl,-defaultlib:[^ ]*//g')
 CFLAGS=$(echo "${CFLAGS}" | sed 's/-fstack-protector-strong//g')
 CXXFLAGS=$(echo "${CXXFLAGS}" | sed 's/-fstack-protector-strong//g')
 
-# Use MinGW sysroot for headers and libraries
-MINGW_SYSROOT="${BUILD_PREFIX}/Library/x86_64-w64-mingw32/sysroot"
+# Use MinGW sysroot for headers and libraries (use Unix path _BUILD_PREFIX)
+MINGW_SYSROOT="${_BUILD_PREFIX}/Library/x86_64-w64-mingw32/sysroot"
 
 # Configure Clang to compile with GNU extensions for MinGW compatibility
 # Key insight: MinGW headers need GNU built-ins (va_list, etc.)
