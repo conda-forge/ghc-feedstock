@@ -161,12 +161,13 @@ MINGW_SYSROOT="${BUILD_PREFIX}/Library/x86_64-w64-mingw32/sysroot"
 # -fms-extensions: Enable Microsoft extensions including __declspec
 # -fms-compatibility: Full MSVC compatibility mode
 # -D__MINGW32__: Tell headers we're using MinGW
-# Prepend Clang's builtin headers to ensure stdarg.h comes from Clang, not MinGW
+# Use -isystem for ALL includes to override Clang's default search paths
+# Order matters: Clang builtins FIRST, then conda libs, then MinGW sysroot
 # Convert Windows path to Unix for bash compatibility
 CLANG_RESOURCE_DIR=$(${CC} -print-resource-dir | sed 's#\\#/#g' | sed 's#^C:/#/c/#')
 CLANG_BUILTIN_INCLUDE="${CLANG_RESOURCE_DIR}/include"
-export CFLAGS="-fms-extensions -fms-compatibility -D__MINGW32__ -isystem ${CLANG_BUILTIN_INCLUDE} -I${_BUILD_PREFIX}/Library/include -I${MINGW_SYSROOT}/usr/include ${CFLAGS:-}"
-export CXXFLAGS="-fms-extensions -fms-compatibility -D__MINGW32__ -isystem ${CLANG_BUILTIN_INCLUDE} -I${_BUILD_PREFIX}/Library/include -I${MINGW_SYSROOT}/usr/include ${CXXFLAGS:-}"
+export CFLAGS="-fms-extensions -fms-compatibility -D__MINGW32__ -isystem ${CLANG_BUILTIN_INCLUDE} -isystem ${_BUILD_PREFIX}/Library/include -isystem ${MINGW_SYSROOT}/usr/include ${CFLAGS:-}"
+export CXXFLAGS="-fms-extensions -fms-compatibility -D__MINGW32__ -isystem ${CLANG_BUILTIN_INCLUDE} -isystem ${_BUILD_PREFIX}/Library/include -isystem ${MINGW_SYSROOT}/usr/include ${CXXFLAGS:-}"
 export LDFLAGS="-L${BUILD_PREFIX}/Library/lib -L${MINGW_SYSROOT}/usr/lib ${LDFLAGS}"
 
 # Use GNU ld for linking (compatible with MinGW libraries)
