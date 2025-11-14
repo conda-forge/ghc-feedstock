@@ -34,29 +34,30 @@ set -eu
 #   $2 - extra_ldflags: Additional LDFLAGS to append (optional)
 #
 build_configure_args() {
-  local -n result_array=$1  # nameref: allows modifying caller's array
+  local array_name="$1"
   local extra_ldflags="${2:-}"
 
-  result_array=(
+  # Use eval to set caller's array (compatible with Bash 3.2+)
+  eval "$array_name=(
     --with-system-libffi=yes
-    --with-curses-includes="${PREFIX}/include"
-    --with-curses-libraries="${PREFIX}/lib"
-    --with-ffi-includes="${PREFIX}/include"
-    --with-ffi-libraries="${PREFIX}/lib"
-    --with-gmp-includes="${PREFIX}/include"
-    --with-gmp-libraries="${PREFIX}/lib"
-    --with-iconv-includes="${PREFIX}/include"
-    --with-iconv-libraries="${PREFIX}/lib"
-  )
+    --with-curses-includes=\"\${PREFIX}/include\"
+    --with-curses-libraries=\"\${PREFIX}/lib\"
+    --with-ffi-includes=\"\${PREFIX}/include\"
+    --with-ffi-libraries=\"\${PREFIX}/lib\"
+    --with-gmp-includes=\"\${PREFIX}/include\"
+    --with-gmp-libraries=\"\${PREFIX}/lib\"
+    --with-iconv-includes=\"\${PREFIX}/include\"
+    --with-iconv-libraries=\"\${PREFIX}/lib\"
+  )"
 
   # Platform-specific additions
   if [[ "${target_platform}" == linux-* ]]; then
-    result_array+=(--disable-numa)
+    eval "$array_name+=(--disable-numa)"
   fi
 
   # Optional LDFLAGS
   if [[ -n "$extra_ldflags" ]]; then
-    result_array+=(LDFLAGS="${extra_ldflags}")
+    eval "$array_name+=(LDFLAGS=\"$extra_ldflags\")"
   fi
 }
 
@@ -77,14 +78,15 @@ build_configure_args() {
 #   $4 - target_triple: Target machine triple (empty = omit)
 #
 build_system_config() {
-  local -n result_array=$1
+  local array_name="$1"
   local build_triple="$2"
   local host_triple="$3"
   local target_triple="$4"
 
-  result_array=(--prefix="${PREFIX}")
+  # Use eval to set caller's array (compatible with Bash 3.2+)
+  eval "$array_name=(--prefix=\"\${PREFIX}\")"
 
-  [[ -n "$build_triple" ]] && result_array+=(--build="$build_triple")
-  [[ -n "$host_triple" ]] && result_array+=(--host="$host_triple")
-  [[ -n "$target_triple" ]] && result_array+=(--target="$target_triple")
+  [[ -n "$build_triple" ]] && eval "$array_name+=(--build=\"$build_triple\")"
+  [[ -n "$host_triple" ]] && eval "$array_name+=(--host=\"$host_triple\")"
+  [[ -n "$target_triple" ]] && eval "$array_name+=(--target=\"$target_triple\")"
 }
