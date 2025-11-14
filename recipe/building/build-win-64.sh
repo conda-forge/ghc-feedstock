@@ -182,8 +182,8 @@ export CFLAGS="--target=x86_64-w64-mingw32 -rtlib=compiler-rt -unwindlib=none -D
 export CXXFLAGS="--target=x86_64-w64-mingw32 -rtlib=compiler-rt -unwindlib=none -D__MINGW32__ -D_VA_LIST_DEFINED -D__GNUC__=13 -Dva_list=__builtin_va_list -isystem ${CLANG_BUILTIN_INCLUDE} -isystem ${_BUILD_PREFIX}/Library/include -isystem ${MINGW_SYSROOT}/usr/include ${CXXFLAGS:-}"
 # Let Clang's driver handle linking - it will automatically use appropriate linker and libraries
 # We only need to specify library search paths and additional libraries
-# CRITICAL: Add both conda Library/lib (for libgcc) and MinGW sysroot
-export LDFLAGS="-L${_BUILD_PREFIX}/Library/lib -L${_BUILD_PREFIX}/Library/mingw-w64/lib -L${MINGW_SYSROOT}/usr/lib ${LDFLAGS}"
+# CRITICAL: Add Clang's resource directory for compiler-rt builtins
+export LDFLAGS="-L${CLANG_RESOURCE_DIR}/lib/x86_64-w64-windows-gnu -L${_BUILD_PREFIX}/Library/lib -L${_BUILD_PREFIX}/Library/mingw-w64/lib -L${MINGW_SYSROOT}/usr/lib ${LDFLAGS}"
 # MinGW libraries that Clang might not add automatically
 # Note: libgcc should be found automatically by Clang when targeting MinGW
 export LIBS="-lmingw32 -lmoldname -lmingwex -lkernel32 -ladvapi32"
