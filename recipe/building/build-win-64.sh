@@ -178,8 +178,8 @@ MINGW_SYSROOT="${_BUILD_PREFIX}/Library/x86_64-w64-mingw32/sysroot"
 # Convert Windows path to Unix for bash compatibility
 CLANG_RESOURCE_DIR=$(${CC} -print-resource-dir | sed 's#\\#/#g' | sed 's#^C:/#/c/#')
 CLANG_BUILTIN_INCLUDE="${CLANG_RESOURCE_DIR}/include"
-export CFLAGS="--target=x86_64-w64-mingw32 -D__MINGW32__ -D_VA_LIST_DEFINED -D__GNUC__=13 -Dva_list=__builtin_va_list -isystem ${CLANG_BUILTIN_INCLUDE} -isystem ${_BUILD_PREFIX}/Library/include -isystem ${MINGW_SYSROOT}/usr/include ${CFLAGS:-}"
-export CXXFLAGS="--target=x86_64-w64-mingw32 -D__MINGW32__ -D_VA_LIST_DEFINED -D__GNUC__=13 -Dva_list=__builtin_va_list -isystem ${CLANG_BUILTIN_INCLUDE} -isystem ${_BUILD_PREFIX}/Library/include -isystem ${MINGW_SYSROOT}/usr/include ${CXXFLAGS:-}"
+export CFLAGS="--target=x86_64-w64-mingw32 -rtlib=compiler-rt -unwindlib=none -D__MINGW32__ -D_VA_LIST_DEFINED -D__GNUC__=13 -Dva_list=__builtin_va_list -isystem ${CLANG_BUILTIN_INCLUDE} -isystem ${_BUILD_PREFIX}/Library/include -isystem ${MINGW_SYSROOT}/usr/include ${CFLAGS:-}"
+export CXXFLAGS="--target=x86_64-w64-mingw32 -rtlib=compiler-rt -unwindlib=none -D__MINGW32__ -D_VA_LIST_DEFINED -D__GNUC__=13 -Dva_list=__builtin_va_list -isystem ${CLANG_BUILTIN_INCLUDE} -isystem ${_BUILD_PREFIX}/Library/include -isystem ${MINGW_SYSROOT}/usr/include ${CXXFLAGS:-}"
 # Let Clang's driver handle linking - it will automatically use appropriate linker and libraries
 # We only need to specify library search paths and additional libraries
 # CRITICAL: Add both conda Library/lib (for libgcc) and MinGW sysroot
