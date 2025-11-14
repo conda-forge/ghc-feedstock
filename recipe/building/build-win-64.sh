@@ -181,15 +181,17 @@ CLANG_BUILTIN_INCLUDE="${CLANG_RESOURCE_DIR}/include"
 export CFLAGS="-fms-extensions -fms-compatibility -D__MINGW32__ -D_VA_LIST_DEFINED -D__GNUC__=13 -Dva_list=__builtin_va_list -isystem ${CLANG_BUILTIN_INCLUDE} -isystem ${_BUILD_PREFIX}/Library/include -isystem ${MINGW_SYSROOT}/usr/include ${CFLAGS:-}"
 export CXXFLAGS="-fms-extensions -fms-compatibility -D__MINGW32__ -D_VA_LIST_DEFINED -D__GNUC__=13 -Dva_list=__builtin_va_list -isystem ${CLANG_BUILTIN_INCLUDE} -isystem ${_BUILD_PREFIX}/Library/include -isystem ${MINGW_SYSROOT}/usr/include ${CXXFLAGS:-}"
 # Link MinGW C runtime libraries for __security_cookie, __mingw_vfprintf, mainCRTStartup, etc.
-# Note: Using Clang's compiler-rt (via -fms-runtime-lib=dll), not GCC's libgcc
 # CRITICAL: Library flags must come AFTER object files in link command
 # Use LIBS environment variable (autoconf appends to end of link command)
 # Library order matters: mingw32 first, then moldname, mingwex, msvcrt last
-export LDFLAGS="-L${_BUILD_PREFIX}/Library/lib -L${MINGW_SYSROOT}/usr/lib ${LDFLAGS}"
-export LIBS="-lmingw32 -lmoldname -lmingwex -lmsvcrt -lkernel32 -ladvapi32"
+# CRT startup files: crt2.o provides mainCRTStartup entry point
+# Compiler builtins: clang_rt.builtins provides ___chkstk_ms and other compiler intrinsics
+export LDFLAGS="-L${_BUILD_PREFIX}/Library/lib -L${MINGW_SYSROOT}/usr/lib -L${CLANG_RESOURCE_DIR}/lib/windows ${LDFLAGS}"
+export LIBS="${MINGW_SYSROOT}/usr/lib/crt2.o -lmingw32 -lmoldname -lmingwex -lmsvcrt -lkernel32 -ladvapi32 -lclang_rt.builtins-x86_64"
 
 # Use GNU ld for linking (compatible with MinGW libraries)
-export LD="${BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-ld.exe"
+# CRITICAL: Use Unix path _BUILD_PREFIX not Windows path BUILD_PREFIX
+export LD="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-ld.exe"
 
 (
   MergeObjsCmd="${LD}" \
