@@ -172,7 +172,8 @@ CLANG_BUILTIN_INCLUDE="${CLANG_RESOURCE_DIR}/include"
 export CFLAGS="-fms-extensions -fms-compatibility -D__MINGW32__ -D_VA_LIST_DEFINED -D__GNUC__=13 -Dva_list=__builtin_va_list -isystem ${CLANG_BUILTIN_INCLUDE} -isystem ${_BUILD_PREFIX}/Library/include -isystem ${MINGW_SYSROOT}/usr/include ${CFLAGS:-}"
 export CXXFLAGS="-fms-extensions -fms-compatibility -D__MINGW32__ -D_VA_LIST_DEFINED -D__GNUC__=13 -Dva_list=__builtin_va_list -isystem ${CLANG_BUILTIN_INCLUDE} -isystem ${_BUILD_PREFIX}/Library/include -isystem ${MINGW_SYSROOT}/usr/include ${CXXFLAGS:-}"
 # Link MinGW C runtime libraries for __security_cookie, __mingw_vfprintf, mainCRTStartup, etc.
-export LDFLAGS="-L${_BUILD_PREFIX}/Library/lib -L${MINGW_SYSROOT}/usr/lib -lmingw32 -lgcc -lgcc_eh -lmoldname -lmingwex -lmsvcrt ${LDFLAGS}"
+# Note: Using Clang's compiler-rt (via -fms-runtime-lib=dll), not GCC's libgcc
+export LDFLAGS="-L${_BUILD_PREFIX}/Library/lib -L${MINGW_SYSROOT}/usr/lib -lmingw32 -lmoldname -lmingwex -lmsvcrt ${LDFLAGS}"
 
 # Use GNU ld for linking (compatible with MinGW libraries)
 export LD="${BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-ld.exe"
