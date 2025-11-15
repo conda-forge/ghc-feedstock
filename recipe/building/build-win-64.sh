@@ -132,18 +132,19 @@ mkdir -p ".cabal" && "${CABAL}" user-config init
 # echo "=== Configuring Cabal for single-threaded builds ==="
 # echo "jobs: 1" >> "${SRC_DIR}/.cabal/config"
 
-# CRITICAL: Create cabal.project.local to ensure ALL packages link against our custom chkstk_ms library
-# This is needed because Cabal doesn't automatically use the LIBS environment variable
+# CRITICAL: Add custom chkstk_ms library to Cabal's global GHC options
+# This ensures ALL packages link against our custom library that provides ___chkstk_ms
 # The library must be passed as a linker option, not in LDFLAGS (which would add it to compile commands)
-cat > "${SRC_DIR}/cabal.project.local" << EOF
--- Add custom chkstk_ms library to all package builds
+echo "=== Configuring Cabal to use custom chkstk_ms library ==="
+cat >> "${SRC_DIR}/.cabal/config" << EOF
+
+-- Add custom chkstk_ms library to all builds
 -- This library provides the ___chkstk_ms symbol required by MinGW runtime
-program-default-options
-  ghc-options: -optl${CHKSTK_LIB}
+ghc-options: -optl${CHKSTK_LIB}
 EOF
 
-echo "=== Created cabal.project.local with chkstk_ms library ==="
-cat "${SRC_DIR}/cabal.project.local"
+echo "=== Updated .cabal/config with chkstk_ms library ==="
+tail -5 "${SRC_DIR}/.cabal/config"
 
 run_and_log "cabal-update" "${CABAL}" v2-update
 
