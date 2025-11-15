@@ -17,6 +17,9 @@
 
 set -eu
 
+# Add error trap to show exactly where failures occur
+trap 'echo "ERROR: build-osx-arm64.sh failed at line $LINENO with exit code $?" >&2; exit 1' ERR
+
 # Initialize logging index
 _log_index=0
 
@@ -34,6 +37,7 @@ conda_host="${build_alias}"
 conda_target="${host_alias}"
 
 unset host_alias
+unset HOST
 
 export target_alias="${conda_target}"
 export host_platform="${build_platform}"

@@ -16,6 +16,9 @@
 
 set -eu
 
+# Add error trap to show exactly where failures occur
+trap 'echo "ERROR: build-osx-64.sh failed at line $LINENO with exit code $?" >&2; exit 1' ERR
+
 # Initialize logging index
 _log_index=0
 
@@ -61,22 +64,34 @@ SYSTEM_CONFIG=(
 
 # Library paths configuration (Bash 3.2 compatible)
 # Use mapfile/readarray if available (Bash 4+), otherwise while loop
+echo "DEBUG: About to call build_configure_args and capture output" >&2
 declare -a CONFIGURE_ARGS
 if type -t mapfile >/dev/null 2>&1; then
+  echo "DEBUG: Using mapfile for array capture" >&2
   mapfile -t CONFIGURE_ARGS < <(build_configure_args)
+  _capture_status=$?
 else
+  echo "DEBUG: Using while loop for array capture" >&2
   while IFS= read -r arg; do
     CONFIGURE_ARGS+=("$arg")
   done < <(build_configure_args)
+  _capture_status=$?
 fi
 
+echo "DEBUG: Array capture status: ${_capture_status}" >&2
+echo "DEBUG: Array element count: ${#CONFIGURE_ARGS[@]}" >&2
+
 if [[ ${#CONFIGURE_ARGS[@]} -eq 0 ]]; then
-  echo "ERROR: build_configure_args returned no arguments"
+  echo "ERROR: build_configure_args returned no arguments" >&2
   exit 1
 fi
 
+echo "DEBUG: Array capture successful, proceeding to set_autoconf_macos_vars" >&2
+
 # Set macOS-specific autoconf variables
 set_autoconf_macos_vars "false"
+
+echo "DEBUG: set_autoconf_macos_vars completed" >&2
 
 # Clear DEVELOPER_DIR (prevents Xcode interference)
 export DEVELOPER_DIR=""
