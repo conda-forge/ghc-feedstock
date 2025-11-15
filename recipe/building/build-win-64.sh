@@ -194,11 +194,12 @@ export CXXFLAGS="--target=x86_64-w64-mingw32 -rtlib=compiler-rt -unwindlib=none 
 export LDFLAGS="-L${_BUILD_PREFIX}/Library/lib -L${_BUILD_PREFIX}/Library/mingw-w64/lib -L${MINGW_SYSROOT}/usr/lib ${LDFLAGS}"
 # MinGW libraries that Clang might not add automatically
 # CRITICAL: Find and explicitly link compiler-rt builtins library
-# Try multiple possible locations for the builtins library
+# Try both .a (MinGW format) and .lib (MSVC format) extensions
 COMPILER_RT_LIB=""
 for candidate in \
   "${CLANG_RESOURCE_DIR}/lib/x86_64-w64-windows-gnu/libclang_rt.builtins.a" \
   "${CLANG_RESOURCE_DIR}/lib/windows/libclang_rt.builtins-x86_64.a" \
+  "${CLANG_RESOURCE_DIR}/lib/windows/clang_rt.builtins-x86_64.lib" \
   "${CLANG_RESOURCE_DIR}/lib/x86_64-pc-windows-gnu/libclang_rt.builtins.a"
 do
   echo "Checking for compiler-rt at: ${candidate}"
@@ -210,6 +211,7 @@ do
 done
 
 if [ -n "${COMPILER_RT_LIB}" ]; then
+  # Use full path to compiler-rt library to avoid linker search path issues
   export LIBS="${COMPILER_RT_LIB} -lmingw32 -lmoldname -lmingwex -lkernel32 -ladvapi32"
 else
   echo "WARNING: compiler-rt builtins not found, linking may fail"
