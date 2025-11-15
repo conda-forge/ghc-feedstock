@@ -186,9 +186,9 @@ build_hadrian_cross() {
     return 1
   fi
 
-  # Find hadrian binary location
+  # Find hadrian binary location (cross-platform: use -perm instead of -executable)
   local hadrian_path
-  hadrian_path=$(find "${SRC_DIR}/hadrian" -type f -name hadrian -executable | head -1)
+  hadrian_path=$(find "${SRC_DIR}/hadrian" -type f -name hadrian -perm +111 | head -1)
 
   if [[ -z "$hadrian_path" ]]; then
     echo "=== ERROR: Could not find hadrian binary ===" >&2

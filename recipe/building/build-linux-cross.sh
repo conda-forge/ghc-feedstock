@@ -380,8 +380,22 @@ pushd "${bindist_dir}"
   # Configure binary distribution with BUILD machine CC/CXX
   export CC="${BUILD_PREFIX}/bin/${conda_host}-clang"
   export CXX="${BUILD_PREFIX}/bin/${conda_host}-clang++"
-  #ac_cv_path_CC="${BUILD_PREFIX}/bin/${conda_host}-clang" \
-  #ac_cv_path_CXX="${BUILD_PREFIX}/bin/${conda_host}-clang++" \
+
+  # CRITICAL: Unset all TARGET architecture autoconf cache variables
+  # The bindist configure needs to detect BUILD machine tools (x86_64),
+  # not TARGET architecture tools (aarch64/ppc64le).
+  # These were set earlier for the cross-compilation configure.
+  unset ac_cv_path_AR ac_cv_path_AS ac_cv_path_CC ac_cv_path_CXX
+  unset ac_cv_path_LD ac_cv_path_NM ac_cv_path_OBJDUMP ac_cv_path_RANLIB
+  unset ac_cv_path_LLC ac_cv_path_OPT
+  unset ac_cv_func_statx ac_cv_have_decl_statx ac_cv_lib_ffi_ffi_call
+  unset ac_cv_func_posix_spawn_file_actions_addchdir_np
+
+  echo "  Cleared autoconf cache variables for bindist configure"
+  echo "  BUILD machine: ${conda_host}"
+  echo "  CC: ${CC}"
+  echo "  CXX: ${CXX}"
+
   ./configure --prefix="${PREFIX}" --target="${ghc_target}" || { cat config.log; exit 1; }
 
   # Install (skip package DB update - cross ghc-pkg doesn't work)

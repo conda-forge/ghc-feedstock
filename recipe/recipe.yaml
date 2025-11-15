@@ -13,6 +13,8 @@ source:
         then: patches/skip-bindist-recache-crosscompile.patch
       - if: ppc64le
         then: patches/fix-stgcrun-ppc64le-abi-v2.patch
+      - if: arm64
+        then: patches/fix-regparm-arm64.patch
       - if: osx
         then:
           - patches/remove-dangerous-macos-linker-flags.patch
