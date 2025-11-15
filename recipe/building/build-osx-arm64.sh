@@ -100,9 +100,9 @@ fix_macos_bootstrap_settings "${osx_64_env}" "${conda_host}" "${AR_STAGE0}"
 # ============================================================
 
 SYSTEM_CONFIG=(
-  --build="${build_alias}"
-  --host="${build_alias}"
-  --target="${host_alias}"
+  --build="${conda_host}"
+  --host="${conda_host}"
+  --target="${conda_target}"
   --prefix="${PREFIX}"
 )
 

@@ -378,8 +378,10 @@ echo "  Distribution: ${bindist_dir}"
 
 pushd "${bindist_dir}"
   # Configure binary distribution with BUILD machine CC/CXX
-  ac_cv_path_CC="${BUILD_PREFIX}/bin/${conda_host}-clang" \
-  ac_cv_path_CXX="${BUILD_PREFIX}/bin/${conda_host}-clang++" \
+  export CC="${BUILD_PREFIX}/bin/${conda_host}-clang"
+  export CXX="${BUILD_PREFIX}/bin/${conda_host}-clang++"
+  #ac_cv_path_CC="${BUILD_PREFIX}/bin/${conda_host}-clang" \
+  #ac_cv_path_CXX="${BUILD_PREFIX}/bin/${conda_host}-clang++" \
   ./configure --prefix="${PREFIX}" --target="${ghc_target}" || { cat config.log; exit 1; }
 
   # Install (skip package DB update - cross ghc-pkg doesn't work)
