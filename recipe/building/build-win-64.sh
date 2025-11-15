@@ -106,12 +106,16 @@ if [[ -f "${settings_file}" ]]; then
   perl -pi -e "s#(C compiler link flags\", \")[^\"]*#\$1-fuse-ld=bfd#" "${settings_file}"
   perl -pi -e "s#(ld is GNU ld\", \")[^\"]*#\$1YES#" "${settings_file}"
 
+  # Add chkstk_ms library to "ld flags" - these are ONLY passed to ld, not to C compiler
+  # This fixes hsc2hs builds (like clock package) which need the library during linking
+  perl -pi -e "s#(ld flags\", \")([^\"]*)#\$1\$2 ${CHKSTK_LIB}#" "${settings_file}"
+
   # CRITICAL: Fix merge-objects to use GNU ld (ld.bfd) instead of lld
   # The bootstrap GHC has system-merge-objects pointing to ld.lld.exe which uses MSVC-style .lib files
   # We need GNU ld which works with MinGW .a files
   perl -pi -e "s#(Merge objects command\", \")[^\"]*ld\\.lld[^\"]*#\$1${LD}#" "${settings_file}"
 
-  grep "C compiler flags\|C++ compiler flags\|Merge objects\|ld is GNU" "${settings_file}"
+  grep "C compiler flags\|C++ compiler flags\|Merge objects\|ld is GNU\|ld flags" "${settings_file}"
 else
   echo "WARNING: Stage0 settings file not found at ${settings_file}"
 fi
@@ -384,7 +388,8 @@ if [[ -f "${settings_file}" ]]; then
   perl -pi -e 's#-L\$topdir/../mingw//lib#-L\$topdir/../../Library/lib#g' "${settings_file}"
   perl -pi -e 's#-L\$topdir/../mingw//x86_64-w64-mingw32/lib#-L\$topdir/../../Library/bin -L\$topdir/../../Library/x86_64-w64-mingw32/sysroot/usr/lib -Wl,-rpath,\$topdir/../../Library/x86_64-w64-mingw32/sysroot/usr/lib#g' "${settings_file}"
 
-  perl -pi -e 's#(ld flags", ")#\1#' "${settings_file}"  # Keep empty for now
+  # Add chkstk_ms library to ld flags - these are ONLY passed to ld, not to C compiler
+  perl -pi -e "s#(ld flags\", \")#\$1${CHKSTK_LIB} #" "${settings_file}"
   perl -pi -e 's#(C compiler link flags", ")#\1-static #' "${settings_file}"  # Static linking for user programs
 
   echo "=== Stage1 settings after patching (COMPLETE FILE) ==="
