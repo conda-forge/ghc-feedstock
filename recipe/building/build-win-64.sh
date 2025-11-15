@@ -263,13 +263,12 @@ if [ -n "${COMPILER_RT_LIB}" ]; then
     echo "WARNING: ___chkstk_ms not found in compiler-rt"
     echo "Checking if MinGW provides ___chkstk_ms..."
 
-    # Check MinGW libraries for ___chkstk_ms
-    if nm "${_BUILD_PREFIX}/Library/x86_64-w64-mingw32/sysroot/usr/lib/libmingw32.a" 2>/dev/null | grep -q "___chkstk_ms"; then
-      echo "Found in libmingw32.a (unexpected - circular dependency!)"
-    fi
-    if nm "${_BUILD_PREFIX}/Library/x86_64-w64-mingw32/sysroot/usr/lib/libmingwex.a" 2>/dev/null | grep -q "___chkstk_ms"; then
-      echo "Found in libmingwex.a"
-    fi
+    # Check MinGW libraries for ___chkstk_ms and show symbol details
+    echo "Symbol details in libmingw32.a:"
+    nm "${_BUILD_PREFIX}/Library/x86_64-w64-mingw32/sysroot/usr/lib/libmingw32.a" 2>/dev/null | grep "___chkstk_ms" || echo "  (not found)"
+
+    echo "Symbol details in libmingwex.a:"
+    nm "${_BUILD_PREFIX}/Library/x86_64-w64-mingw32/sysroot/usr/lib/libmingwex.a" 2>/dev/null | grep "___chkstk_ms" || echo "  (not found)"
 
     # Try linking with all mingw libraries, maybe it's in one we haven't tried
     export LIBS="-Wl,--start-group -lmingw32 -lmoldname -lmingwex -lmingwthrd -Wl,--end-group -lmsvcrt -lkernel32 -ladvapi32"
