@@ -45,6 +45,7 @@ CLANG_BUILTIN_INCLUDE="${CLANG_RESOURCE_DIR}/include"
 # Configure Clang for MinGW with all necessary include paths and defines
 # NOTE: Use -I instead of -isystem to avoid path validation issues on Windows
 # -nodefaultlibs: Don't link libgcc/libgcc_eh (not available in conda)
+# Will add -lchkstk_ms to LDFLAGS after we build the stub library
 export CFLAGS="--target=x86_64-w64-mingw32 -fuse-ld=bfd -nodefaultlibs -D__MINGW32__ -D_VA_LIST_DEFINED -D__GNUC__=13 -Dva_list=__builtin_va_list -I${CLANG_BUILTIN_INCLUDE} -I${_BUILD_PREFIX}/Library/include ${CFLAGS:-}"
 export CXXFLAGS="--target=x86_64-w64-mingw32 -fuse-ld=bfd -nodefaultlibs -D__MINGW32__ -D_VA_LIST_DEFINED -D__GNUC__=13 -Dva_list=__builtin_va_list -I${CLANG_BUILTIN_INCLUDE} -I${_BUILD_PREFIX}/Library/include ${CXXFLAGS:-}"
 export LDFLAGS="-fuse-ld=bfd -nodefaultlibs -L${_BUILD_PREFIX}/Library/lib -L${_BUILD_PREFIX}/Library/mingw-w64/lib ${LDFLAGS}"
@@ -76,7 +77,7 @@ if [[ -f "${settings_file}" ]]; then
   perl -pi -e "s#(C\+\+ compiler flags\", \")([^\"]*)#\$1\$2 ${CXXFLAGS} -I${_PREFIX}/Library/include#" "${settings_file}"
   perl -pi -e "s#(Haskell CPP flags\", \")[^\"]*#\$1-E -I${_BUILD_PREFIX}/Library/include -I${_PREFIX}/Library/include#" "${settings_file}"
 
-  perl -pi -e "s#(C compiler link flags\", \")[^\"]*#\$1-fuse-ld=bfd#" "${settings_file}"
+  perl -pi -e "s#(C compiler link flags\", \")[^\"]*#\$1-fuse-ld=bfd -lchkstk_ms#" "${settings_file}"
   perl -pi -e "s#(ld is GNU ld\", \")[^\"]*#\$1YES#" "${settings_file}"
 
   # CRITICAL: Fix merge-objects to use GNU ld (ld.bfd) instead of lld
@@ -259,12 +260,18 @@ if [ -n "${COMPILER_RT_LIB}" ]; then
     echo "Building minimal ___chkstk_ms stub..."
 
     CHKSTK_OBJ="${_SRC_DIR}/chkstk_ms.o"
+    CHKSTK_LIB="${_BUILD_PREFIX}/Library/lib/libchkstk_ms.a"
+
     # Always recompile to ensure we have the latest version
     ${CC} -c "${_RECIPE_DIR}/building/chkstk_ms.c" -o "${CHKSTK_OBJ}"
     echo "Created ${CHKSTK_OBJ}"
 
-    # Link our stub implementation with MinGW libraries
-    export LIBS="-Wl,--start-group -lmingw32 -lmoldname -lmingwex ${CHKSTK_OBJ} -Wl,--end-group -lmsvcrt -lkernel32 -ladvapi32"
+    # Create a static library and place it where the linker will find it
+    ${AR} rcs "${CHKSTK_LIB}" "${CHKSTK_OBJ}"
+    echo "Created ${CHKSTK_LIB}"
+
+    # Also add to LIBS for configure phase
+    export LIBS="-Wl,--start-group -lmingw32 -lmoldname -lmingwex -lchkstk_ms -Wl,--end-group -lmsvcrt -lkernel32 -ladvapi32"
   fi
 
   popd > /dev/null
