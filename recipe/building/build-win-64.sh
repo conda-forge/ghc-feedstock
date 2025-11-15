@@ -55,7 +55,31 @@ export LDFLAGS="-fuse-ld=bfd -nodefaultlibs -L${_BUILD_PREFIX}/Library/lib -L${_
 #perl -pi -e "s#WINDRES_CMD=.*windres\.exe#WINDRES_CMD=${WINDRES_PATH}#" "${_BUILD_PREFIX}"/ghc-bootstrap/bin/windres.bat
 perl -pi -e 's/findstr/C:\\Windows\\System32\\findstr/g' "${_BUILD_PREFIX}"/ghc-bootstrap/bin/windres.bat
 
+# CRITICAL: Create ___chkstk_ms stub library BEFORE updating settings file
+# MinGW libraries reference this symbol but don't provide it
+echo "=== Building ___chkstk_ms stub library ==="
+CHKSTK_OBJ="${_SRC_DIR}/chkstk_ms.o"
+CHKSTK_LIB="${_BUILD_PREFIX}/Library/lib/libchkstk_ms.a"
+
+# Compile the stub
+${CC} -c "${_RECIPE_DIR}/building/chkstk_ms.c" -o "${CHKSTK_OBJ}"
+echo "Created ${CHKSTK_OBJ}"
+
+# Create static library
+${AR} rcs "${CHKSTK_LIB}" "${CHKSTK_OBJ}"
+echo "Created ${CHKSTK_LIB}"
+
+# Verify library was created
+if [ -f "${CHKSTK_LIB}" ]; then
+    echo "✓ Library exists: ${CHKSTK_LIB}"
+    ls -lh "${CHKSTK_LIB}"
+else
+    echo "✗ ERROR: Library NOT created at ${CHKSTK_LIB}"
+    exit 1
+fi
+
 # Update Stage0 settings file with conda include paths for Windows build
+# NOW we can reference the chkstk library since it exists
 settings_file="${_BUILD_PREFIX}/ghc-bootstrap/lib/settings"
 if [[ -f "${settings_file}" ]]; then
   echo "=== Updating bootstrap settings with conda include paths ==="
@@ -77,7 +101,8 @@ if [[ -f "${settings_file}" ]]; then
   perl -pi -e "s#(C\+\+ compiler flags\", \")([^\"]*)#\$1\$2 ${CXXFLAGS} -I${_PREFIX}/Library/include#" "${settings_file}"
   perl -pi -e "s#(Haskell CPP flags\", \")[^\"]*#\$1-E -I${_BUILD_PREFIX}/Library/include -I${_PREFIX}/Library/include#" "${settings_file}"
 
-  perl -pi -e "s#(C compiler link flags\", \")[^\"]*#\$1-fuse-ld=bfd -L${_BUILD_PREFIX}/Library/lib -lchkstk_ms#" "${settings_file}"
+  # Use full library path instead of -l flag to avoid search path issues
+  perl -pi -e "s#(C compiler link flags\", \")[^\"]*#\$1-fuse-ld=bfd ${CHKSTK_LIB}#" "${settings_file}"
   perl -pi -e "s#(ld is GNU ld\", \")[^\"]*#\$1YES#" "${settings_file}"
 
   # CRITICAL: Fix merge-objects to use GNU ld (ld.bfd) instead of lld
@@ -203,93 +228,9 @@ do
   fi
 done
 
-if [ -n "${COMPILER_RT_LIB}" ]; then
-  # GNU ld cannot handle MSVC .lib files properly (corrupt .drectve errors)
-  # Try to extract and repack using llvm-ar (works with both formats)
-  COMPILER_RT_A="${_SRC_DIR}/clang_rt.builtins-x86_64.a"
-
-  if [ ! -f "${COMPILER_RT_A}" ]; then
-    echo "Converting ${COMPILER_RT_LIB} to GNU ar format..."
-    TMPDIR=$(mktemp -d)
-    pushd "${TMPDIR}" > /dev/null
-
-    # Extract objects from MSVC .lib using llvm-ar
-    llvm-ar x "${COMPILER_RT_LIB}" 2>/dev/null && \
-    # Repack with GNU ar
-    ar crs "${COMPILER_RT_A}" *.obj 2>/dev/null && \
-    echo "Successfully converted to ${COMPILER_RT_A}" || {
-      echo "WARNING: Conversion failed, using .lib directly"
-      COMPILER_RT_A="${COMPILER_RT_LIB}"
-    }
-
-    popd > /dev/null
-    rm -rf "${TMPDIR}"
-  else
-    echo "Using cached converted library: ${COMPILER_RT_A}"
-  fi
-
-  # CRITICAL ISSUE: Conda's compiler-rt was built for MSVC, not MinGW
-  # It has MSVC-specific stack protection symbols (__security_cookie) which don't exist in MinGW
-  # Instead, let's extract ONLY the objects we actually need (___chkstk_ms) and skip the rest
-
-  echo "Extracting ___chkstk_ms from compiler-rt..."
-  CHKSTK_DIR="${_SRC_DIR}/chkstk_extract"
-  mkdir -p "${CHKSTK_DIR}"
-  pushd "${CHKSTK_DIR}" > /dev/null
-
-  # Extract all objects and find the one with ___chkstk_ms
-  llvm-ar x "${COMPILER_RT_A}" 2>/dev/null
-  CHKSTK_OBJ=""
-  for obj in *.obj; do
-    if nm "$obj" 2>/dev/null | grep -q "___chkstk_ms"; then
-      CHKSTK_OBJ="$obj"
-      echo "Found ___chkstk_ms in: $obj"
-      break
-    fi
-  done
-
-  if [ -n "${CHKSTK_OBJ}" ]; then
-    # Link just this object file directly
-    export LIBS="-Wl,--start-group -lmingw32 -lmoldname -lmingwex ${CHKSTK_DIR}/${CHKSTK_OBJ} -Wl,--end-group -lmsvcrt -lkernel32 -ladvapi32"
-  else
-    echo "WARNING: ___chkstk_ms not found in compiler-rt"
-    echo "Checking if MinGW provides ___chkstk_ms..."
-
-    # Symbol is marked as 'U' (undefined) in both libraries - neither provides it!
-    # We need to provide our own implementation
-    echo "Building minimal ___chkstk_ms stub..."
-
-    CHKSTK_OBJ="${_SRC_DIR}/chkstk_ms.o"
-    CHKSTK_LIB="${_BUILD_PREFIX}/Library/lib/libchkstk_ms.a"
-
-    # Always recompile to ensure we have the latest version
-    ${CC} -c "${_RECIPE_DIR}/building/chkstk_ms.c" -o "${CHKSTK_OBJ}"
-    echo "Created ${CHKSTK_OBJ}"
-
-    # Create a static library and place it where the linker will find it
-    ${AR} rcs "${CHKSTK_LIB}" "${CHKSTK_OBJ}"
-    echo "Created ${CHKSTK_LIB}"
-
-    # Verify library was created
-    if [ -f "${CHKSTK_LIB}" ]; then
-        echo "✓ Library exists: ${CHKSTK_LIB}"
-        ls -lh "${CHKSTK_LIB}"
-    else
-        echo "✗ ERROR: Library NOT created at ${CHKSTK_LIB}"
-        exit 1
-    fi
-
-    # Also add explicit path to LIBS for configure phase
-    # Use full path to ensure linker finds it regardless of search path issues
-    export LIBS="-Wl,--start-group -lmingw32 -lmoldname -lmingwex ${CHKSTK_LIB} -Wl,--end-group -lmsvcrt -lkernel32 -ladvapi32"
-  fi
-
-  popd > /dev/null
-  # Don't cleanup CHKSTK_DIR yet - linker needs the .obj file
-else
-  echo "WARNING: compiler-rt builtins not found, linking may fail"
-  export LIBS="-lmingw32 -lmoldname -lmingwex -lmsvcrt -lkernel32 -ladvapi32"
-fi
+# The ___chkstk_ms library has been created upfront (lines 58-79)
+# Set LIBS environment variable for any configure scripts that use it
+export LIBS="-Wl,--start-group -lmingw32 -lmoldname -lmingwex ${CHKSTK_LIB} -Wl,--end-group -lmsvcrt -lkernel32 -ladvapi32"
 
 # Use GNU ld for linking (compatible with MinGW libraries)
 # CRITICAL: Use Unix path _BUILD_PREFIX not Windows path BUILD_PREFIX
