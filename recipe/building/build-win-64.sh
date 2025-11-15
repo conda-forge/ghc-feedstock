@@ -268,10 +268,9 @@ if [ -n "${COMPILER_RT_LIB}" ]; then
     echo "Building minimal ___chkstk_ms stub..."
 
     CHKSTK_OBJ="${_SRC_DIR}/chkstk_ms.o"
-    if [ ! -f "${CHKSTK_OBJ}" ]; then
-      ${CC} -c "${_RECIPE_DIR}/building/chkstk_ms.c" -o "${CHKSTK_OBJ}"
-      echo "Created ${CHKSTK_OBJ}"
-    fi
+    # Always recompile to ensure we have the latest version
+    ${CC} -c "${_RECIPE_DIR}/building/chkstk_ms.c" -o "${CHKSTK_OBJ}"
+    echo "Created ${CHKSTK_OBJ}"
 
     # Link our stub implementation with MinGW libraries
     export LIBS="-Wl,--start-group -lmingw32 -lmoldname -lmingwex ${CHKSTK_OBJ} -Wl,--end-group -lmsvcrt -lkernel32 -ladvapi32"
