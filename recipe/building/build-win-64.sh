@@ -12,6 +12,11 @@ export _PYTHON="${_BUILD_PREFIX}/python.exe"
 export GHC="${BUILD_PREFIX}\\ghc-bootstrap\\bin\\ghc.exe"
 export LIBRARY_PATH="${_BUILD_PREFIX}/Library/lib${LIBRARY_PATH:+:}${LIBRARY_PATH:-}"
 
+# Define toolchain variables early for bootstrap settings patching
+export LD="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-ld.exe"
+export AR="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-ar.exe"
+export RANLIB="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-ranlib.exe"
+
 # Bug in ghc-bootstrap
 #WINDRES_PATH="${BUILD_PREFIX//\\/\\\\}\\\\Library\\\\bin\\\\${WINDRES}"
 #perl -pi -e "s#WINDRES_CMD=.*windres\.exe#WINDRES_CMD=${WINDRES_PATH}#" "${_BUILD_PREFIX}"/ghc-bootstrap/bin/windres.bat
@@ -39,10 +44,15 @@ if [[ -f "${settings_file}" ]]; then
   perl -pi -e "s#(C\+\+ compiler flags\", \")([^\"]*)#\$1\$2 ${CXXFLAGS} -I${_PREFIX}/Library/include#" "${settings_file}"
   perl -pi -e "s#(Haskell CPP flags\", \")[^\"]*#\$1-E -I${_BUILD_PREFIX}/Library/x86_64-w64-mingw32/sysroot/usr/include -I${_PREFIX}/Library/include#" "${settings_file}"
 
-  perl -pi -e "s#(C compiler link flags\", \")[^\"]*#\$1#" "${settings_file}"
-  perl -pi -e "s#(ld is GNU ld\", \")[^\"]*#\$1NO#" "${settings_file}"
-  
-  grep "C compiler flags\|C++ compiler flags" "${settings_file}"
+  perl -pi -e "s#(C compiler link flags\", \")[^\"]*#\$1-fuse-ld=bfd#" "${settings_file}"
+  perl -pi -e "s#(ld is GNU ld\", \")[^\"]*#\$1YES#" "${settings_file}"
+
+  # CRITICAL: Fix merge-objects to use GNU ld (ld.bfd) instead of lld
+  # The bootstrap GHC has system-merge-objects pointing to ld.lld.exe which uses MSVC-style .lib files
+  # We need GNU ld which works with MinGW .a files
+  perl -pi -e "s#(Merge objects command\", \")[^\"]*ld\\.lld[^\"]*#\$1${LD}#" "${settings_file}"
+
+  grep "C compiler flags\|C++ compiler flags\|Merge objects\|ld is GNU" "${settings_file}"
 else
   echo "WARNING: Stage0 settings file not found at ${settings_file}"
 fi
@@ -310,7 +320,12 @@ perl -pi -e 's#^windows-toolchain-autoconf\s*=\s*.*$#windows-toolchain-autoconf 
 # Force use of conda libffi
 perl -pi -e 's#^use-system-ffi\s*=\s*.*$#use-system-ffi = YES#' "${SRC_DIR}"/hadrian/cfg/system.config
 
-cat "${SRC_DIR}"/hadrian/cfg/system.config | grep "include-dir\|lib-dir\|windres\|dllwrap\|system-mingw\|system-ffi"
+# CRITICAL: Fix system-merge-objects to use GNU ld instead of lld
+# The bootstrap GHC's system-merge-objects points to ld.lld.exe which expects MSVC .lib files
+# We need GNU ld which works with MinGW .a files
+perl -pi -e 's#^system-merge-objects\s*=\s*.*ld\.lld.*$#system-merge-objects = '"${LD}"'#' "${SRC_DIR}"/hadrian/cfg/system.config
+
+cat "${SRC_DIR}"/hadrian/cfg/system.config | grep "include-dir\|lib-dir\|windres\|dllwrap\|system-mingw\|system-ffi\|merge-objects"
 
 # Ensure CFLAGS/CXXFLAGS include conda headers for the build phase too
 # export CFLAGS="${CFLAGS} -fno-stack-protector -fno-stack-check -I${PREFIX}/Library/include -I${BUILD_PREFIX}/Library/include"
