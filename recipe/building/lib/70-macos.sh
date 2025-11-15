@@ -114,7 +114,8 @@ setup_macos_cross_environment() {
   # autoconf's config.sub normalizes arm64-apple-darwin to aarch64-unknown-osx
   # but GHC's configure only recognizes "darwin" not "osx"
   export ac_cv_build="x86_64-apple-darwin13.4.0"
-  export ac_cv_host="aarch64-apple-darwin20.0.0"
+  export ac_cv_host="x86_64-apple-darwin13.4.0"
+  export ac_cv_target="aarch64-apple-darwin20.0.0"
 
   echo "  ac_cv_build: ${ac_cv_build}"
   echo "  ac_cv_host: ${ac_cv_host}"

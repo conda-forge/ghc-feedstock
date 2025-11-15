@@ -142,7 +142,11 @@ set_autoconf_macos_vars() {
   # libffi detection
   export ac_cv_lib_ffi_ffi_call=yes
 
-  [[ "$debug" == "true" ]] && echo "  ac_cv_prog_CC=${CC:-<unset>}"
-  [[ "$debug" == "true" ]] && echo "  ac_cv_path_ac_pt_CC=<empty> (force conda toolchain)"
-  [[ "$debug" == "true" ]] && echo "=== macOS autoconf variables set"
+  if [[ "$debug" == "true" ]]; then
+    echo "  ac_cv_prog_CC=${CC:-<unset>}"
+    echo "  ac_cv_path_ac_pt_CC=<empty> (force conda toolchain)"
+    echo "=== macOS autoconf variables set"
+  fi
+
+  return 0
 }
