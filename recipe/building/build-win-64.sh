@@ -45,10 +45,9 @@ CLANG_BUILTIN_INCLUDE="${CLANG_RESOURCE_DIR}/include"
 # Configure Clang for MinGW with all necessary include paths and defines
 # NOTE: Use -I instead of -isystem to avoid path validation issues on Windows
 # -nodefaultlibs: Don't link libgcc/libgcc_eh (not available in conda)
-# Will add chkstk_ms library path to LDFLAGS after we build it
+# Will add chkstk_ms library to LIBS (not LDFLAGS) after we build it
 export CFLAGS="--target=x86_64-w64-mingw32 -fuse-ld=bfd -nodefaultlibs -D__MINGW32__ -D_VA_LIST_DEFINED -D__GNUC__=13 -Dva_list=__builtin_va_list -I${CLANG_BUILTIN_INCLUDE} -I${_BUILD_PREFIX}/Library/include ${CFLAGS:-}"
 export CXXFLAGS="--target=x86_64-w64-mingw32 -fuse-ld=bfd -nodefaultlibs -D__MINGW32__ -D_VA_LIST_DEFINED -D__GNUC__=13 -Dva_list=__builtin_va_list -I${CLANG_BUILTIN_INCLUDE} -I${_BUILD_PREFIX}/Library/include ${CXXFLAGS:-}"
-# Initial LDFLAGS without chkstk - will be updated after library creation
 export LDFLAGS="-fuse-ld=bfd -nodefaultlibs -L${_BUILD_PREFIX}/Library/lib -L${_BUILD_PREFIX}/Library/mingw-w64/lib ${LDFLAGS:-}"
 
 # Bug in ghc-bootstrap
@@ -230,13 +229,10 @@ do
 done
 
 # The ___chkstk_ms library has been created upfront (lines 58-79)
-# Now update LDFLAGS and LIBS to include it
+# Now set LIBS to include it
 
-# CRITICAL: Add library to LDFLAGS for Cabal/hsc2hs
-# hsc2hs (used by clock package) may not pick up settings file flags
-export LDFLAGS="-fuse-ld=bfd -nodefaultlibs ${CHKSTK_LIB} -L${_BUILD_PREFIX}/Library/lib -L${_BUILD_PREFIX}/Library/mingw-w64/lib"
-
-# Set LIBS environment variable for any configure scripts that use it
+# CRITICAL: Do NOT add library to LDFLAGS - it will appear in compile commands!
+# Only add to LIBS which is used during linking phase
 export LIBS="-Wl,--start-group -lmingw32 -lmoldname -lmingwex ${CHKSTK_LIB} -Wl,--end-group -lmsvcrt -lkernel32 -ladvapi32"
 
 # Use GNU ld for linking (compatible with MinGW libraries)
