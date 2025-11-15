@@ -153,10 +153,10 @@ LDFLAGS=$(echo "${LDFLAGS}" | sed "s|%BUILD_PREFIX%|${_BUILD_PREFIX}|g")
 CFLAGS="${CFLAGS//-nostdlib/}"
 CXXFLAGS="${CXXFLAGS//-nostdlib/}"
 LDFLAGS="${LDFLAGS//-nostdlib/}"
-# Remove linker flags entirely - Clang will use its default (lld-link for MSVC target)
-CFLAGS=$(echo "${CFLAGS}" | sed 's/-fuse-ld=lld//g' | sed 's/-fuse-ld=bfd//g')
-CXXFLAGS=$(echo "${CXXFLAGS}" | sed 's/-fuse-ld=lld//g' | sed 's/-fuse-ld=bfd//g')
-LDFLAGS=$(echo "${LDFLAGS}" | sed 's/-fuse-ld=lld//g' | sed 's/-fuse-ld=bfd//g')
+# Use GNU ld (bfd) for MinGW compatibility (lld defaults to MSVC mode on Windows)
+CFLAGS=$(echo "${CFLAGS}" | sed 's/-fuse-ld=lld/-fuse-ld=bfd/g')
+CXXFLAGS=$(echo "${CXXFLAGS}" | sed 's/-fuse-ld=lld/-fuse-ld=bfd/g')
+LDFLAGS=$(echo "${LDFLAGS}" | sed 's/-fuse-ld=lld/-fuse-ld=bfd/g')
 # Remove problematic -Wl,-defaultlib: flags that are MSVC-specific
 LDFLAGS=$(echo "${LDFLAGS}" | sed 's/-Wl,-defaultlib:[^ ]*//g')
 # Remove -fstack-protector-strong which generates __security_cookie calls incompatible with MinGW+Clang
@@ -187,12 +187,12 @@ if [ -d "${CLANG_RESOURCE_DIR}/lib" ]; then
 else
   echo "WARNING: ${CLANG_RESOURCE_DIR}/lib does not exist"
 fi
-export CFLAGS="--target=x86_64-w64-mingw32 -D__MINGW32__ -D_VA_LIST_DEFINED -D__GNUC__=13 -Dva_list=__builtin_va_list -isystem ${CLANG_BUILTIN_INCLUDE} -isystem ${_BUILD_PREFIX}/Library/include -isystem ${MINGW_SYSROOT}/usr/include ${CFLAGS:-}"
-export CXXFLAGS="--target=x86_64-w64-mingw32 -D__MINGW32__ -D_VA_LIST_DEFINED -D__GNUC__=13 -Dva_list=__builtin_va_list -isystem ${CLANG_BUILTIN_INCLUDE} -isystem ${_BUILD_PREFIX}/Library/include -isystem ${MINGW_SYSROOT}/usr/include ${CXXFLAGS:-}"
-# Let Clang's driver handle linking - it will automatically use appropriate linker and libraries
-# We only need to specify library search paths and additional libraries
+export CFLAGS="--target=x86_64-w64-mingw32 -fuse-ld=bfd -D__MINGW32__ -D_VA_LIST_DEFINED -D__GNUC__=13 -Dva_list=__builtin_va_list -isystem ${CLANG_BUILTIN_INCLUDE} -isystem ${_BUILD_PREFIX}/Library/include -isystem ${MINGW_SYSROOT}/usr/include ${CFLAGS:-}"
+export CXXFLAGS="--target=x86_64-w64-mingw32 -fuse-ld=bfd -D__MINGW32__ -D_VA_LIST_DEFINED -D__GNUC__=13 -Dva_list=__builtin_va_list -isystem ${CLANG_BUILTIN_INCLUDE} -isystem ${_BUILD_PREFIX}/Library/include -isystem ${MINGW_SYSROOT}/usr/include ${CXXFLAGS:-}"
+# Use GNU ld (bfd) for MinGW compatibility and specify library search paths
+# -fuse-ld=bfd: Use GNU ld instead of lld-link (which expects MSVC-style .lib files)
 # -nodefaultlibs: Don't link standard system libraries (we'll add what we need explicitly)
-export LDFLAGS="-nodefaultlibs -L${_BUILD_PREFIX}/Library/lib -L${_BUILD_PREFIX}/Library/mingw-w64/lib -L${MINGW_SYSROOT}/usr/lib ${LDFLAGS}"
+export LDFLAGS="-fuse-ld=bfd -nodefaultlibs -L${_BUILD_PREFIX}/Library/lib -L${_BUILD_PREFIX}/Library/mingw-w64/lib -L${MINGW_SYSROOT}/usr/lib ${LDFLAGS}"
 # MinGW libraries that Clang might not add automatically
 # CRITICAL: Find and explicitly link compiler-rt builtins library
 # Try both .a (MinGW format) and .lib (MSVC format) extensions
