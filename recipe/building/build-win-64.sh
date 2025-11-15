@@ -212,10 +212,33 @@ do
 done
 
 if [ -n "${COMPILER_RT_LIB}" ]; then
+  # GNU ld cannot handle MSVC .lib files properly (corrupt .drectve errors)
+  # Try to extract and repack using llvm-ar (works with both formats)
+  COMPILER_RT_A="${_SRC_DIR}/clang_rt.builtins-x86_64.a"
+
+  if [ ! -f "${COMPILER_RT_A}" ]; then
+    echo "Converting ${COMPILER_RT_LIB} to GNU ar format..."
+    TMPDIR=$(mktemp -d)
+    pushd "${TMPDIR}" > /dev/null
+
+    # Extract objects from MSVC .lib using llvm-ar
+    llvm-ar x "${COMPILER_RT_LIB}" 2>/dev/null && \
+    # Repack with GNU ar
+    ar crs "${COMPILER_RT_A}" *.obj 2>/dev/null && \
+    echo "Successfully converted to ${COMPILER_RT_A}" || {
+      echo "WARNING: Conversion failed, using .lib directly"
+      COMPILER_RT_A="${COMPILER_RT_LIB}"
+    }
+
+    popd > /dev/null
+    rm -rf "${TMPDIR}"
+  else
+    echo "Using cached converted library: ${COMPILER_RT_A}"
+  fi
+
   # Use full path to compiler-rt library to avoid linker search path issues
-  # GNU ld may not recognize MSVC .lib files, so we also try linking as a group
-  # to allow circular dependencies between libmingw32 and compiler-rt
-  export LIBS="-Wl,--start-group -lmingw32 -lmoldname -lmingwex ${COMPILER_RT_LIB} -Wl,--end-group -lmsvcrt -lkernel32 -ladvapi32"
+  # Link as a group to handle circular dependencies
+  export LIBS="-Wl,--start-group -lmingw32 -lmoldname -lmingwex ${COMPILER_RT_A} -Wl,--end-group -lmsvcrt -lkernel32 -ladvapi32"
 else
   echo "WARNING: compiler-rt builtins not found, linking may fail"
   export LIBS="-lmingw32 -lmoldname -lmingwex -lmsvcrt -lkernel32 -ladvapi32"
