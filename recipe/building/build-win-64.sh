@@ -270,8 +270,18 @@ if [ -n "${COMPILER_RT_LIB}" ]; then
     ${AR} rcs "${CHKSTK_LIB}" "${CHKSTK_OBJ}"
     echo "Created ${CHKSTK_LIB}"
 
-    # Also add to LIBS for configure phase
-    export LIBS="-Wl,--start-group -lmingw32 -lmoldname -lmingwex -lchkstk_ms -Wl,--end-group -lmsvcrt -lkernel32 -ladvapi32"
+    # Verify library was created
+    if [ -f "${CHKSTK_LIB}" ]; then
+        echo "✓ Library exists: ${CHKSTK_LIB}"
+        ls -lh "${CHKSTK_LIB}"
+    else
+        echo "✗ ERROR: Library NOT created at ${CHKSTK_LIB}"
+        exit 1
+    fi
+
+    # Also add explicit path to LIBS for configure phase
+    # Use full path to ensure linker finds it regardless of search path issues
+    export LIBS="-Wl,--start-group -lmingw32 -lmoldname -lmingwex ${CHKSTK_LIB} -Wl,--end-group -lmsvcrt -lkernel32 -ladvapi32"
   fi
 
   popd > /dev/null
