@@ -21,6 +21,9 @@ set -eu
 # Initialize logging index
 _log_index=0
 
+# Set up error trap to capture unexpected failures
+trap 'echo "ERROR: Script failed at line $LINENO with exit code $?" >&2; exit 1' ERR
+
 # Source common functions
 source "${RECIPE_DIR}"/building/common.sh
 
@@ -31,11 +34,16 @@ source "${RECIPE_DIR}"/building/common.sh
 # Using target_platform for consistency
 # ============================================================
 
+# Save original conda aliases BEFORE overriding
+# (conda-build sets these, but GHC configure needs different values)
+original_build_alias="${build_alias}"
+original_host_alias="${host_alias}"
+
 # Extract architecture from conda aliases
-conda_host="${build_alias}"      # e.g., x86_64-conda-linux-gnu (BUILD)
-conda_target="${host_alias}"     # e.g., aarch64-conda-linux-gnu (TARGET)
-host_arch="${build_alias%%-*}"   # e.g., x86_64 (BUILD)
-target_arch="${host_alias%%-*}"  # e.g., aarch64 (TARGET)
+conda_host="${original_build_alias}"      # e.g., x86_64-conda-linux-gnu (BUILD)
+conda_target="${original_host_alias}"     # e.g., aarch64-conda-linux-gnu (TARGET)
+host_arch="${original_build_alias%%-*}"   # e.g., x86_64 (BUILD)
+target_arch="${original_host_alias%%-*}"  # e.g., aarch64 (TARGET)
 
 # Convert to GHC triple format
 ghc_host="${host_arch}-unknown-linux-gnu"       # BUILD triple for GHC
@@ -49,6 +57,7 @@ echo "======================================="
 
 # Override autoconf variables for GHC configure
 # GHC's cross-compilation uses: --build=<host> --host=<host> --target=<target>
+# NOTE: conda_host and conda_target still reference the ORIGINAL values
 export build_alias="${ghc_host}"
 export host_alias="${ghc_host}"
 
@@ -65,6 +74,29 @@ setup_cross_build_env "linux-64" "libc2.17_env" "sysroot_linux-64==2.17"
 # Verify bootstrap GHC works
 echo "  Bootstrap GHC: ${GHC}"
 "${GHC}" --version
+
+# Create debug log directory
+mkdir -p "${SRC_DIR}/_debug_logs"
+DEBUG_LOG="${SRC_DIR}/_debug_logs/environment-check.log"
+
+# Save environment variables to log file AND stdout
+{
+  echo "=== DEBUG: Environment Variables ==="
+  echo "  Date: $(date)"
+  echo "  PWD: $(pwd)"
+  echo "  PREFIX=${PREFIX:-UNSET}"
+  echo "  BUILD_PREFIX=${BUILD_PREFIX:-UNSET}"
+  echo "  SRC_DIR=${SRC_DIR:-UNSET}"
+  echo "  target_platform=${target_platform:-UNSET}"
+  echo "  target_arch=${target_arch:-UNSET}"
+  echo "  ghc_target=${ghc_target:-UNSET}"
+  echo "  ghc_host=${ghc_host:-UNSET}"
+  echo "  conda_target=${conda_target:-UNSET}"
+  echo "  conda_host=${conda_host:-UNSET}"
+  echo "  build_alias=${build_alias:-UNSET}"
+  echo "  host_alias=${host_alias:-UNSET}"
+  echo "=================================="
+} | tee "${DEBUG_LOG}"
 
 # ============================================================
 # POWERPC64LE ABI V2 CONFIGURATION
@@ -100,7 +132,29 @@ SYSTEM_CONFIG=(
 
 # Library paths and autoconf variables
 declare -a CONFIGURE_ARGS
-build_configure_args CONFIGURE_ARGS
+
+# Build configure arguments using Bash 3.2 compatible method
+# Function now prints arguments to stdout, we capture them into array
+DEBUG_CONFIGURE_LOG="${SRC_DIR}/_debug_logs/configure-args.log"
+{
+  echo "=== DEBUG: Calling build_configure_args ==="
+  echo "  Date: $(date)"
+  echo "  Using Bash 3.2 compatible array capture method"
+} | tee "${DEBUG_CONFIGURE_LOG}"
+
+# Capture function output into array (stderr goes to debug log)
+declare -a CONFIGURE_ARGS
+while IFS= read -r arg; do
+  CONFIGURE_ARGS+=("$arg")
+done < <(build_configure_args 2>> "${DEBUG_CONFIGURE_LOG}")
+
+{
+  echo "DEBUG: build_configure_args succeeded - ${#CONFIGURE_ARGS[@]} elements"
+  if [[ ${#CONFIGURE_ARGS[@]} -gt 0 ]]; then
+    echo "DEBUG: First few args: ${CONFIGURE_ARGS[@]:0:3}"
+  fi
+  echo "=================================="
+} | tee -a "${DEBUG_CONFIGURE_LOG}"
 
 # Add cross-compilation specific autoconf variables
 # These point to TARGET architecture toolchain
@@ -120,9 +174,13 @@ CONFIGURE_ARGS+=(
 )
 
 # Set autoconf variables for GLIBC 2.17 compatibility
-set_autoconf_toolchain_vars "${conda_target}" "false"
+echo "DEBUG: About to call set_autoconf_toolchain_vars with conda_target='${conda_target}'" | tee -a "${DEBUG_CONFIGURE_LOG}"
+set_autoconf_toolchain_vars "${conda_target}" "false" 2>> "${SRC_DIR}/_debug_logs/set_autoconf.log"
+echo "DEBUG: set_autoconf_toolchain_vars completed successfully" | tee -a "${DEBUG_CONFIGURE_LOG}"
 
+echo "DEBUG: About to run configure" | tee -a "${DEBUG_CONFIGURE_LOG}"
 run_and_log "configure" ./configure -v "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}" || { cat config.log; exit 1; }
+echo "DEBUG: configure completed" | tee -a "${DEBUG_CONFIGURE_LOG}"
 
 # ============================================================
 # POWERPC64LE: HADRIAN CONFIG PATCHING

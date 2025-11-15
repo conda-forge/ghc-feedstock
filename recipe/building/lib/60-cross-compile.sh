@@ -162,31 +162,10 @@ build_hadrian_cross() {
 
   export CABFLAGS=(--enable-shared --enable-executable-dynamic -j)
 
-  # Hadrian dependency list (same across all platforms)
-  local hadrian_deps=(
-    clock
-    file-io
-    heaps
-    js-dgtable
-    js-flot
-    js-jquery
-    directory
-    os-string
-    splitmix
-    utf8-string
-    hashable
-    process
-    primitive
-    random
-    QuickCheck
-    unordered-containers
-    extra
-    Cabal-syntax
-    filepattern
-    Cabal
-    shake
-    hadrian
-  )
+  # Build Hadrian and let cabal resolve dependencies automatically
+  # Note: The dependency list was removed because it contained obsolete packages
+  # (e.g., file-io, js-*, etc.) that are not needed for GHC 9.10.3's Hadrian.
+  # Cabal will automatically resolve the actual dependencies from hadrian.cabal.
 
   "${CABAL}" v2-build \
     --with-ar="${ar_stage0}" \
@@ -194,7 +173,7 @@ build_hadrian_cross() {
     --with-ghc="${ghc_path}" \
     --with-ld="${ld_stage0}" \
     -j \
-    "${hadrian_deps[@]}" \
+    hadrian \
     2>&1 | tee "${SRC_DIR}/cabal-verbose.log"
 
   local exit_code=${PIPESTATUS[0]}

@@ -97,11 +97,11 @@ run_and_log "ghc-configure" bash configure "${SYSTEM_CONFIG[@]}" "${CONFIGURE_AR
 #   9.4.8+: Use 'release' for consistency and full optimization
 # Reference: CLAUDE.md - mixing flavours causes 34% slowdown
 if [[ "${PKG_VERSION}" == "9.2.8"* ]]; then
-  HADRIAN_FLAVOUR="release+no_profiled_libs"  # Only option for 9.2.8
+  HADRIAN_FLAVOUR="quick"  # Only option for 9.2.8
   echo "  Using 'release+no_profiled_libs' flavour (GHC ${PKG_VERSION})"
 else
-  HADRIAN_FLAVOUR="release+no_profiled_libs"  # All other versions (9.10.2 uses this)
-  echo "  Using 'release+no_profiled_libs' flavour (GHC ${PKG_VERSION})"
+  HADRIAN_FLAVOUR="release"  # All other versions (9.10.2 uses this)
+  echo "  Using 'release' flavour (GHC ${PKG_VERSION})"
 fi
 
 echo "=== Build Configuration ==="

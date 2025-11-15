@@ -59,9 +59,11 @@ SYSTEM_CONFIG=(
   --prefix="${PREFIX}"
 )
 
-# Library paths configuration
+# Library paths configuration (Bash 3.2 compatible)
 declare -a CONFIGURE_ARGS
-build_configure_args CONFIGURE_ARGS
+while IFS= read -r arg; do
+  CONFIGURE_ARGS+=("$arg")
+done < <(build_configure_args)
 
 # Set macOS-specific autoconf variables
 set_autoconf_macos_vars "false"

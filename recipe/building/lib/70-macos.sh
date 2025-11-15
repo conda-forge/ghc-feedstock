@@ -182,7 +182,7 @@ fix_macos_bootstrap_settings() {
   local conda_host="$2"
   local ar_stage0="${3:-llvm-ar}"
 
-  local bootstrap_settings="${bootstrap_env_path}/ghc-bootstrap/lib/ghc-${PKG_VERSION}/lib/settings"
+  local bootstrap_settings="${bootstrap_env_path}/ghc-bootstrap/lib/ghc-9.6.7/lib/settings"
 
   if [[ ! -f "$bootstrap_settings" ]]; then
     echo "WARNING: Bootstrap settings not found at ${bootstrap_settings}"

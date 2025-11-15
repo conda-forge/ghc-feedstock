@@ -104,9 +104,11 @@ SYSTEM_CONFIG=(
   --prefix="${PREFIX}"
 )
 
-# Build configure arguments using lib function
+# Build configure arguments using lib function (Bash 3.2 compatible)
 declare -a CONFIGURE_ARGS
-build_configure_args CONFIGURE_ARGS
+while IFS= read -r arg; do
+  CONFIGURE_ARGS+=("$arg")
+done < <(build_configure_args)
 
 # Add cross-compile specific autoconf variables
 CONFIGURE_ARGS+=(
