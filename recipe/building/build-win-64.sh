@@ -238,7 +238,8 @@ if [ -n "${COMPILER_RT_LIB}" ]; then
 
   # Use full path to compiler-rt library to avoid linker search path issues
   # Link as a group to handle circular dependencies
-  export LIBS="-Wl,--start-group -lmingw32 -lmoldname -lmingwex ${COMPILER_RT_A} -Wl,--end-group -lmsvcrt -lkernel32 -ladvapi32"
+  # Note: libssp provides stack protection symbols (__security_cookie, etc.)
+  export LIBS="-Wl,--start-group -lmingw32 -lmoldname -lmingwex ${COMPILER_RT_A} -Wl,--end-group -lssp -lmsvcrt -lkernel32 -ladvapi32"
 else
   echo "WARNING: compiler-rt builtins not found, linking may fail"
   export LIBS="-lmingw32 -lmoldname -lmingwex -lmsvcrt -lkernel32 -ladvapi32"
