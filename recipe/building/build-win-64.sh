@@ -138,7 +138,7 @@ mkdir -p ".cabal" && "${CABAL}" user-config init
 cat > "${SRC_DIR}/cabal.project.local" << EOF
 -- Add custom chkstk_ms library to all package builds
 -- This library provides the ___chkstk_ms symbol required by MinGW runtime
-package *
+program-default-options
   ghc-options: -optl${CHKSTK_LIB}
 EOF
 
