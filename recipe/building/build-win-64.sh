@@ -187,8 +187,8 @@ if [ -d "${CLANG_RESOURCE_DIR}/lib" ]; then
 else
   echo "WARNING: ${CLANG_RESOURCE_DIR}/lib does not exist"
 fi
-export CFLAGS="--target=x86_64-w64-mingw32 -rtlib=compiler-rt -unwindlib=none -D__MINGW32__ -D_VA_LIST_DEFINED -D__GNUC__=13 -Dva_list=__builtin_va_list -isystem ${CLANG_BUILTIN_INCLUDE} -isystem ${_BUILD_PREFIX}/Library/include -isystem ${MINGW_SYSROOT}/usr/include ${CFLAGS:-}"
-export CXXFLAGS="--target=x86_64-w64-mingw32 -rtlib=compiler-rt -unwindlib=none -D__MINGW32__ -D_VA_LIST_DEFINED -D__GNUC__=13 -Dva_list=__builtin_va_list -isystem ${CLANG_BUILTIN_INCLUDE} -isystem ${_BUILD_PREFIX}/Library/include -isystem ${MINGW_SYSROOT}/usr/include ${CXXFLAGS:-}"
+export CFLAGS="--target=x86_64-w64-mingw32 -unwindlib=none -D__MINGW32__ -D_VA_LIST_DEFINED -D__GNUC__=13 -Dva_list=__builtin_va_list -isystem ${CLANG_BUILTIN_INCLUDE} -isystem ${_BUILD_PREFIX}/Library/include -isystem ${MINGW_SYSROOT}/usr/include ${CFLAGS:-}"
+export CXXFLAGS="--target=x86_64-w64-mingw32 -unwindlib=none -D__MINGW32__ -D_VA_LIST_DEFINED -D__GNUC__=13 -Dva_list=__builtin_va_list -isystem ${CLANG_BUILTIN_INCLUDE} -isystem ${_BUILD_PREFIX}/Library/include -isystem ${MINGW_SYSROOT}/usr/include ${CXXFLAGS:-}"
 # Let Clang's driver handle linking - it will automatically use appropriate linker and libraries
 # We only need to specify library search paths and additional libraries
 export LDFLAGS="-L${_BUILD_PREFIX}/Library/lib -L${_BUILD_PREFIX}/Library/mingw-w64/lib -L${MINGW_SYSROOT}/usr/lib ${LDFLAGS}"
