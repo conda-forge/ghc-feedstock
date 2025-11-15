@@ -60,10 +60,20 @@ SYSTEM_CONFIG=(
 )
 
 # Library paths configuration (Bash 3.2 compatible)
+# Use mapfile/readarray if available (Bash 4+), otherwise while loop
 declare -a CONFIGURE_ARGS
-while IFS= read -r arg; do
-  CONFIGURE_ARGS+=("$arg")
-done < <(build_configure_args)
+if type -t mapfile >/dev/null 2>&1; then
+  mapfile -t CONFIGURE_ARGS < <(build_configure_args)
+else
+  while IFS= read -r arg; do
+    CONFIGURE_ARGS+=("$arg")
+  done < <(build_configure_args)
+fi
+
+if [[ ${#CONFIGURE_ARGS[@]} -eq 0 ]]; then
+  echo "ERROR: build_configure_args returned no arguments"
+  exit 1
+fi
 
 # Set macOS-specific autoconf variables
 set_autoconf_macos_vars "false"
