@@ -236,10 +236,35 @@ if [ -n "${COMPILER_RT_LIB}" ]; then
     echo "Using cached converted library: ${COMPILER_RT_A}"
   fi
 
-  # Use full path to compiler-rt library to avoid linker search path issues
-  # Link as a group to handle circular dependencies
-  # Note: libssp provides stack protection symbols (__security_cookie, etc.)
-  export LIBS="-Wl,--start-group -lmingw32 -lmoldname -lmingwex ${COMPILER_RT_A} -Wl,--end-group -lssp -lmsvcrt -lkernel32 -ladvapi32"
+  # CRITICAL ISSUE: Conda's compiler-rt was built for MSVC, not MinGW
+  # It has MSVC-specific stack protection symbols (__security_cookie) which don't exist in MinGW
+  # Instead, let's extract ONLY the objects we actually need (___chkstk_ms) and skip the rest
+
+  echo "Extracting ___chkstk_ms from compiler-rt..."
+  CHKSTK_DIR=$(mktemp -d)
+  pushd "${CHKSTK_DIR}" > /dev/null
+
+  # Extract all objects and find the one with ___chkstk_ms
+  llvm-ar x "${COMPILER_RT_A}" 2>/dev/null
+  CHKSTK_OBJ=""
+  for obj in *.obj; do
+    if nm "$obj" 2>/dev/null | grep -q "___chkstk_ms"; then
+      CHKSTK_OBJ="$obj"
+      echo "Found ___chkstk_ms in: $obj"
+      break
+    fi
+  done
+
+  if [ -n "${CHKSTK_OBJ}" ]; then
+    # Link just this object file directly
+    export LIBS="-Wl,--start-group -lmingw32 -lmoldname -lmingwex ${CHKSTK_DIR}/${CHKSTK_OBJ} -Wl,--end-group -lmsvcrt -lkernel32 -ladvapi32"
+  else
+    echo "WARNING: ___chkstk_ms not found in compiler-rt, trying without it"
+    export LIBS="-lmingw32 -lmoldname -lmingwex -lmsvcrt -lkernel32 -ladvapi32"
+  fi
+
+  popd > /dev/null
+  # Don't cleanup CHKSTK_DIR yet - linker needs the .obj file
 else
   echo "WARNING: compiler-rt builtins not found, linking may fail"
   export LIBS="-lmingw32 -lmoldname -lmingwex -lmsvcrt -lkernel32 -ladvapi32"
