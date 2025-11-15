@@ -263,15 +263,18 @@ if [ -n "${COMPILER_RT_LIB}" ]; then
     echo "WARNING: ___chkstk_ms not found in compiler-rt"
     echo "Checking if MinGW provides ___chkstk_ms..."
 
-    # Check MinGW libraries for ___chkstk_ms and show symbol details
-    echo "Symbol details in libmingw32.a:"
-    nm "${_BUILD_PREFIX}/Library/x86_64-w64-mingw32/sysroot/usr/lib/libmingw32.a" 2>/dev/null | grep "___chkstk_ms" || echo "  (not found)"
+    # Symbol is marked as 'U' (undefined) in both libraries - neither provides it!
+    # We need to provide our own implementation
+    echo "Building minimal ___chkstk_ms stub..."
 
-    echo "Symbol details in libmingwex.a:"
-    nm "${_BUILD_PREFIX}/Library/x86_64-w64-mingw32/sysroot/usr/lib/libmingwex.a" 2>/dev/null | grep "___chkstk_ms" || echo "  (not found)"
+    CHKSTK_OBJ="${_SRC_DIR}/chkstk_ms.o"
+    if [ ! -f "${CHKSTK_OBJ}" ]; then
+      ${CC} -c "${_RECIPE_DIR}/building/chkstk_ms.c" -o "${CHKSTK_OBJ}"
+      echo "Created ${CHKSTK_OBJ}"
+    fi
 
-    # Try linking with all mingw libraries, maybe it's in one we haven't tried
-    export LIBS="-Wl,--start-group -lmingw32 -lmoldname -lmingwex -lmingwthrd -Wl,--end-group -lmsvcrt -lkernel32 -ladvapi32"
+    # Link our stub implementation with MinGW libraries
+    export LIBS="-Wl,--start-group -lmingw32 -lmoldname -lmingwex ${CHKSTK_OBJ} -Wl,--end-group -lmsvcrt -lkernel32 -ladvapi32"
   fi
 
   popd > /dev/null

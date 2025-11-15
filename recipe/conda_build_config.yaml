@@ -11,15 +11,15 @@ c_stdlib_version:
   - 12                          # [not unix]
 
 c_compiler:
-  - clang                       # [unix]
-  - gcc                         # [not unix]
+  - clang                       # [not unix]
+#  - gcc                         # [not unix]
 c_compiler_version:
-  - 19                          # [unix]
-  - 15                          # [not unix]
+  - 19                          # [not unix]
+#  - 15                          # [not unix]
 
 cxx_compiler:
-  - clangxx                     # [unix]
-  - gxx                         # [not unix]
+  - clangxx                     # [not unix]
+#  - gxx                         # [not unix]
 cxx_compiler_version:
-  - 19                          # [unix]
-  - 15                          # [not unix]
+  - 19                          # [not unix]
+#  - 15                          # [not unix]
