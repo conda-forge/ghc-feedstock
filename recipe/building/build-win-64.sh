@@ -213,8 +213,9 @@ done
 
 if [ -n "${COMPILER_RT_LIB}" ]; then
   # Use full path to compiler-rt library to avoid linker search path issues
-  # Order matters: compiler-rt first, then MinGW runtime, then C runtime, then Windows API
-  export LIBS="${COMPILER_RT_LIB} -lmingw32 -lmoldname -lmingwex -lmsvcrt -lkernel32 -ladvapi32"
+  # GNU ld may not recognize MSVC .lib files, so we also try linking as a group
+  # to allow circular dependencies between libmingw32 and compiler-rt
+  export LIBS="-Wl,--start-group -lmingw32 -lmoldname -lmingwex ${COMPILER_RT_LIB} -Wl,--end-group -lmsvcrt -lkernel32 -ladvapi32"
 else
   echo "WARNING: compiler-rt builtins not found, linking may fail"
   export LIBS="-lmingw32 -lmoldname -lmingwex -lmsvcrt -lkernel32 -ladvapi32"
