@@ -17,6 +17,39 @@ export LD="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-ld.exe"
 export AR="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-ar.exe"
 export RANLIB="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-ranlib.exe"
 
+# Configure CFLAGS/CXXFLAGS/LDFLAGS early so bootstrap settings get correct values
+# CRITICAL: This MUST happen before patching bootstrap settings file
+# CRITICAL: Replace %BUILD_PREFIX% with actual Unix paths in conda's environment
+CFLAGS=$(echo "${CFLAGS}" | sed "s|%BUILD_PREFIX%|${_BUILD_PREFIX}|g")
+CXXFLAGS=$(echo "${CXXFLAGS}" | sed "s|%BUILD_PREFIX%|${_BUILD_PREFIX}|g")
+LDFLAGS=$(echo "${LDFLAGS}" | sed "s|%BUILD_PREFIX%|${_BUILD_PREFIX}|g")
+
+# Remove problematic flags from conda environment
+CFLAGS="${CFLAGS//-nostdlib/}"
+CXXFLAGS="${CXXFLAGS//-nostdlib/}"
+LDFLAGS="${LDFLAGS//-nostdlib/}"
+# Use GNU ld (bfd) for MinGW compatibility (lld defaults to MSVC mode on Windows)
+CFLAGS=$(echo "${CFLAGS}" | sed 's/-fuse-ld=lld/-fuse-ld=bfd/g')
+CXXFLAGS=$(echo "${CXXFLAGS}" | sed 's/-fuse-ld=lld/-fuse-ld=bfd/g')
+LDFLAGS=$(echo "${LDFLAGS}" | sed 's/-fuse-ld=lld/-fuse-ld=bfd/g')
+# Remove problematic -Wl,-defaultlib: flags that are MSVC-specific
+LDFLAGS=$(echo "${LDFLAGS}" | sed 's/-Wl,-defaultlib:[^ ]*//g')
+# Remove -fstack-protector-strong which generates __security_cookie calls incompatible with MinGW+Clang
+CFLAGS=$(echo "${CFLAGS}" | sed 's/-fstack-protector-strong//g')
+CXXFLAGS=$(echo "${CXXFLAGS}" | sed 's/-fstack-protector-strong//g')
+
+# Use MinGW sysroot for headers and libraries
+MINGW_SYSROOT="${_BUILD_PREFIX}/Library/x86_64-w64-mingw32/sysroot"
+
+# Get Clang's builtin include directory
+CLANG_RESOURCE_DIR=$(${CC} -print-resource-dir | sed 's#\\#/#g' | sed 's#^C:/#/c/#')
+CLANG_BUILTIN_INCLUDE="${CLANG_RESOURCE_DIR}/include"
+
+# Configure Clang for MinGW with all necessary include paths and defines
+export CFLAGS="--target=x86_64-w64-mingw32 -fuse-ld=bfd -D__MINGW32__ -D_VA_LIST_DEFINED -D__GNUC__=13 -Dva_list=__builtin_va_list -isystem ${CLANG_BUILTIN_INCLUDE} -isystem ${_BUILD_PREFIX}/Library/include -isystem ${MINGW_SYSROOT}/usr/include ${CFLAGS:-}"
+export CXXFLAGS="--target=x86_64-w64-mingw32 -fuse-ld=bfd -D__MINGW32__ -D_VA_LIST_DEFINED -D__GNUC__=13 -Dva_list=__builtin_va_list -isystem ${CLANG_BUILTIN_INCLUDE} -isystem ${_BUILD_PREFIX}/Library/include -isystem ${MINGW_SYSROOT}/usr/include ${CXXFLAGS:-}"
+export LDFLAGS="-fuse-ld=bfd -nodefaultlibs -L${_BUILD_PREFIX}/Library/lib -L${_BUILD_PREFIX}/Library/mingw-w64/lib -L${MINGW_SYSROOT}/usr/lib ${LDFLAGS}"
+
 # Bug in ghc-bootstrap
 #WINDRES_PATH="${BUILD_PREFIX//\\/\\\\}\\\\Library\\\\bin\\\\${WINDRES}"
 #perl -pi -e "s#WINDRES_CMD=.*windres\.exe#WINDRES_CMD=${WINDRES_PATH}#" "${_BUILD_PREFIX}"/ghc-bootstrap/bin/windres.bat
@@ -152,58 +185,7 @@ MSVC_VER=$(ls -1 "${MSVC_BASE}" 2>/dev/null | sort -V | tail -1)
 # Get short path for MSVC include (has vcruntime.h)
 MSVC_INCLUDE="${MSVC_BASE}"/"${MSVC_VER}"/include
 
-# CRITICAL: Replace %BUILD_PREFIX% with actual Unix paths in conda's environment
-# Conda sets CFLAGS/LDFLAGS with Windows batch variable syntax which bash doesn't expand
-CFLAGS=$(echo "${CFLAGS}" | sed "s|%BUILD_PREFIX%|${_BUILD_PREFIX}|g")
-CXXFLAGS=$(echo "${CXXFLAGS}" | sed "s|%BUILD_PREFIX%|${_BUILD_PREFIX}|g")
-LDFLAGS=$(echo "${LDFLAGS}" | sed "s|%BUILD_PREFIX%|${_BUILD_PREFIX}|g")
-
-# Remove -nostdlib and linker flags for configure tests
-# Let Clang's driver handle linking (it will automatically include compiler-rt builtins)
-CFLAGS="${CFLAGS//-nostdlib/}"
-CXXFLAGS="${CXXFLAGS//-nostdlib/}"
-LDFLAGS="${LDFLAGS//-nostdlib/}"
-# Use GNU ld (bfd) for MinGW compatibility (lld defaults to MSVC mode on Windows)
-CFLAGS=$(echo "${CFLAGS}" | sed 's/-fuse-ld=lld/-fuse-ld=bfd/g')
-CXXFLAGS=$(echo "${CXXFLAGS}" | sed 's/-fuse-ld=lld/-fuse-ld=bfd/g')
-LDFLAGS=$(echo "${LDFLAGS}" | sed 's/-fuse-ld=lld/-fuse-ld=bfd/g')
-# Remove problematic -Wl,-defaultlib: flags that are MSVC-specific
-LDFLAGS=$(echo "${LDFLAGS}" | sed 's/-Wl,-defaultlib:[^ ]*//g')
-# Remove -fstack-protector-strong which generates __security_cookie calls incompatible with MinGW+Clang
-CFLAGS=$(echo "${CFLAGS}" | sed 's/-fstack-protector-strong//g')
-CXXFLAGS=$(echo "${CXXFLAGS}" | sed 's/-fstack-protector-strong//g')
-
-# Use MinGW sysroot for headers and libraries (use Unix path _BUILD_PREFIX)
-MINGW_SYSROOT="${_BUILD_PREFIX}/Library/x86_64-w64-mingw32/sysroot"
-
-# Configure Clang to target MinGW and let it handle linking automatically
-# Key insight: Clang's driver will automatically include compiler-rt builtins
-# --target=x86_64-w64-mingw32: Tell Clang to target MinGW (not MSVC)
-# -D__MINGW32__: Tell headers we're using MinGW
-# -D_VA_LIST_DEFINED: Tell MinGW's vadefs.h that va_list is already defined
-# -D__GNUC__: Pretend to be GCC so vadefs.h doesn't error out
-# -Dva_list=__builtin_va_list: Map MinGW's va_list to Clang's builtin type
-# Use -isystem for ALL includes to override Clang's default search paths
-# Order matters: Clang builtins FIRST, then conda libs, then MinGW sysroot
-# Convert Windows path to Unix for bash compatibility
-CLANG_RESOURCE_DIR=$(${CC} -print-resource-dir | sed 's#\\#/#g' | sed 's#^C:/#/c/#')
-CLANG_BUILTIN_INCLUDE="${CLANG_RESOURCE_DIR}/include"
-
-# Debug: Check what compiler-rt libraries are actually available
-echo "=== Clang resource directory: ${CLANG_RESOURCE_DIR}"
-echo "=== Checking for compiler-rt libraries:"
-if [ -d "${CLANG_RESOURCE_DIR}/lib" ]; then
-  find "${CLANG_RESOURCE_DIR}/lib" -name "*clang_rt*" -o -name "*builtins*" || echo "No compiler-rt libraries found"
-else
-  echo "WARNING: ${CLANG_RESOURCE_DIR}/lib does not exist"
-fi
-export CFLAGS="--target=x86_64-w64-mingw32 -fuse-ld=bfd -D__MINGW32__ -D_VA_LIST_DEFINED -D__GNUC__=13 -Dva_list=__builtin_va_list -isystem ${CLANG_BUILTIN_INCLUDE} -isystem ${_BUILD_PREFIX}/Library/include -isystem ${MINGW_SYSROOT}/usr/include ${CFLAGS:-}"
-export CXXFLAGS="--target=x86_64-w64-mingw32 -fuse-ld=bfd -D__MINGW32__ -D_VA_LIST_DEFINED -D__GNUC__=13 -Dva_list=__builtin_va_list -isystem ${CLANG_BUILTIN_INCLUDE} -isystem ${_BUILD_PREFIX}/Library/include -isystem ${MINGW_SYSROOT}/usr/include ${CXXFLAGS:-}"
-# Use GNU ld (bfd) for MinGW compatibility and specify library search paths
-# -fuse-ld=bfd: Use GNU ld instead of lld-link (which expects MSVC-style .lib files)
-# -nodefaultlibs: Don't link standard system libraries (we'll add what we need explicitly)
-export LDFLAGS="-fuse-ld=bfd -nodefaultlibs -L${_BUILD_PREFIX}/Library/lib -L${_BUILD_PREFIX}/Library/mingw-w64/lib -L${MINGW_SYSROOT}/usr/lib ${LDFLAGS}"
-# MinGW libraries that Clang might not add automatically
+# MinGW libraries that Clang might not add automatically (already configured above)
 # CRITICAL: Find and explicitly link compiler-rt builtins library
 # Try both .a (MinGW format) and .lib (MSVC format) extensions
 COMPILER_RT_LIB=""
