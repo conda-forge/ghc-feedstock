@@ -241,7 +241,8 @@ if [ -n "${COMPILER_RT_LIB}" ]; then
   # Instead, let's extract ONLY the objects we actually need (___chkstk_ms) and skip the rest
 
   echo "Extracting ___chkstk_ms from compiler-rt..."
-  CHKSTK_DIR=$(mktemp -d)
+  CHKSTK_DIR="${_SRC_DIR}/chkstk_extract"
+  mkdir -p "${CHKSTK_DIR}"
   pushd "${CHKSTK_DIR}" > /dev/null
 
   # Extract all objects and find the one with ___chkstk_ms
