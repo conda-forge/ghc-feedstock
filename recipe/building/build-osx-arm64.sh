@@ -33,6 +33,8 @@ source "${RECIPE_DIR}"/building/common.sh
 conda_host="${build_alias}"
 conda_target="${host_alias}"
 
+unset host_alias
+
 export target_alias="${conda_target}"
 export host_platform="${build_platform}"
 

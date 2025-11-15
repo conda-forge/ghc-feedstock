@@ -125,24 +125,24 @@ set_autoconf_macos_vars() {
   export ac_cv_path_ac_pt_CC=""
   export ac_cv_path_ac_pt_CXX=""
 
-  # Explicitly set tool paths from environment
-  export ac_cv_prog_AR="${AR}"
-  export ac_cv_prog_CC="${CC}"
-  export ac_cv_prog_CXX="${CXX}"
-  export ac_cv_prog_LD="${LD}"
-  export ac_cv_prog_RANLIB="${RANLIB}"
+  # Explicitly set tool paths from environment (use :- for unset variables)
+  export ac_cv_prog_AR="${AR:-}"
+  export ac_cv_prog_CC="${CC:-}"
+  export ac_cv_prog_CXX="${CXX:-}"
+  export ac_cv_prog_LD="${LD:-}"
+  export ac_cv_prog_RANLIB="${RANLIB:-}"
 
   # Also set path variants (macOS configure checks both)
-  export ac_cv_path_AR="${AR}"
-  export ac_cv_path_CC="${CC}"
-  export ac_cv_path_CXX="${CXX}"
-  export ac_cv_path_LD="${LD}"
-  export ac_cv_path_RANLIB="${RANLIB}"
+  export ac_cv_path_AR="${AR:-}"
+  export ac_cv_path_CC="${CC:-}"
+  export ac_cv_path_CXX="${CXX:-}"
+  export ac_cv_path_LD="${LD:-}"
+  export ac_cv_path_RANLIB="${RANLIB:-}"
 
   # libffi detection
   export ac_cv_lib_ffi_ffi_call=yes
 
-  [[ "$debug" == "true" ]] && echo "  ac_cv_prog_CC=${CC}"
+  [[ "$debug" == "true" ]] && echo "  ac_cv_prog_CC=${CC:-<unset>}"
   [[ "$debug" == "true" ]] && echo "  ac_cv_path_ac_pt_CC=<empty> (force conda toolchain)"
   [[ "$debug" == "true" ]] && echo "=== macOS autoconf variables set"
 }
