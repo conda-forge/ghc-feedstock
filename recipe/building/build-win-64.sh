@@ -101,14 +101,13 @@ if [[ -f "${settings_file}" ]]; then
   perl -pi -e "s#(C\+\+ compiler flags\", \")([^\"]*)#\$1\$2 ${CXXFLAGS} -I${_PREFIX}/Library/include#" "${settings_file}"
   perl -pi -e "s#(Haskell CPP flags\", \")[^\"]*#\$1-E -I${_BUILD_PREFIX}/Library/include -I${_PREFIX}/Library/include#" "${settings_file}"
 
-  # Do NOT add library to "C compiler link flags" - it would come too early in link order
-  # The library must come AFTER -lmingw32 in the link command, but settings flags come first
-  # Instead, rely on LDFLAGS environment variable which gets appended at the end
-  perl -pi -e "s#(C compiler link flags\", \")[^\"]*#\$1-fuse-ld=bfd#" "${settings_file}"
+  # Add chkstk_ms library to "C compiler link flags" with -Wl prefix
+  # -Wl prefix tells Clang to pass the library ONLY to the linker, not to compile-only invocations
+  # This is CRITICAL for hsc2hs builds (clock, file-io packages) which use Clang as linker driver
+  perl -pi -e "s#(C compiler link flags\", \")[^\"]*#\$1-fuse-ld=bfd -Wl,${CHKSTK_LIB}#" "${settings_file}"
   perl -pi -e "s#(ld is GNU ld\", \")[^\"]*#\$1YES#" "${settings_file}"
 
-  # Add chkstk_ms library to "ld flags" - these are ONLY passed to ld, not to C compiler
-  # This fixes hsc2hs builds (like clock package) which need the library during linking
+  # Also add to "ld flags" for direct ld invocations (without Clang wrapper)
   perl -pi -e "s#(ld flags\", \")([^\"]*)#\$1\$2 ${CHKSTK_LIB}#" "${settings_file}"
 
   # CRITICAL: Fix merge-objects to use GNU ld (ld.bfd) instead of lld
