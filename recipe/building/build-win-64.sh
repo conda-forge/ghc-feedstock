@@ -101,10 +101,11 @@ if [[ -f "${settings_file}" ]]; then
   perl -pi -e "s#(C\+\+ compiler flags\", \")([^\"]*)#\$1\$2 ${CXXFLAGS} -I${_PREFIX}/Library/include#" "${settings_file}"
   perl -pi -e "s#(Haskell CPP flags\", \")[^\"]*#\$1-E -I${_BUILD_PREFIX}/Library/include -I${_PREFIX}/Library/include#" "${settings_file}"
 
-  # Add chkstk_ms library to "C compiler link flags" ONLY for linker (not compiler)
-  # Use -Xlinker flag which tells Clang to pass next argument ONLY to linker
-  # This is CRITICAL for hsc2hs builds (clock, file-io packages) which use Clang as linker driver
-  perl -pi -e "s#(C compiler link flags\", \")[^\"]*#\$1-fuse-ld=bfd -Xlinker ${CHKSTK_LIB}#" "${settings_file}"
+  # Add chkstk_ms library directory and library name to "C compiler link flags"
+  # Use -L to add search path and -l to link the library (linker-only flags)
+  # Split into multiple -Xlinker args so each is passed individually to the linker
+  CHKSTK_DIR="${_BUILD_PREFIX}/Library/lib"
+  perl -pi -e "s#(C compiler link flags\", \")[^\"]*#\$1-fuse-ld=bfd -Xlinker -L${CHKSTK_DIR} -Xlinker -lchkstk_ms#" "${settings_file}"
   perl -pi -e "s#(ld is GNU ld\", \")[^\"]*#\$1YES#" "${settings_file}"
 
   # Also add to "ld flags" for direct ld invocations (without Clang wrapper)
@@ -317,11 +318,13 @@ mkdir -p ${_SRC_DIR}/_build
 
     # export LD="${BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-ld.exe" \
     
-    "${CABAL}" v2-build -j hadrian 2>&1 | tee "${SRC_DIR}"/cabal-verbose.log
+    "${CABAL}" v2-build -j hadrian 2>&1 | tee "${SRC_DIR}"/cabal-build.log
     _cabal_exit_code=${PIPESTATUS[0]}
 
     if [[ $_cabal_exit_code -ne 0 ]]; then
       echo "=== Cabal build FAILED with exit code ${_cabal_exit_code} ==="
+      echo "=== Retrying with verbose output for failed packages ==="
+      "${CABAL}" v2-build -v3 -j hadrian 2>&1 | tee "${SRC_DIR}"/cabal-verbose.log
       exit 1
     else
       echo "=== Cabal build SUCCEEDED ==="
@@ -391,10 +394,11 @@ if [[ -f "${settings_file}" ]]; then
   perl -pi -e 's#-L\$topdir/../mingw//lib#-L\$topdir/../../Library/lib#g' "${settings_file}"
   perl -pi -e 's#-L\$topdir/../mingw//x86_64-w64-mingw32/lib#-L\$topdir/../../Library/bin -L\$topdir/../../Library/x86_64-w64-mingw32/sysroot/usr/lib -Wl,-rpath,\$topdir/../../Library/x86_64-w64-mingw32/sysroot/usr/lib#g' "${settings_file}"
 
-  # Add chkstk_ms library to "C compiler link flags" ONLY for linker (not compiler)
-  # Use -Xlinker flag which tells Clang to pass next argument ONLY to linker
+  # Add chkstk_ms library directory and library name to "C compiler link flags"
+  # Use -Xlinker with -L/-l flags so linker can find the library
   # Library path must be explicit, not a variable (settings file can't expand ${CHKSTK_LIB})
-  perl -pi -e "s#(C compiler link flags\", \")#\$1-Xlinker ${CHKSTK_LIB} #" "${settings_file}"
+  CHKSTK_DIR="${_BUILD_PREFIX}/Library/lib"
+  perl -pi -e "s#(C compiler link flags\", \")#\$1-Xlinker -L${CHKSTK_DIR} -Xlinker -lchkstk_ms #" "${settings_file}"
 
   # Also add to "ld flags" for direct ld invocations
   perl -pi -e "s#(ld flags\", \")#\$1${CHKSTK_LIB} #" "${settings_file}"
