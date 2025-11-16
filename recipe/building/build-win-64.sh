@@ -392,10 +392,13 @@ if [[ -f "${settings_file}" ]]; then
   perl -pi -e 's#-L\$topdir/../mingw//lib#-L\$topdir/../../Library/lib#g' "${settings_file}"
   perl -pi -e 's#-L\$topdir/../mingw//x86_64-w64-mingw32/lib#-L\$topdir/../../Library/bin -L\$topdir/../../Library/x86_64-w64-mingw32/sysroot/usr/lib -Wl,-rpath,\$topdir/../../Library/x86_64-w64-mingw32/sysroot/usr/lib#g' "${settings_file}"
 
-  # Add chkstk_ms library to ld flags - these are ONLY passed to ld, not to C compiler
+  # Add chkstk_ms library to "C compiler link flags" with -Wl prefix
+  # -Wl prefix prevents library from appearing in compile-only commands
+  # Library path must be explicit, not a variable (settings file can't expand ${CHKSTK_LIB})
+  perl -pi -e "s#(C compiler link flags\", \")#\$1-Wl,${CHKSTK_LIB} #" "${settings_file}"
+
+  # Also add to "ld flags" for direct ld invocations
   perl -pi -e "s#(ld flags\", \")#\$1${CHKSTK_LIB} #" "${settings_file}"
-  # Do NOT add library to "C compiler link flags" - rely on LDFLAGS for correct link order
-  perl -pi -e "s#(C compiler link flags\", \")#\$1-static #" "${settings_file}"
 
   echo "=== Stage1 settings after patching (COMPLETE FILE) ==="
   cat "${settings_file}"
