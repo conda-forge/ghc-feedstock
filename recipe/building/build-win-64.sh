@@ -110,8 +110,8 @@ if [[ -f "${settings_file}" ]]; then
   MINGW_SYSROOT="${_BUILD_PREFIX}/Library/x86_64-w64-mingw32/sysroot/usr/lib"
 
   # Build complete link flags string - libraries come AFTER user objects
-  # CRITICAL: -mconsole tells MinGW to use console entry point (main), not GUI (WinMain)
-  LINK_FLAGS="-mconsole -fuse-ld=bfd"
+  # CRITICAL: --subsystem,console tells linker to use console entry point (main), not GUI (WinMain)
+  LINK_FLAGS="-fuse-ld=bfd -Wl,--subsystem,console"
   LINK_FLAGS="${LINK_FLAGS} -Xlinker -L${CHKSTK_DIR} -Xlinker -L${MINGW_SYSROOT}"
   # MinGW helper libraries first
   LINK_FLAGS="${LINK_FLAGS} -Xlinker -lmoldname"
@@ -129,8 +129,8 @@ if [[ -f "${settings_file}" ]]; then
   perl -pi -e "s#(ld is GNU ld\", \")[^\"]*#\$1YES#" "${settings_file}"
 
   # Also add to "ld flags" for direct ld invocations (use bare library names, no -Xlinker)
-  # CRITICAL: -mconsole for console entry point
-  perl -pi -e "s#(ld flags\", \")([^\"]*)#\$1\$2 -mconsole -L${CHKSTK_DIR} -L${MINGW_SYSROOT} -lmoldname -lmingwex -lmingw32 -lchkstk_ms -lmsvcrt -lkernel32 -ladvapi32#" "${settings_file}"
+  # CRITICAL: --subsystem,console for console entry point (linker directive)
+  perl -pi -e "s#(ld flags\", \")([^\"]*)#\$1\$2 --subsystem,console -L${CHKSTK_DIR} -L${MINGW_SYSROOT} -lmoldname -lmingwex -lmingw32 -lchkstk_ms -lmsvcrt -lkernel32 -ladvapi32#" "${settings_file}"
 
   # CRITICAL: Fix merge-objects to use GNU ld (ld.bfd) instead of lld
   # The bootstrap GHC has system-merge-objects pointing to ld.lld.exe which uses MSVC-style .lib files
@@ -274,13 +274,13 @@ done
 
 # LIBS is used by autoconf-based configure
 # CRITICAL: Link order - -lmingw32 needs ___chkstk_ms, so chkstk_ms must come AFTER mingw32
-# CRITICAL: -mconsole tells MinGW to use console entry point (main), not GUI (WinMain)
-export LIBS="-mconsole -lmoldname -lmingwex -lmingw32 ${CHKSTK_LIB} -lmsvcrt -lkernel32 -ladvapi32"
+# CRITICAL: --subsystem,console tells linker to use console entry point (main), not GUI (WinMain)
+export LIBS="-Wl,--subsystem,console -lmoldname -lmingwex -lmingw32 ${CHKSTK_LIB} -lmsvcrt -lkernel32 -ladvapi32"
 
-# CRITICAL: Also add to LDFLAGS with -mconsole and chkstk library
-# -mconsole: Use console entry point (main) instead of GUI (WinMain)
-# -Xlinker passes arguments ONLY to linker, not to compiler
-export LDFLAGS="${LDFLAGS} -mconsole"
+# CRITICAL: Also add to LDFLAGS with proper linker subsystem flag
+# -Wl,--subsystem,console: Use console entry point (main) instead of GUI (WinMain)
+# This is a linker directive, not a compiler flag
+export LDFLAGS="${LDFLAGS} -Wl,--subsystem,console"
 
 # Use GNU ld for linking (compatible with MinGW libraries)
 # CRITICAL: Use Unix path _BUILD_PREFIX not Windows path BUILD_PREFIX
@@ -428,8 +428,8 @@ if [[ -f "${settings_file}" ]]; then
   MINGW_SYSROOT="${_BUILD_PREFIX}/Library/x86_64-w64-mingw32/sysroot/usr/lib"
 
   # Build complete link flags string - libraries come AFTER user objects
-  # CRITICAL: -mconsole tells MinGW to use console entry point (main), not GUI (WinMain)
-  LINK_FLAGS="-mconsole -Xlinker -L${CHKSTK_DIR} -Xlinker -L${MINGW_SYSROOT}"
+  # CRITICAL: --subsystem,console tells linker to use console entry point (main), not GUI (WinMain)
+  LINK_FLAGS="-Wl,--subsystem,console -Xlinker -L${CHKSTK_DIR} -Xlinker -L${MINGW_SYSROOT}"
   # MinGW helper libraries first
   LINK_FLAGS="${LINK_FLAGS} -Xlinker -lmoldname"
   LINK_FLAGS="${LINK_FLAGS} -Xlinker -lmingwex"
@@ -445,8 +445,8 @@ if [[ -f "${settings_file}" ]]; then
   perl -pi -e "s#(C compiler link flags\", \")#\$1${LINK_FLAGS} #" "${settings_file}"
 
   # Also add to "ld flags" for direct ld invocations (use bare library names, no -Xlinker)
-  # CRITICAL: -mconsole for console entry point
-  perl -pi -e "s#(ld flags\", \")#\$1-mconsole -L${CHKSTK_DIR} -L${MINGW_SYSROOT} -lmoldname -lmingwex -lmingw32 -lchkstk_ms -lmsvcrt -lkernel32 -ladvapi32 #" "${settings_file}"
+  # CRITICAL: --subsystem,console for console entry point (linker directive)
+  perl -pi -e "s#(ld flags\", \")#\$1--subsystem,console -L${CHKSTK_DIR} -L${MINGW_SYSROOT} -lmoldname -lmingwex -lmingw32 -lchkstk_ms -lmsvcrt -lkernel32 -ladvapi32 #" "${settings_file}"
 
   echo "=== Stage1 settings after patching (COMPLETE FILE) ==="
   cat "${settings_file}"
