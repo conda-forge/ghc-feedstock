@@ -45,10 +45,10 @@ CLANG_BUILTIN_INCLUDE="${CLANG_RESOURCE_DIR}/include"
 # Configure Clang for MinGW with all necessary include paths and defines
 # NOTE: Use -I instead of -isystem to avoid path validation issues on Windows
 # -nodefaultlibs: Don't link libgcc/libgcc_eh (not available in conda)
-# -mconsole: Tell linker specs to use console CRT (crtexe.o not crtexewin.o)
-# Will add chkstk_ms library to LIBS (not LDFLAGS) after we build it
-export CFLAGS="--target=x86_64-w64-mingw32 -fuse-ld=bfd -nodefaultlibs -mconsole -D__MINGW32__ -D_VA_LIST_DEFINED -D__GNUC__=13 -Dva_list=__builtin_va_list -I${CLANG_BUILTIN_INCLUDE} -I${_BUILD_PREFIX}/Library/include ${CFLAGS:-}"
-export CXXFLAGS="--target=x86_64-w64-mingw32 -fuse-ld=bfd -nodefaultlibs -mconsole -D__MINGW32__ -D_VA_LIST_DEFINED -D__GNUC__=13 -Dva_list=__builtin_va_list -I${CLANG_BUILTIN_INCLUDE} -I${_BUILD_PREFIX}/Library/include ${CXXFLAGS:-}"
+# NOTE: Removed -mconsole (Clang doesn't understand it - GCC-only flag)
+# Will extract crtexe.o manually and add to link flags instead
+export CFLAGS="--target=x86_64-w64-mingw32 -fuse-ld=bfd -nodefaultlibs -D__MINGW32__ -D_VA_LIST_DEFINED -D__GNUC__=13 -Dva_list=__builtin_va_list -I${CLANG_BUILTIN_INCLUDE} -I${_BUILD_PREFIX}/Library/include ${CFLAGS:-}"
+export CXXFLAGS="--target=x86_64-w64-mingw32 -fuse-ld=bfd -nodefaultlibs -D__MINGW32__ -D_VA_LIST_DEFINED -D__GNUC__=13 -Dva_list=__builtin_va_list -I${CLANG_BUILTIN_INCLUDE} -I${_BUILD_PREFIX}/Library/include ${CXXFLAGS:-}"
 export LDFLAGS="-fuse-ld=bfd -nodefaultlibs -L${_BUILD_PREFIX}/Library/lib -L${_BUILD_PREFIX}/Library/mingw-w64/lib ${LDFLAGS:-}"
 
 # Bug in ghc-bootstrap
@@ -111,13 +111,24 @@ if [[ -f "${settings_file}" ]]; then
   MINGW_SYSROOT="${_BUILD_PREFIX}/Library/x86_64-w64-mingw32/sysroot/usr/lib"
 
   # Build complete link flags string - libraries come AFTER user objects
-  # CRITICAL: -mconsole tells MinGW to use console CRT, -Wl,--subsystem -Wl,console sets PE header
-  LINK_FLAGS="-fuse-ld=bfd -mconsole -Wl,--subsystem -Wl,console"
+  # CRITICAL: Clang doesn't understand -mconsole (GCC-only flag)
+  # Solution: Extract and use crtexe.o (console CRT) explicitly, exclude crtexewin.o (GUI)
+
+  # Extract console CRT startup object from libmingw32.a
+  CRT_DIR="${_SRC_DIR}/crt_objs"
+  mkdir -p "${CRT_DIR}"
+  cd "${CRT_DIR}"
+  "${_BUILD_PREFIX}"/Library/bin/x86_64-w64-mingw32-ar.exe x "${MINGW_SYSROOT}/libmingw32.a" crtexe.o
+  cd "${_SRC_DIR}"
+
+  LINK_FLAGS="-fuse-ld=bfd -Wl,--subsystem -Wl,console"
   LINK_FLAGS="${LINK_FLAGS} -Xlinker -L${CHKSTK_DIR} -Xlinker -L${MINGW_SYSROOT}"
-  # MinGW helper libraries first
+  # Use extracted console CRT startup object FIRST (provides console main)
+  LINK_FLAGS="${LINK_FLAGS} ${CRT_DIR}/crtexe.o"
+  # MinGW helper libraries
   LINK_FLAGS="${LINK_FLAGS} -Xlinker -lmoldname"
   LINK_FLAGS="${LINK_FLAGS} -Xlinker -lmingwex"
-  # Then -lmingw32 (needs chkstk_ms, so must come before it)
+  # Then -lmingw32 (linker won't select crtexewin.o because we already have main)
   LINK_FLAGS="${LINK_FLAGS} -Xlinker -lmingw32"
   # Then chkstk_ms (provides symbols needed by mingw32)
   LINK_FLAGS="${LINK_FLAGS} -Xlinker -lchkstk_ms"
@@ -429,12 +440,16 @@ if [[ -f "${settings_file}" ]]; then
   MINGW_SYSROOT="${_BUILD_PREFIX}/Library/x86_64-w64-mingw32/sysroot/usr/lib"
 
   # Build complete link flags string - libraries come AFTER user objects
-  # CRITICAL: -mconsole tells MinGW to use console CRT, -Wl,--subsystem -Wl,console sets PE header
-  LINK_FLAGS="-mconsole -Wl,--subsystem -Wl,console -Xlinker -L${CHKSTK_DIR} -Xlinker -L${MINGW_SYSROOT}"
-  # MinGW helper libraries first
+  # NOTE: crtexe.o already extracted above, reuse the same directory
+  # Clang doesn't understand -mconsole, so we provide console CRT startup object manually
+
+  LINK_FLAGS="-Wl,--subsystem -Wl,console -Xlinker -L${CHKSTK_DIR} -Xlinker -L${MINGW_SYSROOT}"
+  # Use extracted console CRT startup object FIRST (provides console main)
+  LINK_FLAGS="${LINK_FLAGS} ${CRT_DIR}/crtexe.o"
+  # MinGW helper libraries
   LINK_FLAGS="${LINK_FLAGS} -Xlinker -lmoldname"
   LINK_FLAGS="${LINK_FLAGS} -Xlinker -lmingwex"
-  # Then -lmingw32 (needs chkstk_ms, so must come before it)
+  # Then -lmingw32 (linker won't select crtexewin.o because we already have main)
   LINK_FLAGS="${LINK_FLAGS} -Xlinker -lmingw32"
   # Then chkstk_ms (provides symbols needed by mingw32)
   LINK_FLAGS="${LINK_FLAGS} -Xlinker -lchkstk_ms"
