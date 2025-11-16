@@ -115,9 +115,10 @@ if [[ -f "${settings_file}" ]]; then
   # MinGW helper libraries first
   LINK_FLAGS="${LINK_FLAGS} -Xlinker -lmoldname"
   LINK_FLAGS="${LINK_FLAGS} -Xlinker -lmingwex"
-  LINK_FLAGS="${LINK_FLAGS} -Xlinker -lchkstk_ms"
-  # Then -lmingw32 (provides console CRT symbols but also has weak main())
+  # Then -lmingw32 (needs chkstk_ms, so must come before it)
   LINK_FLAGS="${LINK_FLAGS} -Xlinker -lmingw32"
+  # Then chkstk_ms (provides symbols needed by mingw32)
+  LINK_FLAGS="${LINK_FLAGS} -Xlinker -lchkstk_ms"
   # System libraries last
   LINK_FLAGS="${LINK_FLAGS} -Xlinker -lmsvcrt"
   LINK_FLAGS="${LINK_FLAGS} -Xlinker -lkernel32"
@@ -127,7 +128,7 @@ if [[ -f "${settings_file}" ]]; then
   perl -pi -e "s#(ld is GNU ld\", \")[^\"]*#\$1YES#" "${settings_file}"
 
   # Also add to "ld flags" for direct ld invocations (use bare library names, no -Xlinker)
-  perl -pi -e "s#(ld flags\", \")([^\"]*)#\$1\$2 -L${CHKSTK_DIR} -L${MINGW_SYSROOT} -lmoldname -lmingwex -lchkstk_ms -lmingw32 -lmsvcrt -lkernel32 -ladvapi32#" "${settings_file}"
+  perl -pi -e "s#(ld flags\", \")([^\"]*)#\$1\$2 -L${CHKSTK_DIR} -L${MINGW_SYSROOT} -lmoldname -lmingwex -lmingw32 -lchkstk_ms -lmsvcrt -lkernel32 -ladvapi32#" "${settings_file}"
 
   # CRITICAL: Fix merge-objects to use GNU ld (ld.bfd) instead of lld
   # The bootstrap GHC has system-merge-objects pointing to ld.lld.exe which uses MSVC-style .lib files
@@ -270,8 +271,8 @@ done
 # Now add it to both LIBS and LDFLAGS
 
 # LIBS is used by autoconf-based configure
-# CRITICAL: Link order - helper libs first, -lmingw32 after user objects (appended by linker)
-export LIBS="-lmoldname -lmingwex ${CHKSTK_LIB} -lmingw32 -lmsvcrt -lkernel32 -ladvapi32"
+# CRITICAL: Link order - -lmingw32 needs ___chkstk_ms, so chkstk_ms must come AFTER mingw32
+export LIBS="-lmoldname -lmingwex -lmingw32 ${CHKSTK_LIB} -lmsvcrt -lkernel32 -ladvapi32"
 
 # CRITICAL: Also add to LDFLAGS with -Wl prefix so it's ONLY passed to linker, not to compiler
 # When Clang sees -Wl,<arg>, it passes <arg> to the linker but NOT to compile-only invocations
@@ -427,9 +428,10 @@ if [[ -f "${settings_file}" ]]; then
   # MinGW helper libraries first
   LINK_FLAGS="${LINK_FLAGS} -Xlinker -lmoldname"
   LINK_FLAGS="${LINK_FLAGS} -Xlinker -lmingwex"
-  LINK_FLAGS="${LINK_FLAGS} -Xlinker -lchkstk_ms"
-  # Then -lmingw32 (provides console CRT symbols but also has weak main())
+  # Then -lmingw32 (needs chkstk_ms, so must come before it)
   LINK_FLAGS="${LINK_FLAGS} -Xlinker -lmingw32"
+  # Then chkstk_ms (provides symbols needed by mingw32)
+  LINK_FLAGS="${LINK_FLAGS} -Xlinker -lchkstk_ms"
   # System libraries last
   LINK_FLAGS="${LINK_FLAGS} -Xlinker -lmsvcrt"
   LINK_FLAGS="${LINK_FLAGS} -Xlinker -lkernel32"
@@ -438,7 +440,7 @@ if [[ -f "${settings_file}" ]]; then
   perl -pi -e "s#(C compiler link flags\", \")#\$1${LINK_FLAGS} #" "${settings_file}"
 
   # Also add to "ld flags" for direct ld invocations (use bare library names, no -Xlinker)
-  perl -pi -e "s#(ld flags\", \")#\$1-L${CHKSTK_DIR} -L${MINGW_SYSROOT} -lmoldname -lmingwex -lchkstk_ms -lmingw32 -lmsvcrt -lkernel32 -ladvapi32 #" "${settings_file}"
+  perl -pi -e "s#(ld flags\", \")#\$1-L${CHKSTK_DIR} -L${MINGW_SYSROOT} -lmoldname -lmingwex -lmingw32 -lchkstk_ms -lmsvcrt -lkernel32 -ladvapi32 #" "${settings_file}"
 
   echo "=== Stage1 settings after patching (COMPLETE FILE) ==="
   cat "${settings_file}"
