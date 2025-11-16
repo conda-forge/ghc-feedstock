@@ -377,21 +377,25 @@ echo "=== Installing Binary Distribution ==="
 echo "  Distribution: ${bindist_dir}"
 
 pushd "${bindist_dir}"
-  # Configure binary distribution with BUILD machine CC/CXX
-  export CC="${BUILD_PREFIX}/bin/${conda_host}-clang"
-  export CXX="${BUILD_PREFIX}/bin/${conda_host}-clang++"
+  # CRITICAL: Completely reset environment for BUILD machine configuration
+  # The bindist configure must run with BUILD machine (x86_64) tools and flags,
+  # not TARGET architecture (aarch64/ppc64le) tools and flags.
 
-  # CRITICAL: Unset all TARGET architecture autoconf cache variables
-  # The bindist configure needs to detect BUILD machine tools (x86_64),
-  # not TARGET architecture tools (aarch64/ppc64le).
-  # These were set earlier for the cross-compilation configure.
+  # Unset all TARGET architecture autoconf cache variables
   unset ac_cv_path_AR ac_cv_path_AS ac_cv_path_CC ac_cv_path_CXX
   unset ac_cv_path_LD ac_cv_path_NM ac_cv_path_OBJDUMP ac_cv_path_RANLIB
   unset ac_cv_path_LLC ac_cv_path_OPT
   unset ac_cv_func_statx ac_cv_have_decl_statx ac_cv_lib_ffi_ffi_call
   unset ac_cv_func_posix_spawn_file_actions_addchdir_np
 
-  echo "  Cleared autoconf cache variables for bindist configure"
+  # Unset TARGET architecture compiler flags (e.g., -march=nocona is x86-specific)
+  unset CFLAGS CXXFLAGS CPPFLAGS LDFLAGS
+
+  # Set BUILD machine compiler explicitly
+  export CC="${BUILD_PREFIX}/bin/${conda_host}-clang"
+  export CXX="${BUILD_PREFIX}/bin/${conda_host}-clang++"
+
+  echo "  Cleared autoconf cache variables and compiler flags for bindist configure"
   echo "  BUILD machine: ${conda_host}"
   echo "  CC: ${CC}"
   echo "  CXX: ${CXX}"

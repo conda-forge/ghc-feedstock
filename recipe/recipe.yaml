@@ -17,6 +17,7 @@ source:
         then:
           - patches/fix-regparm-arm64.patch
           - patches/fix-smp-spinlock-arm64.patch
+          - patches/fix-stgcrun-x86-arm64.patch
       - if: osx
         then:
           - patches/remove-dangerous-macos-linker-flags.patch
