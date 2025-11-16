@@ -5,10 +5,10 @@
  /* -----------------------------------------------------------------------------
     x86-64 is almost the same as plain x86.
 +
-+   Note: Check actual target architecture for cross-compilation
++   Note: Check actual target architecture for cross-compilation (both GNU and Apple macros)
     -------------------------------------------------------------------------- */
 
 -#if defined(x86_64_HOST_ARCH)
-+#if defined(x86_64_HOST_ARCH) && !defined(__aarch64__) && !defined(__arm__)
++#if defined(x86_64_HOST_ARCH) && !defined(__aarch64__) && !defined(__arm__) && !defined(__arm64__)
 
  #define STG_GLOBAL ".globl "

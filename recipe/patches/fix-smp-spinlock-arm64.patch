@@ -7,7 +7,7 @@
 -#if defined(i386_HOST_ARCH) || defined(x86_64_HOST_ARCH)
 +// Check actual target architecture, not build architecture (for cross-compilation)
 +#if (defined(i386_HOST_ARCH) || defined(x86_64_HOST_ARCH)) \
-+    && !defined(__aarch64__) && !defined(__arm__)
++    && !defined(__aarch64__) && !defined(__arm__) && !defined(__arm64__)
      // On Intel, the busy-wait-nop instruction is called "pause",
      // which is actually represented as a nop with the rep prefix.
      // On processors before the P4 this behaves as a nop; on P4 and

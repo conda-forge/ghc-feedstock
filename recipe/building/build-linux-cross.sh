@@ -388,12 +388,13 @@ pushd "${bindist_dir}"
   unset ac_cv_func_statx ac_cv_have_decl_statx ac_cv_lib_ffi_ffi_call
   unset ac_cv_func_posix_spawn_file_actions_addchdir_np
 
-  # Unset TARGET architecture compiler flags (e.g., -march=nocona is x86-specific)
-  unset CFLAGS CXXFLAGS CPPFLAGS LDFLAGS
-
-  # Set BUILD machine compiler explicitly
+  # Set BUILD machine compiler and minimal flags
   export CC="${BUILD_PREFIX}/bin/${conda_host}-clang"
   export CXX="${BUILD_PREFIX}/bin/${conda_host}-clang++"
+
+  # Provide minimal BUILD machine library paths (not target-specific flags like -march)
+  export LDFLAGS="-L${BUILD_PREFIX}/lib"
+  export CPPFLAGS="-I${BUILD_PREFIX}/include"
 
   echo "  Cleared autoconf cache variables and compiler flags for bindist configure"
   echo "  BUILD machine: ${conda_host}"
