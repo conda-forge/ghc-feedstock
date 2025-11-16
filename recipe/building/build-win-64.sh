@@ -101,10 +101,10 @@ if [[ -f "${settings_file}" ]]; then
   perl -pi -e "s#(C\+\+ compiler flags\", \")([^\"]*)#\$1\$2 ${CXXFLAGS} -I${_PREFIX}/Library/include#" "${settings_file}"
   perl -pi -e "s#(Haskell CPP flags\", \")[^\"]*#\$1-E -I${_BUILD_PREFIX}/Library/include -I${_PREFIX}/Library/include#" "${settings_file}"
 
-  # Add chkstk_ms library to "C compiler link flags" with -Wl prefix
-  # -Wl prefix tells Clang to pass the library ONLY to the linker, not to compile-only invocations
+  # Add chkstk_ms library to "C compiler link flags" WITHOUT -Wl prefix
+  # Library file paths are direct linker inputs, NOT linker options, so no -Wl needed
   # This is CRITICAL for hsc2hs builds (clock, file-io packages) which use Clang as linker driver
-  perl -pi -e "s#(C compiler link flags\", \")[^\"]*#\$1-fuse-ld=bfd -Wl,${CHKSTK_LIB}#" "${settings_file}"
+  perl -pi -e "s#(C compiler link flags\", \")[^\"]*#\$1-fuse-ld=bfd ${CHKSTK_LIB}#" "${settings_file}"
   perl -pi -e "s#(ld is GNU ld\", \")[^\"]*#\$1YES#" "${settings_file}"
 
   # Also add to "ld flags" for direct ld invocations (without Clang wrapper)
@@ -391,10 +391,10 @@ if [[ -f "${settings_file}" ]]; then
   perl -pi -e 's#-L\$topdir/../mingw//lib#-L\$topdir/../../Library/lib#g' "${settings_file}"
   perl -pi -e 's#-L\$topdir/../mingw//x86_64-w64-mingw32/lib#-L\$topdir/../../Library/bin -L\$topdir/../../Library/x86_64-w64-mingw32/sysroot/usr/lib -Wl,-rpath,\$topdir/../../Library/x86_64-w64-mingw32/sysroot/usr/lib#g' "${settings_file}"
 
-  # Add chkstk_ms library to "C compiler link flags" with -Wl prefix
-  # -Wl prefix prevents library from appearing in compile-only commands
+  # Add chkstk_ms library to "C compiler link flags" WITHOUT -Wl prefix
+  # Library file paths are direct linker inputs, NOT linker options, so no -Wl needed
   # Library path must be explicit, not a variable (settings file can't expand ${CHKSTK_LIB})
-  perl -pi -e "s#(C compiler link flags\", \")#\$1-Wl,${CHKSTK_LIB} #" "${settings_file}"
+  perl -pi -e "s#(C compiler link flags\", \")#\$1${CHKSTK_LIB} #" "${settings_file}"
 
   # Also add to "ld flags" for direct ld invocations
   perl -pi -e "s#(ld flags\", \")#\$1${CHKSTK_LIB} #" "${settings_file}"
