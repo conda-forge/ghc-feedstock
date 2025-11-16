@@ -14,7 +14,9 @@ source:
       - if: ppc64le
         then: patches/fix-stgcrun-ppc64le-abi-v2.patch
       - if: arm64
-        then: patches/fix-regparm-arm64.patch
+        then:
+          - patches/fix-regparm-arm64.patch
+          - patches/fix-smp-spinlock-arm64.patch
       - if: osx
         then:
           - patches/remove-dangerous-macos-linker-flags.patch
