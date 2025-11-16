@@ -111,8 +111,8 @@ if [[ -f "${settings_file}" ]]; then
   MINGW_SYSROOT="${_BUILD_PREFIX}/Library/x86_64-w64-mingw32/sysroot/usr/lib"
 
   # Build complete link flags string - libraries come AFTER user objects
-  # CRITICAL: -Wl,--subsystem -Wl,console tells linker to use console entry point (main), not GUI (WinMain)
-  LINK_FLAGS="-fuse-ld=bfd -Wl,--subsystem -Wl,console"
+  # CRITICAL: -mconsole tells MinGW to use console CRT, -Wl,--subsystem -Wl,console sets PE header
+  LINK_FLAGS="-fuse-ld=bfd -mconsole -Wl,--subsystem -Wl,console"
   LINK_FLAGS="${LINK_FLAGS} -Xlinker -L${CHKSTK_DIR} -Xlinker -L${MINGW_SYSROOT}"
   # MinGW helper libraries first
   LINK_FLAGS="${LINK_FLAGS} -Xlinker -lmoldname"
@@ -429,8 +429,8 @@ if [[ -f "${settings_file}" ]]; then
   MINGW_SYSROOT="${_BUILD_PREFIX}/Library/x86_64-w64-mingw32/sysroot/usr/lib"
 
   # Build complete link flags string - libraries come AFTER user objects
-  # CRITICAL: -Wl,--subsystem -Wl,console tells linker to use console entry point (main), not GUI (WinMain)
-  LINK_FLAGS="-Wl,--subsystem -Wl,console -Xlinker -L${CHKSTK_DIR} -Xlinker -L${MINGW_SYSROOT}"
+  # CRITICAL: -mconsole tells MinGW to use console CRT, -Wl,--subsystem -Wl,console sets PE header
+  LINK_FLAGS="-mconsole -Wl,--subsystem -Wl,console -Xlinker -L${CHKSTK_DIR} -Xlinker -L${MINGW_SYSROOT}"
   # MinGW helper libraries first
   LINK_FLAGS="${LINK_FLAGS} -Xlinker -lmoldname"
   LINK_FLAGS="${LINK_FLAGS} -Xlinker -lmingwex"
