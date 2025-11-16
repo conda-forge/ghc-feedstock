@@ -101,15 +101,30 @@ if [[ -f "${settings_file}" ]]; then
   perl -pi -e "s#(C\+\+ compiler flags\", \")([^\"]*)#\$1\$2 ${CXXFLAGS} -I${_PREFIX}/Library/include#" "${settings_file}"
   perl -pi -e "s#(Haskell CPP flags\", \")[^\"]*#\$1-E -I${_BUILD_PREFIX}/Library/include -I${_PREFIX}/Library/include#" "${settings_file}"
 
-  # Add chkstk_ms library directory and library name to "C compiler link flags"
-  # Use -L to add search path and -l to link the library (linker-only flags)
-  # Split into multiple -Xlinker args so each is passed individually to the linker
+  # Add ALL MinGW runtime libraries to "C compiler link flags"
+  # CRITICAL: Must include full MinGW CRT for hsc2hs and Hadrian dependency builds
+  # Use -Xlinker to pass ONLY to linker (not to compile-only invocations)
   CHKSTK_DIR="${_BUILD_PREFIX}/Library/lib"
-  perl -pi -e "s#(C compiler link flags\", \")[^\"]*#\$1-fuse-ld=bfd -Xlinker -L${CHKSTK_DIR} -Xlinker -lchkstk_ms#" "${settings_file}"
+  MINGW_SYSROOT="${_BUILD_PREFIX}/Library/x86_64-w64-mingw32/sysroot/usr/lib"
+
+  # Build complete link flags string
+  LINK_FLAGS="-fuse-ld=bfd"
+  LINK_FLAGS="${LINK_FLAGS} -Xlinker -L${CHKSTK_DIR} -Xlinker -L${MINGW_SYSROOT}"
+  LINK_FLAGS="${LINK_FLAGS} -Xlinker --start-group"
+  LINK_FLAGS="${LINK_FLAGS} -Xlinker -lmingw32"
+  LINK_FLAGS="${LINK_FLAGS} -Xlinker -lmoldname"
+  LINK_FLAGS="${LINK_FLAGS} -Xlinker -lmingwex"
+  LINK_FLAGS="${LINK_FLAGS} -Xlinker -lchkstk_ms"
+  LINK_FLAGS="${LINK_FLAGS} -Xlinker --end-group"
+  LINK_FLAGS="${LINK_FLAGS} -Xlinker -lmsvcrt"
+  LINK_FLAGS="${LINK_FLAGS} -Xlinker -lkernel32"
+  LINK_FLAGS="${LINK_FLAGS} -Xlinker -ladvapi32"
+
+  perl -pi -e "s#(C compiler link flags\", \")[^\"]*#\$1${LINK_FLAGS}#" "${settings_file}"
   perl -pi -e "s#(ld is GNU ld\", \")[^\"]*#\$1YES#" "${settings_file}"
 
-  # Also add to "ld flags" for direct ld invocations (without Clang wrapper)
-  perl -pi -e "s#(ld flags\", \")([^\"]*)#\$1\$2 ${CHKSTK_LIB}#" "${settings_file}"
+  # Also add to "ld flags" for direct ld invocations (use bare library names, no -Xlinker)
+  perl -pi -e "s#(ld flags\", \")([^\"]*)#\$1\$2 -L${CHKSTK_DIR} -L${MINGW_SYSROOT} --start-group -lmingw32 -lmoldname -lmingwex -lchkstk_ms --end-group -lmsvcrt -lkernel32 -ladvapi32#" "${settings_file}"
 
   # CRITICAL: Fix merge-objects to use GNU ld (ld.bfd) instead of lld
   # The bootstrap GHC has system-merge-objects pointing to ld.lld.exe which uses MSVC-style .lib files
@@ -394,14 +409,34 @@ if [[ -f "${settings_file}" ]]; then
   perl -pi -e 's#-L\$topdir/../mingw//lib#-L\$topdir/../../Library/lib#g' "${settings_file}"
   perl -pi -e 's#-L\$topdir/../mingw//x86_64-w64-mingw32/lib#-L\$topdir/../../Library/bin -L\$topdir/../../Library/x86_64-w64-mingw32/sysroot/usr/lib -Wl,-rpath,\$topdir/../../Library/x86_64-w64-mingw32/sysroot/usr/lib#g' "${settings_file}"
 
-  # Add chkstk_ms library directory and library name to "C compiler link flags"
-  # Use -Xlinker with -L/-l flags so linker can find the library
-  # Library path must be explicit, not a variable (settings file can't expand ${CHKSTK_LIB})
+  # Add ALL MinGW runtime libraries to "C compiler link flags"
+  # These are needed for hsc2hs and other tools invoked during Hadrian dependency builds
+  # Use -Xlinker to pass ONLY to linker (not to compile-only invocations)
+  # CRITICAL: Must include full MinGW CRT: -lmingw32, -lmoldname, -lmingwex, -lmsvcrt
+  # Library path must be explicit, not a variable (settings file can't expand ${VAR})
   CHKSTK_DIR="${_BUILD_PREFIX}/Library/lib"
-  perl -pi -e "s#(C compiler link flags\", \")#\$1-Xlinker -L${CHKSTK_DIR} -Xlinker -lchkstk_ms #" "${settings_file}"
+  MINGW_SYSROOT="${_BUILD_PREFIX}/Library/x86_64-w64-mingw32/sysroot/usr/lib"
 
-  # Also add to "ld flags" for direct ld invocations
-  perl -pi -e "s#(ld flags\", \")#\$1${CHKSTK_LIB} #" "${settings_file}"
+  # Add library search paths
+  LINK_FLAGS="-Xlinker -L${CHKSTK_DIR} -Xlinker -L${MINGW_SYSROOT}"
+
+  # Add MinGW CRT libraries in correct order
+  LINK_FLAGS="${LINK_FLAGS} -Xlinker --start-group"
+  LINK_FLAGS="${LINK_FLAGS} -Xlinker -lmingw32"
+  LINK_FLAGS="${LINK_FLAGS} -Xlinker -lmoldname"
+  LINK_FLAGS="${LINK_FLAGS} -Xlinker -lmingwex"
+  LINK_FLAGS="${LINK_FLAGS} -Xlinker -lchkstk_ms"
+  LINK_FLAGS="${LINK_FLAGS} -Xlinker --end-group"
+
+  # Add system libraries
+  LINK_FLAGS="${LINK_FLAGS} -Xlinker -lmsvcrt"
+  LINK_FLAGS="${LINK_FLAGS} -Xlinker -lkernel32"
+  LINK_FLAGS="${LINK_FLAGS} -Xlinker -ladvapi32"
+
+  perl -pi -e "s#(C compiler link flags\", \")#\$1${LINK_FLAGS} #" "${settings_file}"
+
+  # Also add to "ld flags" for direct ld invocations (use bare library names, no -Xlinker)
+  perl -pi -e "s#(ld flags\", \")#\$1-L${CHKSTK_DIR} -L${MINGW_SYSROOT} --start-group -lmingw32 -lmoldname -lmingwex -lchkstk_ms --end-group -lmsvcrt -lkernel32 -ladvapi32 #" "${settings_file}"
 
   echo "=== Stage1 settings after patching (COMPLETE FILE) ==="
   cat "${settings_file}"
