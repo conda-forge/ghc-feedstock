@@ -197,7 +197,7 @@ pushd "${SRC_DIR}"/hadrian
 popd
 
 # Find the built hadrian binary (BSD-compatible: -perm /111 works on both BSD and GNU)
-_hadrian_bin=$(find "${SRC_DIR}"/hadrian/dist-newstyle/build -name hadrian -type f -perm /111 | head -1)
+_hadrian_bin=$(find "${SRC_DIR}"/hadrian/dist-newstyle/build -name hadrian -type f -perm +111 | head -1)
 
 if [[ -z "${_hadrian_bin}" ]]; then
   echo "ERROR: Could not find hadrian binary after build"
