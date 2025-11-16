@@ -101,10 +101,10 @@ if [[ -f "${settings_file}" ]]; then
   perl -pi -e "s#(C\+\+ compiler flags\", \")([^\"]*)#\$1\$2 ${CXXFLAGS} -I${_PREFIX}/Library/include#" "${settings_file}"
   perl -pi -e "s#(Haskell CPP flags\", \")[^\"]*#\$1-E -I${_BUILD_PREFIX}/Library/include -I${_PREFIX}/Library/include#" "${settings_file}"
 
-  # Add library search path and library to "C compiler link flags"
-  # Use -L and -l flags (Clang will add -Wl, prefix when passing to linker)
-  # This fixes hsc2hs which calls Clang (not ld directly) and reads "C compiler link flags"
-  perl -pi -e "s#(C compiler link flags\", \")[^\"]*#\$1-fuse-ld=bfd -L${_BUILD_PREFIX}/Library/lib -lchkstk_ms#" "${settings_file}"
+  # Do NOT add library to "C compiler link flags" - it would come too early in link order
+  # The library must come AFTER -lmingw32 in the link command, but settings flags come first
+  # Instead, rely on LDFLAGS environment variable which gets appended at the end
+  perl -pi -e "s#(C compiler link flags\", \")[^\"]*#\$1-fuse-ld=bfd#" "${settings_file}"
   perl -pi -e "s#(ld is GNU ld\", \")[^\"]*#\$1YES#" "${settings_file}"
 
   # Add chkstk_ms library to "ld flags" - these are ONLY passed to ld, not to C compiler
@@ -394,8 +394,8 @@ if [[ -f "${settings_file}" ]]; then
 
   # Add chkstk_ms library to ld flags - these are ONLY passed to ld, not to C compiler
   perl -pi -e "s#(ld flags\", \")#\$1${CHKSTK_LIB} #" "${settings_file}"
-  # Add library search path and library for hsc2hs compatibility
-  perl -pi -e "s#(C compiler link flags\", \")#\$1-static -L${_BUILD_PREFIX}/Library/lib -lchkstk_ms #" "${settings_file}"
+  # Do NOT add library to "C compiler link flags" - rely on LDFLAGS for correct link order
+  perl -pi -e "s#(C compiler link flags\", \")#\$1-static #" "${settings_file}"
 
   echo "=== Stage1 settings after patching (COMPLETE FILE) ==="
   cat "${settings_file}"
