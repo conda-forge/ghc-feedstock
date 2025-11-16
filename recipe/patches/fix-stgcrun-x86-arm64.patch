@@ -1,12 +1,8 @@
 --- a/rts/StgCRun.c
 +++ b/rts/StgCRun.c
-@@ -247,7 +247,9 @@ StgRunIsImplementedInAssembler(void)
-
- /* -----------------------------------------------------------------------------
-    x86-64 is almost the same as plain x86.
-+
-+   Note: Check actual target architecture for cross-compilation (both GNU and Apple macros)
-    -------------------------------------------------------------------------- */
+@@ -247,7 +247,7 @@ StgRunIsImplementedInAssembler(void)
+    enough space.  Oh well, it's not much harder this way.
+    ------------------------------------------------------------------------- */
 
 -#if defined(x86_64_HOST_ARCH)
 +#if defined(x86_64_HOST_ARCH) && !defined(__aarch64__) && !defined(__arm__) && !defined(__arm64__)
