@@ -101,10 +101,11 @@ if [[ -f "${settings_file}" ]]; then
   perl -pi -e "s#(C\+\+ compiler flags\", \")([^\"]*)#\$1\$2 ${CXXFLAGS} -I${_PREFIX}/Library/include#" "${settings_file}"
   perl -pi -e "s#(Haskell CPP flags\", \")[^\"]*#\$1-E -I${_BUILD_PREFIX}/Library/include -I${_PREFIX}/Library/include#" "${settings_file}"
 
-  # Add library to "C compiler link flags" with -Wl prefix
-  # The -Wl, prefix ensures the library is ONLY passed to the linker, never to compile-only invocations
+  # Add library to "C compiler link flags" with -Wl,-L and -Wl,-l flags
+  # The -Wl, prefix ensures flags are ONLY passed to the linker, never to compile-only invocations
+  # Use -L to add library search path and -l to link the library (more portable than absolute path)
   # This fixes hsc2hs which calls Clang (not ld directly) and reads "C compiler link flags"
-  perl -pi -e "s#(C compiler link flags\", \")[^\"]*#\$1-fuse-ld=bfd -Wl,${CHKSTK_LIB}#" "${settings_file}"
+  perl -pi -e "s#(C compiler link flags\", \")[^\"]*#\$1-fuse-ld=bfd -Wl,-L${_BUILD_PREFIX}/Library/lib -Wl,-lchkstk_ms#" "${settings_file}"
   perl -pi -e "s#(ld is GNU ld\", \")[^\"]*#\$1YES#" "${settings_file}"
 
   # Add chkstk_ms library to "ld flags" - these are ONLY passed to ld, not to C compiler
@@ -394,8 +395,8 @@ if [[ -f "${settings_file}" ]]; then
 
   # Add chkstk_ms library to ld flags - these are ONLY passed to ld, not to C compiler
   perl -pi -e "s#(ld flags\", \")#\$1${CHKSTK_LIB} #" "${settings_file}"
-  # Add library to "C compiler link flags" with -Wl prefix for hsc2hs compatibility
-  perl -pi -e "s#(C compiler link flags\", \")#\$1-static -Wl,${CHKSTK_LIB} #" "${settings_file}"
+  # Add library to "C compiler link flags" with -Wl,-L and -Wl,-l for hsc2hs compatibility
+  perl -pi -e "s#(C compiler link flags\", \")#\$1-static -Wl,-L${_BUILD_PREFIX}/Library/lib -Wl,-lchkstk_ms #" "${settings_file}"
 
   echo "=== Stage1 settings after patching (COMPLETE FILE) ==="
   cat "${settings_file}"
