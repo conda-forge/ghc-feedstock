@@ -248,11 +248,14 @@ do
 done
 
 # The ___chkstk_ms library has been created upfront (lines 58-79)
-# Now set LIBS to include it
+# Now add it to both LIBS and LDFLAGS
 
-# CRITICAL: Do NOT add library to LDFLAGS - it will appear in compile commands!
-# Only add to LIBS which is used during linking phase
+# LIBS is used by autoconf-based configure
 export LIBS="-Wl,--start-group -lmingw32 -lmoldname -lmingwex ${CHKSTK_LIB} -Wl,--end-group -lmsvcrt -lkernel32 -ladvapi32"
+
+# CRITICAL: Also add to LDFLAGS with -Wl prefix so it's ONLY passed to linker, not to compiler
+# When Clang sees -Wl,<arg>, it passes <arg> to the linker but NOT to compile-only invocations
+export LDFLAGS="${LDFLAGS} -Wl,${CHKSTK_LIB}"
 
 # Use GNU ld for linking (compatible with MinGW libraries)
 # CRITICAL: Use Unix path _BUILD_PREFIX not Windows path BUILD_PREFIX
