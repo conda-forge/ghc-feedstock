@@ -388,11 +388,17 @@ pushd "${bindist_dir}"
   unset ac_cv_func_statx ac_cv_have_decl_statx ac_cv_lib_ffi_ffi_call
   unset ac_cv_func_posix_spawn_file_actions_addchdir_np
 
+  # CRITICAL: Also unset environment-based autoconf cache (ac_cv_env_*)
+  # These are cached from the environment variables at configure time
+  unset CFLAGS CXXFLAGS  # Will trigger unset of ac_cv_env_CFLAGS_value, ac_cv_env_CXXFLAGS_value
+
   # Set BUILD machine compiler and minimal flags
   export CC="${BUILD_PREFIX}/bin/${conda_host}-clang"
   export CXX="${BUILD_PREFIX}/bin/${conda_host}-clang++"
 
   # Provide minimal BUILD machine library paths (not target-specific flags like -march)
+  export CFLAGS=""  # Explicitly empty - no target-specific optimization flags
+  export CXXFLAGS=""  # Explicitly empty
   export LDFLAGS="-L${BUILD_PREFIX}/lib"
   export CPPFLAGS="-I${BUILD_PREFIX}/include"
 
