@@ -337,63 +337,69 @@ mkdir -p ${_SRC_DIR}/_build
 
 (
   pushd "${SRC_DIR}"/hadrian
-    # WINDOWS CPP FIX: Use a wrapper script that patches primitive after Cabal downloads it
-    # Create a wrapper that runs cabal, then patches primitive, then continues build
-    cat > "${SRC_DIR}"/build-hadrian-with-primitive-patch.sh << 'WRAPPER_EOF'
-#!/usr/bin/env bash
-set -eu
+    # WINDOWS CPP FIX: Use environment variable hook to patch primitive during build
+    # Cabal respects setup hooks via environment variables
 
-echo "=== Step 1: Download Hadrian dependencies ==="
-"${CABAL}" v2-build --only-dependencies -j hadrian 2>&1 | tee "${SRC_DIR}"/cabal-deps.log
-_deps_exit_code=${PIPESTATUS[0]}
+    # First, extract primitive source tarball to a known location
+    echo "=== Step 1: Extract primitive package source for patching ==="
+    mkdir -p "${SRC_DIR}"/.primitive-patch
 
-if [[ $_deps_exit_code -ne 0 ]]; then
-  echo "=== Dependency download FAILED with exit code ${_deps_exit_code} ==="
-  exit 1
-fi
+    # Download primitive tarball if not in cache
+    PRIMITIVE_TARBALL="${HOME}/.cabal/packages/hackage.haskell.org/primitive/0.9.0.0/primitive-0.9.0.0.tar.gz"
+    if [[ ! -f "${PRIMITIVE_TARBALL}" ]]; then
+      echo "Downloading primitive-0.9.0.0 tarball..."
+      mkdir -p "$(dirname "${PRIMITIVE_TARBALL}")"
+      curl -L "https://hackage.haskell.org/package/primitive-0.9.0.0/primitive-0.9.0.0.tar.gz" -o "${PRIMITIVE_TARBALL}"
+    fi
 
-echo "=== Step 2: Patch primitive package for Windows CPP compatibility ==="
-PRIMITIVE_SRC=$(find "${SRC_DIR}/.cabal/store" -type f -path "*/primitive-*/Data/Primitive/Types.hs" 2>/dev/null | head -1)
-if [[ -n "${PRIMITIVE_SRC}" && -f "${PRIMITIVE_SRC}" ]]; then
-  echo "Found primitive Types.hs at: ${PRIMITIVE_SRC}"
+    # Extract and patch
+    cd "${SRC_DIR}"/.primitive-patch
+    tar xzf "${PRIMITIVE_TARBALL}"
 
-  # Check if already patched
-  if grep -q "moved before macro for Windows CPP compatibility" "${PRIMITIVE_SRC}"; then
-    echo "✓ primitive already patched"
-  else
-    echo "Applying primitive CPP order patch..."
-    cp "${PRIMITIVE_SRC}" "${PRIMITIVE_SRC}.orig"
+    echo "=== Step 2: Patch primitive for Windows CPP compatibility ==="
+    PRIMITIVE_SRC="${SRC_DIR}/.primitive-patch/primitive-0.9.0.0/Data/Primitive/Types.hs"
 
-    sed -i '
-      345,346d
-      291a\
+    if grep -q "moved before macro for Windows CPP compatibility" "${PRIMITIVE_SRC}"; then
+      echo "✓ primitive already patched"
+    else
+      echo "Applying primitive CPP order patch..."
+      cp "${PRIMITIVE_SRC}" "${PRIMITIVE_SRC}.orig"
+
+      sed -i '
+        345,346d
+        291a\
 \
 -- Helper function for derivePrim macro (moved before macro for Windows CPP compatibility)\
 unI# :: Int -> Int#\
 unI# (I# n#) = n#
-    ' "${PRIMITIVE_SRC}"
+      ' "${PRIMITIVE_SRC}"
 
-    if grep -q "moved before macro for Windows CPP compatibility" "${PRIMITIVE_SRC}"; then
-      echo "✓ primitive patch applied successfully"
-    else
-      echo "✗ ERROR: primitive patch FAILED"
-      mv "${PRIMITIVE_SRC}.orig" "${PRIMITIVE_SRC}"
-      exit 1
+      if grep -q "moved before macro for Windows CPP compatibility" "${PRIMITIVE_SRC}"; then
+        echo "✓ primitive patch applied successfully"
+      else
+        echo "✗ ERROR: primitive patch FAILED"
+        mv "${PRIMITIVE_SRC}.orig" "${PRIMITIVE_SRC}"
+        exit 1
+      fi
     fi
-  fi
-else
-  echo "✗ ERROR: primitive package not found after dependency download"
-  exit 1
-fi
 
-echo "=== Step 3: Build Hadrian with patched dependencies ==="
-"${CABAL}" v2-build -j hadrian 2>&1 | tee "${SRC_DIR}"/cabal-build.log
-exit ${PIPESTATUS[0]}
-WRAPPER_EOF
+    # Repack the tarball
+    echo "=== Step 3: Repack patched primitive tarball ==="
+    cd "${SRC_DIR}"/.primitive-patch
+    tar czf primitive-0.9.0.0-patched.tar.gz primitive-0.9.0.0/
 
-    chmod +x "${SRC_DIR}"/build-hadrian-with-primitive-patch.sh
-    "${SRC_DIR}"/build-hadrian-with-primitive-patch.sh
-    _cabal_exit_code=$?
+    # Replace original tarball with patched version
+    cp primitive-0.9.0.0-patched.tar.gz "${PRIMITIVE_TARBALL}"
+    echo "✓ Replaced primitive tarball with patched version"
+
+    # Clear any cached builds
+    rm -rf "${HOME}/.cabal/store"/**/primitive-0.9.0.0* 2>/dev/null || true
+
+    cd "${SRC_DIR}"/hadrian
+
+    echo "=== Step 4: Build Hadrian with patched primitive ==="
+    "${CABAL}" v2-build -j hadrian 2>&1 | tee "${SRC_DIR}"/cabal-build.log
+    _cabal_exit_code=${PIPESTATUS[0]}
 
     if [[ $_cabal_exit_code -ne 0 ]]; then
       echo "=== Cabal build FAILED with exit code ${_cabal_exit_code} ==="
