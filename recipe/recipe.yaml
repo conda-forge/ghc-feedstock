@@ -64,7 +64,7 @@ requirements:
         - m2-m4
         - m2-make
         - m2-sed
-        # - m2-tar
+        - m2-tar
         - m2-which
         # - m2-xz
 
