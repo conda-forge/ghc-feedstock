@@ -344,13 +344,16 @@ mkdir -p ${_SRC_DIR}/_build
     echo "=== Step 1: Extract primitive package source for patching ==="
     mkdir -p "${SRC_DIR}"/.primitive-patch
 
-    # Download primitive tarball if not in cache
-    PRIMITIVE_TARBALL="${HOME}/.cabal/packages/hackage.haskell.org/primitive/0.9.0.0/primitive-0.9.0.0.tar.gz"
+    # Use SRC_DIR/.cabal (where CABAL_DIR points), not HOME/.cabal
+    PRIMITIVE_TARBALL="${SRC_DIR}/.cabal/packages/hackage.haskell.org/primitive/0.9.0.0/primitive-0.9.0.0.tar.gz"
     if [[ ! -f "${PRIMITIVE_TARBALL}" ]]; then
       echo "Downloading primitive-0.9.0.0 tarball..."
       mkdir -p "$(dirname "${PRIMITIVE_TARBALL}")"
       curl -L "https://hackage.haskell.org/package/primitive-0.9.0.0/primitive-0.9.0.0.tar.gz" -o "${PRIMITIVE_TARBALL}"
     fi
+
+    echo "Tarball location: ${PRIMITIVE_TARBALL}"
+    ls -lh "${PRIMITIVE_TARBALL}" || echo "Tarball not found yet"
 
     # Extract and patch
     cd "${SRC_DIR}"/.primitive-patch
