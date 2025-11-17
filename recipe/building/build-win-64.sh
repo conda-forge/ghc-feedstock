@@ -342,7 +342,7 @@ mkdir -p ${_SRC_DIR}/_build
     # export LDFLAGS=$(echo "${LDFLAGS}" | sed 's/-fuse-ld=lld/-fuse-ld=bfd/g') \
 
     # export LD="${BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-ld.exe" \
-    
+
     "${CABAL}" v2-build -j hadrian 2>&1 | tee "${SRC_DIR}"/cabal-build.log
     _cabal_exit_code=${PIPESTATUS[0]}
 
@@ -356,6 +356,50 @@ mkdir -p ${_SRC_DIR}/_build
     fi
   popd
 )
+
+# WINDOWS CPP FIX: Patch primitive package for Windows CPP compatibility
+# The Windows C preprocessor processes macros differently than Unix, causing
+# "Variable not in scope: unI" errors when derivePrim macro references unI#
+# before it's defined. This moves the unI# function before the macro.
+echo "=== Patching primitive package for Windows CPP compatibility ==="
+PRIMITIVE_SRC=$(find "${SRC_DIR}/.cabal/store" -type f -path "*/primitive-*/Data/Primitive/Types.hs" 2>/dev/null | head -1)
+if [[ -n "${PRIMITIVE_SRC}" && -f "${PRIMITIVE_SRC}" ]]; then
+  echo "Found primitive Types.hs at: ${PRIMITIVE_SRC}"
+
+  # Check if already patched
+  if grep -q "moved before macro for Windows CPP compatibility" "${PRIMITIVE_SRC}"; then
+    echo "✓ primitive already patched"
+  else
+    echo "Applying primitive CPP order patch..."
+
+    # Create backup
+    cp "${PRIMITIVE_SRC}" "${PRIMITIVE_SRC}.orig"
+
+    # Apply patch using sed
+    sed -i '
+      # Delete the unI# definition at lines 345-346
+      345,346d
+
+      # Insert unI# before derivePrim macro (before line 292)
+      291a\
+\
+-- Helper function for derivePrim macro (moved before macro for Windows CPP compatibility)\
+unI# :: Int -> Int#\
+unI# (I# n#) = n#
+    ' "${PRIMITIVE_SRC}"
+
+    # Verify patch was applied
+    if grep -q "moved before macro for Windows CPP compatibility" "${PRIMITIVE_SRC}"; then
+      echo "✓ primitive patch applied successfully"
+    else
+      echo "✗ ERROR: primitive patch FAILED to apply"
+      mv "${PRIMITIVE_SRC}.orig" "${PRIMITIVE_SRC}"
+      exit 1
+    fi
+  fi
+else
+  echo "WARNING: primitive package not found in .cabal/store - will be patched when downloaded"
+fi
 
 echo ">$(find ${SRC_DIR}/hadrian/dist-newstyle -name hadrian{,.exe} -type f | head -1)<"
 _hadrian_bin=$(find "${SRC_DIR}"/hadrian/dist-newstyle -name hadrian{,.exe} -type f | head -1)
