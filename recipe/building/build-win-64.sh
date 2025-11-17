@@ -337,14 +337,63 @@ mkdir -p ${_SRC_DIR}/_build
 
 (
   pushd "${SRC_DIR}"/hadrian
-    # export CFLAGS="--target=x86_64-w64-mingw32 -I${BUILD_PREFIX}/Library/include ${CFLAGS}"
-    # export CXXFLAGS="--target=x86_64-w64-mingw32 -I${BUILD_PREFIX}/Library/include ${CXXFLAGS}"
-    # export LDFLAGS=$(echo "${LDFLAGS}" | sed 's/-fuse-ld=lld/-fuse-ld=bfd/g') \
+    # WINDOWS CPP FIX: Use a wrapper script that patches primitive after Cabal downloads it
+    # Create a wrapper that runs cabal, then patches primitive, then continues build
+    cat > "${SRC_DIR}"/build-hadrian-with-primitive-patch.sh << 'WRAPPER_EOF'
+#!/usr/bin/env bash
+set -eu
 
-    # export LD="${BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-ld.exe" \
+echo "=== Step 1: Download Hadrian dependencies ==="
+"${CABAL}" v2-build --only-dependencies -j hadrian 2>&1 | tee "${SRC_DIR}"/cabal-deps.log
+_deps_exit_code=${PIPESTATUS[0]}
 
-    "${CABAL}" v2-build -j hadrian 2>&1 | tee "${SRC_DIR}"/cabal-build.log
-    _cabal_exit_code=${PIPESTATUS[0]}
+if [[ $_deps_exit_code -ne 0 ]]; then
+  echo "=== Dependency download FAILED with exit code ${_deps_exit_code} ==="
+  exit 1
+fi
+
+echo "=== Step 2: Patch primitive package for Windows CPP compatibility ==="
+PRIMITIVE_SRC=$(find "${SRC_DIR}/.cabal/store" -type f -path "*/primitive-*/Data/Primitive/Types.hs" 2>/dev/null | head -1)
+if [[ -n "${PRIMITIVE_SRC}" && -f "${PRIMITIVE_SRC}" ]]; then
+  echo "Found primitive Types.hs at: ${PRIMITIVE_SRC}"
+
+  # Check if already patched
+  if grep -q "moved before macro for Windows CPP compatibility" "${PRIMITIVE_SRC}"; then
+    echo "✓ primitive already patched"
+  else
+    echo "Applying primitive CPP order patch..."
+    cp "${PRIMITIVE_SRC}" "${PRIMITIVE_SRC}.orig"
+
+    sed -i '
+      345,346d
+      291a\
+\
+-- Helper function for derivePrim macro (moved before macro for Windows CPP compatibility)\
+unI# :: Int -> Int#\
+unI# (I# n#) = n#
+    ' "${PRIMITIVE_SRC}"
+
+    if grep -q "moved before macro for Windows CPP compatibility" "${PRIMITIVE_SRC}"; then
+      echo "✓ primitive patch applied successfully"
+    else
+      echo "✗ ERROR: primitive patch FAILED"
+      mv "${PRIMITIVE_SRC}.orig" "${PRIMITIVE_SRC}"
+      exit 1
+    fi
+  fi
+else
+  echo "✗ ERROR: primitive package not found after dependency download"
+  exit 1
+fi
+
+echo "=== Step 3: Build Hadrian with patched dependencies ==="
+"${CABAL}" v2-build -j hadrian 2>&1 | tee "${SRC_DIR}"/cabal-build.log
+exit ${PIPESTATUS[0]}
+WRAPPER_EOF
+
+    chmod +x "${SRC_DIR}"/build-hadrian-with-primitive-patch.sh
+    "${SRC_DIR}"/build-hadrian-with-primitive-patch.sh
+    _cabal_exit_code=$?
 
     if [[ $_cabal_exit_code -ne 0 ]]; then
       echo "=== Cabal build FAILED with exit code ${_cabal_exit_code} ==="
@@ -356,50 +405,6 @@ mkdir -p ${_SRC_DIR}/_build
     fi
   popd
 )
-
-# WINDOWS CPP FIX: Patch primitive package for Windows CPP compatibility
-# The Windows C preprocessor processes macros differently than Unix, causing
-# "Variable not in scope: unI" errors when derivePrim macro references unI#
-# before it's defined. This moves the unI# function before the macro.
-echo "=== Patching primitive package for Windows CPP compatibility ==="
-PRIMITIVE_SRC=$(find "${SRC_DIR}/.cabal/store" -type f -path "*/primitive-*/Data/Primitive/Types.hs" 2>/dev/null | head -1)
-if [[ -n "${PRIMITIVE_SRC}" && -f "${PRIMITIVE_SRC}" ]]; then
-  echo "Found primitive Types.hs at: ${PRIMITIVE_SRC}"
-
-  # Check if already patched
-  if grep -q "moved before macro for Windows CPP compatibility" "${PRIMITIVE_SRC}"; then
-    echo "✓ primitive already patched"
-  else
-    echo "Applying primitive CPP order patch..."
-
-    # Create backup
-    cp "${PRIMITIVE_SRC}" "${PRIMITIVE_SRC}.orig"
-
-    # Apply patch using sed
-    sed -i '
-      # Delete the unI# definition at lines 345-346
-      345,346d
-
-      # Insert unI# before derivePrim macro (before line 292)
-      291a\
-\
--- Helper function for derivePrim macro (moved before macro for Windows CPP compatibility)\
-unI# :: Int -> Int#\
-unI# (I# n#) = n#
-    ' "${PRIMITIVE_SRC}"
-
-    # Verify patch was applied
-    if grep -q "moved before macro for Windows CPP compatibility" "${PRIMITIVE_SRC}"; then
-      echo "✓ primitive patch applied successfully"
-    else
-      echo "✗ ERROR: primitive patch FAILED to apply"
-      mv "${PRIMITIVE_SRC}.orig" "${PRIMITIVE_SRC}"
-      exit 1
-    fi
-  fi
-else
-  echo "WARNING: primitive package not found in .cabal/store - will be patched when downloaded"
-fi
 
 echo ">$(find ${SRC_DIR}/hadrian/dist-newstyle -name hadrian{,.exe} -type f | head -1)<"
 _hadrian_bin=$(find "${SRC_DIR}"/hadrian/dist-newstyle -name hadrian{,.exe} -type f | head -1)
