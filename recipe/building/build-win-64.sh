@@ -336,37 +336,37 @@ mkdir -p ${_SRC_DIR}/_build
 # EOF
 
 (
-  pushd "${SRC_DIR}"/hadrian
+  pushd "${_SRC_DIR}"/hadrian
     # WINDOWS CPP FIX: Use environment variable hook to patch primitive during build
     # Cabal respects setup hooks via environment variables
 
     # First, extract primitive source tarball to a known location
     echo "=== Step 1: Extract primitive package source for patching ==="
-    mkdir -p "${SRC_DIR}"/.primitive-patch
+    mkdir -p "${_SRC_DIR}"/.primitive-patch
 
     # Use SRC_DIR/.cabal (where CABAL_DIR points), not HOME/.cabal
-    PRIMITIVE_TARBALL="${SRC_DIR}/.cabal/packages/hackage.haskell.org/primitive/0.9.0.0/primitive-0.9.0.0.tar.gz"
-    if [[ ! -f "${PRIMITIVE_TARBALL}" ]]; then
+    _PRIMITIVE_TARBALL="${_SRC_DIR}/.cabal/packages/hackage.haskell.org/primitive/0.9.0.0/primitive-0.9.0.0.tar.gz"
+    if [[ ! -f "${_PRIMITIVE_TARBALL}" ]]; then
       echo "Downloading primitive-0.9.0.0 tarball..."
-      mkdir -p "$(dirname "${PRIMITIVE_TARBALL}")"
-      curl -L "https://hackage.haskell.org/package/primitive-0.9.0.0/primitive-0.9.0.0.tar.gz" -o "${PRIMITIVE_TARBALL}"
+      mkdir -p "$(dirname "${_PRIMITIVE_TARBALL}")"
+      curl -L "https://hackage.haskell.org/package/primitive-0.9.0.0/primitive-0.9.0.0.tar.gz" -o "${_PRIMITIVE_TARBALL}"
     fi
 
-    echo "Tarball location: ${PRIMITIVE_TARBALL}"
-    ls -lh "${PRIMITIVE_TARBALL}" || echo "Tarball not found yet"
+    echo "Tarball location: ${_PRIMITIVE_TARBALL}"
+    ls -lh "${_PRIMITIVE_TARBALL}" || echo "Tarball not found yet"
 
     # Extract and patch
-    cd "${SRC_DIR}"/.primitive-patch
-    tar xzf "${PRIMITIVE_TARBALL}"
+    cd "${_SRC_DIR}"/.primitive-patch
+    tar xzf "${_PRIMITIVE_TARBALL}"
 
     echo "=== Step 2: Patch primitive for Windows CPP compatibility ==="
-    PRIMITIVE_SRC="${SRC_DIR}/.primitive-patch/primitive-0.9.0.0/Data/Primitive/Types.hs"
+    _PRIMITIVE_SRC="${_SRC_DIR}/.primitive-patch/primitive-0.9.0.0/Data/Primitive/Types.hs"
 
-    if grep -q "moved before macro for Windows CPP compatibility" "${PRIMITIVE_SRC}"; then
+    if grep -q "moved before macro for Windows CPP compatibility" "${_PRIMITIVE_SRC}"; then
       echo "✓ primitive already patched"
     else
       echo "Applying primitive CPP order patch..."
-      cp "${PRIMITIVE_SRC}" "${PRIMITIVE_SRC}.orig"
+      cp "${_PRIMITIVE_SRC}" "${_PRIMITIVE_SRC}.orig"
 
       sed -i '
         345,346d
@@ -375,39 +375,39 @@ mkdir -p ${_SRC_DIR}/_build
 -- Helper function for derivePrim macro (moved before macro for Windows CPP compatibility)\
 unI# :: Int -> Int#\
 unI# (I# n#) = n#
-      ' "${PRIMITIVE_SRC}"
+      ' "${_PRIMITIVE_SRC}"
 
-      if grep -q "moved before macro for Windows CPP compatibility" "${PRIMITIVE_SRC}"; then
+      if grep -q "moved before macro for Windows CPP compatibility" "${_PRIMITIVE_SRC}"; then
         echo "✓ primitive patch applied successfully"
       else
         echo "✗ ERROR: primitive patch FAILED"
-        mv "${PRIMITIVE_SRC}.orig" "${PRIMITIVE_SRC}"
+        mv "${_PRIMITIVE_SRC}.orig" "${_PRIMITIVE_SRC}"
         exit 1
       fi
     fi
 
     # Repack the tarball
     echo "=== Step 3: Repack patched primitive tarball ==="
-    cd "${SRC_DIR}"/.primitive-patch
+    cd "${_SRC_DIR}"/.primitive-patch
     tar czf primitive-0.9.0.0-patched.tar.gz primitive-0.9.0.0/
 
     # Replace original tarball with patched version
-    cp primitive-0.9.0.0-patched.tar.gz "${PRIMITIVE_TARBALL}"
+    cp primitive-0.9.0.0-patched.tar.gz "${_PRIMITIVE_TARBALL}"
     echo "✓ Replaced primitive tarball with patched version"
 
     # Clear any cached builds
     rm -rf "${HOME}/.cabal/store"/**/primitive-0.9.0.0* 2>/dev/null || true
 
-    cd "${SRC_DIR}"/hadrian
+    cd "${_SRC_DIR}"/hadrian
 
     echo "=== Step 4: Build Hadrian with patched primitive ==="
-    "${CABAL}" v2-build -j hadrian 2>&1 | tee "${SRC_DIR}"/cabal-build.log
+    "${CABAL}" v2-build -j hadrian 2>&1 | tee "${_SRC_DIR}"/cabal-build.log
     _cabal_exit_code=${PIPESTATUS[0]}
 
     if [[ $_cabal_exit_code -ne 0 ]]; then
       echo "=== Cabal build FAILED with exit code ${_cabal_exit_code} ==="
       echo "=== Retrying with verbose output for failed packages ==="
-      "${CABAL}" v2-build -v3 hadrian 2>&1 | tee "${SRC_DIR}"/cabal-verbose.log
+      "${CABAL}" v2-build -v3 hadrian 2>&1 | tee "${_SRC_DIR}"/cabal-verbose.log
       exit 1
     else
       echo "=== Cabal build SUCCEEDED ==="
