@@ -45,10 +45,11 @@ CLANG_BUILTIN_INCLUDE="${CLANG_RESOURCE_DIR}/include"
 # Configure Clang for MinGW with all necessary include paths and defines
 # NOTE: Use -I instead of -isystem to avoid path validation issues on Windows
 # -nodefaultlibs: Don't link libgcc/libgcc_eh (not available in conda)
-# -Wl,--subsystem,console: Use console CRT (not GUI) - GNU ld syntax with comma separator
-export CFLAGS="--target=x86_64-w64-mingw32 -fuse-ld=bfd -nodefaultlibs -D__MINGW32__ -D_VA_LIST_DEFINED -D__GNUC__=13 -Dva_list=__builtin_va_list -I${CLANG_BUILTIN_INCLUDE} -I${_BUILD_PREFIX}/Library/include ${CFLAGS:-}"
-export CXXFLAGS="--target=x86_64-w64-mingw32 -fuse-ld=bfd -nodefaultlibs -D__MINGW32__ -D_VA_LIST_DEFINED -D__GNUC__=13 -Dva_list=__builtin_va_list -I${CLANG_BUILTIN_INCLUDE} -I${_BUILD_PREFIX}/Library/include ${CXXFLAGS:-}"
-export LDFLAGS="-fuse-ld=bfd -nodefaultlibs -L${_BUILD_PREFIX}/Library/lib -L${_BUILD_PREFIX}/Library/mingw-w64/lib -Wl,--subsystem,console ${LDFLAGS:-}"
+# -mconsole: Tell linker to use console CRT startup files instead of GUI
+# -Wl,--subsystem,console: Set PE subsystem to console (not GUI)
+export CFLAGS="--target=x86_64-w64-mingw32 -fuse-ld=bfd -nodefaultlibs -mconsole -D__MINGW32__ -D_VA_LIST_DEFINED -D__GNUC__=13 -Dva_list=__builtin_va_list -I${CLANG_BUILTIN_INCLUDE} -I${_BUILD_PREFIX}/Library/include ${CFLAGS:-}"
+export CXXFLAGS="--target=x86_64-w64-mingw32 -fuse-ld=bfd -nodefaultlibs -mconsole -D__MINGW32__ -D_VA_LIST_DEFINED -D__GNUC__=13 -Dva_list=__builtin_va_list -I${CLANG_BUILTIN_INCLUDE} -I${_BUILD_PREFIX}/Library/include ${CXXFLAGS:-}"
+export LDFLAGS="-fuse-ld=bfd -nodefaultlibs -mconsole -L${_BUILD_PREFIX}/Library/lib -L${_BUILD_PREFIX}/Library/mingw-w64/lib -Wl,--subsystem,console ${LDFLAGS:-}"
 
 # Bug in ghc-bootstrap
 #WINDRES_PATH="${BUILD_PREFIX//\\/\\\\}\\\\Library\\\\bin\\\\${WINDRES}"
