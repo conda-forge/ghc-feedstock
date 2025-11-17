@@ -349,7 +349,7 @@ mkdir -p ${_SRC_DIR}/_build
     if [[ $_cabal_exit_code -ne 0 ]]; then
       echo "=== Cabal build FAILED with exit code ${_cabal_exit_code} ==="
       echo "=== Retrying with verbose output for failed packages ==="
-      "${CABAL}" v2-build -v3 -j hadrian 2>&1 | tee "${SRC_DIR}"/cabal-verbose.log
+      "${CABAL}" v2-build -v3 hadrian 2>&1 | tee "${SRC_DIR}"/cabal-verbose.log
       exit 1
     else
       echo "=== Cabal build SUCCEEDED ==="
