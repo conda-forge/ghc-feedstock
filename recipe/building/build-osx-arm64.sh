@@ -337,6 +337,14 @@ run_and_log "stage2_exe" "${_hadrian_build[@]}" stage2:exe:ghc-bin \
 # ============================================================
 # FINAL BUILD AND INSTALL
 # ============================================================
+# Build Cabal-syntax explicitly (race condition prevention)
+# ============================================================
+echo "=== Building Cabal-syntax explicitly (prevents Parsec.dyn_hi race) ==="
+run_and_log "stage1_cabal-syntax" "${_hadrian_build[@]}" stage1:lib:Cabal-syntax \
+  --flavour="${HADRIAN_FLAVOUR}" \
+  --docs=none \
+  --progress-info=none
+
 # Build all remaining components and install
 # ============================================================
 
