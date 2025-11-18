@@ -396,12 +396,17 @@ pushd "${bindist_dir}"
   # These are cached from the environment variables at configure time
   unset CFLAGS CXXFLAGS  # Will trigger unset of ac_cv_env_CFLAGS_value, ac_cv_env_CXXFLAGS_value
 
-  # Set BUILD machine compiler, linker, and minimal flags
+  # Set BUILD machine compiler, linker, and all tools
+  # These MUST be set to prevent configure from looking for target-prefixed tools
   export CC="${BUILD_PREFIX}/bin/${conda_host}-clang"
   export CXX="${BUILD_PREFIX}/bin/${conda_host}-clang++"
-  export LD="${BUILD_PREFIX}/bin/${conda_host}-ld"  # Force BUILD machine linker
+  export LD="${BUILD_PREFIX}/bin/${conda_host}-ld"
   export AR="${BUILD_PREFIX}/bin/${conda_host}-ar"
+  export NM="${BUILD_PREFIX}/bin/${conda_host}-nm"
   export RANLIB="${BUILD_PREFIX}/bin/${conda_host}-ranlib"
+  export STRIP="${BUILD_PREFIX}/bin/${conda_host}-strip"
+  export OBJDUMP="${BUILD_PREFIX}/bin/${conda_host}-objdump"
+  export AS="${BUILD_PREFIX}/bin/${conda_host}-as"
 
   # Provide minimal BUILD machine library paths (not target-specific flags like -march)
   export CFLAGS=""  # Explicitly empty - no target-specific optimization flags
