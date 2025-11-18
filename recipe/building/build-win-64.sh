@@ -353,64 +353,20 @@ mkdir -p ${_SRC_DIR}/_build
     cd "${_SRC_DIR}"/.primitive-local
     tar xzf primitive-0.9.0.0.tar.gz
 
-    echo "=== Step 2: Patch primitive for Windows CPP compatibility ==="
-    _PRIMITIVE_SRC="${_SRC_DIR}/.primitive-local/primitive-0.9.0.0/Data/Primitive/Types.hs"
+    echo "=== Step 2: Configure CPP options for Windows compatibility ==="
+    # Instead of patching, use cpphs (Haskell-aware preprocessor) for primitive
+    # Windows system CPP treats # as stringification operator, not part of identifier
 
-    if grep -q "moved before macro for Windows CPP compatibility" "${_PRIMITIVE_SRC}"; then
-      echo "✓ primitive already patched"
-    else
-      echo "Applying primitive CPP order patch..."
-
-      # Create patch file
-      cat > "${_SRC_DIR}"/.primitive-local/cpp-fix.patch << 'PATCHEOF'
---- a/Data/Primitive/Types.hs
-+++ b/Data/Primitive/Types.hs
-@@ -289,6 +289,11 @@ instance PrimStorable a => Storable (PrimStorable a) where
-   pokeElemOff (Ptr addr#) (I# i#) (PrimStorable a) = primitive_ $ \s# ->
-     writeOffAddr# addr# i# a s#
-
-+-- Helper function for derivePrim macro (moved before macro for Windows CPP compatibility)
-+unI# :: Int -> Int#
-+unI# (I# n#) = n#
-+
-+
- #define derivePrim(ty, ctr, sz, align, idx_arr, rd_arr, wr_arr, set_arr, idx_addr, rd_addr, wr_addr, set_addr) \
- instance Prim (ty) where {                                        \
-   sizeOfType# _ = unI# sz                                         \
-@@ -342,9 +347,6 @@ shimmedSetInt8Array# m (I# off) (I# len) i = IO (\s -> (# liberate# (GHC.Exts.
- shimmedSetInt8Array# m (I# off) (I# len) i = IO (\s -> (# liberate# (GHC.Exts.setByteArray# m off len i (liberate# s)), () #))
- #endif
-
--unI# :: Int -> Int#
--unI# (I# n#) = n#
--
- derivePrim(Word, W#, sIZEOF_WORD, aLIGNMENT_WORD,
-            indexWordArray#, readWordArray#, writeWordArray#, setWordArray#,
-            indexWordOffAddr#, readWordOffAddr#, writeWordOffAddr#, setWordOffAddr#)
-PATCHEOF
-
-      # Apply patch
-      cd "${_SRC_DIR}"/.primitive-local/primitive-0.9.0.0
-      patch -p1 < ../cpp-fix.patch
-
-      if grep -q "moved before macro for Windows CPP compatibility" "${_PRIMITIVE_SRC}"; then
-        echo "✓ primitive patch applied successfully"
-      else
-        echo "✗ ERROR: primitive patch FAILED"
-        exit 1
-      fi
-    fi
-
-    echo "=== Step 3: Configure Cabal to use local patched primitive ==="
-    # Create cabal.project that uses local primitive instead of Hackage version
+    echo "=== Step 3: Configure Cabal to use local primitive with cpphs ==="
+    # Create cabal.project that uses local primitive with Haskell-aware preprocessor
     # Use relative path from hadrian directory
     cat > "${_SRC_DIR}"/hadrian/cabal.project << 'EOF'
 packages: .
   ../.primitive-local/primitive-0.9.0.0
 
--- Use local patched primitive, not Hackage
+-- Use local primitive with cpphs (Haskell-aware preprocessor)
 package primitive
-  ghc-options: -Wwarn
+  ghc-options: -pgmP cpphs -optP --cpp
 EOF
 
     echo "✓ cabal.project configured to use local primitive"
