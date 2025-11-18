@@ -365,28 +365,28 @@ mkdir -p ${_SRC_DIR}/_build
       cat > "${_SRC_DIR}"/.primitive-local/cpp-fix.patch << 'PATCHEOF'
 --- a/Data/Primitive/Types.hs
 +++ b/Data/Primitive/Types.hs
-@@ -288,6 +288,11 @@ class Prim a where
-   indexOffAddr# :: Addr# -> Int# -> State# s -> (# State# s, a #)
-   writeOffAddr# :: Addr# -> Int# -> a -> State# s -> State# s
+@@ -289,6 +289,11 @@ instance PrimStorable a => Storable (PrimStorable a) where
+   pokeElemOff (Ptr addr#) (I# i#) (PrimStorable a) = primitive_ $ \s# ->
+     writeOffAddr# addr# i# a s#
 
 +-- Helper function for derivePrim macro (moved before macro for Windows CPP compatibility)
 +unI# :: Int -> Int#
 +unI# (I# n#) = n#
 +
 +
- #define derivePrim(ty, ctr, sz, align, idx_arr, rd_arr, wr_arr, set_arr, idx_addr, rd_addr, wr_addr) \
-   instance Prim (ty) where {                                        \
-     sizeOf# _ = unI# (sz) ;                                         \
-@@ -342,9 +347,6 @@ instance Prim () where
-   indexOffAddr# _ _ s = (# s, () #)
-   writeOffAddr# _ _ _ s = s
+ #define derivePrim(ty, ctr, sz, align, idx_arr, rd_arr, wr_arr, set_arr, idx_addr, rd_addr, wr_addr, set_addr) \
+ instance Prim (ty) where {                                        \
+   sizeOfType# _ = unI# sz                                         \
+@@ -342,9 +347,6 @@ shimmedSetInt8Array# m (I# off) (I# len) i = IO (\s -> (# liberate# (GHC.Exts.
+ shimmedSetInt8Array# m (I# off) (I# len) i = IO (\s -> (# liberate# (GHC.Exts.setByteArray# m off len i (liberate# s)), () #))
+ #endif
 
 -unI# :: Int -> Int#
 -unI# (I# n#) = n#
 -
- #if __GLASGOW_HASKELL__ >= 902
- -- | @since 0.6.4.0
- instance Prim (Levity l => TYPE (BoxedRep l)) where
+ derivePrim(Word, W#, sIZEOF_WORD, aLIGNMENT_WORD,
+            indexWordArray#, readWordArray#, writeWordArray#, setWordArray#,
+            indexWordOffAddr#, readWordOffAddr#, writeWordOffAddr#, setWordOffAddr#)
 PATCHEOF
 
       # Apply patch
