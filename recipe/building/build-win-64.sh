@@ -361,14 +361,37 @@ mkdir -p ${_SRC_DIR}/_build
     else
       echo "Applying primitive CPP order patch..."
 
-      sed -i '
-        345,346d
-        291a\
-\
--- Helper function for derivePrim macro (moved before macro for Windows CPP compatibility)\
-unI# :: Int -> Int#\
-unI# (I# n#) = n#
-      ' "${_PRIMITIVE_SRC}"
+      # Create patch file
+      cat > "${_SRC_DIR}"/.primitive-local/cpp-fix.patch << 'PATCHEOF'
+--- a/Data/Primitive/Types.hs
++++ b/Data/Primitive/Types.hs
+@@ -288,6 +288,11 @@ class Prim a where
+   indexOffAddr# :: Addr# -> Int# -> State# s -> (# State# s, a #)
+   writeOffAddr# :: Addr# -> Int# -> a -> State# s -> State# s
+
++-- Helper function for derivePrim macro (moved before macro for Windows CPP compatibility)
++unI# :: Int -> Int#
++unI# (I# n#) = n#
++
++
+ #define derivePrim(ty, ctr, sz, align, idx_arr, rd_arr, wr_arr, set_arr, idx_addr, rd_addr, wr_addr) \
+   instance Prim (ty) where {                                        \
+     sizeOf# _ = unI# (sz) ;                                         \
+@@ -342,9 +347,6 @@ instance Prim () where
+   indexOffAddr# _ _ s = (# s, () #)
+   writeOffAddr# _ _ _ s = s
+
+-unI# :: Int -> Int#
+-unI# (I# n#) = n#
+-
+ #if __GLASGOW_HASKELL__ >= 902
+ -- | @since 0.6.4.0
+ instance Prim (Levity l => TYPE (BoxedRep l)) where
+PATCHEOF
+
+      # Apply patch
+      cd "${_SRC_DIR}"/.primitive-local/primitive-0.9.0.0
+      patch -p1 < ../cpp-fix.patch
 
       if grep -q "moved before macro for Windows CPP compatibility" "${_PRIMITIVE_SRC}"; then
         echo "✓ primitive patch applied successfully"
