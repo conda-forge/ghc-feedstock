@@ -337,45 +337,27 @@ mkdir -p ${_SRC_DIR}/_build
 
 (
   pushd "${_SRC_DIR}"/hadrian
-    # WINDOWS CPP FIX: Create local patched primitive package
-    # Cabal will re-download if we modify cached tarball, so use local package instead
+    # WINDOWS CPP FIX: Configure Cabal to use cpphs for primitive package
+    # Windows system CPP treats # as stringification operator, breaking Haskell primops
 
-    echo "=== Step 1: Download and extract primitive package ==="
-    mkdir -p "${_SRC_DIR}"/.primitive-local
-
-    if [[ ! -f "${_SRC_DIR}"/.primitive-local/primitive-0.9.0.0.tar.gz ]]; then
-      echo "Downloading primitive-0.9.0.0 tarball..."
-      curl -L "https://hackage.haskell.org/package/primitive-0.9.0.0/primitive-0.9.0.0.tar.gz" \
-        -o "${_SRC_DIR}"/.primitive-local/primitive-0.9.0.0.tar.gz
-    fi
-
-    # Extract to local directory
-    cd "${_SRC_DIR}"/.primitive-local
-    tar xzf primitive-0.9.0.0.tar.gz
-
-    echo "=== Step 2: Configure CPP options for Windows compatibility ==="
-    # Instead of patching, use cpphs (Haskell-aware preprocessor) for primitive
-    # Windows system CPP treats # as stringification operator, not part of identifier
-
-    echo "=== Step 3: Configure Cabal to use local primitive with cpphs ==="
-    # Create cabal.project that uses local primitive with Haskell-aware preprocessor
-    # Use relative path from hadrian directory
+    echo "=== Configuring cpphs for primitive package ==="
+    # Create cabal.project that tells primitive to use cpphs instead of system CPP
+    # cpphs is a Haskell-aware preprocessor that understands # in identifiers
+    # Windows Clang's CPP treats # as stringification operator
     cat > "${_SRC_DIR}"/hadrian/cabal.project << 'EOF'
 packages: .
-  ../.primitive-local/primitive-0.9.0.0
 
--- Use local primitive with cpphs (Haskell-aware preprocessor)
+-- Force primitive to use cpphs (Haskell-aware preprocessor)
+-- Windows system CPP treats # as stringification operator, not part of identifier
+-- This breaks Haskell primops like Int#, unI#, etc.
 package primitive
   ghc-options: -pgmPcpphs -optP--cpp
 EOF
 
-    echo "✓ cabal.project configured to use local primitive"
+    echo "✓ cabal.project configured to use cpphs for primitive"
     cat "${_SRC_DIR}"/hadrian/cabal.project
 
-    # Return to hadrian directory for build
-    cd "${_SRC_DIR}"/hadrian
-
-    echo "=== Step 4: Build Hadrian with patched primitive ==="
+    echo "=== Building Hadrian with cpphs configuration ==="
     "${CABAL}" v2-build -j hadrian 2>&1 | tee "${_SRC_DIR}"/cabal-build.log
     _cabal_exit_code=${PIPESTATUS[0]}
 
