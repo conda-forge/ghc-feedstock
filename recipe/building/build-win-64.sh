@@ -337,27 +337,28 @@ mkdir -p ${_SRC_DIR}/_build
 
 (
   pushd "${_SRC_DIR}"/hadrian
-    # WINDOWS CPP FIX: Configure Cabal to use cpphs for primitive package
+    # WINDOWS CPP FIX: Use GHC built-in CPP for primitive package
     # Windows system CPP treats # as stringification operator, breaking Haskell primops
 
-    echo "=== Configuring cpphs for primitive package ==="
-    # Create cabal.project that tells primitive to use cpphs instead of system CPP
-    # cpphs is a Haskell-aware preprocessor that understands # in identifiers
-    # Windows Clang's CPP treats # as stringification operator
+    echo "=== Configuring GHC built-in CPP for primitive package ==="
+    # Create cabal.project that tells primitive to NOT use CPP preprocessor
+    # Windows Clang's CPP treats # as stringification operator, breaking Haskell primops
+    # Instead, use GHC's built-in understanding of Haskell syntax
     cat > "${_SRC_DIR}"/hadrian/cabal.project << 'EOF'
 packages: .
 
--- Force primitive to use cpphs (Haskell-aware preprocessor)
+-- Disable CPP for primitive package on Windows
 -- Windows system CPP treats # as stringification operator, not part of identifier
 -- This breaks Haskell primops like Int#, unI#, etc.
+-- Use -XCPP language extension instead (GHC's built-in preprocessor)
 package primitive
-  ghc-options: -pgmPcpphs -optP--cpp
+  ghc-options: -XCPP
 EOF
 
-    echo "✓ cabal.project configured to use cpphs for primitive"
+    echo "✓ cabal.project configured to use GHC built-in CPP for primitive"
     cat "${_SRC_DIR}"/hadrian/cabal.project
 
-    echo "=== Building Hadrian with cpphs configuration ==="
+    echo "=== Building Hadrian with GHC built-in CPP configuration ==="
     "${CABAL}" v2-build -j hadrian 2>&1 | tee "${_SRC_DIR}"/cabal-build.log
     _cabal_exit_code=${PIPESTATUS[0]}
 
