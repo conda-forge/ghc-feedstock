@@ -389,6 +389,18 @@ pushd "${bindist_dir}"
   unset ac_cv_prog_AR ac_cv_prog_AS ac_cv_prog_CC ac_cv_prog_CXX
   unset ac_cv_prog_LD ac_cv_prog_NM ac_cv_prog_OBJDUMP ac_cv_prog_RANLIB
   unset ac_cv_prog_LLC ac_cv_prog_OPT
+
+  # CRITICAL: Also unset target-prefixed tool cache variables
+  # Autoconf creates these when --target is specified (e.g., ac_cv_prog_aarch64_unknown_linux_gnu_LD)
+  unset ac_cv_prog_${target_arch}_unknown_linux_gnu_AR
+  unset ac_cv_prog_${target_arch}_unknown_linux_gnu_AS
+  unset ac_cv_prog_${target_arch}_unknown_linux_gnu_CC
+  unset ac_cv_prog_${target_arch}_unknown_linux_gnu_CXX
+  unset ac_cv_prog_${target_arch}_unknown_linux_gnu_LD
+  unset ac_cv_prog_${target_arch}_unknown_linux_gnu_NM
+  unset ac_cv_prog_${target_arch}_unknown_linux_gnu_OBJDUMP
+  unset ac_cv_prog_${target_arch}_unknown_linux_gnu_RANLIB
+
   unset ac_cv_func_statx ac_cv_have_decl_statx ac_cv_lib_ffi_ffi_call
   unset ac_cv_func_posix_spawn_file_actions_addchdir_np
 

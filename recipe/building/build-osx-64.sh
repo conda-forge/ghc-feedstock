@@ -270,6 +270,19 @@ run_and_log "stage2_lib" "${_hadrian_build[@]}" stage2:lib:ghc \
   --progress-info=none
 
 # ============================================================
+# BUILD REMAINING LIBRARIES (race condition prevention)
+# ============================================================
+# Build xhtml explicitly to prevent .dyn_hi race with install
+# ============================================================
+
+echo "=== Building xhtml library explicitly (prevents Internals.dyn_hi race) ==="
+run_and_log "stage1_xhtml" "${_hadrian_build[@]}" stage1:lib:xhtml \
+  --flavour="${HADRIAN_FLAVOUR}" \
+  --freeze1 \
+  --docs=none \
+  --progress-info=none
+
+# ============================================================
 # INSTALL
 # ============================================================
 # Install the stage 2 compiler to ${PREFIX}
