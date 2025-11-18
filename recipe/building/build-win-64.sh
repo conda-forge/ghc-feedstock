@@ -337,36 +337,29 @@ mkdir -p ${_SRC_DIR}/_build
 
 (
   pushd "${_SRC_DIR}"/hadrian
-    # WINDOWS CPP FIX: Use environment variable hook to patch primitive during build
-    # Cabal respects setup hooks via environment variables
+    # WINDOWS CPP FIX: Create local patched primitive package
+    # Cabal will re-download if we modify cached tarball, so use local package instead
 
-    # First, extract primitive source tarball to a known location
-    echo "=== Step 1: Extract primitive package source for patching ==="
-    mkdir -p "${_SRC_DIR}"/.primitive-patch
+    echo "=== Step 1: Download and extract primitive package ==="
+    mkdir -p "${_SRC_DIR}"/.primitive-local
 
-    # Use SRC_DIR/.cabal (where CABAL_DIR points), not HOME/.cabal
-    _PRIMITIVE_TARBALL="${_SRC_DIR}/.cabal/packages/hackage.haskell.org/primitive/0.9.0.0/primitive-0.9.0.0.tar.gz"
-    if [[ ! -f "${_PRIMITIVE_TARBALL}" ]]; then
+    if [[ ! -f "${_SRC_DIR}"/.primitive-local/primitive-0.9.0.0.tar.gz ]]; then
       echo "Downloading primitive-0.9.0.0 tarball..."
-      mkdir -p "$(dirname "${_PRIMITIVE_TARBALL}")"
-      curl -L "https://hackage.haskell.org/package/primitive-0.9.0.0/primitive-0.9.0.0.tar.gz" -o "${_PRIMITIVE_TARBALL}"
+      curl -L "https://hackage.haskell.org/package/primitive-0.9.0.0/primitive-0.9.0.0.tar.gz" \
+        -o "${_SRC_DIR}"/.primitive-local/primitive-0.9.0.0.tar.gz
     fi
 
-    echo "Tarball location: ${_PRIMITIVE_TARBALL}"
-    ls -lh "${_PRIMITIVE_TARBALL}" || echo "Tarball not found yet"
-
-    # Extract and patch
-    cd "${_SRC_DIR}"/.primitive-patch
-    tar xzf "${_PRIMITIVE_TARBALL}"
+    # Extract to local directory
+    cd "${_SRC_DIR}"/.primitive-local
+    tar xzf primitive-0.9.0.0.tar.gz
 
     echo "=== Step 2: Patch primitive for Windows CPP compatibility ==="
-    _PRIMITIVE_SRC="${_SRC_DIR}/.primitive-patch/primitive-0.9.0.0/Data/Primitive/Types.hs"
+    _PRIMITIVE_SRC="${_SRC_DIR}/.primitive-local/primitive-0.9.0.0/Data/Primitive/Types.hs"
 
     if grep -q "moved before macro for Windows CPP compatibility" "${_PRIMITIVE_SRC}"; then
       echo "✓ primitive already patched"
     else
       echo "Applying primitive CPP order patch..."
-      cp "${_PRIMITIVE_SRC}" "${_PRIMITIVE_SRC}.orig"
 
       sed -i '
         345,346d
@@ -381,24 +374,23 @@ unI# (I# n#) = n#
         echo "✓ primitive patch applied successfully"
       else
         echo "✗ ERROR: primitive patch FAILED"
-        mv "${_PRIMITIVE_SRC}.orig" "${_PRIMITIVE_SRC}"
         exit 1
       fi
     fi
 
-    # Repack the tarball
-    echo "=== Step 3: Repack patched primitive tarball ==="
-    cd "${_SRC_DIR}"/.primitive-patch
-    tar czf primitive-0.9.0.0-patched.tar.gz primitive-0.9.0.0/
+    echo "=== Step 3: Configure Cabal to use local patched primitive ==="
+    # Create cabal.project that uses local primitive instead of Hackage version
+    cat > "${_SRC_DIR}"/hadrian/cabal.project << EOF
+packages: .
+  ${_SRC_DIR}/.primitive-local/primitive-0.9.0.0
 
-    # Replace original tarball with patched version
-    cp primitive-0.9.0.0-patched.tar.gz "${_PRIMITIVE_TARBALL}"
-    echo "✓ Replaced primitive tarball with patched version"
+-- Use local patched primitive, not Hackage
+package primitive
+  ghc-options: -Wwarn
+EOF
 
-    # Clear any cached builds
-    rm -rf "${HOME}/.cabal/store"/**/primitive-0.9.0.0* 2>/dev/null || true
-
-    cd "${_SRC_DIR}"/hadrian
+    echo "✓ cabal.project configured to use local primitive"
+    cat "${_SRC_DIR}"/hadrian/cabal.project
 
     echo "=== Step 4: Build Hadrian with patched primitive ==="
     "${CABAL}" v2-build -j hadrian 2>&1 | tee "${_SRC_DIR}"/cabal-build.log
