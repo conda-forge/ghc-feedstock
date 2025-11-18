@@ -382,9 +382,13 @@ pushd "${bindist_dir}"
   # not TARGET architecture (aarch64/ppc64le) tools and flags.
 
   # Unset all TARGET architecture autoconf cache variables
+  # Both ac_cv_path_* (tool paths) and ac_cv_prog_* (tool program names)
   unset ac_cv_path_AR ac_cv_path_AS ac_cv_path_CC ac_cv_path_CXX
   unset ac_cv_path_LD ac_cv_path_NM ac_cv_path_OBJDUMP ac_cv_path_RANLIB
   unset ac_cv_path_LLC ac_cv_path_OPT
+  unset ac_cv_prog_AR ac_cv_prog_AS ac_cv_prog_CC ac_cv_prog_CXX
+  unset ac_cv_prog_LD ac_cv_prog_NM ac_cv_prog_OBJDUMP ac_cv_prog_RANLIB
+  unset ac_cv_prog_LLC ac_cv_prog_OPT
   unset ac_cv_func_statx ac_cv_have_decl_statx ac_cv_lib_ffi_ffi_call
   unset ac_cv_func_posix_spawn_file_actions_addchdir_np
 
