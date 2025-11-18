@@ -392,6 +392,9 @@ EOF
     echo "✓ cabal.project configured to use local primitive"
     cat "${_SRC_DIR}"/hadrian/cabal.project
 
+    # Return to hadrian directory for build
+    cd "${_SRC_DIR}"/hadrian
+
     echo "=== Step 4: Build Hadrian with patched primitive ==="
     "${CABAL}" v2-build -j hadrian 2>&1 | tee "${_SRC_DIR}"/cabal-build.log
     _cabal_exit_code=${PIPESTATUS[0]}
