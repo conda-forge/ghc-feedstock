@@ -366,7 +366,7 @@ packages: .
 
 -- Use local primitive with cpphs (Haskell-aware preprocessor)
 package primitive
-  ghc-options: -pgmP cpphs -optP --cpp
+  ghc-options: -pgmPcpphs -optP--cpp
 EOF
 
     echo "✓ cabal.project configured to use local primitive"
