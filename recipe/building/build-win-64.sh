@@ -380,9 +380,10 @@ unI# (I# n#) = n#
 
     echo "=== Step 3: Configure Cabal to use local patched primitive ==="
     # Create cabal.project that uses local primitive instead of Hackage version
-    cat > "${_SRC_DIR}"/hadrian/cabal.project << EOF
+    # Use relative path from hadrian directory
+    cat > "${_SRC_DIR}"/hadrian/cabal.project << 'EOF'
 packages: .
-  ${_SRC_DIR}/.primitive-local/primitive-0.9.0.0
+  ../.primitive-local/primitive-0.9.0.0
 
 -- Use local patched primitive, not Hackage
 package primitive
