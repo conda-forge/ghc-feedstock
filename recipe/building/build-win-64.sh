@@ -116,8 +116,10 @@ if [[ -f "${settings_file}" ]]; then
 
   # Build complete link flags string - libraries come AFTER user objects
   # Use GNU ld (bfd) with GNU-style subsystem flag
-  # NOTE: crt2.o is added via LIBS environment variable (not here) to ensure console CRT startup
-  LINK_FLAGS="-fuse-ld=bfd -Wl,--subsystem,console"
+  # CRITICAL: Add crt2.o (console CRT) FIRST before any libraries
+  # With -nostartfiles, we must explicitly specify crt2.o to get console entry point
+  CRT2_OBJ="${MINGW_SYSROOT}/crt2.o"
+  LINK_FLAGS="-fuse-ld=bfd ${CRT2_OBJ} -Wl,--subsystem,console"
   LINK_FLAGS="${LINK_FLAGS} -Xlinker -L${CHKSTK_DIR} -Xlinker -L${MINGW_SYSROOT}"
   # MinGW helper libraries
   LINK_FLAGS="${LINK_FLAGS} -Xlinker -lmoldname"
@@ -126,10 +128,16 @@ if [[ -f "${settings_file}" ]]; then
   LINK_FLAGS="${LINK_FLAGS} -Xlinker -lmingw32"
   # Then chkstk_ms (provides symbols needed by mingw32)
   LINK_FLAGS="${LINK_FLAGS} -Xlinker -lchkstk_ms"
-  # System libraries last
+  # System libraries last (needed for Haskell FFI to Windows APIs)
   LINK_FLAGS="${LINK_FLAGS} -Xlinker -lmsvcrt"
   LINK_FLAGS="${LINK_FLAGS} -Xlinker -lkernel32"
   LINK_FLAGS="${LINK_FLAGS} -Xlinker -ladvapi32"
+  LINK_FLAGS="${LINK_FLAGS} -Xlinker -lole32"
+  LINK_FLAGS="${LINK_FLAGS} -Xlinker -lrpcrt4"
+  LINK_FLAGS="${LINK_FLAGS} -Xlinker -lshell32"
+  LINK_FLAGS="${LINK_FLAGS} -Xlinker -luser32"
+  LINK_FLAGS="${LINK_FLAGS} -Xlinker -luuid"
+  LINK_FLAGS="${LINK_FLAGS} -Xlinker -lws2_32"
 
   perl -pi -e "s#(C compiler link flags\", \")[^\"]*#\$1${LINK_FLAGS}#" "${settings_file}"
   perl -pi -e "s#(ld is GNU ld\", \")[^\"]*#\$1YES#" "${settings_file}"
@@ -277,20 +285,11 @@ do
 done
 
 # The ___chkstk_ms library has been created upfront (lines 58-79)
-# Now add it to both LIBS and LDFLAGS
+# CRT startup object and Windows system libraries are added to GHC settings file
+# (see lines 119-141 where "C compiler link flags" is configured with crt2.o and all Windows libs)
 
-# LIBS is used by autoconf-based configure
-# CRITICAL: Link order - CRT startup object FIRST, then libraries
-# CRITICAL: -lmingw32 needs ___chkstk_ms, so chkstk_ms must come AFTER mingw32
-# With -nostartfiles, we must explicitly specify crt2.o (console CRT) not crtexewin.o (GUI)
-# Add Windows system libraries needed by Haskell packages (kernel32, ole32, rpcrt4, etc.)
-# CRITICAL: conda-build sets LIBS=${CXX_STD_LIB_LIBS} before this script runs, so PREPEND not replace
-CRT2_OBJ="${_BUILD_PREFIX}/Library/x86_64-w64-mingw32/sysroot/usr/lib/crt2.o"
-export LIBS="${CRT2_OBJ} -Wl,--subsystem,console -lmoldname -lmingwex -lmingw32 ${CHKSTK_LIB} -lmsvcrt -lkernel32 -ladvapi32 -lole32 -lrpcrt4 -lshell32 -luser32 -luuid -lws2_32${LIBS:+ -l$LIBS}"
-
-# CRITICAL: Reinforce subsystem flag in LDFLAGS
+# CRITICAL: Reinforce subsystem flag in LDFLAGS for any direct compiler invocations
 # -Wl,--subsystem,console: Use console entry point (main) instead of GUI (WinMain)
-# NOTE: crt2.o is in LIBS, not here, to avoid duplication
 export LDFLAGS="${LDFLAGS} -Wl,--subsystem,console"
 
 # Use GNU ld for linking (compatible with MinGW libraries)
@@ -446,10 +445,16 @@ if [[ -f "${settings_file}" ]]; then
   LINK_FLAGS="${LINK_FLAGS} -Xlinker -lmingw32"
   # Then chkstk_ms (provides symbols needed by mingw32)
   LINK_FLAGS="${LINK_FLAGS} -Xlinker -lchkstk_ms"
-  # System libraries last
+  # System libraries last (needed for Haskell FFI to Windows APIs)
   LINK_FLAGS="${LINK_FLAGS} -Xlinker -lmsvcrt"
   LINK_FLAGS="${LINK_FLAGS} -Xlinker -lkernel32"
   LINK_FLAGS="${LINK_FLAGS} -Xlinker -ladvapi32"
+  LINK_FLAGS="${LINK_FLAGS} -Xlinker -lole32"
+  LINK_FLAGS="${LINK_FLAGS} -Xlinker -lrpcrt4"
+  LINK_FLAGS="${LINK_FLAGS} -Xlinker -lshell32"
+  LINK_FLAGS="${LINK_FLAGS} -Xlinker -luser32"
+  LINK_FLAGS="${LINK_FLAGS} -Xlinker -luuid"
+  LINK_FLAGS="${LINK_FLAGS} -Xlinker -lws2_32"
 
   perl -pi -e "s#(C compiler link flags\", \")#\$1${LINK_FLAGS} #" "${settings_file}"
 
