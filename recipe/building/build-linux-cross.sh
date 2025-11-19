@@ -469,15 +469,21 @@ fi
 echo "=== Updating installed settings ==="
 echo "  Settings file: ${settings_file}"
 
-# Fix architecture in toolchain names (host_arch -> target_arch)
-perl -pi -e "s#${host_arch}(-[^ \"]*)#${target_arch}\$1#g" "${settings_file}"
+# CRITICAL: For cross-compilation, toolchain tools must remain BUILD architecture
+# The settings file needs:
+#   - Toolchain tools (C compiler, linker, ar, etc.): BUILD architecture (x86_64)
+#   - Target platform/LLVM target: TARGET architecture (aarch64)
+# Do NOT replace toolchain tool paths with target architecture!
 
 # Add library paths with $topdir
 perl -pi -e "s#(C compiler link flags\", \"[^\"]*)#\$1 -Wl,-L\\\$topdir/../../../lib -Wl,-rpath,\\\$topdir/../../../lib#" "${settings_file}"
 perl -pi -e "s#(ld flags\", \"[^\"]*)#\$1 -L\\\$topdir/../../../lib -rpath \\\$topdir/../../../lib#" "${settings_file}"
 
-# Fix toolchain prefixes to use target architecture
-perl -pi -e "s#\"[/\w]*?(ar|clang|clang\+\+|ld|ranlib|llc|opt)\"#\"${conda_target}-\$1\"#" "${settings_file}"
+# Update LLVM target to match target architecture (not toolchain tools!)
+perl -pi -e "s#(LLVM target\", \")[^\"]*#\${1}${ghc_target}#" "${settings_file}"
+
+# Ensure target platform string is correct
+perl -pi -e "s#(target platform string\", \")[^\"]*#\${1}${target_arch}-unknown-linux#" "${settings_file}"
 
 echo "=== Final settings file ==="
 cat "${settings_file}"
