@@ -116,9 +116,7 @@ if [[ -f "${settings_file}" ]]; then
 
   # Build complete link flags string - libraries come AFTER user objects
   # Use GNU ld (bfd) with GNU-style subsystem flag
-  # NOTE: Do NOT include crt2.o here - "C compiler link flags" applies to ALL clang calls including compilation
-  # crt2.o will be added ONLY to "ld flags" below (for actual linking)
-  CRT2_OBJ="${MINGW_SYSROOT}/crt2.o"
+  # NOTE: crt2.o is added via LIBS environment variable (not here) to ensure console CRT startup
   LINK_FLAGS="-fuse-ld=bfd -Wl,--subsystem,console"
   LINK_FLAGS="${LINK_FLAGS} -Xlinker -L${CHKSTK_DIR} -Xlinker -L${MINGW_SYSROOT}"
   # MinGW helper libraries
@@ -138,8 +136,8 @@ if [[ -f "${settings_file}" ]]; then
 
   # Also add to "ld flags" for direct ld invocations (use bare library names, no -Xlinker)
   # CRITICAL: --subsystem,console for console entry point (GNU ld syntax with comma separator)
-  # CRITICAL: Explicitly specify crt2.o (console CRT startup) - Clang doesn't select it automatically
-  perl -pi -e "s#(ld flags\", \")([^\"]*)#\$1\$2 --subsystem,console ${CRT2_OBJ} -L${CHKSTK_DIR} -L${MINGW_SYSROOT} -lmoldname -lmingwex -lmingw32 -lchkstk_ms -lmsvcrt -lkernel32 -ladvapi32#" "${settings_file}"
+  # NOTE: crt2.o added via LIBS environment variable instead of settings file
+  perl -pi -e "s#(ld flags\", \")([^\"]*)#\$1\$2 --subsystem,console -L${CHKSTK_DIR} -L${MINGW_SYSROOT} -lmoldname -lmingwex -lmingw32 -lchkstk_ms -lmsvcrt -lkernel32 -ladvapi32#" "${settings_file}"
 
   # CRITICAL: Fix merge-objects to use GNU ld (ld.bfd) instead of lld
   # The bootstrap GHC has system-merge-objects pointing to ld.lld.exe which uses MSVC-style .lib files
@@ -284,7 +282,9 @@ done
 # LIBS is used by autoconf-based configure
 # CRITICAL: Link order - -lmingw32 needs ___chkstk_ms, so chkstk_ms must come AFTER mingw32
 # CRITICAL: -Wl,--subsystem,console tells linker to use console entry point (main), not GUI (WinMain)
-export LIBS="-Wl,--subsystem,console -lmoldname -lmingwex -lmingw32 ${CHKSTK_LIB} -lmsvcrt -lkernel32 -ladvapi32"
+# CRITICAL: crt2.o must come FIRST - it's the console CRT startup object (not crtexewin.o for GUI)
+CRT2_OBJ="${_BUILD_PREFIX}/Library/x86_64-w64-mingw32/sysroot/usr/lib/crt2.o"
+export LIBS="${CRT2_OBJ} -Wl,--subsystem,console -lmoldname -lmingwex -lmingw32 ${CHKSTK_LIB} -lmsvcrt -lkernel32 -ladvapi32"
 
 # CRITICAL: Also add to LDFLAGS with proper linker subsystem flag
 # -Wl,--subsystem,console: Use console entry point (main) instead of GUI (WinMain)
