@@ -88,7 +88,10 @@ if [[ -f "${settings_file}" ]]; then
   # CRITICAL: Use _PREFIX (Unix paths) NOT PREFIX (Windows paths with \b escape sequences)
   
   perl -pi -e "s#(C compiler command\", \")[^\"]*#\$1${CC}#" "${settings_file}"
-  perl -pi -e "s#(Haskell CPP command\", \")[^\"]*#\$1${CC}#" "${settings_file}"
+  # Use GCC's cpp instead of Clang for Haskell preprocessing
+  # GCC cpp with -traditional handles Haskell's # character in identifiers (Int#, unI#)
+  # Clang's cpp treats # as stringification operator, breaking Haskell primops
+  perl -pi -e "s#(Haskell CPP command\", \")[^\"]*#\$1x86_64-w64-mingw32-cpp#" "${settings_file}"
   perl -pi -e "s#(C\+\+ compiler command\", \")[^\"]*#\$1${CXX}#" "${settings_file}"
   perl -pi -e "s#(Merge objects command\", \")[^\"]*#\$1${LD}#" "${settings_file}"
   perl -pi -e "s#(ar command\", \")[^\"]*#\$1${AR}#" "${settings_file}"
@@ -100,7 +103,9 @@ if [[ -f "${settings_file}" ]]; then
 
   perl -pi -e "s#(C compiler flags\", \")([^\"]*)#\$1\$2 ${CFLAGS} -I${_PREFIX}/Library/include#" "${settings_file}"
   perl -pi -e "s#(C\+\+ compiler flags\", \")([^\"]*)#\$1\$2 ${CXXFLAGS} -I${_PREFIX}/Library/include#" "${settings_file}"
-  perl -pi -e "s#(Haskell CPP flags\", \")[^\"]*#\$1-E -I${_BUILD_PREFIX}/Library/include -I${_PREFIX}/Library/include#" "${settings_file}"
+  # GCC cpp flags: -E (preprocess only), -undef (no predefined macros), -traditional (traditional CPP)
+  # The -traditional flag enables pre-standard C preprocessing which handles # differently
+  perl -pi -e "s#(Haskell CPP flags\", \")[^\"]*#\$1-E -undef -traditional -I${_BUILD_PREFIX}/Library/include -I${_PREFIX}/Library/include#" "${settings_file}"
 
   # Add MinGW runtime libraries to "C compiler link flags"
   # CRITICAL: Link order matters - user objects first, then helper libs, then -lmingw32 LAST
@@ -337,28 +342,10 @@ mkdir -p ${_SRC_DIR}/_build
 
 (
   pushd "${_SRC_DIR}"/hadrian
-    # WINDOWS CPP FIX: Use GHC built-in CPP for primitive package
-    # Windows system CPP treats # as stringification operator, breaking Haskell primops
+    # WINDOWS CPP FIX: GCC cpp with -traditional flag configured in bootstrap settings
+    # No need for cabal.project workarounds - GCC's cpp handles Haskell # identifiers correctly
 
-    echo "=== Configuring GHC built-in CPP for primitive package ==="
-    # Create cabal.project that tells primitive to NOT use CPP preprocessor
-    # Windows Clang's CPP treats # as stringification operator, breaking Haskell primops
-    # Instead, use GHC's built-in understanding of Haskell syntax
-    cat > "${_SRC_DIR}"/hadrian/cabal.project << 'EOF'
-packages: .
-
--- Disable CPP for primitive package on Windows
--- Windows system CPP treats # as stringification operator, not part of identifier
--- This breaks Haskell primops like Int#, unI#, etc.
--- Use -XCPP language extension instead (GHC's built-in preprocessor)
-package primitive
-  ghc-options: -XCPP
-EOF
-
-    echo "✓ cabal.project configured to use GHC built-in CPP for primitive"
-    cat "${_SRC_DIR}"/hadrian/cabal.project
-
-    echo "=== Building Hadrian with GHC built-in CPP configuration ==="
+    echo "=== Building Hadrian with GCC cpp (configured in bootstrap settings) ==="
     "${CABAL}" v2-build -j hadrian 2>&1 | tee "${_SRC_DIR}"/cabal-build.log
     _cabal_exit_code=${PIPESTATUS[0]}
 
