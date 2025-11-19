@@ -420,6 +420,12 @@ pushd "${bindist_dir}"
   export OBJDUMP="${BUILD_PREFIX}/bin/${conda_host}-objdump"
   export AS="${BUILD_PREFIX}/bin/${conda_host}-as"
 
+  # CRITICAL: Also set MergeObjsCmd to prevent configure from searching for $target_alias-ld
+  # When ld.gold merge test runs, if it fails or ld is broken, configure looks for
+  # "$target_alias-ld" which would be aarch64-conda-linux-gnu-ld (wrong!)
+  # Setting MergeObjsCmd explicitly prevents this fallback search
+  export MergeObjsCmd="${BUILD_PREFIX}/bin/${conda_host}-ld"
+
   # Provide minimal BUILD machine library paths (not target-specific flags like -march)
   export CFLAGS=""  # Explicitly empty - no target-specific optimization flags
   export CXXFLAGS=""  # Explicitly empty
