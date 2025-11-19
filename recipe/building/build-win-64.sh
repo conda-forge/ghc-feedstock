@@ -116,11 +116,9 @@ if [[ -f "${settings_file}" ]]; then
 
   # Build complete link flags string - libraries come AFTER user objects
   # Use GNU ld (bfd) with GNU-style subsystem flag
-  # CRITICAL: Explicitly specify crt2.o (console CRT startup) to avoid crtexewin.o (GUI startup)
-  # Clang with MinGW doesn't properly select crt2.o based on -mconsole flag alone
-  CRT2_OBJ="${MINGW_SYSROOT}/crt2.o"
+  # NOTE: Do NOT include crt2.o here - "C compiler link flags" applies to ALL clang calls including compilation
+  # crt2.o will be added ONLY to "ld flags" below (for actual linking)
   LINK_FLAGS="-fuse-ld=bfd -Wl,--subsystem,console"
-  LINK_FLAGS="${LINK_FLAGS} ${CRT2_OBJ}"
   LINK_FLAGS="${LINK_FLAGS} -Xlinker -L${CHKSTK_DIR} -Xlinker -L${MINGW_SYSROOT}"
   # MinGW helper libraries
   LINK_FLAGS="${LINK_FLAGS} -Xlinker -lmoldname"
@@ -139,8 +137,9 @@ if [[ -f "${settings_file}" ]]; then
 
   # Also add to "ld flags" for direct ld invocations (use bare library names, no -Xlinker)
   # CRITICAL: --subsystem,console for console entry point (GNU ld syntax with comma separator)
-  # CRITICAL: Include crt2.o explicitly for console applications (not crtexewin.o)
-  perl -pi -e "s#(ld flags\", \")([^\"]*)#\$1\$2 --subsystem,console ${CRT2_OBJ} -L${CHKSTK_DIR} -L${MINGW_SYSROOT} -lmoldname -lmingwex -lmingw32 -lchkstk_ms -lmsvcrt -lkernel32 -ladvapi32#" "${settings_file}"
+  # NOTE: Don't include crt2.o - MinGW linker will select it automatically based on --subsystem,console
+  # The -nodefaultlibs flag disables automatic CRT selection, but linker scripts still work
+  perl -pi -e "s#(ld flags\", \")([^\"]*)#\$1\$2 --subsystem,console -L${CHKSTK_DIR} -L${MINGW_SYSROOT} -lmoldname -lmingwex -lmingw32 -lchkstk_ms -lmsvcrt -lkernel32 -ladvapi32#" "${settings_file}"
 
   # CRITICAL: Fix merge-objects to use GNU ld (ld.bfd) instead of lld
   # The bootstrap GHC has system-merge-objects pointing to ld.lld.exe which uses MSVC-style .lib files
