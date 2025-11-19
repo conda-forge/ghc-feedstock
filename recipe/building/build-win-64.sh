@@ -45,11 +45,11 @@ CLANG_BUILTIN_INCLUDE="${CLANG_RESOURCE_DIR}/include"
 # Configure Clang for MinGW with all necessary include paths and defines
 # NOTE: Use -I instead of -isystem to avoid path validation issues on Windows
 # -nodefaultlibs: Don't link libgcc/libgcc_eh (not available in conda)
+# -nostartfiles: Don't auto-include CRT startup files (we'll specify crt2.o explicitly in LIBS)
 # -Wl,--subsystem,console: Set PE subsystem to console (not GUI)
-# NOTE: -mconsole removed - it's ignored by Clang (not a compiler flag), console mode controlled by explicit crt2.o
 export CFLAGS="--target=x86_64-w64-mingw32 -fuse-ld=bfd -nodefaultlibs -D__MINGW32__ -D_VA_LIST_DEFINED -D__GNUC__=13 -Dva_list=__builtin_va_list -I${CLANG_BUILTIN_INCLUDE} -I${_BUILD_PREFIX}/Library/include ${CFLAGS:-}"
 export CXXFLAGS="--target=x86_64-w64-mingw32 -fuse-ld=bfd -nodefaultlibs -D__MINGW32__ -D_VA_LIST_DEFINED -D__GNUC__=13 -Dva_list=__builtin_va_list -I${CLANG_BUILTIN_INCLUDE} -I${_BUILD_PREFIX}/Library/include ${CXXFLAGS:-}"
-export LDFLAGS="-fuse-ld=bfd -nodefaultlibs -L${_BUILD_PREFIX}/Library/lib -L${_BUILD_PREFIX}/Library/mingw-w64/lib -Wl,--subsystem,console ${LDFLAGS:-}"
+export LDFLAGS="-fuse-ld=bfd -nostartfiles -L${_BUILD_PREFIX}/Library/lib -L${_BUILD_PREFIX}/Library/mingw-w64/lib -Wl,--subsystem,console ${LDFLAGS:-}"
 
 # Bug in ghc-bootstrap
 #WINDRES_PATH="${BUILD_PREFIX//\\/\\\\}\\\\Library\\\\bin\\\\${WINDRES}"
@@ -280,17 +280,16 @@ done
 # Now add it to both LIBS and LDFLAGS
 
 # LIBS is used by autoconf-based configure
-# CRITICAL: Link order - -lmingw32 needs ___chkstk_ms, so chkstk_ms must come AFTER mingw32
-# CRITICAL: -Wl,--subsystem,console tells linker to use console entry point (main), not GUI (WinMain)
-# NOTE: crt2.o now passed via LDFLAGS to avoid duplication issues
-export LIBS="-Wl,--subsystem,console -lmoldname -lmingwex -lmingw32 ${CHKSTK_LIB} -lmsvcrt -lkernel32 -ladvapi32"
-
-# CRITICAL: Also add to LDFLAGS with proper linker subsystem flag
-# -Wl,--subsystem,console: Use console entry point (main) instead of GUI (WinMain)
-# CRITICAL: Explicitly add crt2.o (console CRT startup) because -nodefaultlibs disables automatic selection
-# Pass through -Wl to ensure it goes to linker, not compiler
+# CRITICAL: Link order - CRT startup object FIRST, then libraries
+# CRITICAL: -lmingw32 needs ___chkstk_ms, so chkstk_ms must come AFTER mingw32
+# With -nostartfiles, we must explicitly specify crt2.o (console CRT) not crtexewin.o (GUI)
 CRT2_OBJ="${_BUILD_PREFIX}/Library/x86_64-w64-mingw32/sysroot/usr/lib/crt2.o"
-export LDFLAGS="${LDFLAGS} -Wl,${CRT2_OBJ} -Wl,--subsystem,console"
+export LIBS="${CRT2_OBJ} -Wl,--subsystem,console -lmoldname -lmingwex -lmingw32 ${CHKSTK_LIB} -lmsvcrt -lkernel32 -ladvapi32"
+
+# CRITICAL: Reinforce subsystem flag in LDFLAGS
+# -Wl,--subsystem,console: Use console entry point (main) instead of GUI (WinMain)
+# NOTE: crt2.o is in LIBS, not here, to avoid duplication
+export LDFLAGS="${LDFLAGS} -Wl,--subsystem,console"
 
 # Use GNU ld for linking (compatible with MinGW libraries)
 # CRITICAL: Use Unix path _BUILD_PREFIX not Windows path BUILD_PREFIX
