@@ -88,10 +88,9 @@ if [[ -f "${settings_file}" ]]; then
   # CRITICAL: Use _PREFIX (Unix paths) NOT PREFIX (Windows paths with \b escape sequences)
   
   perl -pi -e "s#(C compiler command\", \")[^\"]*#\$1${CC}#" "${settings_file}"
-  # Use GCC's cpp instead of Clang for Haskell preprocessing
-  # GCC cpp with -traditional handles Haskell's # character in identifiers (Int#, unI#)
-  # Clang's cpp treats # as stringification operator, breaking Haskell primops
-  perl -pi -e "s#(Haskell CPP command\", \")[^\"]*#\$1x86_64-w64-mingw32-cpp#" "${settings_file}"
+  # Use Clang with -E for preprocessing (acts as cpp)
+  # Must use full path to ensure it's found
+  perl -pi -e "s#(Haskell CPP command\", \")[^\"]*#\$1${CC}#" "${settings_file}"
   perl -pi -e "s#(C\+\+ compiler command\", \")[^\"]*#\$1${CXX}#" "${settings_file}"
   perl -pi -e "s#(Merge objects command\", \")[^\"]*#\$1${LD}#" "${settings_file}"
   perl -pi -e "s#(ar command\", \")[^\"]*#\$1${AR}#" "${settings_file}"
@@ -103,9 +102,9 @@ if [[ -f "${settings_file}" ]]; then
 
   perl -pi -e "s#(C compiler flags\", \")([^\"]*)#\$1\$2 ${CFLAGS} -I${_PREFIX}/Library/include#" "${settings_file}"
   perl -pi -e "s#(C\+\+ compiler flags\", \")([^\"]*)#\$1\$2 ${CXXFLAGS} -I${_PREFIX}/Library/include#" "${settings_file}"
-  # GCC cpp flags: -E (preprocess only), -undef (no predefined macros), -traditional (traditional CPP)
-  # The -traditional flag enables pre-standard C preprocessing which handles # differently
-  perl -pi -e "s#(Haskell CPP flags\", \")[^\"]*#\$1-E -undef -traditional -I${_BUILD_PREFIX}/Library/include -I${_PREFIX}/Library/include#" "${settings_file}"
+  # Clang preprocessor flags with -traditional-cpp for Haskell compatibility
+  # -traditional-cpp: Traditional (pre-standard) preprocessing, handles # in identifiers
+  perl -pi -e "s#(Haskell CPP flags\", \")[^\"]*#\$1-E -undef -traditional-cpp -I${_BUILD_PREFIX}/Library/include -I${_PREFIX}/Library/include#" "${settings_file}"
 
   # Add MinGW runtime libraries to "C compiler link flags"
   # CRITICAL: Link order matters - user objects first, then helper libs, then -lmingw32 LAST
