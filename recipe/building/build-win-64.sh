@@ -283,8 +283,9 @@ done
 # CRITICAL: Link order - CRT startup object FIRST, then libraries
 # CRITICAL: -lmingw32 needs ___chkstk_ms, so chkstk_ms must come AFTER mingw32
 # With -nostartfiles, we must explicitly specify crt2.o (console CRT) not crtexewin.o (GUI)
+# Add Windows system libraries needed by Haskell packages (kernel32, ole32, rpcrt4, etc.)
 CRT2_OBJ="${_BUILD_PREFIX}/Library/x86_64-w64-mingw32/sysroot/usr/lib/crt2.o"
-export LIBS="${CRT2_OBJ} -Wl,--subsystem,console -lmoldname -lmingwex -lmingw32 ${CHKSTK_LIB} -lmsvcrt -lkernel32 -ladvapi32"
+export LIBS="${CRT2_OBJ} -Wl,--subsystem,console -lmoldname -lmingwex -lmingw32 ${CHKSTK_LIB} -lmsvcrt -lkernel32 -ladvapi32 -lole32 -lrpcrt4 -lshell32 -luser32 -luuid -lws2_32"
 
 # CRITICAL: Reinforce subsystem flag in LDFLAGS
 # -Wl,--subsystem,console: Use console entry point (main) instead of GUI (WinMain)
