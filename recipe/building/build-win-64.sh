@@ -116,10 +116,12 @@ if [[ -f "${settings_file}" ]]; then
 
   # Build complete link flags string - libraries come AFTER user objects
   # Use GNU ld (bfd) with GNU-style subsystem flag
-  # CRITICAL: Add crt2.o (console CRT) FIRST before any libraries
+  # CRITICAL: Add crt2.o (console CRT) FIRST before any libraries via -Xlinker
   # With -nostartfiles, we must explicitly specify crt2.o to get console entry point
+  # -Xlinker ensures it's ONLY passed during linking, not compilation
   CRT2_OBJ="${MINGW_SYSROOT}/crt2.o"
-  LINK_FLAGS="-fuse-ld=bfd ${CRT2_OBJ} -Wl,--subsystem,console"
+  LINK_FLAGS="-fuse-ld=bfd -Wl,--subsystem,console"
+  LINK_FLAGS="${LINK_FLAGS} -Xlinker ${CRT2_OBJ}"
   LINK_FLAGS="${LINK_FLAGS} -Xlinker -L${CHKSTK_DIR} -Xlinker -L${MINGW_SYSROOT}"
   # MinGW helper libraries
   LINK_FLAGS="${LINK_FLAGS} -Xlinker -lmoldname"
