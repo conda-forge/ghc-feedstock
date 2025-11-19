@@ -433,13 +433,14 @@ pushd "${bindist_dir}"
 
   # CRITICAL: Bindist configure must use BUILD machine tools, not TARGET tools
   # Explicitly specify --build and --host to prevent autoconf from looking for cross-compiler
-  # The --target flag tells GHC what architecture the installed compiler targets,
-  # but configure should run with BUILD machine tools to create the installation scripts
+  # IMPORTANT: Do NOT pass --target here! The bindist configure is for installation,
+  # not for building. Passing --target causes configure to construct target-prefixed
+  # tool paths (e.g., aarch64-conda-linux-gnu-ld) even when we've set LD=$BUILD_LD.
+  # The installed compiler already knows its target from the build phase.
   ./configure \
     --prefix="${PREFIX}" \
     --build="${ghc_host}" \
     --host="${ghc_host}" \
-    --target="${ghc_target}" \
     || { cat config.log; exit 1; }
 
   # Install (skip package DB update - cross ghc-pkg doesn't work)
