@@ -469,21 +469,27 @@ fi
 echo "=== Updating installed settings ==="
 echo "  Settings file: ${settings_file}"
 
-# CRITICAL: For cross-compilation, toolchain tools must remain BUILD architecture
-# The settings file needs:
-#   - Toolchain tools (C compiler, linker, ar, etc.): BUILD architecture (x86_64)
-#   - Target platform/LLVM target: TARGET architecture (aarch64)
-# Do NOT replace toolchain tool paths with target architecture!
+# CRITICAL: Tests run under QEMU with TARGET architecture tools
+# The settings file must use aarch64 tools because the compiler
+# is being tested in a QEMU aarch64 environment
+
+# Fix architecture in toolchain names (x86_64 -> aarch64 for QEMU testing)
+perl -pi -e "s#${conda_host}(-[^ \"]*)#${conda_target}\$1#g" "${settings_file}"
 
 # Add library paths with $topdir
 perl -pi -e "s#(C compiler link flags\", \"[^\"]*)#\$1 -Wl,-L\\\$topdir/../../../lib -Wl,-rpath,\\\$topdir/../../../lib#" "${settings_file}"
 perl -pi -e "s#(ld flags\", \"[^\"]*)#\$1 -L\\\$topdir/../../../lib -rpath \\\$topdir/../../../lib#" "${settings_file}"
 
-# Update LLVM target to match target architecture (not toolchain tools!)
-perl -pi -e "s#(LLVM target\", \")[^\"]*#\${1}${ghc_target}#" "${settings_file}"
+# Fix toolchain prefixes to use target architecture for QEMU environment
+perl -pi -e "s#\"[/\w]*?(ar|clang|clang\+\+|ld|ranlib|llc|opt)\"#\"${conda_target}-\$1\"#" "${settings_file}"
 
-# Ensure target platform string is correct
-perl -pi -e "s#(target platform string\", \")[^\"]*#\${1}${target_arch}-unknown-linux#" "${settings_file}"
+# CRITICAL: Fix target arch field to match actual target architecture
+# The settings file incorrectly has "ArchX86_64" even for aarch64 cross-compile
+if [[ "${target_arch}" == "aarch64" ]]; then
+  perl -pi -e 's#("target arch", "Arch)X86_64#${1}AArch64#' "${settings_file}"
+elif [[ "${target_arch}" == "ppc64le" ]]; then
+  perl -pi -e 's#("target arch", "Arch)X86_64#${1}PPC_64ELF#' "${settings_file}"
+fi
 
 echo "=== Final settings file ==="
 cat "${settings_file}"
