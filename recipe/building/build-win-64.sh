@@ -286,7 +286,7 @@ done
 # Add Windows system libraries needed by Haskell packages (kernel32, ole32, rpcrt4, etc.)
 # CRITICAL: conda-build sets LIBS=${CXX_STD_LIB_LIBS} before this script runs, so PREPEND not replace
 CRT2_OBJ="${_BUILD_PREFIX}/Library/x86_64-w64-mingw32/sysroot/usr/lib/crt2.o"
-export LIBS="${CRT2_OBJ} -Wl,--subsystem,console -lmoldname -lmingwex -lmingw32 ${CHKSTK_LIB} -lmsvcrt -lkernel32 -ladvapi32 -lole32 -lrpcrt4 -lshell32 -luser32 -luuid -lws2_32 ${LIBS:+}${LIBS:-}"
+export LIBS="${CRT2_OBJ} -Wl,--subsystem,console -lmoldname -lmingwex -lmingw32 ${CHKSTK_LIB} -lmsvcrt -lkernel32 -ladvapi32 -lole32 -lrpcrt4 -lshell32 -luser32 -luuid -lws2_32${LIBS:+ -l$LIBS}"
 
 # CRITICAL: Reinforce subsystem flag in LDFLAGS
 # -Wl,--subsystem,console: Use console entry point (main) instead of GUI (WinMain)
