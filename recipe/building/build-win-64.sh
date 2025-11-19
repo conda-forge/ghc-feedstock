@@ -288,9 +288,9 @@ export LIBS="-Wl,--subsystem,console -lmoldname -lmingwex -lmingw32 ${CHKSTK_LIB
 # CRITICAL: Also add to LDFLAGS with proper linker subsystem flag
 # -Wl,--subsystem,console: Use console entry point (main) instead of GUI (WinMain)
 # CRITICAL: Explicitly add crt2.o (console CRT startup) because -nodefaultlibs disables automatic selection
-# Use Windows-style path to match what linker expects and avoid duplication with autoconf's path
-CRT2_OBJ_WIN="$(echo ${_BUILD_PREFIX} | sed 's|/|\\|g')\\Library\\x86_64-w64-mingw32\\sysroot\\usr\\lib\\crt2.o"
-export LDFLAGS="${LDFLAGS} ${CRT2_OBJ_WIN} -Wl,--subsystem,console"
+# Pass through -Wl to ensure it goes to linker, not compiler
+CRT2_OBJ="${_BUILD_PREFIX}/Library/x86_64-w64-mingw32/sysroot/usr/lib/crt2.o"
+export LDFLAGS="${LDFLAGS} -Wl,${CRT2_OBJ} -Wl,--subsystem,console"
 
 # Use GNU ld for linking (compatible with MinGW libraries)
 # CRITICAL: Use Unix path _BUILD_PREFIX not Windows path BUILD_PREFIX
