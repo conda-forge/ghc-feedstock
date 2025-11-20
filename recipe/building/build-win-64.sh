@@ -161,12 +161,13 @@ fi
 # Configure script uses LDFLAGS to test C compiler, needs our stubs
 MINGW_SYSROOT="${_BUILD_PREFIX}/Library/x86_64-w64-mingw32/sysroot/usr/lib"
 export LDFLAGS="-fuse-ld=bfd -nostartfiles -L${_BUILD_PREFIX}/Library/lib -L${MINGW_SYSROOT} -Wl,--subsystem,console"
-# CRITICAL: DO NOT link -lmingw32 - it contains crtexewin.o (GUI startup) that conflicts with crt2.o
-# Instead, use libmingw32_stubs.a which provides ONLY the symbols crt2.o needs:
-#   - _setargv, _matherr, __mingw_setusermatherr, _MINGW_INSTALL_DEBUG_MATHERR
-# This eliminates the conflict while still satisfying crt2.o's dependencies
-# Order: helper libs → crt2.o → mingw32 stubs → other stubs → system libs
-export LDFLAGS="${LDFLAGS} -lmoldname -lmingwex ${MINGW_SYSROOT}/crt2.o -lmingw32_stubs -lchkstk_ms -lgcc_main -lmsvcrt -lkernel32 -ladvapi32"
+# CRITICAL: Complex circular dependency between crt2.o and libmingw32.a
+# crt2.o needs 20+ symbols from libmingw32.a (can't stub them all)
+# libmingw32.a contains BOTH crt2.o and crtexewin.o
+# Solution: Link -lmingw32 FIRST, then explicit crt2.o LAST to override
+# Explicit .o file should take precedence over archive member
+# Order: helper libs → -lmingw32 → other libs → crt2.o LAST
+export LDFLAGS="${LDFLAGS} -lmoldname -lmingwex -lmingw32 -lchkstk_ms -lgcc_main -lmsvcrt -lkernel32 -ladvapi32 ${MINGW_SYSROOT}/crt2.o"
 echo "LDFLAGS=${LDFLAGS}"
 
 # Update Stage0 settings file with conda include paths for Windows build
