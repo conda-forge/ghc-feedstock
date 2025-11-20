@@ -79,8 +79,42 @@ else
     exit 1
 fi
 
+# CRITICAL: Create __main stub library (GCC runtime initialization)
+# crt2.o startup code calls __main() which is normally in libgcc
+# With -nodefaultlibs, libgcc isn't linked, so we provide a stub
+echo "=== Building __main stub library ==="
+GCC_MAIN_OBJ="${_SRC_DIR}/gcc_main.o"
+GCC_MAIN_LIB="${_BUILD_PREFIX}/Library/lib/libgcc_main.a"
+
+# Create the stub source
+cat > "${_SRC_DIR}/gcc_main.c" << 'EOF'
+/* Stub for __main (GCC runtime initialization function)
+ * Normally calls C++ static constructors, but not needed for C-only code
+ */
+void __main(void) {
+    /* Empty - no C++ constructors to run */
+}
+EOF
+
+# Compile the stub
+${CC} -c "${_SRC_DIR}/gcc_main.c" -o "${GCC_MAIN_OBJ}"
+echo "Created ${GCC_MAIN_OBJ}"
+
+# Create static library
+${AR} rcs "${GCC_MAIN_LIB}" "${GCC_MAIN_OBJ}"
+echo "Created ${GCC_MAIN_LIB}"
+
+# Verify library was created
+if [ -f "${GCC_MAIN_LIB}" ]; then
+    echo "✓ Library exists: ${GCC_MAIN_LIB}"
+    ls -lh "${GCC_MAIN_LIB}"
+else
+    echo "✗ ERROR: Library NOT created at ${GCC_MAIN_LIB}"
+    exit 1
+fi
+
 # Update Stage0 settings file with conda include paths for Windows build
-# NOW we can reference the chkstk library since it exists
+# NOW we can reference both stub libraries since they exist
 settings_file="${_BUILD_PREFIX}/ghc-bootstrap/lib/settings"
 if [[ -f "${settings_file}" ]]; then
   echo "=== Updating bootstrap settings with conda include paths ==="
@@ -130,6 +164,8 @@ if [[ -f "${settings_file}" ]]; then
   LINK_FLAGS="${LINK_FLAGS} -Xlinker -lmingw32"
   # Then chkstk_ms (provides symbols needed by mingw32)
   LINK_FLAGS="${LINK_FLAGS} -Xlinker -lchkstk_ms"
+  # Then gcc_main (provides __main symbol needed by crt2.o)
+  LINK_FLAGS="${LINK_FLAGS} -Xlinker -lgcc_main"
   # System libraries last (needed for Haskell FFI to Windows APIs)
   LINK_FLAGS="${LINK_FLAGS} -Xlinker -lmsvcrt"
   LINK_FLAGS="${LINK_FLAGS} -Xlinker -lkernel32"
@@ -147,7 +183,7 @@ if [[ -f "${settings_file}" ]]; then
   # Also add to "ld flags" for direct ld invocations (use bare library names, no -Xlinker)
   # CRITICAL: --subsystem,console for console entry point (GNU ld syntax with comma separator)
   # NOTE: crt2.o added via LIBS environment variable instead of settings file
-  perl -pi -e "s#(ld flags\", \")([^\"]*)#\$1\$2 --subsystem,console -L${CHKSTK_DIR} -L${MINGW_SYSROOT} -lmoldname -lmingwex -lmingw32 -lchkstk_ms -lmsvcrt -lkernel32 -ladvapi32#" "${settings_file}"
+  perl -pi -e "s#(ld flags\", \")([^\"]*)#\$1\$2 --subsystem,console -L${CHKSTK_DIR} -L${MINGW_SYSROOT} -lmoldname -lmingwex -lmingw32 -lchkstk_ms -lgcc_main -lmsvcrt -lkernel32 -ladvapi32#" "${settings_file}"
 
   # CRITICAL: Fix merge-objects to use GNU ld (ld.bfd) instead of lld
   # The bootstrap GHC has system-merge-objects pointing to ld.lld.exe which uses MSVC-style .lib files
@@ -447,6 +483,8 @@ if [[ -f "${settings_file}" ]]; then
   LINK_FLAGS="${LINK_FLAGS} -Xlinker -lmingw32"
   # Then chkstk_ms (provides symbols needed by mingw32)
   LINK_FLAGS="${LINK_FLAGS} -Xlinker -lchkstk_ms"
+  # Then gcc_main (provides __main symbol needed by crt2.o)
+  LINK_FLAGS="${LINK_FLAGS} -Xlinker -lgcc_main"
   # System libraries last (needed for Haskell FFI to Windows APIs)
   LINK_FLAGS="${LINK_FLAGS} -Xlinker -lmsvcrt"
   LINK_FLAGS="${LINK_FLAGS} -Xlinker -lkernel32"
@@ -462,7 +500,7 @@ if [[ -f "${settings_file}" ]]; then
 
   # Also add to "ld flags" for direct ld invocations (use bare library names, no -Xlinker)
   # CRITICAL: --subsystem,console for console entry point (GNU ld syntax with comma separator)
-  perl -pi -e "s#(ld flags\", \")#\$1--subsystem,console -L${CHKSTK_DIR} -L${MINGW_SYSROOT} -lmoldname -lmingwex -lmingw32 -lchkstk_ms -lmsvcrt -lkernel32 -ladvapi32 #" "${settings_file}"
+  perl -pi -e "s#(ld flags\", \")#\$1--subsystem,console -L${CHKSTK_DIR} -L${MINGW_SYSROOT} -lmoldname -lmingwex -lmingw32 -lchkstk_ms -lgcc_main -lmsvcrt -lkernel32 -ladvapi32 #" "${settings_file}"
 
   echo "=== Stage1 settings after patching (COMPLETE FILE) ==="
   cat "${settings_file}"
