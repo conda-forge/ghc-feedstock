@@ -70,6 +70,18 @@ echo "Created ${CHKSTK_OBJ}"
 ${AR} rcs "${CHKSTK_LIB}" "${CHKSTK_OBJ}"
 echo "Created ${CHKSTK_LIB}"
 
+echo "=== Building mingw32 runtime stubs library ==="
+MINGW32_STUBS_OBJ="${_SRC_DIR}/mingw32_stubs.o"
+MINGW32_STUBS_LIB="${_BUILD_PREFIX}/Library/lib/libmingw32_stubs.a"
+
+# Compile the stubs
+${CC} -c "${_RECIPE_DIR}/building/mingw32_stubs.c" -o "${MINGW32_STUBS_OBJ}"
+echo "Created ${MINGW32_STUBS_OBJ}"
+
+# Create static library
+${AR} rcs "${MINGW32_STUBS_LIB}" "${MINGW32_STUBS_OBJ}"
+echo "Created ${MINGW32_STUBS_LIB}"
+
 # Verify library was created
 if [ -f "${CHKSTK_LIB}" ]; then
     echo "✓ Library exists: ${CHKSTK_LIB}"
@@ -136,8 +148,8 @@ if [[ -f "${settings_file}" ]]; then
   LINK_FLAGS="${LINK_FLAGS} -Xlinker -lmoldname"
   LINK_FLAGS="${LINK_FLAGS} -Xlinker -lmingwex"
   # CRITICAL: Skip -lmingw32 entirely to avoid crtexewin.o conflict
-  # We provide crt2.o explicitly, and -lmingwex provides most other symbols
-  # LINK_FLAGS="${LINK_FLAGS} -Xlinker -lmingw32"
+  # Instead, use our stub library with just the symbols we need
+  LINK_FLAGS="${LINK_FLAGS} -Xlinker -lmingw32_stubs"
   # Then chkstk_ms (provides symbols needed by mingw32)
   LINK_FLAGS="${LINK_FLAGS} -Xlinker -lchkstk_ms"
   # System libraries last
@@ -150,8 +162,8 @@ if [[ -f "${settings_file}" ]]; then
 
   # Also add to "ld flags" for direct ld invocations (use bare library names, no -Xlinker)
   # CRITICAL: --subsystem,console for console entry point (GNU ld syntax with comma separator)
-  # CRITICAL: Skip -lmingw32 entirely - it contains conflicting crtexewin.o
-  perl -pi -e "s#(ld flags\", \")([^\"]*)#\$1\$2 -nostartfiles --allow-multiple-definition --subsystem,console -L${CHKSTK_DIR_WIN} -L${WIN_MINGW_SYSROOT} --whole-archive ${CRT2_WIN_PATH} --no-whole-archive -lmoldname -lmingwex -lchkstk_ms -lmsvcrt -lkernel32 -ladvapi32#" "${settings_file}"
+  # CRITICAL: Use stub library instead of full libmingw32.a
+  perl -pi -e "s#(ld flags\", \")([^\"]*)#\$1\$2 -nostartfiles --allow-multiple-definition --subsystem,console -L${CHKSTK_DIR_WIN} -L${WIN_MINGW_SYSROOT} --whole-archive ${CRT2_WIN_PATH} --no-whole-archive -lmoldname -lmingwex -lmingw32_stubs -lchkstk_ms -lmsvcrt -lkernel32 -ladvapi32#" "${settings_file}"
 
   # CRITICAL: Fix merge-objects to use GNU ld (ld.bfd) instead of lld
   # The bootstrap GHC has system-merge-objects pointing to ld.lld.exe which uses MSVC-style .lib files
