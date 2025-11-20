@@ -121,16 +121,17 @@ if [[ -f "${settings_file}" ]]; then
 
   # Build complete link flags string - libraries come AFTER user objects
   # Use GNU ld (bfd) with GNU-style subsystem flag
-  # CRITICAL: -nostartfiles is a COMPILER option (not linker), don't use -Wl
-  # Use Windows-style path (C:/...) which ld.bfd understands
-  LINK_FLAGS="-fuse-ld=bfd -nostartfiles -Wl,--subsystem,console"
+  # CRITICAL: -nostartfiles prevents DEFAULT startups, but not those IN libraries
+  # libmingw32.a contains crtexewin.o which conflicts with our crt2.o
+  # Use --allow-multiple-definition so linker uses FIRST definition (our crt2.o)
+  LINK_FLAGS="-fuse-ld=bfd -nostartfiles -Wl,--allow-multiple-definition -Wl,--subsystem,console"
   LINK_FLAGS="${LINK_FLAGS} -Xlinker -L${CHKSTK_DIR} -Xlinker -L${MINGW_SYSROOT}"
-  # Console CRT startup FIRST (Windows-style path for ld.bfd)
+  # Console CRT startup FIRST (Windows-style path for ld.bfd) - will be chosen over libmingw32.a
   LINK_FLAGS="${LINK_FLAGS} -Xlinker ${CRT2_WIN_PATH}"
   # MinGW helper libraries
   LINK_FLAGS="${LINK_FLAGS} -Xlinker -lmoldname"
   LINK_FLAGS="${LINK_FLAGS} -Xlinker -lmingwex"
-  # Then -lmingw32 (won't add startup due to -nostartfiles)
+  # -lmingw32 provides main() but linker will use our crt2.o version due to --allow-multiple-definition
   LINK_FLAGS="${LINK_FLAGS} -Xlinker -lmingw32"
   # Then chkstk_ms (provides symbols needed by mingw32)
   LINK_FLAGS="${LINK_FLAGS} -Xlinker -lchkstk_ms"
@@ -144,8 +145,8 @@ if [[ -f "${settings_file}" ]]; then
 
   # Also add to "ld flags" for direct ld invocations (use bare library names, no -Xlinker)
   # CRITICAL: --subsystem,console for console entry point (GNU ld syntax with comma separator)
-  # CRITICAL: -nostartfiles + explicit crt2.o (Windows-style path) for console startup
-  perl -pi -e "s#(ld flags\", \")([^\"]*)#\$1\$2 -nostartfiles --subsystem,console -L${CHKSTK_DIR} -L${MINGW_SYSROOT} ${CRT2_WIN_PATH} -lmoldname -lmingwex -lmingw32 -lchkstk_ms -lmsvcrt -lkernel32 -ladvapi32#" "${settings_file}"
+  # CRITICAL: --allow-multiple-definition so crt2.o wins over libmingw32.a's crtexewin.o
+  perl -pi -e "s#(ld flags\", \")([^\"]*)#\$1\$2 -nostartfiles --allow-multiple-definition --subsystem,console -L${CHKSTK_DIR} -L${MINGW_SYSROOT} ${CRT2_WIN_PATH} -lmoldname -lmingwex -lmingw32 -lchkstk_ms -lmsvcrt -lkernel32 -ladvapi32#" "${settings_file}"
 
   # CRITICAL: Fix merge-objects to use GNU ld (ld.bfd) instead of lld
   # The bootstrap GHC has system-merge-objects pointing to ld.lld.exe which uses MSVC-style .lib files
