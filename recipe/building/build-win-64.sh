@@ -114,14 +114,19 @@ if [[ -f "${settings_file}" ]]; then
   CHKSTK_DIR="${_BUILD_PREFIX}/Library/lib"
   MINGW_SYSROOT="${_BUILD_PREFIX}/Library/x86_64-w64-mingw32/sysroot/usr/lib"
 
+  # Convert Unix path to Windows-style path with forward slashes for ld.bfd
+  # ld.bfd on Windows understands C:/path/to/file format
+  WIN_MINGW_SYSROOT=$(echo "${MINGW_SYSROOT}" | sed 's#^/c/#C:/#')
+  CRT2_WIN_PATH="${WIN_MINGW_SYSROOT}/crt2.o"
+
   # Build complete link flags string - libraries come AFTER user objects
   # Use GNU ld (bfd) with GNU-style subsystem flag
   # CRITICAL: Use -nostartfiles + explicit crt2.o to prevent GUI startup conflict
-  # Use just filename "crt2.o" so linker finds it via -L search path
+  # Use Windows-style path (C:/...) which ld.bfd understands
   LINK_FLAGS="-fuse-ld=bfd -nostartfiles -Wl,--subsystem,console"
   LINK_FLAGS="${LINK_FLAGS} -Xlinker -L${CHKSTK_DIR} -Xlinker -L${MINGW_SYSROOT}"
-  # Console CRT startup FIRST (use bare filename, linker finds via -L path)
-  LINK_FLAGS="${LINK_FLAGS} -Xlinker crt2.o"
+  # Console CRT startup FIRST (Windows-style path for ld.bfd)
+  LINK_FLAGS="${LINK_FLAGS} -Xlinker ${CRT2_WIN_PATH}"
   # MinGW helper libraries
   LINK_FLAGS="${LINK_FLAGS} -Xlinker -lmoldname"
   LINK_FLAGS="${LINK_FLAGS} -Xlinker -lmingwex"
@@ -139,8 +144,8 @@ if [[ -f "${settings_file}" ]]; then
 
   # Also add to "ld flags" for direct ld invocations (use bare library names, no -Xlinker)
   # CRITICAL: --subsystem,console for console entry point (GNU ld syntax with comma separator)
-  # CRITICAL: -nostartfiles + explicit crt2.o (bare filename) for console startup
-  perl -pi -e "s#(ld flags\", \")([^\"]*)#\$1\$2 -nostartfiles --subsystem,console -L${CHKSTK_DIR} -L${MINGW_SYSROOT} crt2.o -lmoldname -lmingwex -lmingw32 -lchkstk_ms -lmsvcrt -lkernel32 -ladvapi32#" "${settings_file}"
+  # CRITICAL: -nostartfiles + explicit crt2.o (Windows-style path) for console startup
+  perl -pi -e "s#(ld flags\", \")([^\"]*)#\$1\$2 -nostartfiles --subsystem,console -L${CHKSTK_DIR} -L${MINGW_SYSROOT} ${CRT2_WIN_PATH} -lmoldname -lmingwex -lmingw32 -lchkstk_ms -lmsvcrt -lkernel32 -ladvapi32#" "${settings_file}"
 
   # CRITICAL: Fix merge-objects to use GNU ld (ld.bfd) instead of lld
   # The bootstrap GHC has system-merge-objects pointing to ld.lld.exe which uses MSVC-style .lib files
