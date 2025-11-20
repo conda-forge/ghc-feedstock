@@ -49,7 +49,8 @@ CLANG_BUILTIN_INCLUDE="${CLANG_RESOURCE_DIR}/include"
 # -Wl,--subsystem,console: Set PE subsystem to console (not GUI)
 export CFLAGS="--target=x86_64-w64-mingw32 -fuse-ld=bfd -nodefaultlibs -D__MINGW32__ -D_VA_LIST_DEFINED -D__GNUC__=13 -Dva_list=__builtin_va_list -I${CLANG_BUILTIN_INCLUDE} -I${_BUILD_PREFIX}/Library/include ${CFLAGS:-}"
 export CXXFLAGS="--target=x86_64-w64-mingw32 -fuse-ld=bfd -nodefaultlibs -D__MINGW32__ -D_VA_LIST_DEFINED -D__GNUC__=13 -Dva_list=__builtin_va_list -I${CLANG_BUILTIN_INCLUDE} -I${_BUILD_PREFIX}/Library/include ${CXXFLAGS:-}"
-export LDFLAGS="-fuse-ld=bfd -nostartfiles -L${_BUILD_PREFIX}/Library/lib -L${_BUILD_PREFIX}/Library/mingw-w64/lib -Wl,--subsystem,console ${LDFLAGS:-}"
+# CRITICAL: Must be set AFTER creating stub libraries (lines 59-114)
+# This will be updated below after stub libraries are created
 
 # Bug in ghc-bootstrap
 #WINDRES_PATH="${BUILD_PREFIX//\\/\\\\}\\\\Library\\\\bin\\\\${WINDRES}"
@@ -112,6 +113,14 @@ else
     echo "✗ ERROR: Library NOT created at ${GCC_MAIN_LIB}"
     exit 1
 fi
+
+# NOW export LDFLAGS with stub libraries (must be after libraries are created)
+# Configure script uses LDFLAGS to test C compiler, needs our stubs
+MINGW_SYSROOT="${_BUILD_PREFIX}/Library/x86_64-w64-mingw32/sysroot/usr/lib"
+export LDFLAGS="-fuse-ld=bfd -nostartfiles -L${_BUILD_PREFIX}/Library/lib -L${MINGW_SYSROOT} -Wl,--subsystem,console"
+# Add CRT and stub libraries that configure needs
+export LDFLAGS="${LDFLAGS} ${MINGW_SYSROOT}/crt2.o -lmoldname -lmingwex -lmingw32 -lchkstk_ms -lgcc_main -lmsvcrt -lkernel32 -ladvapi32"
+echo "LDFLAGS=${LDFLAGS}"
 
 # Update Stage0 settings file with conda include paths for Windows build
 # NOW we can reference both stub libraries since they exist
