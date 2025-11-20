@@ -116,13 +116,16 @@ if [[ -f "${settings_file}" ]]; then
 
   # Build complete link flags string - libraries come AFTER user objects
   # Use GNU ld (bfd) with GNU-style subsystem flag
-  # NOTE: crt2.o is added via LIBS environment variable (not here) to ensure console CRT startup
-  LINK_FLAGS="-fuse-ld=bfd -Wl,--subsystem,console"
+  # CRITICAL: -nostartfiles prevents auto-inclusion of CRT startup files
+  # This ensures we control which startup file (console vs GUI) is used
+  LINK_FLAGS="-fuse-ld=bfd -nostartfiles -Wl,--subsystem,console"
   LINK_FLAGS="${LINK_FLAGS} -Xlinker -L${CHKSTK_DIR} -Xlinker -L${MINGW_SYSROOT}"
+  # Console CRT startup FIRST (before -lmingw32)
+  LINK_FLAGS="${LINK_FLAGS} -Xlinker ${MINGW_SYSROOT}/crt2.o"
   # MinGW helper libraries
   LINK_FLAGS="${LINK_FLAGS} -Xlinker -lmoldname"
   LINK_FLAGS="${LINK_FLAGS} -Xlinker -lmingwex"
-  # Then -lmingw32
+  # Then -lmingw32 (won't pull in startup files due to -nostartfiles)
   LINK_FLAGS="${LINK_FLAGS} -Xlinker -lmingw32"
   # Then chkstk_ms (provides symbols needed by mingw32)
   LINK_FLAGS="${LINK_FLAGS} -Xlinker -lchkstk_ms"
@@ -136,8 +139,8 @@ if [[ -f "${settings_file}" ]]; then
 
   # Also add to "ld flags" for direct ld invocations (use bare library names, no -Xlinker)
   # CRITICAL: --subsystem,console for console entry point (GNU ld syntax with comma separator)
-  # NOTE: crt2.o added via LIBS environment variable instead of settings file
-  perl -pi -e "s#(ld flags\", \")([^\"]*)#\$1\$2 --subsystem,console -L${CHKSTK_DIR} -L${MINGW_SYSROOT} -lmoldname -lmingwex -lmingw32 -lchkstk_ms -lmsvcrt -lkernel32 -ladvapi32#" "${settings_file}"
+  # CRITICAL: -nostartfiles prevents auto-inclusion of wrong CRT startup files
+  perl -pi -e "s#(ld flags\", \")([^\"]*)#\$1\$2 -nostartfiles --subsystem,console -L${CHKSTK_DIR} -L${MINGW_SYSROOT} ${MINGW_SYSROOT}/crt2.o -lmoldname -lmingwex -lmingw32 -lchkstk_ms -lmsvcrt -lkernel32 -ladvapi32#" "${settings_file}"
 
   # CRITICAL: Fix merge-objects to use GNU ld (ld.bfd) instead of lld
   # The bootstrap GHC has system-merge-objects pointing to ld.lld.exe which uses MSVC-style .lib files
@@ -344,6 +347,18 @@ mkdir -p ${_SRC_DIR}/_build
 # EOF
 
 (
+  # CRITICAL: Isolate Hadrian build environment from configure-time link flags
+  # The configure-time LIBS contains crt2.o which conflicts with Hadrian's builds
+  # TWO SEPARATE CONTEXTS:
+  # 1. Configure context (uses LDFLAGS/LIBS) - needs crt2.o for console startup
+  # 2. Hadrian context (uses GHC settings file) - gets startup from GHC's settings
+  #
+  # SOLUTION: GHC settings file now has -nostartfiles + explicit crt2.o in correct order
+  # This ensures Hadrian builds use bootstrap GHC settings (which are now correct)
+  # We don't need to modify LIBS here since GHC ignores LIBS env var
+
+  echo "=== Hadrian subshell: Using GHC settings file for link flags (not LIBS) ==="
+
   pushd "${_SRC_DIR}"/hadrian
     # WINDOWS CPP FIX: GCC cpp with -traditional flag configured in bootstrap settings
     # No need for cabal.project workarounds - GCC's cpp handles Haskell # identifiers correctly
