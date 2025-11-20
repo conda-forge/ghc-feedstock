@@ -486,12 +486,15 @@ perl -pi -e "s#\"[/\w]*?(ar|clang|clang\+\+|ld|ranlib|llc|opt)\"#\"${conda_targe
 # CRITICAL: Fix target arch field to match actual target architecture
 # The settings file incorrectly has "ArchX86_64" even for aarch64/ppc64le cross-compile
 # Use case statement to handle architecture name variations
+# GHC architecture names from GHC.Platform.ArchOS:
+#   - ArchAArch64 (for aarch64)
+#   - ArchPPC_64 ELF_V2 (for ppc64le - PowerPC64 Little-Endian uses ELF v2 ABI)
 case "${target_arch}" in
   aarch64)
     perl -pi -e 's#"target arch", "[^"]*"#"target arch", "ArchAArch64"#' "${settings_file}"
     ;;
   ppc64le|powerpc64le)
-    perl -pi -e 's#"target arch", "[^"]*"#"target arch", "ArchPPC_64ELF"#' "${settings_file}"
+    perl -pi -e 's#"target arch", "[^"]*"#"target arch", "ArchPPC_64 ELF_V2"#' "${settings_file}"
     ;;
   *)
     echo "WARNING: Unknown target architecture for settings fix: ${target_arch}"
