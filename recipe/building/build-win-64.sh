@@ -118,11 +118,13 @@ fi
 # Configure script uses LDFLAGS to test C compiler, needs our stubs
 MINGW_SYSROOT="${_BUILD_PREFIX}/Library/x86_64-w64-mingw32/sysroot/usr/lib"
 export LDFLAGS="-fuse-ld=bfd -nostartfiles -L${_BUILD_PREFIX}/Library/lib -L${MINGW_SYSROOT} -Wl,--subsystem,console"
-# CRITICAL: Link order to prevent GUI CRT from libmingw32.a
-# libmingw32.a contains BOTH console (crt2.o) and GUI (crtexewin.o) startup code
-# We must provide crt2.o AFTER -lmingw32 so linker uses our console version
-# Order: helper libs → -lmingw32 → OUR crt2.o → stubs → system libs
-export LDFLAGS="${LDFLAGS} -lmoldname -lmingwex -lmingw32 ${MINGW_SYSROOT}/crt2.o -lchkstk_ms -lgcc_main -lmsvcrt -lkernel32 -ladvapi32"
+# CRITICAL: Use --start-group/--end-group for circular dependencies
+# crt2.o needs symbols from libmingw32.a (_setargv, _matherr, __mingw_setusermatherr)
+# BUT libmingw32.a contains GUI startup (crtexewin.o) that conflicts with crt2.o
+# Solution: Group crt2.o + libmingw32.a so linker resolves circular refs but uses our crt2.o
+# --start-group: Allow multiple passes to resolve circular dependencies
+# Order: helper libs → START_GROUP(crt2.o + -lmingw32) → stubs → system libs
+export LDFLAGS="${LDFLAGS} -lmoldname -lmingwex -Wl,--start-group ${MINGW_SYSROOT}/crt2.o -lmingw32 -Wl,--end-group -lchkstk_ms -lgcc_main -lmsvcrt -lkernel32 -ladvapi32"
 echo "LDFLAGS=${LDFLAGS}"
 
 # Update Stage0 settings file with conda include paths for Windows build
