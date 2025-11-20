@@ -116,6 +116,8 @@ if [[ -f "${settings_file}" ]]; then
 
   # Convert Unix path to Windows-style path with forward slashes for ld.bfd
   # ld.bfd on Windows understands C:/path/to/file format
+  # CRITICAL: Expand variables FIRST, then convert path format
+  CHKSTK_DIR_WIN=$(echo "${CHKSTK_DIR}" | sed 's#^/c/#C:/#')
   WIN_MINGW_SYSROOT=$(echo "${MINGW_SYSROOT}" | sed 's#^/c/#C:/#')
   CRT2_WIN_PATH="${WIN_MINGW_SYSROOT}/crt2.o"
 
@@ -125,7 +127,7 @@ if [[ -f "${settings_file}" ]]; then
   # libmingw32.a contains crtexewin.o which conflicts with our crt2.o
   # Use --allow-multiple-definition so linker uses FIRST definition (our crt2.o)
   LINK_FLAGS="-fuse-ld=bfd -nostartfiles -Wl,--allow-multiple-definition -Wl,--subsystem,console"
-  LINK_FLAGS="${LINK_FLAGS} -Xlinker -L${CHKSTK_DIR} -Xlinker -L${MINGW_SYSROOT}"
+  LINK_FLAGS="${LINK_FLAGS} -Xlinker -L${CHKSTK_DIR_WIN} -Xlinker -L${WIN_MINGW_SYSROOT}"
   # Console CRT startup - use --whole-archive to force inclusion FIRST
   # This ensures crt2.o's main() is resolved before libmingw32.a is scanned
   LINK_FLAGS="${LINK_FLAGS} -Wl,--whole-archive -Xlinker ${CRT2_WIN_PATH} -Wl,--no-whole-archive"
@@ -147,7 +149,7 @@ if [[ -f "${settings_file}" ]]; then
   # Also add to "ld flags" for direct ld invocations (use bare library names, no -Xlinker)
   # CRITICAL: --subsystem,console for console entry point (GNU ld syntax with comma separator)
   # CRITICAL: --whole-archive forces crt2.o inclusion before libmingw32.a scan
-  perl -pi -e "s#(ld flags\", \")([^\"]*)#\$1\$2 -nostartfiles --allow-multiple-definition --subsystem,console -L${CHKSTK_DIR} -L${MINGW_SYSROOT} --whole-archive ${CRT2_WIN_PATH} --no-whole-archive -lmoldname -lmingwex -lmingw32 -lchkstk_ms -lmsvcrt -lkernel32 -ladvapi32#" "${settings_file}"
+  perl -pi -e "s#(ld flags\", \")([^\"]*)#\$1\$2 -nostartfiles --allow-multiple-definition --subsystem,console -L${CHKSTK_DIR_WIN} -L${WIN_MINGW_SYSROOT} --whole-archive ${CRT2_WIN_PATH} --no-whole-archive -lmoldname -lmingwex -lmingw32 -lchkstk_ms -lmsvcrt -lkernel32 -ladvapi32#" "${settings_file}"
 
   # CRITICAL: Fix merge-objects to use GNU ld (ld.bfd) instead of lld
   # The bootstrap GHC has system-merge-objects pointing to ld.lld.exe which uses MSVC-style .lib files
