@@ -484,12 +484,19 @@ perl -pi -e "s#(ld flags\", \"[^\"]*)#\$1 -L\\\$topdir/../../../lib -rpath \\\$t
 perl -pi -e "s#\"[/\w]*?(ar|clang|clang\+\+|ld|ranlib|llc|opt)\"#\"${conda_target}-\$1\"#" "${settings_file}"
 
 # CRITICAL: Fix target arch field to match actual target architecture
-# The settings file incorrectly has "ArchX86_64" even for aarch64 cross-compile
-if [[ "${target_arch}" == "aarch64" ]]; then
-  perl -pi -e 's#("target arch", "Arch)X86_64#${1}AArch64#' "${settings_file}"
-elif [[ "${target_arch}" == "ppc64le" ]]; then
-  perl -pi -e 's#("target arch", "Arch)X86_64#${1}PPC_64ELF#' "${settings_file}"
-fi
+# The settings file incorrectly has "ArchX86_64" even for aarch64/ppc64le cross-compile
+# Use case statement to handle architecture name variations
+case "${target_arch}" in
+  aarch64)
+    perl -pi -e 's#"target arch", "[^"]*"#"target arch", "ArchAArch64"#' "${settings_file}"
+    ;;
+  ppc64le|powerpc64le)
+    perl -pi -e 's#"target arch", "[^"]*"#"target arch", "ArchPPC_64ELF"#' "${settings_file}"
+    ;;
+  *)
+    echo "WARNING: Unknown target architecture for settings fix: ${target_arch}"
+    ;;
+esac
 
 echo "=== Final settings file ==="
 cat "${settings_file}"
