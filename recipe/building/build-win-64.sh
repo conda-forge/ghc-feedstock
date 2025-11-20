@@ -80,6 +80,49 @@ else
     exit 1
 fi
 
+# CRITICAL: Create stub library for MinGW32 symbols needed by crt2.o
+# crt2.o needs _setargv, _matherr, __mingw_setusermatherr from libmingw32.a
+# BUT libmingw32.a ALSO contains crtexewin.o (GUI startup) which conflicts with crt2.o
+# Solution: Create stub library with just the symbols we need, EXCLUDE -lmingw32 entirely
+echo "=== Building MinGW32 stub library for crt2.o symbols ==="
+cat > "${_SRC_DIR}/mingw32_stubs.c" << 'EOF'
+// Stub implementations for symbols that crt2.o expects from libmingw32.a
+// These allow us to use crt2.o WITHOUT linking libmingw32.a (which has GUI startup conflicts)
+
+// _setargv: Command-line argument setup (not needed for GHC)
+void _setargv(void) {
+    // Empty stub - GHC doesn't use C command-line args
+}
+
+// _matherr: Math error handler (not needed for GHC)
+int _matherr(void) {
+    return 0;  // No-op
+}
+
+// __mingw_setusermatherr: Set user math error handler (not needed for GHC)
+void __mingw_setusermatherr(void) {
+    // Empty stub - GHC doesn't use C math error handling
+}
+
+// _MINGW_INSTALL_DEBUG_MATHERR: Debug math error handler flag
+int _MINGW_INSTALL_DEBUG_MATHERR = 0;
+EOF
+
+MINGW32_STUBS_OBJ="${_SRC_DIR}/mingw32_stubs.o"
+MINGW32_STUBS_LIB="${_BUILD_PREFIX}/Library/lib/libmingw32_stubs.a"
+
+${CC} ${CFLAGS} -c "${_SRC_DIR}/mingw32_stubs.c" -o "${MINGW32_STUBS_OBJ}"
+${AR} rcs "${MINGW32_STUBS_LIB}" "${MINGW32_STUBS_OBJ}"
+echo "Created ${MINGW32_STUBS_LIB}"
+
+if [ -f "${MINGW32_STUBS_LIB}" ]; then
+    echo "✓ Library exists: ${MINGW32_STUBS_LIB}"
+    ls -lh "${MINGW32_STUBS_LIB}"
+else
+    echo "✗ ERROR: Library NOT created at ${MINGW32_STUBS_LIB}"
+    exit 1
+fi
+
 # CRITICAL: Create __main stub library (GCC runtime initialization)
 # crt2.o startup code calls __main() which is normally in libgcc
 # With -nodefaultlibs, libgcc isn't linked, so we provide a stub
@@ -118,13 +161,12 @@ fi
 # Configure script uses LDFLAGS to test C compiler, needs our stubs
 MINGW_SYSROOT="${_BUILD_PREFIX}/Library/x86_64-w64-mingw32/sysroot/usr/lib"
 export LDFLAGS="-fuse-ld=bfd -nostartfiles -L${_BUILD_PREFIX}/Library/lib -L${MINGW_SYSROOT} -Wl,--subsystem,console"
-# CRITICAL: Use --start-group/--end-group for circular dependencies
-# crt2.o needs symbols from libmingw32.a (_setargv, _matherr, __mingw_setusermatherr)
-# BUT libmingw32.a contains GUI startup (crtexewin.o) that conflicts with crt2.o
-# Solution: Group crt2.o + libmingw32.a so linker resolves circular refs but uses our crt2.o
-# --start-group: Allow multiple passes to resolve circular dependencies
-# Order: helper libs → START_GROUP(crt2.o + -lmingw32) → stubs → system libs
-export LDFLAGS="${LDFLAGS} -lmoldname -lmingwex -Wl,--start-group ${MINGW_SYSROOT}/crt2.o -lmingw32 -Wl,--end-group -lchkstk_ms -lgcc_main -lmsvcrt -lkernel32 -ladvapi32"
+# CRITICAL: DO NOT link -lmingw32 - it contains crtexewin.o (GUI startup) that conflicts with crt2.o
+# Instead, use libmingw32_stubs.a which provides ONLY the symbols crt2.o needs:
+#   - _setargv, _matherr, __mingw_setusermatherr, _MINGW_INSTALL_DEBUG_MATHERR
+# This eliminates the conflict while still satisfying crt2.o's dependencies
+# Order: helper libs → crt2.o → mingw32 stubs → other stubs → system libs
+export LDFLAGS="${LDFLAGS} -lmoldname -lmingwex ${MINGW_SYSROOT}/crt2.o -lmingw32_stubs -lchkstk_ms -lgcc_main -lmsvcrt -lkernel32 -ladvapi32"
 echo "LDFLAGS=${LDFLAGS}"
 
 # Update Stage0 settings file with conda include paths for Windows build
@@ -174,9 +216,9 @@ if [[ -f "${settings_file}" ]]; then
   # MinGW helper libraries
   LINK_FLAGS="${LINK_FLAGS} -Xlinker -lmoldname"
   LINK_FLAGS="${LINK_FLAGS} -Xlinker -lmingwex"
-  # Then -lmingw32
-  LINK_FLAGS="${LINK_FLAGS} -Xlinker -lmingw32"
-  # Then chkstk_ms (provides symbols needed by mingw32)
+  # CRITICAL: Use mingw32_stubs instead of -lmingw32 to avoid GUI startup conflict
+  LINK_FLAGS="${LINK_FLAGS} -Xlinker -lmingw32_stubs"
+  # Then chkstk_ms (provides ___chkstk_ms symbol)
   LINK_FLAGS="${LINK_FLAGS} -Xlinker -lchkstk_ms"
   # Then gcc_main (provides __main symbol needed by crt2.o)
   LINK_FLAGS="${LINK_FLAGS} -Xlinker -lgcc_main"
@@ -196,8 +238,8 @@ if [[ -f "${settings_file}" ]]; then
 
   # Also add to "ld flags" for direct ld invocations (use bare library names, no -Xlinker)
   # CRITICAL: --subsystem,console for console entry point (GNU ld syntax with comma separator)
-  # NOTE: crt2.o added via LIBS environment variable instead of settings file
-  perl -pi -e "s#(ld flags\", \")([^\"]*)#\$1\$2 --subsystem,console -L${CHKSTK_DIR} -L${MINGW_SYSROOT} -lmoldname -lmingwex -lmingw32 -lchkstk_ms -lgcc_main -lmsvcrt -lkernel32 -ladvapi32#" "${settings_file}"
+  # CRITICAL: Use -lmingw32_stubs instead of -lmingw32 to avoid GUI startup conflict
+  perl -pi -e "s#(ld flags\", \")([^\"]*)#\$1\$2 --subsystem,console -L${CHKSTK_DIR} -L${MINGW_SYSROOT} -lmoldname -lmingwex -lmingw32_stubs -lchkstk_ms -lgcc_main -lmsvcrt -lkernel32 -ladvapi32#" "${settings_file}"
 
   # CRITICAL: Fix merge-objects to use GNU ld (ld.bfd) instead of lld
   # The bootstrap GHC has system-merge-objects pointing to ld.lld.exe which uses MSVC-style .lib files
