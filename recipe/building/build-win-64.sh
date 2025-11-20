@@ -121,7 +121,7 @@ if [[ -f "${settings_file}" ]]; then
 
   # Build complete link flags string - libraries come AFTER user objects
   # Use GNU ld (bfd) with GNU-style subsystem flag
-  # CRITICAL: Use -nostartfiles + explicit crt2.o to prevent GUI startup conflict
+  # CRITICAL: -nostartfiles is a COMPILER option (not linker), don't use -Wl
   # Use Windows-style path (C:/...) which ld.bfd understands
   LINK_FLAGS="-fuse-ld=bfd -nostartfiles -Wl,--subsystem,console"
   LINK_FLAGS="${LINK_FLAGS} -Xlinker -L${CHKSTK_DIR} -Xlinker -L${MINGW_SYSROOT}"
