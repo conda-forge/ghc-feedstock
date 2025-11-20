@@ -278,7 +278,11 @@ update_linux_link_flags "${settings_file}"
 echo "=== Stage 0 settings after patching ==="
 grep -E "C compiler|C\+\+ compiler|Haskell CPP" "${settings_file}" || true
 
-# Build stage 1 libraries
+# Build stage 1 libraries explicitly in correct order (race condition prevention)
+echo "  Building stage 1 libraries explicitly (race condition prevention)"
+run_and_log "stage1_ghc-prim" "${_hadrian_build[@]}" stage1:lib:ghc-prim --flavour="${HADRIAN_FLAVOUR_STAGE1}" --docs=none --progress-info=none
+run_and_log "stage1_ghc-bignum" "${_hadrian_build[@]}" stage1:lib:ghc-bignum --flavour="${HADRIAN_FLAVOUR_STAGE1}" --docs=none --progress-info=none
+run_and_log "stage1_ghc-experimental" "${_hadrian_build[@]}" stage1:lib:ghc-experimental --flavour="${HADRIAN_FLAVOUR_STAGE1}" --docs=none --progress-info=none
 run_and_log "stage1_lib" "${_hadrian_build[@]}" stage1:lib:ghc --flavour="${HADRIAN_FLAVOUR_STAGE1}" --docs=none --progress-info=none
 
 # Patch settings again after library build
