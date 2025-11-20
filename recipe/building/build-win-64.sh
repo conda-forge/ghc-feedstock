@@ -116,14 +116,16 @@ if [[ -f "${settings_file}" ]]; then
 
   # Build complete link flags string - libraries come AFTER user objects
   # Use GNU ld (bfd) with GNU-style subsystem flag
-  # CRITICAL: -nostartfiles prevents auto-inclusion of CRT startup files
-  # This ensures we control which startup file (console vs GUI) is used
+  # CRITICAL: Use -nostartfiles + explicit crt2.o to prevent GUI startup conflict
+  # Use just filename "crt2.o" so linker finds it via -L search path
   LINK_FLAGS="-fuse-ld=bfd -nostartfiles -Wl,--subsystem,console"
   LINK_FLAGS="${LINK_FLAGS} -Xlinker -L${CHKSTK_DIR} -Xlinker -L${MINGW_SYSROOT}"
-  # MinGW helper libraries FIRST
+  # Console CRT startup FIRST (use bare filename, linker finds via -L path)
+  LINK_FLAGS="${LINK_FLAGS} -Xlinker crt2.o"
+  # MinGW helper libraries
   LINK_FLAGS="${LINK_FLAGS} -Xlinker -lmoldname"
   LINK_FLAGS="${LINK_FLAGS} -Xlinker -lmingwex"
-  # Then -lmingw32 (won't pull in startup files due to -nostartfiles)
+  # Then -lmingw32 (won't add startup due to -nostartfiles)
   LINK_FLAGS="${LINK_FLAGS} -Xlinker -lmingw32"
   # Then chkstk_ms (provides symbols needed by mingw32)
   LINK_FLAGS="${LINK_FLAGS} -Xlinker -lchkstk_ms"
@@ -131,17 +133,14 @@ if [[ -f "${settings_file}" ]]; then
   LINK_FLAGS="${LINK_FLAGS} -Xlinker -lmsvcrt"
   LINK_FLAGS="${LINK_FLAGS} -Xlinker -lkernel32"
   LINK_FLAGS="${LINK_FLAGS} -Xlinker -ladvapi32"
-  # NOTE: crt2.o will be added via LIBS environment variable (not here)
-  # to avoid path resolution issues in GHC settings
 
   perl -pi -e "s#(C compiler link flags\", \")[^\"]*#\$1${LINK_FLAGS}#" "${settings_file}"
   perl -pi -e "s#(ld is GNU ld\", \")[^\"]*#\$1YES#" "${settings_file}"
 
   # Also add to "ld flags" for direct ld invocations (use bare library names, no -Xlinker)
   # CRITICAL: --subsystem,console for console entry point (GNU ld syntax with comma separator)
-  # CRITICAL: -nostartfiles prevents auto-inclusion of wrong CRT startup files
-  # NOTE: crt2.o will be added via LIBS environment variable (not here) to avoid path issues
-  perl -pi -e "s#(ld flags\", \")([^\"]*)#\$1\$2 -nostartfiles --subsystem,console -L${CHKSTK_DIR} -L${MINGW_SYSROOT} -lmoldname -lmingwex -lmingw32 -lchkstk_ms -lmsvcrt -lkernel32 -ladvapi32#" "${settings_file}"
+  # CRITICAL: -nostartfiles + explicit crt2.o (bare filename) for console startup
+  perl -pi -e "s#(ld flags\", \")([^\"]*)#\$1\$2 -nostartfiles --subsystem,console -L${CHKSTK_DIR} -L${MINGW_SYSROOT} crt2.o -lmoldname -lmingwex -lmingw32 -lchkstk_ms -lmsvcrt -lkernel32 -ladvapi32#" "${settings_file}"
 
   # CRITICAL: Fix merge-objects to use GNU ld (ld.bfd) instead of lld
   # The bootstrap GHC has system-merge-objects pointing to ld.lld.exe which uses MSVC-style .lib files
