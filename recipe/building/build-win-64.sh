@@ -146,6 +146,13 @@ if [[ -f "${settings_file}" ]]; then
   echo "  AR_WIN=${AR_WIN}"
   echo "  RANLIB_WIN=${RANLIB_WIN}"
 
+  # CRITICAL: Update environment variables to Windows format
+  # GHC and Cabal read these from the environment when executing tools
+  export LD="${LD_WIN}"
+  export AR="${AR_WIN}"
+  export RANLIB="${RANLIB_WIN}"
+  echo "Updated environment variables to Windows format"
+
   perl -pi -e "s#(C compiler command\", \")[^\"]*#\$1${CC}#" "${settings_file}"
   # Use Clang with -E for preprocessing (acts as cpp)
   # Must use full path to ensure it's found
@@ -216,7 +223,8 @@ if [[ -f "${settings_file}" ]]; then
   # The bootstrap GHC has system-merge-objects pointing to ld.lld.exe which uses MSVC-style .lib files
   # We need GNU ld which works with MinGW .a files
   # Match any ld command (lld.exe, ld.lld.exe, ld.exe) and replace with our GNU ld
-  perl -pi -e "s#(Merge objects command\", \")[^\"]*#\$1${LD}#" "${settings_file}"
+  # IMPORTANT: Use LD_WIN (Windows format) not LD (Unix format) for tool execution
+  perl -pi -e "s#(Merge objects command\", \")[^\"]*#\$1${LD_WIN}#" "${settings_file}"
 
   grep "C compiler flags\|C++ compiler flags\|Merge objects\|ld is GNU\|ld flags" "${settings_file}"
 else
@@ -366,8 +374,11 @@ export LIBS="${CRT2_OBJ} -Wl,--subsystem,console -lmoldname -lmingwex -lmingw32 
 export LDFLAGS="${LDFLAGS} -Wl,--subsystem,console"
 
 # Use GNU ld for linking (compatible with MinGW libraries)
-# CRITICAL: Use Unix path _BUILD_PREFIX not Windows path BUILD_PREFIX
-export LD="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-ld.exe"
+# CRITICAL: Use Windows format path for tool execution (GHC on Windows needs C:/path format)
+LD_UNIX="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-ld.exe"
+LD_WIN=$(echo "${LD_UNIX}" | sed 's#^/c/#C:/#')
+export LD="${LD_WIN}"
+echo "LD set to Windows format: ${LD}"
 
 (
   MergeObjsCmd="${LD}" \
