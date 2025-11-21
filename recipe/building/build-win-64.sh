@@ -168,7 +168,8 @@ if [[ -f "${settings_file}" ]]; then
   # CRITICAL: Fix merge-objects to use GNU ld (ld.bfd) instead of lld
   # The bootstrap GHC has system-merge-objects pointing to ld.lld.exe which uses MSVC-style .lib files
   # We need GNU ld which works with MinGW .a files
-  perl -pi -e "s#(Merge objects command\", \")[^\"]*ld\\.lld[^\"]*#\$1${LD}#" "${settings_file}"
+  # Match any ld command (lld.exe, ld.lld.exe, ld.exe) and replace with our GNU ld
+  perl -pi -e "s#(Merge objects command\", \")[^\"]*#\$1${LD}#" "${settings_file}"
 
   grep "C compiler flags\|C++ compiler flags\|Merge objects\|ld is GNU\|ld flags" "${settings_file}"
 else
