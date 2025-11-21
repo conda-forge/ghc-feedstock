@@ -387,7 +387,9 @@ mkdir -p ${_SRC_DIR}/_build
     # No need for cabal.project workarounds - GCC's cpp handles Haskell # identifiers correctly
 
     echo "=== Building Hadrian with GCC cpp (configured in bootstrap settings) ==="
-    "${CABAL}" v2-build -v -j hadrian 2>&1 | tee "${_SRC_DIR}"/cabal-build.log
+    # CRITICAL: Use -j1 to avoid parallel build race conditions on Windows
+    # Windows builds are prone to deadlocks in package registration and file operations
+    "${CABAL}" v2-build -v -j1 hadrian 2>&1 | tee "${_SRC_DIR}"/cabal-build.log
     _cabal_exit_code=${PIPESTATUS[0]}
 
     if [[ $_cabal_exit_code -ne 0 ]]; then
