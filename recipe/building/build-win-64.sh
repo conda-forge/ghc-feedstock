@@ -98,7 +98,13 @@ if [[ -f "${settings_file}" ]]; then
   echo "=== Updating bootstrap settings with conda include paths ==="
   # Add -I flags to C compiler flags for ffi.h, gmp.h, etc.
   # CRITICAL: Use _PREFIX (Unix paths) NOT PREFIX (Windows paths with \b escape sequences)
-  
+
+  # CRITICAL: Override conda's LD=lld-link.exe with GNU ld
+  # Conda-forge Windows toolchain sets LD to lld-link.exe (MSVC linker)
+  # We need GNU ld for MinGW object files
+  export LD="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-ld.exe"
+  echo "LD overridden to: ${LD}"
+
   perl -pi -e "s#(C compiler command\", \")[^\"]*#\$1${CC}#" "${settings_file}"
   # Use Clang with -E for preprocessing (acts as cpp)
   # Must use full path to ensure it's found
