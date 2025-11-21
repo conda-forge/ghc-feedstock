@@ -70,17 +70,37 @@ echo "Created ${CHKSTK_OBJ}"
 ${AR} rcs "${CHKSTK_LIB}" "${CHKSTK_OBJ}"
 echo "Created ${CHKSTK_LIB}"
 
-echo "=== Building mingw32 runtime stubs library ==="
-MINGW32_STUBS_OBJ="${_SRC_DIR}/mingw32_stubs.o"
+echo "=== Building mingw32 runtime library WITHOUT GUI startup ==="
+# Extract real libmingw32.a and remove ONLY crtexewin.o (GUI startup)
+# This gives us real implementations of runtime functions without the conflict
 MINGW32_STUBS_LIB="${_BUILD_PREFIX}/Library/lib/libmingw32_stubs.a"
+MINGW32_ORIG="${_BUILD_PREFIX}/Library/x86_64-w64-mingw32/sysroot/usr/lib/libmingw32.a"
+MINGW32_EXTRACT="${_SRC_DIR}/mingw32_extract"
 
-# Compile the stubs
-${CC} -c "${_RECIPE_DIR}/building/mingw32_stubs.c" -o "${MINGW32_STUBS_OBJ}"
-echo "Created ${MINGW32_STUBS_OBJ}"
+# Create extraction directory
+mkdir -p "${MINGW32_EXTRACT}"
+cd "${MINGW32_EXTRACT}"
 
-# Create static library
-${AR} rcs "${MINGW32_STUBS_LIB}" "${MINGW32_STUBS_OBJ}"
-echo "Created ${MINGW32_STUBS_LIB}"
+# Extract all object files from original libmingw32.a
+${AR} x "${MINGW32_ORIG}"
+echo "Extracted $(ls -1 *.o | wc -l) object files from libmingw32.a"
+
+# List all object files to see what we have
+echo "Object files in libmingw32.a:"
+ls -1 *.o
+
+# Remove GUI startup objects (crtexewin.o and any variants)
+rm -f *crtexewin*.o
+echo "Removed GUI startup objects"
+echo "Remaining object files: $(ls -1 *.o | wc -l)"
+
+# Repackage into our library WITHOUT GUI startup
+${AR} rcs "${MINGW32_STUBS_LIB}" *.o
+echo "Created ${MINGW32_STUBS_LIB} with real MinGW runtime (no GUI startup)"
+
+# Clean up
+cd "${_SRC_DIR}"
+rm -rf "${MINGW32_EXTRACT}"
 
 # Verify libraries were created
 if [ -f "${CHKSTK_LIB}" ]; then
@@ -418,21 +438,21 @@ mkdir -p ${_SRC_DIR}/_build
 
     if [[ $_cabal_exit_code -ne 0 ]]; then
       echo "=== Cabal build FAILED with exit code ${_cabal_exit_code} ==="
-      timeout 60 "${CABAL}" v2-build file-io
-      timeout 60 "${CABAL}" v2-build clock
-      timeout 60 "${CABAL}" v2-build js-dgtable
-      timeout 60 "${CABAL}" v2-build heaps
-      timeout 60 "${CABAL}" v2-build js-flot
-      timeout 60 "${CABAL}" v2-build js-jquery
-      timeout 60 "${CABAL}" v2-build os-string
-      timeout 60 "${CABAL}" v2-build splitmix
-      timeout 60 "${CABAL}" v2-build primitive
-      timeout 60 "${CABAL}" v2-build utf8-string
-      timeout 60 "${CABAL}" v2-build directory
-      timeout 60 "${CABAL}" v2-build random
+      for pkg in file-io clock js-dgtable heaps js-flot js-jquery os-string splitmix primitive utf8-string directory random; do
+        echo "Testing package: $pkg"
+        timeout 60 "${CABAL}" v2-build "$pkg" 2>&1 | tee "${_SRC_DIR}/package-${pkg}.log"
+        pkg_exit=$?
+        if [[ $pkg_exit -eq 0 ]]; then
+          echo "  \u2713 $pkg: SUCCESS"
+        elif [[ $pkg_exit -eq 124 ]]; then
+          echo "  \u2717 $pkg: TIMEOUT after 60s"
+        else
+          echo "  \u2717 $pkg: FAILED with exit code $pkg_exit"
+        fi
+      done
       
       echo "=== Retrying with verbose output for failed packages ==="
-      timeout 300 "${CABAL}" v2-build -v3 hadrian 2>&1 | tee "${_SRC_DIR}"/cabal-verbose.log
+      timeout 300 "${CABAL}" v2-build -j -v3 hadrian 2>&1 | tee "${_SRC_DIR}"/cabal-verbose.log
       exit 1
     else
       echo "=== Cabal build SUCCEEDED ==="
