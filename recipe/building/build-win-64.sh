@@ -402,16 +402,37 @@ mkdir -p ${_SRC_DIR}/_build
     # WINDOWS CPP FIX: GCC cpp with -traditional flag configured in bootstrap settings
     # No need for cabal.project workarounds - GCC's cpp handles Haskell # identifiers correctly
 
+    # CRITICAL: Test GHC before cabal build to ensure it's functional
+    echo "=== Testing bootstrap GHC invocation ==="
+    echo "Running: ghc --version"
+    "${GHC}" --version || { echo "ERROR: GHC failed to run"; exit 1; }
+    echo "Running: ghc --print-libdir"
+    "${GHC}" --print-libdir || { echo "ERROR: GHC --print-libdir failed"; exit 1; }
+    echo "Bootstrap GHC is functional"
+
     echo "=== Building Hadrian with GCC cpp (configured in bootstrap settings) ==="
     # CRITICAL: Use -j1 to avoid parallel build race conditions on Windows
     # Windows builds are prone to deadlocks in package registration and file operations
-    "${CABAL}" v2-build -v -j1 hadrian 2>&1 | tee "${_SRC_DIR}"/cabal-build.log
+    timeout 600 "${CABAL}" v2-build -j hadrian 2>&1 | tee "${_SRC_DIR}"/cabal-build.log
     _cabal_exit_code=${PIPESTATUS[0]}
 
     if [[ $_cabal_exit_code -ne 0 ]]; then
       echo "=== Cabal build FAILED with exit code ${_cabal_exit_code} ==="
+      timeout 60 "${CABAL}" v2-build file-io
+      timeout 60 "${CABAL}" v2-build clock
+      timeout 60 "${CABAL}" v2-build js-dgtable
+      timeout 60 "${CABAL}" v2-build heaps
+      timeout 60 "${CABAL}" v2-build js-flot
+      timeout 60 "${CABAL}" v2-build js-jquery
+      timeout 60 "${CABAL}" v2-build os-string
+      timeout 60 "${CABAL}" v2-build splitmix
+      timeout 60 "${CABAL}" v2-build primitive
+      timeout 60 "${CABAL}" v2-build utf8-string
+      timeout 60 "${CABAL}" v2-build directory
+      timeout 60 "${CABAL}" v2-build random
+      
       echo "=== Retrying with verbose output for failed packages ==="
-      "${CABAL}" v2-build -v3 hadrian 2>&1 | tee "${_SRC_DIR}"/cabal-verbose.log
+      timeout 300 "${CABAL}" v2-build -v3 hadrian 2>&1 | tee "${_SRC_DIR}"/cabal-verbose.log
       exit 1
     else
       echo "=== Cabal build SUCCEEDED ==="
