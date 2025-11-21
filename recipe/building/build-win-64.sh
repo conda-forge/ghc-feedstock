@@ -134,14 +134,26 @@ if [[ -f "${settings_file}" ]]; then
   export LD="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-ld.exe"
   echo "LD overridden to: ${LD}"
 
+  # Convert Unix paths to Windows format for GHC settings
+  # GHC on Windows needs Windows paths to execute programs
+  # Convert /c/path to C:/path (Windows accepts forward slashes)
+  LD_WIN=$(echo "${LD}" | sed 's#^/c/#C:/#')
+  AR_WIN=$(echo "${AR}" | sed 's#^/c/#C:/#')
+  RANLIB_WIN=$(echo "${RANLIB}" | sed 's#^/c/#C:/#')
+
+  echo "Converted paths for GHC settings:"
+  echo "  LD_WIN=${LD_WIN}"
+  echo "  AR_WIN=${AR_WIN}"
+  echo "  RANLIB_WIN=${RANLIB_WIN}"
+
   perl -pi -e "s#(C compiler command\", \")[^\"]*#\$1${CC}#" "${settings_file}"
   # Use Clang with -E for preprocessing (acts as cpp)
   # Must use full path to ensure it's found
   perl -pi -e "s#(Haskell CPP command\", \")[^\"]*#\$1${CC}#" "${settings_file}"
   perl -pi -e "s#(C\+\+ compiler command\", \")[^\"]*#\$1${CXX}#" "${settings_file}"
-  perl -pi -e "s#(Merge objects command\", \")[^\"]*#\$1${LD}#" "${settings_file}"
-  perl -pi -e "s#(ar command\", \")[^\"]*#\$1${AR}#" "${settings_file}"
-  perl -pi -e "s#(ranlib command\", \")[^\"]*#\$1${RANLIB}#" "${settings_file}"
+  perl -pi -e "s#(Merge objects command\", \")[^\"]*#\$1${LD_WIN}#" "${settings_file}"
+  perl -pi -e "s#(ar command\", \")[^\"]*#\$1${AR_WIN}#" "${settings_file}"
+  perl -pi -e "s#(ranlib command\", \")[^\"]*#\$1${RANLIB_WIN}#" "${settings_file}"
   perl -pi -e "s#(dllwrap command\", \")[^\"]*#\$1false#" "${settings_file}"
   perl -pi -e "s#(windres command\", \")[^\"]*#\$1false#" "${settings_file}"
 
