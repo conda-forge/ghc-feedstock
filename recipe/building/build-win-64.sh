@@ -120,6 +120,21 @@ else
     exit 1
 fi
 
+# CRITICAL: Ensure cabal finds GNU ld, not lld
+# Cabal searches PATH for "ld.exe" and finds ld.lld.exe (LLVM linker)
+# We need GNU ld (ld.bfd) for MinGW object files
+# Create ld.exe symlink to x86_64-w64-mingw32-ld.exe (GNU ld)
+echo "=== Creating ld.exe symlink to GNU ld ==="
+LD_SYMLINK="${_BUILD_PREFIX}/Library/bin/ld.exe"
+GNU_LD="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-ld.exe"
+if [ -f "${LD_SYMLINK}" ]; then
+    echo "Removing existing ${LD_SYMLINK}"
+    rm -f "${LD_SYMLINK}"
+fi
+ln -sf "$(basename ${GNU_LD})" "${LD_SYMLINK}"
+echo "Created symlink: ld.exe -> $(basename ${GNU_LD})"
+ls -lh "${LD_SYMLINK}"
+
 # Update Stage0 settings file with conda include paths for Windows build
 # NOW we can reference the chkstk library since it exists
 settings_file="${_BUILD_PREFIX}/ghc-bootstrap/lib/settings"
