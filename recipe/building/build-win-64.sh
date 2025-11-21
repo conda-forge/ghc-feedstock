@@ -47,8 +47,8 @@ CLANG_BUILTIN_INCLUDE="${CLANG_RESOURCE_DIR}/include"
 # -nodefaultlibs: Don't link libgcc/libgcc_eh (not available in conda)
 # -nostartfiles: Don't auto-include CRT startup files (we'll specify crt2.o explicitly in LIBS)
 # -Wl,--subsystem,console: Set PE subsystem to console (not GUI)
-export CFLAGS="--target=x86_64-w64-mingw32 -fuse-ld=bfd -nodefaultlibs -D__MINGW32__ -D_VA_LIST_DEFINED -D__GNUC__=13 -Dva_list=__builtin_va_list -I${CLANG_BUILTIN_INCLUDE} -I${_BUILD_PREFIX}/Library/include ${CFLAGS:-}"
-export CXXFLAGS="--target=x86_64-w64-mingw32 -fuse-ld=bfd -nodefaultlibs -D__MINGW32__ -D_VA_LIST_DEFINED -D__GNUC__=13 -Dva_list=__builtin_va_list -I${CLANG_BUILTIN_INCLUDE} -I${_BUILD_PREFIX}/Library/include ${CXXFLAGS:-}"
+export CFLAGS="--target=x86_64-w64-mingw32 -fuse-ld=bfd -nodefaultlibs -D__MINGW32__ -D_VA_LIST_DEFINED -Dva_list=__builtin_va_list -I${CLANG_BUILTIN_INCLUDE} -I${_BUILD_PREFIX}/Library/include ${CFLAGS:-}"
+export CXXFLAGS="--target=x86_64-w64-mingw32 -fuse-ld=bfd -nodefaultlibs -D__MINGW32__ -D_VA_LIST_DEFINED -Dva_list=__builtin_va_list -I${CLANG_BUILTIN_INCLUDE} -I${_BUILD_PREFIX}/Library/include ${CXXFLAGS:-}"
 export LDFLAGS="-fuse-ld=bfd -nostartfiles -L${_BUILD_PREFIX}/Library/lib -L${_BUILD_PREFIX}/Library/mingw-w64/lib -Wl,--subsystem,console ${LDFLAGS:-}"
 
 # Bug in ghc-bootstrap
@@ -119,21 +119,6 @@ else
     echo "Check if ${_RECIPE_DIR}/building/mingw32_stubs.c exists and compiles"
     exit 1
 fi
-
-# CRITICAL: Ensure cabal finds GNU ld, not lld
-# Cabal searches PATH for "ld.exe" and finds ld.lld.exe (LLVM linker)
-# We need GNU ld (ld.bfd) for MinGW object files
-# Create ld.exe symlink to x86_64-w64-mingw32-ld.exe (GNU ld)
-echo "=== Creating ld.exe symlink to GNU ld ==="
-LD_SYMLINK="${_BUILD_PREFIX}/Library/bin/ld.exe"
-GNU_LD="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-ld.exe"
-if [ -f "${LD_SYMLINK}" ]; then
-    echo "Removing existing ${LD_SYMLINK}"
-    rm -f "${LD_SYMLINK}"
-fi
-ln -sf "$(basename ${GNU_LD})" "${LD_SYMLINK}"
-echo "Created symlink: ld.exe -> $(basename ${GNU_LD})"
-ls -lh "${LD_SYMLINK}"
 
 # Update Stage0 settings file with conda include paths for Windows build
 # NOW we can reference the chkstk library since it exists
@@ -448,14 +433,15 @@ mkdir -p ${_SRC_DIR}/_build
     echo "=== Building Hadrian with GCC cpp (configured in bootstrap settings) ==="
     # CRITICAL: Use -j1 to avoid parallel build race conditions on Windows
     # Windows builds are prone to deadlocks in package registration and file operations
-    timeout 600 "${CABAL}" v2-build -j hadrian 2>&1 | tee "${_SRC_DIR}"/cabal-build.log
+    # Use --with-ld to ensure cabal uses GNU ld, not lld
+    timeout 600 "${CABAL}" v2-build -j --with-ld="${LD}" hadrian 2>&1 | tee "${_SRC_DIR}"/cabal-build.log
     _cabal_exit_code=${PIPESTATUS[0]}
 
     if [[ $_cabal_exit_code -ne 0 ]]; then
       echo "=== Cabal build FAILED with exit code ${_cabal_exit_code} ==="
       for pkg in file-io clock js-dgtable heaps js-flot js-jquery os-string splitmix primitive utf8-string directory random; do
         echo "Testing package: $pkg"
-        timeout 60 "${CABAL}" v2-build "$pkg" 2>&1 | tee "${_SRC_DIR}/package-${pkg}.log"
+        timeout 60 "${CABAL}" v2-build --with-ld="${LD}" "$pkg" 2>&1 | tee "${_SRC_DIR}/package-${pkg}.log"
         pkg_exit=$?
         if [[ $pkg_exit -eq 0 ]]; then
           echo "  \u2713 $pkg: SUCCESS"
@@ -467,7 +453,7 @@ mkdir -p ${_SRC_DIR}/_build
       done
       
       echo "=== Retrying with verbose output for failed packages ==="
-      timeout 300 "${CABAL}" v2-build -j -v3 hadrian 2>&1 | tee "${_SRC_DIR}"/cabal-verbose.log
+      timeout 300 "${CABAL}" v2-build -j -v3 --with-ld="${LD}" hadrian 2>&1 | tee "${_SRC_DIR}"/cabal-verbose.log
       exit 1
     else
       echo "=== Cabal build SUCCEEDED ==="
