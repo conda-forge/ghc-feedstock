@@ -82,12 +82,21 @@ echo "Created ${MINGW32_STUBS_OBJ}"
 ${AR} rcs "${MINGW32_STUBS_LIB}" "${MINGW32_STUBS_OBJ}"
 echo "Created ${MINGW32_STUBS_LIB}"
 
-# Verify library was created
+# Verify libraries were created
 if [ -f "${CHKSTK_LIB}" ]; then
     echo "✓ Library exists: ${CHKSTK_LIB}"
     ls -lh "${CHKSTK_LIB}"
 else
     echo "✗ ERROR: Library NOT created at ${CHKSTK_LIB}"
+    exit 1
+fi
+
+if [ -f "${MINGW32_STUBS_LIB}" ]; then
+    echo "✓ Library exists: ${MINGW32_STUBS_LIB}"
+    ls -lh "${MINGW32_STUBS_LIB}"
+else
+    echo "✗ ERROR: Library NOT created at ${MINGW32_STUBS_LIB}"
+    echo "Check if ${_RECIPE_DIR}/building/mingw32_stubs.c exists and compiles"
     exit 1
 fi
 
