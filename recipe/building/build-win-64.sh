@@ -162,7 +162,11 @@ if [[ -f "${settings_file}" ]]; then
   perl -pi -e "s#(ar command\", \")[^\"]*#\$1${AR_WIN}#" "${settings_file}"
   perl -pi -e "s#(ranlib command\", \")[^\"]*#\$1${RANLIB_WIN}#" "${settings_file}"
   perl -pi -e "s#(dllwrap command\", \")[^\"]*#\$1false#" "${settings_file}"
-  perl -pi -e "s#(windres command\", \")[^\"]*#\$1false#" "${settings_file}"
+  # windres is needed for compiling Windows resource files (.rc)
+  # Use Windows path format for tool execution
+  WINDRES_UNIX="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-windres.exe"
+  WINDRES_WIN=$(echo "${WINDRES_UNIX}" | sed 's#^/c/#C:/#')
+  perl -pi -e "s#(windres command\", \")[^\"]*#\$1${WINDRES_WIN}#" "${settings_file}"
 
   perl -pi -e "s#-I\\\$tooldir/mingw/include#-I${_BUILD_PREFIX}/Library/include#g" "${settings_file}"
 
