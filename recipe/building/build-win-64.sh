@@ -407,14 +407,14 @@ done
 # The ___chkstk_ms library has been created upfront (lines 58-79)
 # Now add it to both LIBS and LDFLAGS
 
-# LIBS is used by autoconf-based configure
+# LIBS is used by autoconf-based configure AND Cabal when building Hadrian
 # CRITICAL: Link order - CRT startup object FIRST, then libraries
 # CRITICAL: -lmingw32 needs ___chkstk_ms, so chkstk_ms must come AFTER mingw32
 # With -nostartfiles, we must explicitly specify crt2.o (console CRT) not crtexewin.o (GUI)
-# NOTE: Do NOT add -lgcc here - configure will fail (libgcc path not set up yet)
-# Instead, -lgcc is added to GHC settings files for Hadrian builds
+# NOTE: Now that GCC lib path is in LDFLAGS, we can safely add -lgcc
+# This is needed for Cabal when linking Hadrian (before GHC settings are used)
 CRT2_OBJ="${_BUILD_PREFIX}/Library/x86_64-w64-mingw32/sysroot/usr/lib/crt2.o"
-export LIBS="${CRT2_OBJ} -Wl,--subsystem,console -lmoldname -lmingwex -lmingw32 ${CHKSTK_LIB} -lmsvcrt -lkernel32 -ladvapi32"
+export LIBS="${CRT2_OBJ} -Wl,--subsystem,console -lmoldname -lmingwex -lmingw32 ${CHKSTK_LIB} -lgcc -lmsvcrt -lkernel32 -ladvapi32"
 
 # CRITICAL: Reinforce subsystem flag in LDFLAGS
 # -Wl,--subsystem,console: Use console entry point (main) instead of GUI (WinMain)
