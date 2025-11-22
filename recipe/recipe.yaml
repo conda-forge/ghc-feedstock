@@ -10,9 +10,11 @@ source:
     sha256: d266864b9e0b7b741abe8c9d6a790d7c01c21cf43a1419839119255878ebc59a
     patches:
       - if: aarch64 or ppc64le or arm64
-        then: patches/skip-bindist-recache-crosscompile.patch
+        then:
+          - patches/skip-bindist-recache-crosscompile.patch
       - if: ppc64le
-        then: patches/fix-stgcrun-ppc64le-abi-v2.patch
+        then:
+          - patches/fix-stgcrun-ppc64le-abi-v2.patch
       - if: arm64
         then:
           - patches/fix-regparm-arm64.patch
@@ -46,6 +48,7 @@ requirements:
       then:
         - autoconf
         - automake
+        - bash
         - file
         - m4
         - make
@@ -100,26 +103,10 @@ tests:
           else:
             - lib/ghc-${{ version }}/lib/*-ghc-${{ version }}/**
 
-  - script:
-      - if: osx and x86_64
-        then: |
-          # Diagnostic test for linker flag issues
-          bash test-linker-flags.sh
-        else: echo ""
-    files:
-      recipe:
-        - test-linker-flags.sh
-    requirements:
-      run:
-        - ${{ compiler('c') }}
-        - lld ${{ c_compiler_version }}.*
-      
   - script: |
       ghc --version
       printf 'main = putStrLn "Hello conda-forge"\n' > hello.hs
       ghc hello.hs -o hello
-      nm hello | grep -E "Main.*closure" | head -20 || true
-      nm hello | grep " b " | grep closure || true  # 'b' = uninitialized data section (should be empty)
       ./hello +RTS -c -RTS || true
       ./hello +RTS -G1 -H32m -RTS || true
       ./hello +RTS -Ds -RTS || true
@@ -129,11 +116,14 @@ tests:
         - ${{ compiler('c') }}
         - libiconv
         - if: unix
-          then: ${{ stdlib('c') }}
+          then:
+            - ${{ stdlib('c') }}
         - if: linux
-          then: ld_impl_${{ target_platform }} ${{ binutils_version }}
+          then:
+            - ld_impl_${{ target_platform }} ${{ binutils_version }}
         - if: osx
-          then: lld ${{ c_compiler_version }}.*
+          then:
+            - lld ${{ c_compiler_version }}.*
 
   - script:
       - if: not osx
@@ -148,9 +138,11 @@ tests:
         - ${{ compiler('c') }}
         - libiconv
         - if: unix
-          then: ${{ stdlib('c') }}
+          then:
+            - ${{ stdlib('c') }}
         - if: linux
-          then: ld_impl_${{ target_platform }} ${{ binutils_version }}
+          then:
+            - ld_impl_${{ target_platform }} ${{ binutils_version }}
 
   - script: |
       printf 'main = putStrLn "Hello conda-forge"\n' > hello.hs
@@ -162,11 +154,14 @@ tests:
         - ${{ compiler('c') }}
         - libiconv
         - if: unix
-          then: ${{ stdlib('c') }}
+          then:
+            - ${{ stdlib('c') }}
         - if: linux
-          then: ld_impl_${{ target_platform }} ${{ binutils_version }}
+          then:
+            - ld_impl_${{ target_platform }} ${{ binutils_version }}
         - if: osx
-          then: lld ${{ c_compiler_version }}.*
+          then:
+            - lld ${{ c_compiler_version }}.*
 
   - script:
       - printf 'import System.Posix.Signals\nmain = installHandler sigTERM Default Nothing >> putStrLn "Signal test"\n' > signal_test.hs
@@ -181,11 +176,14 @@ tests:
         - ${{ compiler('c') }}
         - libiconv
         - if: unix
-          then: ${{ stdlib('c') }}
+          then:
+            - ${{ stdlib('c') }}
         - if: linux
-          then: ld_impl_${{ target_platform }} ${{ binutils_version }}
+          then:
+            - ld_impl_${{ target_platform }} ${{ binutils_version }}
         - if: osx
-          then: lld ${{ c_compiler_version }}.*
+          then:
+            - lld ${{ c_compiler_version }}.*
 
 
 about:

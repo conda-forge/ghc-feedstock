@@ -1,18 +1,4 @@
 #!/usr/bin/env bash
-# ============================================================
-# STANDARDIZED GHC BUILD SCRIPT - Linux 64-bit Native
-# ============================================================
-# Version: 1.0
-# GHC Version: 9.10.2
-# Last updated: 2025-11-13
-#
-# DESIGN PRINCIPLES:
-# 1. Explicit Hadrian binary (prevents implicit rebuilds)
-# 2. Consistent flavour across all stages
-# 3. Race condition prevention for parallel builds
-# 4. Settings patching after each major stage
-# 5. Self-documenting with clear section markers
-# ============================================================
 
 set -eu
 
@@ -22,29 +8,13 @@ _log_index=0
 # Source common functions
 source "${RECIPE_DIR}"/building/common.sh
 
-# ============================================================
-# CABAL ENVIRONMENT SETUP
-# ============================================================
 export CABAL="${BUILD_PREFIX}/bin/cabal"
 export CABAL_DIR="${SRC_DIR}/.cabal"
 
 mkdir -p "${CABAL_DIR}" && "${CABAL}" user-config init
 run_and_log "cabal-update" "${CABAL}" v2-update
-
-# ============================================================
-# HADRIAN BUILD (EXPLICIT BINARY PATTERN)
-# ============================================================
-# CRITICAL: Build Hadrian with cabal and use explicit binary
-# This prevents implicit rebuilds during stage transitions
-#
-# Pattern adopted from 9.2.8/9.4.8 (proven stable)
-# Replaces integrated `hadrian/build` approach
-# ============================================================
-
-echo "=== Building Hadrian with cabal ==="
 run_and_log "build-hadrian" sh -c "cd '${SRC_DIR}/hadrian' && ${CABAL} v2-build -j hadrian"
 
-# Find the built hadrian binary (robust dynamic discovery)
 _hadrian_bin=$(find "${SRC_DIR}"/hadrian/dist-newstyle/build -name hadrian -type f -executable | head -1)
 
 if [[ -z "${_hadrian_bin}" ]]; then
@@ -53,55 +23,27 @@ if [[ -z "${_hadrian_bin}" ]]; then
   exit 1
 fi
 
-echo "Found Hadrian binary: ${_hadrian_bin}"
-
-# Use explicit binary with --directory flag (allows running from any location)
 _hadrian_build=("${_hadrian_bin}" "-j${CPU_COUNT}" "--directory" "${SRC_DIR}")
-
-# Verify hadrian works before proceeding
 "${_hadrian_bin}" --version
 
-# ============================================================
-# GHC CONFIGURE
-# ============================================================
-# System triple configuration (build/host/target)
-SYSTEM_CONFIG=(
+SYSTEM_CONFIG+=(
   --build="x86_64-unknown-linux"
   --host="x86_64-unknown-linux"
-  --prefix="${PREFIX}"
 )
 
-# Library paths configuration (--with-* flags)
-# Identical across all versions and platforms
-CONFIGURE_ARGS=(
-  --with-system-libffi=yes
-  --with-curses-includes="${PREFIX}"/include
-  --with-curses-libraries="${PREFIX}"/lib
-  --with-ffi-includes="${PREFIX}"/include
-  --with-ffi-libraries="${PREFIX}"/lib
-  --with-gmp-includes="${PREFIX}"/include
-  --with-gmp-libraries="${PREFIX}"/lib
-  --with-iconv-includes="${PREFIX}"/include
-  --with-iconv-libraries="${PREFIX}"/lib
-)
-
-run_and_log "ghc-configure" bash configure "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}"
+run_and_log "ghc-configure" "${SRC_DIR}"/configure "${SYSTEM_CONFIG[@]}" "${CONFIGURE_ARGS[@]}"
 
 # ============================================================
 # BUILD CONFIGURATION
 # ============================================================
 
 # Set Hadrian flavour (consistent across all stages to prevent RTS reconfiguration)
-# REAL VERSION-SPECIFIC CONSTRAINT:
 #   9.2.8: GHC does not have 'release' flavour, must use 'quick'
 #   9.4.8+: Use 'release' for consistency and full optimization
-# Reference: CLAUDE.md - mixing flavours causes 34% slowdown
 if [[ "${PKG_VERSION}" == "9.2.8"* ]]; then
   HADRIAN_FLAVOUR="quick"  # Only option for 9.2.8
-  echo "  Using 'release+no_profiled_libs' flavour (GHC ${PKG_VERSION})"
 else
   HADRIAN_FLAVOUR="release"  # All other versions (9.10.2 uses this)
-  echo "  Using 'release' flavour (GHC ${PKG_VERSION})"
 fi
 
 echo "=== Build Configuration ==="
@@ -140,19 +82,13 @@ echo "=== Building Stage 1 Libraries and Tools ==="
 echo "  LIBRARY_PATH: ${LIBRARY_PATH}"
 echo "  LD_LIBRARY_PATH: ${LD_LIBRARY_PATH}"
 
-# ============================================================
-# RACE CONDITION PREVENTION (ALL VERSIONS)
-# Build libraries and tools explicitly to prevent Hadrian parallel build races
-# NOT version-specific - needed for reliability across all GHC versions
-# ============================================================
-echo "  Building libraries explicitly (race condition prevention)"
 run_and_log "stage1_ghc-prim" "${_hadrian_build[@]}" stage1:lib:ghc-prim --flavour="${HADRIAN_FLAVOUR}"
 run_and_log "stage1_ghc-bignum" "${_hadrian_build[@]}" stage1:lib:ghc-bignum --flavour="${HADRIAN_FLAVOUR}"
 run_and_log "stage1_lib" "${_hadrian_build[@]}" stage1:lib:ghc --flavour="${HADRIAN_FLAVOUR}"
 
-echo "  Building tools explicitly (race condition prevention)"
 run_and_log "stage1_ghc-pkg" "${_hadrian_build[@]}" stage1:exe:ghc-pkg --flavour="${HADRIAN_FLAVOUR}"
 run_and_log "stage1_hsc2hs" "${_hadrian_build[@]}" stage1:exe:hsc2hs --flavour="${HADRIAN_FLAVOUR}"
+
 # ============================================================
 
 # Patch settings again after library build

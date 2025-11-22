@@ -12,6 +12,22 @@ export M4=${BUILD_PREFIX}/bin/m4
 export PYTHON=${BUILD_PREFIX}/bin/python
 export PATH=${BUILD_PREFIX}/ghc-bootstrap/bin${PATH:+:}${PATH:-}
 
+SYSTEM_CONFIG=(
+  --prefix="${PREFIX}"
+)
+
+CONFIGURE_ARGS=(
+  --with-system-libffi=yes
+  --with-curses-includes="${PREFIX}"/include
+  --with-curses-libraries="${PREFIX}"/lib
+  --with-ffi-includes="${PREFIX}"/include
+  --with-ffi-libraries="${PREFIX}"/lib
+  --with-gmp-includes="${PREFIX}"/include
+  --with-gmp-libraries="${PREFIX}"/lib
+  --with-iconv-includes="${PREFIX}"/include
+  --with-iconv-libraries="${PREFIX}"/lib
+)
+
 if [[ "${target_platform}" == "linux-aarch64" ]] || [[ "${target_platform}" == "linux-ppc64le" ]]; then
   "${RECIPE_DIR}"/building/build-linux-cross.sh
 else

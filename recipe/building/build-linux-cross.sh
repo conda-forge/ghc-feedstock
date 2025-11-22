@@ -125,9 +125,8 @@ fi
 # ============================================================
 
 # System triple configuration
-SYSTEM_CONFIG=(
+SYSTEM_CONFIG+=(
   --target="${ghc_target}"
-  --prefix="${PREFIX}"
 )
 
 # Library paths and autoconf variables
