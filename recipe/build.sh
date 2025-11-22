@@ -29,9 +29,9 @@ CONFIGURE_ARGS=(
 )
 
 if [[ "${target_platform}" == "linux-aarch64" ]] || [[ "${target_platform}" == "linux-ppc64le" ]]; then
-  "${RECIPE_DIR}"/building/build-linux-cross.sh
+  source "${RECIPE_DIR}"/building/build-linux-cross.sh
 else
-  "${RECIPE_DIR}"/building/build-"${target_platform}.sh"
+  source "${RECIPE_DIR}"/building/build-"${target_platform}.sh"
 fi
 
 # Create bash completion

@@ -41,46 +41,20 @@ run_and_log "ghc-configure" "${SRC_DIR}"/configure "${SYSTEM_CONFIG[@]}" "${CONF
 #   9.2.8: GHC does not have 'release' flavour, must use 'quick'
 #   9.4.8+: Use 'release' for consistency and full optimization
 if [[ "${PKG_VERSION}" == "9.2.8"* ]]; then
-  HADRIAN_FLAVOUR="quick"  # Only option for 9.2.8
+  HADRIAN_FLAVOUR="quick"
 else
-  HADRIAN_FLAVOUR="release"  # All other versions (9.10.2 uses this)
+  HADRIAN_FLAVOUR="release"
 fi
 
-echo "=== Build Configuration ==="
-echo "  GHC Version: ${PKG_VERSION}"
-echo "  Hadrian Flavour: ${HADRIAN_FLAVOUR}"
-echo "  Hadrian Binary: ${_hadrian_bin}"
-echo "  CPU Count: ${CPU_COUNT}"
-echo "=========================="
-
 # ============================================================
-# STAGE 1: EXECUTABLE
-# ============================================================
-# Build the stage 1 compiler executable
-# This compiler can compile Haskell code but uses bootstrap libraries
+# STAGE 1
 # ============================================================
 
+export LD_LIBRARY_PATH="${BUILD_PREFIX}/lib:${PREFIX}/lib${LD_LIBRARY_PATH:+:}${LD_LIBRARY_PATH:-}"
 run_and_log "stage1_exe" "${_hadrian_build[@]}" stage1:exe:ghc-bin --flavour="${HADRIAN_FLAVOUR}"
 
 # Patch settings file to inject conda library paths and toolchain
 update_settings_link_flags "${SRC_DIR}"/_build/stage0/lib/settings
-
-# ============================================================
-# STAGE 1: LIBRARIES AND ESSENTIAL TOOLS
-# ============================================================
-# Build stage 1 libraries with explicit LIBRARY_PATH
-# Required for successful linking against conda dependencies
-# Also build essential tools (ghc-pkg, hsc2hs) needed by stage2
-# ============================================================
-
-# Export library paths for stage 1 library build
-# This ensures GHC finds conda libraries during library compilation
-export LIBRARY_PATH="${BUILD_PREFIX}/lib:${PREFIX}/lib${LIBRARY_PATH:+:}${LIBRARY_PATH:-}"
-export LD_LIBRARY_PATH="${BUILD_PREFIX}/lib:${PREFIX}/lib${LD_LIBRARY_PATH:+:}${LD_LIBRARY_PATH:-}"
-
-echo "=== Building Stage 1 Libraries and Tools ==="
-echo "  LIBRARY_PATH: ${LIBRARY_PATH}"
-echo "  LD_LIBRARY_PATH: ${LD_LIBRARY_PATH}"
 
 run_and_log "stage1_ghc-prim" "${_hadrian_build[@]}" stage1:lib:ghc-prim --flavour="${HADRIAN_FLAVOUR}"
 run_and_log "stage1_ghc-bignum" "${_hadrian_build[@]}" stage1:lib:ghc-bignum --flavour="${HADRIAN_FLAVOUR}"
