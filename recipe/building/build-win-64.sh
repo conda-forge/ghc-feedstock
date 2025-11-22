@@ -244,6 +244,8 @@ if [[ -f "${settings_file}" ]]; then
   # Then chkstk_ms (provides symbols needed by mingw32)
   LINK_FLAGS="${LINK_FLAGS} -Xlinker -lchkstk_ms"
   # System libraries and compiler builtins
+  # CRITICAL: Need BOTH libgcc (for __udivti3/__umodti3) AND compiler-rt (other builtins)
+  LINK_FLAGS="${LINK_FLAGS} -Xlinker -lgcc"
   LINK_FLAGS="${LINK_FLAGS} -Xlinker -lmsvcrt"
   # Link compiler-rt directly (not via -l flag, as it's a .lib file for GNU ld)
   LINK_FLAGS="${LINK_FLAGS} -Xlinker ${COMPILER_RT_WIN}"
@@ -256,8 +258,9 @@ if [[ -f "${settings_file}" ]]; then
   # Also add to "ld flags" for direct ld invocations (use bare library names, no -Xlinker)
   # CRITICAL: --subsystem,console for console entry point (GNU ld syntax with comma separator)
   # CRITICAL: Use stub library instead of full libmingw32.a
+  # CRITICAL: Need BOTH libgcc (for __udivti3/__umodti3) AND compiler-rt (other builtins)
   # Link compiler-rt directly (not via -l flag, as it's a .lib file for GNU ld)
-  perl -pi -e "s#(ld flags\", \")([^\"]*)#\$1\$2 -nostartfiles --allow-multiple-definition --subsystem,console -L${CHKSTK_DIR_WIN} -L${WIN_MINGW_SYSROOT} --whole-archive ${CRT2_WIN_PATH} --no-whole-archive -lmoldname -lmingwex -lmingw32_stubs -lchkstk_ms -lmsvcrt ${COMPILER_RT_WIN} -lkernel32 -ladvapi32#" "${settings_file}"
+  perl -pi -e "s#(ld flags\", \")([^\"]*)#\$1\$2 -nostartfiles --allow-multiple-definition --subsystem,console -L${CHKSTK_DIR_WIN} -L${WIN_MINGW_SYSROOT} --whole-archive ${CRT2_WIN_PATH} --no-whole-archive -lmoldname -lmingwex -lmingw32_stubs -lchkstk_ms -lgcc -lmsvcrt ${COMPILER_RT_WIN} -lkernel32 -ladvapi32#" "${settings_file}"
 
   # CRITICAL: Fix merge-objects to use GNU ld (ld.bfd) instead of lld
   # The bootstrap GHC has system-merge-objects pointing to ld.lld.exe which uses MSVC-style .lib files
@@ -405,9 +408,10 @@ done
 # CRITICAL: Link order - CRT startup object FIRST, then libraries
 # CRITICAL: -lmingw32 needs ___chkstk_ms, so chkstk_ms must come AFTER mingw32
 # With -nostartfiles, we must explicitly specify crt2.o (console CRT) not crtexewin.o (GUI)
-# NOTE: Do NOT add compiler builtins here - configure tests will fail. Add to GHC settings only.
+# NOTE: Bootstrap GHC's RTS needs __udivti3/__umodti3 (128-bit integer ops) from libgcc
+# Must have BOTH libgcc (for 128-bit ops) AND compiler-rt (for other builtins)
 CRT2_OBJ="${_BUILD_PREFIX}/Library/x86_64-w64-mingw32/sysroot/usr/lib/crt2.o"
-export LIBS="${CRT2_OBJ} -Wl,--subsystem,console -lmoldname -lmingwex -lmingw32 ${CHKSTK_LIB} -lmsvcrt -lkernel32 -ladvapi32"
+export LIBS="${CRT2_OBJ} -Wl,--subsystem,console -lmoldname -lmingwex -lmingw32 ${CHKSTK_LIB} -lgcc -lmsvcrt -lkernel32 -ladvapi32"
 
 # CRITICAL: Reinforce subsystem flag in LDFLAGS
 # -Wl,--subsystem,console: Use console entry point (main) instead of GUI (WinMain)
@@ -607,6 +611,8 @@ if [[ -f "${settings_file}" ]]; then
   # Then chkstk_ms (provides symbols needed by mingw32)
   LINK_FLAGS="${LINK_FLAGS} -Xlinker -lchkstk_ms"
   # System libraries and compiler builtins
+  # CRITICAL: Need BOTH libgcc (for __udivti3/__umodti3) AND compiler-rt (other builtins)
+  LINK_FLAGS="${LINK_FLAGS} -Xlinker -lgcc"
   LINK_FLAGS="${LINK_FLAGS} -Xlinker -lmsvcrt"
   # Link compiler-rt directly (not via -l flag, as it's a .lib file for GNU ld)
   LINK_FLAGS="${LINK_FLAGS} -Xlinker ${COMPILER_RT_LIB}"
@@ -617,8 +623,9 @@ if [[ -f "${settings_file}" ]]; then
 
   # Also add to "ld flags" for direct ld invocations (use bare library names, no -Xlinker)
   # CRITICAL: --subsystem,console for console entry point (GNU ld syntax with comma separator)
+  # CRITICAL: Need BOTH libgcc (for __udivti3/__umodti3) AND compiler-rt (other builtins)
   # Link compiler-rt directly (not via -l flag, as it's a .lib file for GNU ld)
-  perl -pi -e "s#(ld flags\", \")#\$1--subsystem,console -L${CHKSTK_DIR} -L${MINGW_SYSROOT} -lmoldname -lmingwex -lmingw32 -lchkstk_ms -lmsvcrt ${COMPILER_RT_LIB} -lkernel32 -ladvapi32 #" "${settings_file}"
+  perl -pi -e "s#(ld flags\", \")#\$1--subsystem,console -L${CHKSTK_DIR} -L${MINGW_SYSROOT} -lmoldname -lmingwex -lmingw32 -lchkstk_ms -lgcc -lmsvcrt ${COMPILER_RT_LIB} -lkernel32 -ladvapi32 #" "${settings_file}"
 
   echo "=== Stage1 settings after patching (COMPLETE FILE) ==="
   cat "${settings_file}"
