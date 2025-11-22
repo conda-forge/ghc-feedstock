@@ -245,9 +245,8 @@ if [[ -f "${settings_file}" ]]; then
   LINK_FLAGS="${LINK_FLAGS} -Xlinker -lchkstk_ms"
   # System libraries and compiler builtins
   # CRITICAL: Need BOTH libgcc (for __udivti3/__umodti3) AND compiler-rt (other builtins)
-  # Windows MinGW uses SEH (Structured Exception Handling) libgcc variant
-  # Try both gcc_s_seh-1 (Windows SEH shared lib) and gcc (static fallback)
-  LINK_FLAGS="${LINK_FLAGS} -Xlinker -lgcc_s_seh-1 -Xlinker -lgcc"
+  # Bootstrap GHC's RtsSymbols references these 128-bit integer operation symbols
+  LINK_FLAGS="${LINK_FLAGS} -Xlinker -lgcc"
   LINK_FLAGS="${LINK_FLAGS} -Xlinker -lmsvcrt"
   # Link compiler-rt directly (not via -l flag, as it's a .lib file for GNU ld)
   LINK_FLAGS="${LINK_FLAGS} -Xlinker ${COMPILER_RT_WIN}"
@@ -260,9 +259,9 @@ if [[ -f "${settings_file}" ]]; then
   # Also add to "ld flags" for direct ld invocations (use bare library names, no -Xlinker)
   # CRITICAL: --subsystem,console for console entry point (GNU ld syntax with comma separator)
   # CRITICAL: Use stub library instead of full libmingw32.a
-  # CRITICAL: Need BOTH libgcc (for __udivti3/__umodti3) AND compiler-rt (other builtins)
+  # CRITICAL: Need -lgcc for __udivti3/__umodti3 symbols from RtsSymbols
   # Link compiler-rt directly (not via -l flag, as it's a .lib file for GNU ld)
-  perl -pi -e "s#(ld flags\", \")([^\"]*)#\$1\$2 -nostartfiles --allow-multiple-definition --subsystem,console -L${CHKSTK_DIR_WIN} -L${WIN_MINGW_SYSROOT} --whole-archive ${CRT2_WIN_PATH} --no-whole-archive -lmoldname -lmingwex -lmingw32_stubs -lchkstk_ms -lgcc_s_seh-1 -lgcc -lmsvcrt ${COMPILER_RT_WIN} -lkernel32 -ladvapi32#" "${settings_file}"
+  perl -pi -e "s#(ld flags\", \")([^\"]*)#\$1\$2 -nostartfiles --allow-multiple-definition --subsystem,console -L${CHKSTK_DIR_WIN} -L${WIN_MINGW_SYSROOT} --whole-archive ${CRT2_WIN_PATH} --no-whole-archive -lmoldname -lmingwex -lmingw32_stubs -lchkstk_ms -lgcc -lmsvcrt ${COMPILER_RT_WIN} -lkernel32 -ladvapi32#" "${settings_file}"
 
   # CRITICAL: Fix merge-objects to use GNU ld (ld.bfd) instead of lld
   # The bootstrap GHC has system-merge-objects pointing to ld.lld.exe which uses MSVC-style .lib files
@@ -613,9 +612,8 @@ if [[ -f "${settings_file}" ]]; then
   # Then chkstk_ms (provides symbols needed by mingw32)
   LINK_FLAGS="${LINK_FLAGS} -Xlinker -lchkstk_ms"
   # System libraries and compiler builtins
-  # CRITICAL: Need BOTH libgcc (for __udivti3/__umodti3) AND compiler-rt (other builtins)
-  # Windows MinGW uses SEH (Structured Exception Handling) libgcc variant
-  LINK_FLAGS="${LINK_FLAGS} -Xlinker -lgcc_s_seh-1 -Xlinker -lgcc"
+  # CRITICAL: Need -lgcc for __udivti3/__umodti3 symbols from RtsSymbols
+  LINK_FLAGS="${LINK_FLAGS} -Xlinker -lgcc"
   LINK_FLAGS="${LINK_FLAGS} -Xlinker -lmsvcrt"
   # Link compiler-rt directly (not via -l flag, as it's a .lib file for GNU ld)
   LINK_FLAGS="${LINK_FLAGS} -Xlinker ${COMPILER_RT_LIB}"
@@ -626,9 +624,9 @@ if [[ -f "${settings_file}" ]]; then
 
   # Also add to "ld flags" for direct ld invocations (use bare library names, no -Xlinker)
   # CRITICAL: --subsystem,console for console entry point (GNU ld syntax with comma separator)
-  # CRITICAL: Need BOTH libgcc (for __udivti3/__umodti3) AND compiler-rt (other builtins)
+  # CRITICAL: Need -lgcc for __udivti3/__umodti3 symbols from RtsSymbols
   # Link compiler-rt directly (not via -l flag, as it's a .lib file for GNU ld)
-  perl -pi -e "s#(ld flags\", \")#\$1--subsystem,console -L${CHKSTK_DIR} -L${MINGW_SYSROOT} -lmoldname -lmingwex -lmingw32 -lchkstk_ms -lgcc_s_seh-1 -lgcc -lmsvcrt ${COMPILER_RT_LIB} -lkernel32 -ladvapi32 #" "${settings_file}"
+  perl -pi -e "s#(ld flags\", \")#\$1--subsystem,console -L${CHKSTK_DIR} -L${MINGW_SYSROOT} -lmoldname -lmingwex -lmingw32 -lchkstk_ms -lgcc -lmsvcrt ${COMPILER_RT_LIB} -lkernel32 -ladvapi32 #" "${settings_file}"
 
   echo "=== Stage1 settings after patching (COMPLETE FILE) ==="
   cat "${settings_file}"
