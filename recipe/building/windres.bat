@@ -13,7 +13,8 @@ if %errorlevel% == 0 (
 )
 
 REM Set preprocessor to clang with appropriate flags
-set "PREPROC_CMD=clang.exe"
+REM Use absolute path since batch script may not have full PATH
+set "PREPROC_CMD=%BUILD_PREFIX%\Library\bin\clang.exe"
 set "PREPROC_ARGS=-E -xc-header -DRC_INVOKED"
 
 REM Filter out --preprocessor arguments from GHC (which may be malformed)
