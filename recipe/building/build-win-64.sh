@@ -102,6 +102,12 @@ echo "Created ${MINGW32_STUBS_LIB} with real MinGW runtime (no GUI startup)"
 cd "${_SRC_DIR}"
 rm -rf "${MINGW32_EXTRACT}"
 
+# Install windres.bat wrapper
+# windres uses "gcc -E" by default, but we only have clang
+# The wrapper intercepts windres calls and specifies clang as preprocessor
+cp "${_RECIPE_DIR}/building/windres.bat" "${_BUILD_PREFIX}/Library/bin/windres.bat"
+echo "Installed windres.bat wrapper to ${_BUILD_PREFIX}/Library/bin/"
+
 # Verify libraries were created
 if [ -f "${CHKSTK_LIB}" ]; then
     echo "✓ Library exists: ${CHKSTK_LIB}"
@@ -162,11 +168,11 @@ if [[ -f "${settings_file}" ]]; then
   perl -pi -e "s#(ar command\", \")[^\"]*#\$1${AR_WIN}#" "${settings_file}"
   perl -pi -e "s#(ranlib command\", \")[^\"]*#\$1${RANLIB_WIN}#" "${settings_file}"
   perl -pi -e "s#(dllwrap command\", \")[^\"]*#\$1false#" "${settings_file}"
-  # windres is needed for compiling Windows resource files (.rc)
+  # windres wrapper (windres.bat) handles clang as preprocessor
   # Use Windows path format for tool execution
-  WINDRES_UNIX="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-windres.exe"
-  WINDRES_WIN=$(echo "${WINDRES_UNIX}" | sed 's#^/c/#C:/#')
-  perl -pi -e "s#(windres command\", \")[^\"]*#\$1${WINDRES_WIN}#" "${settings_file}"
+  WINDRES_WRAPPER_UNIX="${_BUILD_PREFIX}/Library/bin/windres.bat"
+  WINDRES_WRAPPER_WIN=$(echo "${WINDRES_WRAPPER_UNIX}" | sed 's#^/c/#C:/#')
+  perl -pi -e "s#(windres command\", \")[^\"]*#\$1${WINDRES_WRAPPER_WIN}#" "${settings_file}"
 
   perl -pi -e "s#-I\\\$tooldir/mingw/include#-I${_BUILD_PREFIX}/Library/include#g" "${settings_file}"
 
