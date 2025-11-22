@@ -44,7 +44,7 @@ CLANG_BUILTIN_INCLUDE="${CLANG_RESOURCE_DIR}/include"
 
 # Configure Clang for MinGW with all necessary include paths and defines
 # NOTE: Use -I instead of -isystem to avoid path validation issues on Windows
-# -nodefaultlibs: Skip automatic library linking (we'll specify explicitly in LIBS)
+# -nodefaultlibs: Skip automatic library linking (we specify explicitly: MinGW + compiler-rt builtins)
 # -nostartfiles: Don't auto-include CRT startup files (we'll specify crt2.o explicitly in LIBS)
 # -Wl,--subsystem,console: Set PE subsystem to console (not GUI)
 export CFLAGS="--target=x86_64-w64-mingw32 -fuse-ld=bfd -nodefaultlibs -D__MINGW32__ -D_VA_LIST_DEFINED -Dva_list=__builtin_va_list -I${CLANG_BUILTIN_INCLUDE} -I${_BUILD_PREFIX}/Library/include ${CFLAGS:-}"
@@ -218,7 +218,7 @@ if [[ -f "${settings_file}" ]]; then
   LINK_FLAGS="${LINK_FLAGS} -Xlinker -lchkstk_ms"
   # System libraries and compiler builtins
   LINK_FLAGS="${LINK_FLAGS} -Xlinker -lmsvcrt"
-  LINK_FLAGS="${LINK_FLAGS} -Xlinker -lgcc"
+  LINK_FLAGS="${LINK_FLAGS} -Xlinker -lclang_rt.builtins-x86_64"
   LINK_FLAGS="${LINK_FLAGS} -Xlinker -lkernel32"
   LINK_FLAGS="${LINK_FLAGS} -Xlinker -ladvapi32"
 
@@ -228,7 +228,7 @@ if [[ -f "${settings_file}" ]]; then
   # Also add to "ld flags" for direct ld invocations (use bare library names, no -Xlinker)
   # CRITICAL: --subsystem,console for console entry point (GNU ld syntax with comma separator)
   # CRITICAL: Use stub library instead of full libmingw32.a
-  perl -pi -e "s#(ld flags\", \")([^\"]*)#\$1\$2 -nostartfiles --allow-multiple-definition --subsystem,console -L${CHKSTK_DIR_WIN} -L${WIN_MINGW_SYSROOT} --whole-archive ${CRT2_WIN_PATH} --no-whole-archive -lmoldname -lmingwex -lmingw32_stubs -lchkstk_ms -lmsvcrt -lgcc -lkernel32 -ladvapi32#" "${settings_file}"
+  perl -pi -e "s#(ld flags\", \")([^\"]*)#\$1\$2 -nostartfiles --allow-multiple-definition --subsystem,console -L${CHKSTK_DIR_WIN} -L${WIN_MINGW_SYSROOT} --whole-archive ${CRT2_WIN_PATH} --no-whole-archive -lmoldname -lmingwex -lmingw32_stubs -lchkstk_ms -lmsvcrt -lclang_rt.builtins-x86_64 -lkernel32 -ladvapi32#" "${settings_file}"
 
   # CRITICAL: Fix merge-objects to use GNU ld (ld.bfd) instead of lld
   # The bootstrap GHC has system-merge-objects pointing to ld.lld.exe which uses MSVC-style .lib files
@@ -376,7 +376,7 @@ done
 # CRITICAL: Link order - CRT startup object FIRST, then libraries
 # CRITICAL: -lmingw32 needs ___chkstk_ms, so chkstk_ms must come AFTER mingw32
 # With -nostartfiles, we must explicitly specify crt2.o (console CRT) not crtexewin.o (GUI)
-# NOTE: Do NOT add -lgcc here - configure tests will fail. Add it to GHC settings only.
+# NOTE: Do NOT add compiler builtins here - configure tests will fail. Add to GHC settings only.
 CRT2_OBJ="${_BUILD_PREFIX}/Library/x86_64-w64-mingw32/sysroot/usr/lib/crt2.o"
 export LIBS="${CRT2_OBJ} -Wl,--subsystem,console -lmoldname -lmingwex -lmingw32 ${CHKSTK_LIB} -lmsvcrt -lkernel32 -ladvapi32"
 
@@ -579,7 +579,7 @@ if [[ -f "${settings_file}" ]]; then
   LINK_FLAGS="${LINK_FLAGS} -Xlinker -lchkstk_ms"
   # System libraries and compiler builtins
   LINK_FLAGS="${LINK_FLAGS} -Xlinker -lmsvcrt"
-  LINK_FLAGS="${LINK_FLAGS} -Xlinker -lgcc"
+  LINK_FLAGS="${LINK_FLAGS} -Xlinker -lclang_rt.builtins-x86_64"
   LINK_FLAGS="${LINK_FLAGS} -Xlinker -lkernel32"
   LINK_FLAGS="${LINK_FLAGS} -Xlinker -ladvapi32"
 
@@ -587,7 +587,7 @@ if [[ -f "${settings_file}" ]]; then
 
   # Also add to "ld flags" for direct ld invocations (use bare library names, no -Xlinker)
   # CRITICAL: --subsystem,console for console entry point (GNU ld syntax with comma separator)
-  perl -pi -e "s#(ld flags\", \")#\$1--subsystem,console -L${CHKSTK_DIR} -L${MINGW_SYSROOT} -lmoldname -lmingwex -lmingw32 -lchkstk_ms -lmsvcrt -lgcc -lkernel32 -ladvapi32 #" "${settings_file}"
+  perl -pi -e "s#(ld flags\", \")#\$1--subsystem,console -L${CHKSTK_DIR} -L${MINGW_SYSROOT} -lmoldname -lmingwex -lmingw32 -lchkstk_ms -lmsvcrt -lclang_rt.builtins-x86_64 -lkernel32 -ladvapi32 #" "${settings_file}"
 
   echo "=== Stage1 settings after patching (COMPLETE FILE) ==="
   cat "${settings_file}"
