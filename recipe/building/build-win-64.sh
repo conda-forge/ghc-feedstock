@@ -38,9 +38,35 @@ LDFLAGS=$(echo "${LDFLAGS}" | sed 's/-Wl,-defaultlib:[^ ]*//g')
 CFLAGS=$(echo "${CFLAGS}" | sed 's/-fstack-protector-strong//g')
 CXXFLAGS=$(echo "${CXXFLAGS}" | sed 's/-fstack-protector-strong//g')
 
-# Get Clang's builtin include directory
+# Get Clang's builtin include directory and compiler-rt library
 CLANG_RESOURCE_DIR=$(${CC} -print-resource-dir | sed 's#\\#/#g' | sed 's#^C:/#/c/#')
 CLANG_BUILTIN_INCLUDE="${CLANG_RESOURCE_DIR}/include"
+
+# Find compiler-rt builtins library
+# Try multiple possible locations (compiler-rt_win-64 package provides .lib file)
+COMPILER_RT_CANDIDATES=(
+  "${CLANG_RESOURCE_DIR}/lib/x86_64-w64-windows-gnu/libclang_rt.builtins.a"
+  "${CLANG_RESOURCE_DIR}/lib/windows/libclang_rt.builtins-x86_64.a"
+  "${CLANG_RESOURCE_DIR}/lib/windows/clang_rt.builtins-x86_64.lib"
+  "${_BUILD_PREFIX}/Library/lib/clang/19/lib/windows/clang_rt.builtins-x86_64.lib"
+)
+
+COMPILER_RT_LIB=""
+for candidate in "${COMPILER_RT_CANDIDATES[@]}"; do
+  echo "Checking for compiler-rt at: ${candidate}"
+  if [ -f "${candidate}" ]; then
+    COMPILER_RT_LIB="${candidate}"
+    echo "Found compiler-rt: ${COMPILER_RT_LIB}"
+    break
+  fi
+done
+
+if [ -z "${COMPILER_RT_LIB}" ]; then
+  echo "ERROR: Could not find compiler-rt builtins library"
+  echo "Searched in:"
+  printf '%s\n' "${COMPILER_RT_CANDIDATES[@]}"
+  exit 1
+fi
 
 # Configure Clang for MinGW with all necessary include paths and defines
 # NOTE: Use -I instead of -isystem to avoid path validation issues on Windows
@@ -197,6 +223,7 @@ if [[ -f "${settings_file}" ]]; then
   CHKSTK_DIR_WIN=$(echo "${CHKSTK_DIR}" | sed 's#^/c/#C:/#')
   WIN_MINGW_SYSROOT=$(echo "${MINGW_SYSROOT}" | sed 's#^/c/#C:/#')
   CRT2_WIN_PATH="${WIN_MINGW_SYSROOT}/crt2.o"
+  COMPILER_RT_WIN=$(echo "${COMPILER_RT_LIB}" | sed 's#^/c/#C:/#')
 
   # Build complete link flags string - libraries come AFTER user objects
   # Use GNU ld (bfd) with GNU-style subsystem flag
@@ -218,7 +245,8 @@ if [[ -f "${settings_file}" ]]; then
   LINK_FLAGS="${LINK_FLAGS} -Xlinker -lchkstk_ms"
   # System libraries and compiler builtins
   LINK_FLAGS="${LINK_FLAGS} -Xlinker -lmsvcrt"
-  LINK_FLAGS="${LINK_FLAGS} -Xlinker -lclang_rt.builtins-x86_64"
+  # Link compiler-rt directly (not via -l flag, as it's a .lib file for GNU ld)
+  LINK_FLAGS="${LINK_FLAGS} -Xlinker ${COMPILER_RT_WIN}"
   LINK_FLAGS="${LINK_FLAGS} -Xlinker -lkernel32"
   LINK_FLAGS="${LINK_FLAGS} -Xlinker -ladvapi32"
 
@@ -228,7 +256,8 @@ if [[ -f "${settings_file}" ]]; then
   # Also add to "ld flags" for direct ld invocations (use bare library names, no -Xlinker)
   # CRITICAL: --subsystem,console for console entry point (GNU ld syntax with comma separator)
   # CRITICAL: Use stub library instead of full libmingw32.a
-  perl -pi -e "s#(ld flags\", \")([^\"]*)#\$1\$2 -nostartfiles --allow-multiple-definition --subsystem,console -L${CHKSTK_DIR_WIN} -L${WIN_MINGW_SYSROOT} --whole-archive ${CRT2_WIN_PATH} --no-whole-archive -lmoldname -lmingwex -lmingw32_stubs -lchkstk_ms -lmsvcrt -lclang_rt.builtins-x86_64 -lkernel32 -ladvapi32#" "${settings_file}"
+  # Link compiler-rt directly (not via -l flag, as it's a .lib file for GNU ld)
+  perl -pi -e "s#(ld flags\", \")([^\"]*)#\$1\$2 -nostartfiles --allow-multiple-definition --subsystem,console -L${CHKSTK_DIR_WIN} -L${WIN_MINGW_SYSROOT} --whole-archive ${CRT2_WIN_PATH} --no-whole-archive -lmoldname -lmingwex -lmingw32_stubs -lchkstk_ms -lmsvcrt ${COMPILER_RT_WIN} -lkernel32 -ladvapi32#" "${settings_file}"
 
   # CRITICAL: Fix merge-objects to use GNU ld (ld.bfd) instead of lld
   # The bootstrap GHC has system-merge-objects pointing to ld.lld.exe which uses MSVC-style .lib files
@@ -579,7 +608,8 @@ if [[ -f "${settings_file}" ]]; then
   LINK_FLAGS="${LINK_FLAGS} -Xlinker -lchkstk_ms"
   # System libraries and compiler builtins
   LINK_FLAGS="${LINK_FLAGS} -Xlinker -lmsvcrt"
-  LINK_FLAGS="${LINK_FLAGS} -Xlinker -lclang_rt.builtins-x86_64"
+  # Link compiler-rt directly (not via -l flag, as it's a .lib file for GNU ld)
+  LINK_FLAGS="${LINK_FLAGS} -Xlinker ${COMPILER_RT_LIB}"
   LINK_FLAGS="${LINK_FLAGS} -Xlinker -lkernel32"
   LINK_FLAGS="${LINK_FLAGS} -Xlinker -ladvapi32"
 
@@ -587,7 +617,8 @@ if [[ -f "${settings_file}" ]]; then
 
   # Also add to "ld flags" for direct ld invocations (use bare library names, no -Xlinker)
   # CRITICAL: --subsystem,console for console entry point (GNU ld syntax with comma separator)
-  perl -pi -e "s#(ld flags\", \")#\$1--subsystem,console -L${CHKSTK_DIR} -L${MINGW_SYSROOT} -lmoldname -lmingwex -lmingw32 -lchkstk_ms -lmsvcrt -lclang_rt.builtins-x86_64 -lkernel32 -ladvapi32 #" "${settings_file}"
+  # Link compiler-rt directly (not via -l flag, as it's a .lib file for GNU ld)
+  perl -pi -e "s#(ld flags\", \")#\$1--subsystem,console -L${CHKSTK_DIR} -L${MINGW_SYSROOT} -lmoldname -lmingwex -lmingw32 -lchkstk_ms -lmsvcrt ${COMPILER_RT_LIB} -lkernel32 -ladvapi32 #" "${settings_file}"
 
   echo "=== Stage1 settings after patching (COMPLETE FILE) ==="
   cat "${settings_file}"
