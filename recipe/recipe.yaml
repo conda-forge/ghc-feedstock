@@ -61,6 +61,7 @@ requirements:
         - m2-automake-wrapper
         - m2-bash
         - m2-coreutils
+        - m2-file
         - m2-findutils
         - m2-grep
         - m2-m4
