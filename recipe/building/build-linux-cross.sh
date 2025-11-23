@@ -135,7 +135,7 @@ declare -a HADRIAN_BUILD=("${HADRIAN_BIN}" "-j${CPU_COUNT}" "--directory" "${SRC
 # BUILD FLAVOURS
 # ============================================================
 
-HADRIAN_FLAVOUR_STAGE1="quickest"
+HADRIAN_FLAVOUR_STAGE1="release"
 HADRIAN_FLAVOUR_STAGE2="release"
 
 echo "=== Build Configuration ==="
@@ -153,19 +153,7 @@ echo "=== Building Stage 1 Cross-Compiler ==="
 perl -i -pe 's/\(True, s\) \| s > stage0InTree ->/\(False, s\) | s > stage0InTree \&\& False ->/' \
   "${SRC_DIR}"/hadrian/src/Rules/Program.hs
 
-# Build stage1 compiler executable first
-export LD_LIBRARY_PATH="${BUILD_PREFIX}/lib:${PREFIX}/lib${LD_LIBRARY_PATH:+:}${LD_LIBRARY_PATH:-}"
-run_and_log "stage1_exe" "${HADRIAN_BUILD[@]}" stage1:exe:ghc-bin --flavour="${HADRIAN_FLAVOUR_STAGE1}"
-
-# Build stage1 tools (using orchestrator)
-build_stage1_tools HADRIAN_BUILD "${HADRIAN_FLAVOUR_STAGE1}"
-
-# Patch settings file after tools
-settings_file="${SRC_DIR}/_build/stage0/lib/settings"
-update_linux_link_flags "${settings_file}"
-
-# Build stage1 libraries (using orchestrator)
-build_stage1_libs HADRIAN_BUILD "${HADRIAN_FLAVOUR_STAGE1}" "${settings_file}"
+build_stage1 HADRIAN_BUILD "${HADRIAN_FLAVOUR_STAGE1}" "${SRC_DIR}/_build/stage0/lib/settings"
 
 # ============================================================
 # POWERPC64LE: GHCPLATFORM.H PATCHING
@@ -212,11 +200,14 @@ mkdir -p "${bindist_dir}"
 tar -xf "${BINDIST_PATH}" -C "${bindist_dir}" --strip-components=1
 
 # Configure bindist with BUILD machine tools
+# IMPORTANT: Do NOT pass --target here! The bindist configure is for installation,
+# not for building. Passing --target causes configure to construct target-prefixed
+# tool paths (e.g., aarch64-conda-linux-gnu-ld) even when we've set LD=$BUILD_LD.
+# The installed compiler already knows its target from the build phase.
 BINDIST_CONFIG=(
   --prefix="${PREFIX}"
   --build="${ghc_host}"
   --host="${ghc_host}"
-  --target="${ghc_target}"
 )
 
 install_bindist "${BINDIST_PATH}" BINDIST_CONFIG "${conda_host}" "${target_arch}"

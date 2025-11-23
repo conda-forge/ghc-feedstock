@@ -38,6 +38,7 @@ fi
 # Export functions for use in build scripts
 export -f run_and_log
 export -f set_macos_conda_ar_ranlib
+export -f patch_macos_settings
 export -f update_settings_link_flags
 export -f update_installed_settings
 export -f update_linux_link_flags
@@ -56,18 +57,35 @@ export -f setup_macos_cross_environment
 export -f fix_cross_architecture_defines
 export -f fix_macos_bootstrap_settings
 
+# Build orchestrator functions (lib/80-build-orchestrator.sh)
+export -f build_hadrian_binary
+export -f configure_ghc
+export -f build_stage1
+export -f build_stage2
+export -f install_ghc
+export -f create_bindist
+export -f install_bindist
+
 ################################################################################
-# Usage examples for build scripts:
+# Usage examples for build scripts (Bash 5.2+ required):
 #
 # 1. Source common.sh:
 #    source "${RECIPE_DIR}"/building/common.sh
 #
-# 2. Calculate architecture and set autoconf variables:
-#    calculate_build_architecture "true"  # true = debug output
-#    set_autoconf_toolchain_vars "${CONDA_TARGET}"
-#
-# 3. Build configure arguments:
+# 2. Set up build arrays:
+#    declare -a SYSTEM_CONFIG=(--prefix="${PREFIX}")
 #    declare -a CONFIGURE_ARGS
 #    build_configure_args CONFIGURE_ARGS
-#    ./configure "${CONFIGURE_ARGS[@]}"
+#
+# 3. Build using orchestrator (simple flow):
+#    declare -a HADRIAN_BUILD
+#    build_hadrian_binary HADRIAN_BUILD
+#    configure_ghc SYSTEM_CONFIG CONFIGURE_ARGS
+#    build_stage1 HADRIAN_BUILD "${HADRIAN_FLAVOUR}"
+#    build_stage2 HADRIAN_BUILD "${HADRIAN_FLAVOUR}"
+#    install_ghc HADRIAN_BUILD "${HADRIAN_FLAVOUR}"
+#
+# 4. Platform-specific setup (before orchestrator):
+#    setup_macos_native_environment  # macOS only
+#    setup_cross_build_env "linux-64" "env_name"  # Cross-compile only
 ################################################################################

@@ -48,8 +48,9 @@ requirements:
       then:
         - autoconf
         - automake
-        - bash
+        - bash >=5.2
         - file
+        - findutils
         - m4
         - make
         - sed

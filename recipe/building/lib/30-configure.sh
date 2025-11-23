@@ -5,10 +5,10 @@
 # Purpose: Build standard configure arguments
 #
 # Functions:
-#   build_configure_args(result_array, extra_ldflags)
-#   build_system_config(result_array, build_triple, host_triple, target_triple)
+#   build_configure_args(result_array_name, extra_ldflags)
+#   build_system_config(result_array_name, build_triple, host_triple, target_triple)
 #
-# Dependencies: None
+# Dependencies: Bash 5.2+ (for nameref support)
 #
 # Usage:
 #   source lib/30-configure.sh
@@ -22,27 +22,17 @@ set -eu
 # Build standard GHC configure arguments (--with-* flags)
 #
 # All platforms use the same set of --with-* flags to specify library locations.
-# This function prints array elements that caller can capture via readarray/mapfile.
-#
-# Bash 3.2 Compatible Usage:
-#   # Method 1: Using command substitution and word splitting
-#   CONFIGURE_ARGS=($(build_configure_args))
-#
-#   # Method 2: Using while read loop (safer for args with spaces)
-#   declare -a CONFIGURE_ARGS
-#   while IFS= read -r arg; do
-#     CONFIGURE_ARGS+=("$arg")
-#   done < <(build_configure_args)
+# Uses Bash 5.2+ nameref to directly modify caller's array.
 #
 # Parameters:
-#   $1 - extra_ldflags: Additional LDFLAGS to append (optional)
+#   $1 - result_array_name: Name of array variable to populate (nameref)
+#   $2 - extra_ldflags: Additional LDFLAGS to append (optional)
 #
-# Returns: Prints one argument per line to stdout
+# Returns: Populates array in caller's scope via nameref
 #
 build_configure_args() {
-  local extra_ldflags="${1:-}"
-
-  echo "DEBUG: build_configure_args called" >&2
+  local -n result_array="$1"  # Bash 5.2+ nameref
+  local extra_ldflags="${2:-}"
 
   # Check required environment variables
   if [[ -z "${PREFIX:-}" ]]; then
@@ -50,62 +40,51 @@ build_configure_args() {
     return 1
   fi
 
-  echo "DEBUG: PREFIX is set to: ${PREFIX}" >&2
-  echo "DEBUG: target_platform is: ${target_platform:-UNSET}" >&2
-
-  # Print each argument on a separate line
-  # Caller will capture these via command substitution or read loop
-  printf '%s\n' --with-system-libffi=yes
-  printf '%s\n' "--with-curses-includes=${PREFIX}/include"
-  printf '%s\n' "--with-curses-libraries=${PREFIX}/lib"
-  printf '%s\n' "--with-ffi-includes=${PREFIX}/include"
-  printf '%s\n' "--with-ffi-libraries=${PREFIX}/lib"
-  printf '%s\n' "--with-gmp-includes=${PREFIX}/include"
-  printf '%s\n' "--with-gmp-libraries=${PREFIX}/lib"
-  printf '%s\n' "--with-iconv-includes=${PREFIX}/include"
-  printf '%s\n' "--with-iconv-libraries=${PREFIX}/lib"
+  # Build array directly in caller's scope
+  result_array+=(--with-system-libffi=yes)
+  result_array+=("--with-curses-includes=${PREFIX}/include")
+  result_array+=("--with-curses-libraries=${PREFIX}/lib")
+  result_array+=("--with-ffi-includes=${PREFIX}/include")
+  result_array+=("--with-ffi-libraries=${PREFIX}/lib")
+  result_array+=("--with-gmp-includes=${PREFIX}/include")
+  result_array+=("--with-gmp-libraries=${PREFIX}/lib")
+  result_array+=("--with-iconv-includes=${PREFIX}/include")
+  result_array+=("--with-iconv-libraries=${PREFIX}/lib")
 
   # Platform-specific additions
   if [[ "${target_platform:-}" == linux-* ]]; then
-    echo "DEBUG: Adding --disable-numa for linux platform" >&2
-    printf '%s\n' --disable-numa
+    result_array+=(--disable-numa)
   fi
 
   # Optional LDFLAGS
   if [[ -n "$extra_ldflags" ]]; then
-    echo "DEBUG: Adding LDFLAGS: $extra_ldflags" >&2
-    printf '%s\n' "LDFLAGS=$extra_ldflags"
+    result_array+=("LDFLAGS=$extra_ldflags")
   fi
-
-  echo "DEBUG: build_configure_args completed successfully" >&2
-  return 0
 }
 
 # Build system configuration arguments (--build, --host, --target)
 #
 # Configure requires --build, --host, --target for cross-compilation.
-# This function generates the appropriate flags based on provided triples.
-#
-# Bash 3.2 Compatible Usage:
-#   SYSTEM_CONFIG=($(build_system_config "x86_64-unknown-linux-gnu" "" "aarch64-unknown-linux-gnu"))
-#   ./configure "${SYSTEM_CONFIG[@]}"
+# Uses Bash 5.2+ nameref to directly modify caller's array.
 #
 # Parameters:
-#   $1 - build_triple: Build machine triple (empty = omit)
-#   $2 - host_triple: Host machine triple (empty = omit)
-#   $3 - target_triple: Target machine triple (empty = omit)
+#   $1 - result_array_name: Name of array variable to populate (nameref)
+#   $2 - build_triple: Build machine triple (empty = omit)
+#   $3 - host_triple: Host machine triple (empty = omit)
+#   $4 - target_triple: Target machine triple (empty = omit)
 #
-# Returns: Prints one argument per line to stdout
+# Returns: Populates array in caller's scope via nameref
 #
 build_system_config() {
-  local build_triple="$1"
-  local host_triple="$2"
-  local target_triple="$3"
+  local -n result_array="$1"
+  local build_triple="$2"
+  local host_triple="$3"
+  local target_triple="$4"
 
   # Always include --prefix
-  printf '%s\n' "--prefix=${PREFIX}"
+  result_array+=("--prefix=${PREFIX}")
 
-  [[ -n "$build_triple" ]] && printf '%s\n' "--build=$build_triple"
-  [[ -n "$host_triple" ]] && printf '%s\n' "--host=$host_triple"
-  [[ -n "$target_triple" ]] && printf '%s\n' "--target=$target_triple"
+  [[ -n "$build_triple" ]] && result_array+=("--build=$build_triple")
+  [[ -n "$host_triple" ]] && result_array+=("--host=$host_triple")
+  [[ -n "$target_triple" ]] && result_array+=("--target=$target_triple")
 }

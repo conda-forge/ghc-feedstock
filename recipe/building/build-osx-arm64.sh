@@ -74,11 +74,10 @@ fix_macos_bootstrap_settings "${osx_64_env}" "${conda_host}" "${AR_STAGE0}"
 # CONFIGURE
 # ============================================================
 
-SYSTEM_CONFIG=(
+SYSTEM_CONFIG+=(
   --build="${conda_host}"
   --host="${conda_host}"
   --target="${conda_target}"
-  --prefix="${PREFIX}"
 )
 
 declare -a CONFIGURE_ARGS
@@ -126,31 +125,8 @@ fix_cross_architecture_defines "x86_64" "aarch64"
 # HADRIAN BUILD
 # ============================================================
 
-echo "=== Building Hadrian with BUILD toolchain ==="
-pushd "${SRC_DIR}"/hadrian
-  "${CABAL}" v2-build \
-    --with-gcc="${CC_FOR_BUILD}" \
-    --with-ar="${AR_STAGE0}" \
-    -j hadrian \
-    2>&1 | tee "${SRC_DIR}"/cabal-verbose.log
-
-  if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
-    echo "ERROR: Cabal build failed"
-    exit 1
-  fi
-popd
-
-# Find Hadrian binary
 declare -a HADRIAN_BUILD
-HADRIAN_BUILD[0]=$(find "${SRC_DIR}"/hadrian/dist-newstyle/build -name hadrian -type f -perm /111 | head -1)
-
-if [[ -z "${HADRIAN_BUILD[0]}" ]]; then
-  echo "ERROR: Could not find hadrian binary"
-  exit 1
-fi
-
-HADRIAN_BUILD+=("-j${CPU_COUNT}" "--directory" "${SRC_DIR}")
-echo "  Hadrian binary: ${HADRIAN_BUILD[0]}"
+build_hadrian_binary HADRIAN_BUILD "${CABAL}" "${CC_FOR_BUILD}" "${AR_STAGE0}"
 
 # ============================================================
 # BUILD CONFIGURATION
@@ -212,7 +188,11 @@ done
 # ============================================================
 
 echo "=== Building Stage 1 Libraries (arm64) ==="
-build_stage1_libs HADRIAN_BUILD "${HADRIAN_FLAVOUR}"
+# Build libraries in dependency order (race condition prevention)
+run_and_log "stage1_ghc-prim" "${HADRIAN_BUILD[@]}" stage1:lib:ghc-prim --flavour="${HADRIAN_FLAVOUR}"
+run_and_log "stage1_ghc-bignum" "${HADRIAN_BUILD[@]}" stage1:lib:ghc-bignum --flavour="${HADRIAN_FLAVOUR}"
+run_and_log "stage1_ghc-experimental" "${HADRIAN_BUILD[@]}" stage1:lib:ghc-experimental --flavour="${HADRIAN_FLAVOUR}"
+run_and_log "stage1_lib" "${HADRIAN_BUILD[@]}" stage1:lib:ghc --flavour="${HADRIAN_FLAVOUR}"
 
 # ============================================================
 # STAGE 2: EXECUTABLE (TARGET architecture)

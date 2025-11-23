@@ -89,45 +89,28 @@ echo "=========================="
 # BUILD STAGES
 # ============================================================
 
-# Stage 1: Build with settings patching
+# Stage 1: Build
 echo "=== Building Stage 1 ==="
-export LD_LIBRARY_PATH="${BUILD_PREFIX}/lib:${PREFIX}/lib${LD_LIBRARY_PATH:+:}${LD_LIBRARY_PATH:-}"
-run_and_log "stage1_exe" "${HADRIAN_BUILD[@]}" stage1:exe:ghc-bin --flavour="${HADRIAN_FLAVOUR}"
 
-# Patch settings file for macOS (ar/ranlib + link flags)
+# Patch settings file for macOS before build
 settings_file="${SRC_DIR}/_build/stage0/lib/settings"
-update_settings_link_flags "${settings_file}"
-set_macos_conda_ar_ranlib "${settings_file}" "${CONDA_TOOLCHAIN_BUILD}"
+patch_macos_settings "${settings_file}"
 
-# Build stage1 libs and tools
-build_stage1_libs HADRIAN_BUILD "${HADRIAN_FLAVOUR}"
-build_stage1_tools HADRIAN_BUILD "${HADRIAN_FLAVOUR}"
+# Build stage1 (will patch link flags internally before libs)
+build_stage1 HADRIAN_BUILD "${HADRIAN_FLAVOUR}" "${settings_file}"
 
-# Patch settings again
-update_settings_link_flags "${settings_file}"
-set_macos_conda_ar_ranlib "${settings_file}" "${CONDA_TOOLCHAIN_BUILD}"
+# Patch again after build (settings may get overwritten)
+patch_macos_settings "${settings_file}"
 
-# Stage 2: Build with settings patching
+# Stage 2: Build
 echo "=== Building Stage 2 ==="
-build_stage2_libs HADRIAN_BUILD "${HADRIAN_FLAVOUR}"
 
-run_and_log "stage2_exe" "${HADRIAN_BUILD[@]}" stage2:exe:ghc-bin --flavour="${HADRIAN_FLAVOUR}" --freeze1
-
-# Patch stage 1 settings (used by stage 2 compiler)
+# Patch stage1 settings before build
 settings_file="${SRC_DIR}/_build/stage1/lib/settings"
-update_settings_link_flags "${settings_file}"
-set_macos_conda_ar_ranlib "${settings_file}" "${CONDA_TOOLCHAIN_BUILD}"
+patch_macos_settings "${settings_file}"
 
-run_and_log "stage2_lib" "${HADRIAN_BUILD[@]}" stage2:lib:ghc --flavour="${HADRIAN_FLAVOUR}" --freeze1
-
-# ============================================================
-# BUILD XHTML (macOS race condition prevention)
-# ============================================================
-# Build xhtml explicitly to prevent .dyn_hi race with install
-# ============================================================
-
-echo "=== Building xhtml library explicitly (prevents Internals.dyn_hi race) ==="
-run_and_log "stage1_xhtml" "${HADRIAN_BUILD[@]}" stage1:lib:xhtml --flavour="${HADRIAN_FLAVOUR}" --freeze1
+# Build stage2 (will patch link flags internally if needed)
+build_stage2 HADRIAN_BUILD "${HADRIAN_FLAVOUR}" "${settings_file}"
 
 # ============================================================
 # INSTALL
@@ -145,15 +128,13 @@ run_and_log "install" \
 # POST-INSTALL SETTINGS PATCHING
 # ============================================================
 
-settings_file=$(find "${PREFIX}"/lib/ -name settings | head -n 1)
-
-if [[ -z "${settings_file}" ]]; then
-  echo "ERROR: Could not find installed settings file"
-  exit 1
-fi
-
 echo "=== Updating installed settings ==="
 update_installed_settings
-set_macos_conda_ar_ranlib "${settings_file}" "${CONDA_TOOLCHAIN_BUILD}"
+
+# Patch ar/ranlib for installed settings
+settings_file=$(find "${PREFIX}"/lib/ -name settings | head -n 1)
+if [[ -n "${settings_file}" ]]; then
+  set_macos_conda_ar_ranlib "${settings_file}" "${CONDA_TOOLCHAIN_BUILD}"
+fi
 
 echo "=== Build completed successfully ==="

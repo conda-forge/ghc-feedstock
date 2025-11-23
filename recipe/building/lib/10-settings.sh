@@ -44,6 +44,16 @@ set_macos_conda_ar_ranlib() {
   fi
 }
 
+# Patch macOS settings file (link flags + ar/ranlib)
+# Combines update_settings_link_flags + set_macos_conda_ar_ranlib
+patch_macos_settings() {
+  local settings_file="$1"
+  local toolchain="${2:-${CONDA_TOOLCHAIN_BUILD}}"
+
+  update_settings_link_flags "${settings_file}"
+  set_macos_conda_ar_ranlib "${settings_file}" "${toolchain}"
+}
+
 update_settings_link_flags() {
   local settings_file="$1"
   local toolchain="${2:-$CONDA_TOOLCHAIN_HOST}"

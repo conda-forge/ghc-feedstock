@@ -38,13 +38,23 @@ set -eu
 # Parameters:
 #   $1 - result_array_name: Name of array variable for Hadrian command (nameref)
 #   $2 - cabal_path: Path to cabal executable (optional, defaults to BUILD_PREFIX/bin/cabal)
+#   $3 - with_gcc: Explicit GCC path for --with-gcc (optional for cross-compile)
+#   $4 - with_ar: Explicit AR path for --with-ar (optional for cross-compile)
 #
 build_hadrian_binary() {
   local -n hadrian_cmd="$1"
   local cabal_path="${2:-${BUILD_PREFIX}/bin/cabal}"
+  local with_gcc="${3:-}"
+  local with_ar="${4:-}"
 
   echo "=== Building Hadrian ==="
-  run_and_log "build-hadrian" sh -c "cd '${SRC_DIR}/hadrian' && ${cabal_path} v2-build -j hadrian"
+
+  # Build cabal options
+  local cabal_opts="-j hadrian"
+  [[ -n "$with_gcc" ]] && cabal_opts="--with-gcc=${with_gcc} ${cabal_opts}"
+  [[ -n "$with_ar" ]] && cabal_opts="--with-ar=${with_ar} ${cabal_opts}"
+
+  run_and_log "build-hadrian" sh -c "cd '${SRC_DIR}/hadrian' && ${cabal_path} v2-build ${cabal_opts}"
 
   # Find Hadrian binary
   local hadrian_bin
@@ -91,54 +101,15 @@ configure_ghc() {
 #   $2 - flavour: Hadrian flavour (e.g., "release", "quick")
 #   $3 - settings_file: Path to settings file for patching (optional)
 #
-build_stage1_libs() {
-  local -n hadrian="$1"
-  local flavour="$2"
-  local settings_file="${3:-}"
-
-  echo "=== Building Stage 1 Libraries ==="
-
-  # Patch settings before building (if provided)
-  if [[ -n "$settings_file" ]]; then
-    update_settings_link_flags "$settings_file"
-  fi
-
-  # Build libraries in dependency order (race condition prevention)
-  echo "  Building libraries explicitly (race condition prevention)"
-  run_and_log "stage1_ghc-prim" "${hadrian[@]}" stage1:lib:ghc-prim --flavour="${flavour}"
-  run_and_log "stage1_ghc-bignum" "${hadrian[@]}" stage1:lib:ghc-bignum --flavour="${flavour}"
-  run_and_log "stage1_lib" "${hadrian[@]}" stage1:lib:ghc --flavour="${flavour}"
-
-  # Patch settings again after library build (if provided)
-  if [[ -n "$settings_file" ]]; then
-    update_settings_link_flags "$settings_file"
-  fi
-
-  echo "=== Stage 1 Libraries Complete ==="
-}
-
-# Build Stage 1 tools
+# Build Stage 1 (exe + tools + libs)
+#
+# Simple, complete stage1 build with race condition prevention.
+# Settings patching optional - can be done before/after by caller.
 #
 # Parameters:
 #   $1 - hadrian_cmd_array: Name of array with Hadrian command (nameref)
 #   $2 - flavour: Hadrian flavour
-#
-build_stage1_tools() {
-  local -n hadrian="$1"
-  local flavour="$2"
-
-  echo "=== Building Stage 1 Tools ==="
-  run_and_log "stage1_ghc-pkg" "${hadrian[@]}" stage1:exe:ghc-pkg --flavour="${flavour}"
-  run_and_log "stage1_hsc2hs" "${hadrian[@]}" stage1:exe:hsc2hs --flavour="${flavour}"
-  echo "=== Stage 1 Tools Complete ==="
-}
-
-# Build Stage 1 complete (libs + exe + tools)
-#
-# Parameters:
-#   $1 - hadrian_cmd_array: Name of array with Hadrian command (nameref)
-#   $2 - flavour: Hadrian flavour
-#   $3 - settings_file: Path to stage0 settings file for patching (optional)
+#   $3 - settings_file: Path to settings file for patching (optional)
 #
 build_stage1() {
   local -n hadrian="$1"
@@ -147,63 +118,34 @@ build_stage1() {
 
   echo "=== Building Stage 1 Compiler ==="
 
-  # Build stage 1 compiler executable first
+  # Build compiler executable
   export LD_LIBRARY_PATH="${BUILD_PREFIX}/lib:${PREFIX}/lib${LD_LIBRARY_PATH:+:}${LD_LIBRARY_PATH:-}"
   run_and_log "stage1_exe" "${hadrian[@]}" stage1:exe:ghc-bin --flavour="${flavour}"
 
-  # Build libraries
-  build_stage1_libs "$1" "$flavour" "$settings_file"
-
   # Build tools
-  build_stage1_tools "$1" "$flavour"
+  run_and_log "stage1_ghc-pkg" "${hadrian[@]}" stage1:exe:ghc-pkg --flavour="${flavour}"
+  run_and_log "stage1_hsc2hs" "${hadrian[@]}" stage1:exe:hsc2hs --flavour="${flavour}"
 
-  echo "=== Stage 1 Complete ==="
-}
-
-# Build Stage 2 core libraries in dependency order
-#
-# Parameters:
-#   $1 - hadrian_cmd_array: Name of array with Hadrian command (nameref)
-#   $2 - flavour: Hadrian flavour
-#
-build_stage2_libs() {
-  local -n hadrian="$1"
-  local flavour="$2"
-
-  echo "=== Building Stage 2 Libraries ==="
-  echo "  Building libraries explicitly (race condition prevention)"
-  run_and_log "stage2_ghc-prim" "${hadrian[@]}" stage2:lib:ghc-prim --flavour="${flavour}" --freeze1
-  run_and_log "stage2_ghc-bignum" "${hadrian[@]}" stage2:lib:ghc-bignum --flavour="${flavour}" --freeze1
-  echo "=== Stage 2 Libraries Complete ==="
-}
-
-# Build Stage 2 compiler executable
-#
-# Parameters:
-#   $1 - hadrian_cmd_array: Name of array with Hadrian command (nameref)
-#   $2 - flavour: Hadrian flavour
-#   $3 - settings_file: Path to stage1 settings file for patching (optional)
-#
-build_stage2_exe() {
-  local -n hadrian="$1"
-  local flavour="$2"
-  local settings_file="${3:-}"
-
-  echo "=== Building Stage 2 Compiler ==="
-  run_and_log "stage2_exe" "${hadrian[@]}" stage2:exe:ghc-bin --flavour="${flavour}" --freeze1
-
-  # Patch stage 1 settings (used by stage 2 compiler)
+  # Patch settings if provided (before libraries)
   if [[ -n "$settings_file" ]]; then
     update_settings_link_flags "$settings_file"
   fi
 
-  # Build stage 2 ghc library (used by ghci and plugins)
-  run_and_log "stage2_lib" "${hadrian[@]}" stage2:lib:ghc --flavour="${flavour}" --freeze1
+  # Build libraries in dependency order (race condition prevention)
+  run_and_log "stage1_ghc-prim" "${hadrian[@]}" stage1:lib:ghc-prim --flavour="${flavour}"
+  run_and_log "stage1_ghc-bignum" "${hadrian[@]}" stage1:lib:ghc-bignum --flavour="${flavour}"
+  run_and_log "stage1_ghc-experimental" "${hadrian[@]}" stage1:lib:ghc-experimental --flavour="${flavour}"
+  run_and_log "stage1_xhtml" "${hadrian[@]}" stage1:lib:xhtml --flavour="${flavour}"
+  run_and_log "stage1_lib" "${hadrian[@]}" stage1:lib:ghc --flavour="${flavour}"
 
-  echo "=== Stage 2 Compiler Complete ==="
+  echo "=== Stage 1 Complete ==="
 }
 
-# Build complete Stage 2 (libs + exe)
+
+# Build Stage 2 (libs + exe)
+#
+# Simple, complete stage2 build with race condition prevention.
+# Settings patching optional - can be done before/after by caller.
 #
 # Parameters:
 #   $1 - hadrian_cmd_array: Name of array with Hadrian command (nameref)
@@ -215,8 +157,24 @@ build_stage2() {
   local flavour="$2"
   local settings_file="${3:-}"
 
-  build_stage2_libs "$1" "$flavour"
-  build_stage2_exe "$1" "$flavour" "$settings_file"
+  echo "=== Building Stage 2 Compiler ==="
+
+  # Build core libraries in dependency order (race condition prevention)
+  run_and_log "stage2_ghc-prim" "${hadrian[@]}" stage2:lib:ghc-prim --flavour="${flavour}" --freeze1
+  run_and_log "stage2_ghc-bignum" "${hadrian[@]}" stage2:lib:ghc-bignum --flavour="${flavour}" --freeze1
+
+  # Build compiler executable
+  run_and_log "stage2_exe" "${hadrian[@]}" stage2:exe:ghc-bin --flavour="${flavour}" --freeze1
+
+  # Patch stage1 settings if provided (used by stage2 compiler)
+  if [[ -n "$settings_file" ]]; then
+    update_settings_link_flags "$settings_file"
+  fi
+
+  # Build ghc library (used by ghci and plugins)
+  run_and_log "stage2_lib" "${hadrian[@]}" stage2:lib:ghc --flavour="${flavour}" --freeze1
+
+  echo "=== Stage 2 Complete ==="
 }
 
 # Install GHC to PREFIX (native builds)
@@ -320,16 +278,17 @@ install_bindist() {
   unset ac_cv_prog_LD ac_cv_prog_NM ac_cv_prog_OBJDUMP ac_cv_prog_RANLIB
   unset ac_cv_prog_LLC ac_cv_prog_OPT
 
-  # CRITICAL: Also unset target-prefixed tool cache variables
-  # Autoconf creates these when --target is specified (e.g., ac_cv_prog_aarch64_unknown_linux_gnu_LD)
-  unset ac_cv_prog_${target_arch}_unknown_linux_gnu_AR
-  unset ac_cv_prog_${target_arch}_unknown_linux_gnu_AS
-  unset ac_cv_prog_${target_arch}_unknown_linux_gnu_CC
-  unset ac_cv_prog_${target_arch}_unknown_linux_gnu_CXX
-  unset ac_cv_prog_${target_arch}_unknown_linux_gnu_LD
-  unset ac_cv_prog_${target_arch}_unknown_linux_gnu_NM
-  unset ac_cv_prog_${target_arch}_unknown_linux_gnu_OBJDUMP
-  unset ac_cv_prog_${target_arch}_unknown_linux_gnu_RANLIB
+  # CRITICAL: Set target-prefixed tool cache variables to BUILD tools
+  # GHC's bindist configure reads target info from the tarball and looks for target tools
+  # We OVERRIDE these to force it to use BUILD machine tools instead
+  export ac_cv_prog_${target_arch}_unknown_linux_gnu_AR="${BUILD_PREFIX}/bin/${conda_host}-ar"
+  export ac_cv_prog_${target_arch}_unknown_linux_gnu_AS="${BUILD_PREFIX}/bin/${conda_host}-as"
+  export ac_cv_prog_${target_arch}_unknown_linux_gnu_CC="${BUILD_PREFIX}/bin/${conda_host}-clang"
+  export ac_cv_prog_${target_arch}_unknown_linux_gnu_CXX="${BUILD_PREFIX}/bin/${conda_host}-clang++"
+  export ac_cv_prog_${target_arch}_unknown_linux_gnu_LD="${BUILD_PREFIX}/bin/${conda_host}-ld"
+  export ac_cv_prog_${target_arch}_unknown_linux_gnu_NM="${BUILD_PREFIX}/bin/${conda_host}-nm"
+  export ac_cv_prog_${target_arch}_unknown_linux_gnu_OBJDUMP="${BUILD_PREFIX}/bin/${conda_host}-objdump"
+  export ac_cv_prog_${target_arch}_unknown_linux_gnu_RANLIB="${BUILD_PREFIX}/bin/${conda_host}-ranlib"
 
   unset ac_cv_func_statx ac_cv_have_decl_statx ac_cv_lib_ffi_ffi_call
   unset ac_cv_func_posix_spawn_file_actions_addchdir_np
@@ -349,6 +308,18 @@ install_bindist() {
   export STRIP="${BUILD_PREFIX}/bin/${conda_host}-strip"
   export OBJDUMP="${BUILD_PREFIX}/bin/${conda_host}-objdump"
   export AS="${BUILD_PREFIX}/bin/${conda_host}-as"
+
+  # CRITICAL: Also export ac_cv_path_* to force autoconf to use BUILD tools
+  # The object merging test uses these cached paths
+  export ac_cv_path_CC="${BUILD_PREFIX}/bin/${conda_host}-clang"
+  export ac_cv_path_CXX="${BUILD_PREFIX}/bin/${conda_host}-clang++"
+  export ac_cv_path_LD="${BUILD_PREFIX}/bin/${conda_host}-ld"
+  export ac_cv_path_AR="${BUILD_PREFIX}/bin/${conda_host}-ar"
+  export ac_cv_path_NM="${BUILD_PREFIX}/bin/${conda_host}-nm"
+  export ac_cv_path_RANLIB="${BUILD_PREFIX}/bin/${conda_host}-ranlib"
+  export ac_cv_path_STRIP="${BUILD_PREFIX}/bin/${conda_host}-strip"
+  export ac_cv_path_OBJDUMP="${BUILD_PREFIX}/bin/${conda_host}-objdump"
+  export ac_cv_path_AS="${BUILD_PREFIX}/bin/${conda_host}-as"
 
   # Provide minimal BUILD machine library paths (not target-specific flags like -march)
   export CFLAGS=""  # Explicitly empty - no target-specific optimization flags

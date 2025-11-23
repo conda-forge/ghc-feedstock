@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -eu
 
+# Source common functions for build_configure_args
+source "${RECIPE_DIR}"/building/common.sh
+
 # Set up binary directory
 mkdir -p binary/bin _logs
 
@@ -12,22 +15,16 @@ export M4=${BUILD_PREFIX}/bin/m4
 export PYTHON=${BUILD_PREFIX}/bin/python
 export PATH=${BUILD_PREFIX}/ghc-bootstrap/bin${PATH:+:}${PATH:-}
 
+# Initialize arrays for platform-specific scripts to use
 SYSTEM_CONFIG=(
   --prefix="${PREFIX}"
 )
 
-CONFIGURE_ARGS=(
-  --with-system-libffi=yes
-  --with-curses-includes="${PREFIX}"/include
-  --with-curses-libraries="${PREFIX}"/lib
-  --with-ffi-includes="${PREFIX}"/include
-  --with-ffi-libraries="${PREFIX}"/lib
-  --with-gmp-includes="${PREFIX}"/include
-  --with-gmp-libraries="${PREFIX}"/lib
-  --with-iconv-includes="${PREFIX}"/include
-  --with-iconv-libraries="${PREFIX}"/lib
-)
+# Use lib function to build configure args (Bash 5.2+ nameref)
+declare -a CONFIGURE_ARGS
+build_configure_args CONFIGURE_ARGS
 
+# Source platform-specific build script
 if [[ "${target_platform}" == "linux-aarch64" ]] || [[ "${target_platform}" == "linux-ppc64le" ]]; then
   source "${RECIPE_DIR}"/building/build-linux-cross.sh
 else
