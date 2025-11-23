@@ -550,6 +550,27 @@ echo "File permissions: $(ls -l "${_hadrian_bin}")"
 echo "File type: $(file "${_hadrian_bin}" 2>/dev/null || echo "file command not available")"
 echo "MD5 checksum: $(md5sum "${_hadrian_bin}" 2>/dev/null | cut -d' ' -f1 || echo "md5sum not available")"
 
+# Check DLL dependencies
+echo "=== Checking DLL dependencies ==="
+if command -v ldd &>/dev/null; then
+  ldd "${_hadrian_bin}" 2>&1 | head -20
+elif command -v objdump &>/dev/null; then
+  objdump -p "${_hadrian_bin}" 2>&1 | grep "DLL Name" | head -20
+else
+  echo "No DLL dependency checker available"
+fi
+
+# Try to execute hadrian --version to test if it's actually runnable
+echo "=== Testing hadrian execution ==="
+set +e
+"${_hadrian_bin}" --version 2>&1 | head -5
+_hadrian_test_exit=$?
+set -e
+echo "Hadrian test execution exit code: ${_hadrian_test_exit}"
+if [[ ${_hadrian_test_exit} -ne 0 ]]; then
+  echo "WARNING: Hadrian binary test execution failed with exit code ${_hadrian_test_exit}"
+fi
+
 # MSYS2 bash can execute .exe directly with Unix paths
 _hadrian_build=("${_hadrian_bin}" "-j${CPU_COUNT}" "--directory" "${SRC_DIR}")
 
