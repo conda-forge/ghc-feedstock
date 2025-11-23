@@ -537,6 +537,19 @@ mkdir -p ${_SRC_DIR}/_build
 echo ">$(find ${SRC_DIR}/hadrian/dist-newstyle -name hadrian.exe -type f | head -1)<"
 _hadrian_bin=$(find "${SRC_DIR}"/hadrian/dist-newstyle -name hadrian.exe -type f | head -1)
 echo "Hadrian binary (Unix path): ${_hadrian_bin}"
+
+# Verify the hadrian binary
+echo "=== Verifying hadrian.exe binary ==="
+if [[ ! -f "${_hadrian_bin}" ]]; then
+  echo "ERROR: Hadrian binary not found at: ${_hadrian_bin}"
+  exit 1
+fi
+echo "File exists: ${_hadrian_bin}"
+echo "File size: $(stat -c%s "${_hadrian_bin}" 2>/dev/null || stat -f%z "${_hadrian_bin}" 2>/dev/null || echo "unknown") bytes"
+echo "File permissions: $(ls -l "${_hadrian_bin}")"
+echo "File type: $(file "${_hadrian_bin}" 2>/dev/null || echo "file command not available")"
+echo "MD5 checksum: $(md5sum "${_hadrian_bin}" 2>/dev/null | cut -d' ' -f1 || echo "md5sum not available")"
+
 # MSYS2 bash can execute .exe directly with Unix paths
 _hadrian_build=("${_hadrian_bin}" "-j${CPU_COUNT}" "--directory" "${SRC_DIR}")
 
@@ -548,9 +561,7 @@ echo "*** Final cabal PATH verification ***"
 export PATH="${_BUILD_PREFIX}/bin:${PATH}"
 grep -A 10 "include-dirs:" rts/rts.cabal.in
 
-# Execute via cmd.exe to properly invoke Windows binary
-_hadrian_bin_win=$(cygpath -w "${_hadrian_bin}")
-run_and_log "stage1_ghc" cmd.exe /c "\"${_hadrian_bin_win}\" -j${CPU_COUNT} --directory \"${SRC_DIR}\" stage1:exe:ghc-bin --flavour=quickest --docs=none --progress-info=none"
+run_and_log "stage1_ghc" "${_hadrian_build[@]}" stage1:exe:ghc-bin --flavour=quickest --docs=none --progress-info=none
 settings_file="${_SRC_DIR}"/_build/stage0/lib/settings
 if [[ -f "${settings_file}" ]]; then
   echo "=== Updating Stage0 settings with conda include paths ==="
