@@ -548,8 +548,9 @@ echo "*** Final cabal PATH verification ***"
 export PATH="${_BUILD_PREFIX}/bin:${PATH}"
 grep -A 10 "include-dirs:" rts/rts.cabal.in
 
-run_and_log "stage1_ghc" "${_hadrian_build[@]}" stage1:exe:ghc-bin --flavour=quickest --docs=none --progress-info=none
-# "${_hadrian_build[@]}" stage1:exe:ghc-bin --flavour=quickest --docs=none --progress-info=none
+# Execute via cmd.exe to properly invoke Windows binary
+_hadrian_bin_win=$(cygpath -w "${_hadrian_bin}")
+run_and_log "stage1_ghc" cmd.exe /c "\"${_hadrian_bin_win}\" -j${CPU_COUNT} --directory \"${SRC_DIR}\" stage1:exe:ghc-bin --flavour=quickest --docs=none --progress-info=none"
 settings_file="${_SRC_DIR}"/_build/stage0/lib/settings
 if [[ -f "${settings_file}" ]]; then
   echo "=== Updating Stage0 settings with conda include paths ==="
