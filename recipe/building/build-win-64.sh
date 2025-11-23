@@ -534,8 +534,8 @@ mkdir -p ${_SRC_DIR}/_build
   popd
 )
 
-echo ">$(find ${SRC_DIR}/hadrian/dist-newstyle -name hadrian{,.exe} -type f | head -1)<"
-_hadrian_bin=$(find "${SRC_DIR}"/hadrian/dist-newstyle -name hadrian{,.exe} -type f | head -1)
+echo ">$(find ${SRC_DIR}/hadrian/dist-newstyle -name hadrian.exe -type f | head -1)<"
+_hadrian_bin=$(find "${SRC_DIR}"/hadrian/dist-newstyle -name hadrian.exe -type f | head -1)
 _hadrian_build=("${_hadrian_bin}" "-j${CPU_COUNT}" "--directory" "${SRC_DIR}")
 
 # Build stage1 GHC
