@@ -505,7 +505,8 @@ mkdir -p ${_SRC_DIR}/_build
     # CRITICAL: Use -j1 to avoid parallel build race conditions on Windows
     # Windows builds are prone to deadlocks in package registration and file operations
     # Use --with-ld to ensure cabal uses GNU ld, not lld
-    timeout 600 "${CABAL}" v2-build -j --with-ld="${LD}" hadrian 2>&1 | tee "${_SRC_DIR}"/cabal-build.log
+    # Use --extra-lib-dirs to ensure libgcc.a is found (provides __udivti3/__umodti3)
+    timeout 600 "${CABAL}" v2-build -j --with-ld="${LD}" --extra-lib-dirs="${_BUILD_PREFIX}/Library/lib/gcc/x86_64-w64-mingw32/15.2.0" hadrian 2>&1 | tee "${_SRC_DIR}"/cabal-build.log
     _cabal_exit_code=${PIPESTATUS[0]}
 
     if [[ $_cabal_exit_code -ne 0 ]]; then
