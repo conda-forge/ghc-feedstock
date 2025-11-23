@@ -631,14 +631,38 @@ echo "*** Final cabal PATH verification ***"
 export PATH="${_BUILD_PREFIX}/bin:${PATH}"
 grep -A 10 "include-dirs:" rts/rts.cabal.in
 
+echo "=== Verifying Hadrian binary before stage1 build ==="
+echo "Hadrian path: ${_hadrian_bin}"
+if [[ -f "${_hadrian_bin}" ]]; then
+  echo "✓ Hadrian binary exists"
+  ls -lh "${_hadrian_bin}"
+  file "${_hadrian_bin}"
+  echo ""
+  echo "Testing hadrian.exe execution (should show help or version):"
+  "${_hadrian_bin}" --help || echo "hadrian.exe --help failed with exit code: $?"
+else
+  echo "✗ ERROR: Hadrian binary not found at ${_hadrian_bin}"
+  echo "Searching for hadrian.exe:"
+  find "${SRC_DIR}" -name "hadrian.exe" -type f
+  exit 1
+fi
+
+echo ""
 echo "=== Building Stage1 GHC (direct execution, no wrapper) ==="
-echo "Command: ${_hadrian_build[@]} stage1:exe:ghc-bin --flavour=quickest --docs=none --progress-info=none"
+echo "Full command array:"
+printf '  [%s]\n' "${_hadrian_build[@]}" "stage1:exe:ghc-bin" "--flavour=quickest" "--docs=none" "--progress-info=none"
+echo ""
 echo "Starting at: $(date)"
 set -x
 "${_hadrian_build[@]}" stage1:exe:ghc-bin --flavour=quickest --docs=none --progress-info=none
+stage1_exit=$?
 set +x
 echo "Finished at: $(date)"
-echo "Exit code: $?"
+echo "Exit code: $stage1_exit"
+if [[ $stage1_exit -ne 0 ]]; then
+  echo "ERROR: Stage1 build failed!"
+  exit $stage1_exit
+fi
 
 # Find Stage0 settings file (location may vary on Windows)
 echo "=== Locating Stage0 settings file ==="
