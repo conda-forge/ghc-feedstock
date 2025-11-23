@@ -227,6 +227,6 @@ BINDIST_CONFIG=(
   --target="${ghc_target}"
 )
 
-install_bindist "${BINDIST_PATH}" BINDIST_CONFIG
+install_bindist "${BINDIST_PATH}" BINDIST_CONFIG "${conda_host}" "${target_arch}"
 
 echo "=== Build completed successfully ==="

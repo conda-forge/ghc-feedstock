@@ -282,13 +282,21 @@ create_bindist() {
 
 # Extract and configure bindist (cross-compile workflow)
 #
+# CRITICAL: Bindist configure must run with BUILD machine tools, not TARGET tools!
+# The cross-compile build creates autoconf cache for TARGET architecture.
+# This function clears all caches and resets to BUILD machine environment.
+#
 # Parameters:
 #   $1 - tarball_path: Path to bindist tarball
 #   $2 - system_config_array: Configure flags for bindist (nameref)
+#   $3 - conda_host: BUILD machine triple (e.g., x86_64-conda-linux-gnu)
+#   $4 - target_arch: TARGET architecture (e.g., aarch64)
 #
 install_bindist() {
   local tarball="$1"
   local -n sys_cfg="$2"
+  local conda_host="$3"       # BUILD machine triple (e.g., x86_64-conda-linux-gnu)
+  local target_arch="$4"      # TARGET architecture (e.g., aarch64)
 
   echo "=== Installing Binary Distribution ==="
 
@@ -300,37 +308,58 @@ install_bindist() {
   # CRITICAL: Reset environment for BUILD machine configuration
   # Cross-compile sets TARGET variables, bindist needs BUILD variables
   echo "  Resetting environment for BUILD machine"
+  echo "  BUILD machine: ${conda_host}"
+  echo "  TARGET arch: ${target_arch}"
 
   # Unset all TARGET architecture autoconf cache variables
+  # Both ac_cv_path_* (tool paths) and ac_cv_prog_* (tool program names)
   unset ac_cv_path_AR ac_cv_path_AS ac_cv_path_CC ac_cv_path_CXX
   unset ac_cv_path_LD ac_cv_path_NM ac_cv_path_OBJDUMP ac_cv_path_RANLIB
   unset ac_cv_path_LLC ac_cv_path_OPT
   unset ac_cv_prog_AR ac_cv_prog_AS ac_cv_prog_CC ac_cv_prog_CXX
   unset ac_cv_prog_LD ac_cv_prog_NM ac_cv_prog_OBJDUMP ac_cv_prog_RANLIB
   unset ac_cv_prog_LLC ac_cv_prog_OPT
+
+  # CRITICAL: Also unset target-prefixed tool cache variables
+  # Autoconf creates these when --target is specified (e.g., ac_cv_prog_aarch64_unknown_linux_gnu_LD)
+  unset ac_cv_prog_${target_arch}_unknown_linux_gnu_AR
+  unset ac_cv_prog_${target_arch}_unknown_linux_gnu_AS
+  unset ac_cv_prog_${target_arch}_unknown_linux_gnu_CC
+  unset ac_cv_prog_${target_arch}_unknown_linux_gnu_CXX
+  unset ac_cv_prog_${target_arch}_unknown_linux_gnu_LD
+  unset ac_cv_prog_${target_arch}_unknown_linux_gnu_NM
+  unset ac_cv_prog_${target_arch}_unknown_linux_gnu_OBJDUMP
+  unset ac_cv_prog_${target_arch}_unknown_linux_gnu_RANLIB
+
   unset ac_cv_func_statx ac_cv_have_decl_statx ac_cv_lib_ffi_ffi_call
   unset ac_cv_func_posix_spawn_file_actions_addchdir_np
 
-  # Unset CFLAGS/CXXFLAGS to prevent autoconf caching (ac_cv_env_*)
-  unset CFLAGS CXXFLAGS
+  # CRITICAL: Also unset environment-based autoconf cache (ac_cv_env_*)
+  # These are cached from the environment variables at configure time
+  unset CFLAGS CXXFLAGS  # Will trigger unset of ac_cv_env_CFLAGS_value, ac_cv_env_CXXFLAGS_value
 
-  # Set BUILD machine compiler and minimal flags
-  local build_host="${host_arch:-x86_64}-conda-linux-gnu"
-  export CC="${BUILD_PREFIX}/bin/${build_host}-clang"
-  export CXX="${BUILD_PREFIX}/bin/${build_host}-clang++"
-  export LD="${BUILD_PREFIX}/bin/${build_host}-ld"
-  export AR="${BUILD_PREFIX}/bin/${build_host}-ar"
-  export NM="${BUILD_PREFIX}/bin/${build_host}-nm"
-  export RANLIB="${BUILD_PREFIX}/bin/${build_host}-ranlib"
-  export STRIP="${BUILD_PREFIX}/bin/${build_host}-strip"
-  export OBJDUMP="${BUILD_PREFIX}/bin/${build_host}-objdump"
-  export AS="${BUILD_PREFIX}/bin/${build_host}-as"
+  # Set BUILD machine compiler, linker, and all tools
+  # These MUST be set to prevent configure from looking for target-prefixed tools
+  export CC="${BUILD_PREFIX}/bin/${conda_host}-clang"
+  export CXX="${BUILD_PREFIX}/bin/${conda_host}-clang++"
+  export LD="${BUILD_PREFIX}/bin/${conda_host}-ld"
+  export AR="${BUILD_PREFIX}/bin/${conda_host}-ar"
+  export NM="${BUILD_PREFIX}/bin/${conda_host}-nm"
+  export RANLIB="${BUILD_PREFIX}/bin/${conda_host}-ranlib"
+  export STRIP="${BUILD_PREFIX}/bin/${conda_host}-strip"
+  export OBJDUMP="${BUILD_PREFIX}/bin/${conda_host}-objdump"
+  export AS="${BUILD_PREFIX}/bin/${conda_host}-as"
 
-  # Minimal flags without target-specific optimizations
-  export CFLAGS=""
-  export CXXFLAGS=""
+  # Provide minimal BUILD machine library paths (not target-specific flags like -march)
+  export CFLAGS=""  # Explicitly empty - no target-specific optimization flags
+  export CXXFLAGS=""  # Explicitly empty
   export LDFLAGS="-L${BUILD_PREFIX}/lib"
   export CPPFLAGS="-I${BUILD_PREFIX}/include"
+
+  echo "  Cleared autoconf cache variables and compiler flags for bindist configure"
+  echo "  CC: ${CC}"
+  echo "  CXX: ${CXX}"
+  echo "  LD: ${LD}"
 
   # Configure and install
   pushd "${bindist_dir}"
