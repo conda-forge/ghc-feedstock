@@ -414,7 +414,7 @@ done
 # NOTE: Now that GCC lib path is in LDFLAGS, we can safely add -lgcc
 # This is needed for Cabal when linking Hadrian (before GHC settings are used)
 CRT2_OBJ="${_BUILD_PREFIX}/Library/x86_64-w64-mingw32/sysroot/usr/lib/crt2.o"
-export LIBS="${CRT2_OBJ} -Wl,--subsystem,console -lmoldname -lmingwex -lmingw32 ${CHKSTK_LIB} -lgcc -lmsvcrt -lkernel32 -ladvapi32"
+export LIBS="${CRT2_OBJ} -Wl,--subsystem,console -lmoldname -lmingwex -lmingw32_stubs ${CHKSTK_LIB} -lgcc -lmsvcrt -lkernel32 -ladvapi32"
 
 # CRITICAL: Reinforce subsystem flag in LDFLAGS
 # -Wl,--subsystem,console: Use console entry point (main) instead of GUI (WinMain)
