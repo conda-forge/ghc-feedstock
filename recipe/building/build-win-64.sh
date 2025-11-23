@@ -535,9 +535,8 @@ mkdir -p ${_SRC_DIR}/_build
   popd
 )
 
-echo ">$(find ${SRC_DIR}/hadrian/dist-newstyle -name hadrian.exe -type f | head -1)<"
 _hadrian_bin=$(find "${SRC_DIR}"/hadrian/dist-newstyle -name hadrian.exe -type f | head -1)
-echo "Hadrian binary (Unix path): ${_hadrian_bin}"
+echo "Hadrian binary: ${_hadrian_bin}"
 
 # Verify the hadrian binary
 echo "=== Verifying hadrian.exe binary ==="
@@ -638,8 +637,9 @@ if [[ -f "${_hadrian_bin}" ]]; then
   ls -lh "${_hadrian_bin}"
   file "${_hadrian_bin}"
   echo ""
-  echo "Testing hadrian.exe execution (should show help or version):"
-  "${_hadrian_bin}" --help || echo "hadrian.exe --help failed with exit code: $?"
+  echo "Testing hadrian.exe execution via cmd.exe:"
+  _hadrian_win=$(cygpath -w "${_hadrian_bin}")
+  cmd.exe /c "\"${_hadrian_win}\" --help" || echo "hadrian.exe --help failed with exit code: $?"
 else
   echo "✗ ERROR: Hadrian binary not found at ${_hadrian_bin}"
   echo "Searching for hadrian.exe:"
@@ -648,13 +648,16 @@ else
 fi
 
 echo ""
-echo "=== Building Stage1 GHC (direct execution, no wrapper) ==="
-echo "Full command array:"
-printf '  [%s]\n' "${_hadrian_build[@]}" "stage1:exe:ghc-bin" "--flavour=quickest" "--docs=none" "--progress-info=none"
+echo "=== Building Stage1 GHC (using cmd.exe wrapper) ==="
+# Convert paths to Windows format for cmd.exe
+_hadrian_win=$(cygpath -w "${_hadrian_bin}")
+_src_win=$(cygpath -w "${SRC_DIR}")
+echo "Hadrian (Windows path): ${_hadrian_win}"
+echo "SRC_DIR (Windows path): ${_src_win}"
 echo ""
 echo "Starting at: $(date)"
 set -x
-"${_hadrian_build[@]}" stage1:exe:ghc-bin --flavour=quickest --docs=none --progress-info=none
+cmd.exe /c "\"${_hadrian_win}\" -j${CPU_COUNT} --directory \"${_src_win}\" stage1:exe:ghc-bin --flavour=quickest --docs=none --progress-info=none"
 stage1_exit=$?
 set +x
 echo "Finished at: $(date)"
