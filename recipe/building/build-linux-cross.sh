@@ -153,25 +153,19 @@ echo "=== Building Stage 1 Cross-Compiler ==="
 perl -i -pe 's/\(True, s\) \| s > stage0InTree ->/\(False, s\) | s > stage0InTree \&\& False ->/' \
   "${SRC_DIR}"/hadrian/src/Rules/Program.hs
 
-# Build stage1 exe + tools
-echo "  Building cross-compiler tools"
-run_and_log "stage1_ghc-bin" "${HADRIAN_BUILD[@]}" stage1:exe:ghc-bin --flavour="${HADRIAN_FLAVOUR_STAGE1}"
-run_and_log "stage1_ghc-pkg" "${HADRIAN_BUILD[@]}" stage1:exe:ghc-pkg --flavour="${HADRIAN_FLAVOUR_STAGE1}"
-run_and_log "stage1_hsc2hs" "${HADRIAN_BUILD[@]}" stage1:exe:hsc2hs --flavour="${HADRIAN_FLAVOUR_STAGE1}"
+# Build stage1 compiler executable first
+export LD_LIBRARY_PATH="${BUILD_PREFIX}/lib:${PREFIX}/lib${LD_LIBRARY_PATH:+:}${LD_LIBRARY_PATH:-}"
+run_and_log "stage1_exe" "${HADRIAN_BUILD[@]}" stage1:exe:ghc-bin --flavour="${HADRIAN_FLAVOUR_STAGE1}"
 
-# Patch settings file
+# Build stage1 tools (using orchestrator)
+build_stage1_tools HADRIAN_BUILD "${HADRIAN_FLAVOUR_STAGE1}"
+
+# Patch settings file after tools
 settings_file="${SRC_DIR}/_build/stage0/lib/settings"
 update_linux_link_flags "${settings_file}"
 
-# Build stage1 libraries in order
-echo "  Building stage 1 libraries (race prevention)"
-run_and_log "stage1_ghc-prim" "${HADRIAN_BUILD[@]}" stage1:lib:ghc-prim --flavour="${HADRIAN_FLAVOUR_STAGE1}"
-run_and_log "stage1_ghc-bignum" "${HADRIAN_BUILD[@]}" stage1:lib:ghc-bignum --flavour="${HADRIAN_FLAVOUR_STAGE1}"
-run_and_log "stage1_ghc-experimental" "${HADRIAN_BUILD[@]}" stage1:lib:ghc-experimental --flavour="${HADRIAN_FLAVOUR_STAGE1}"
-run_and_log "stage1_lib" "${HADRIAN_BUILD[@]}" stage1:lib:ghc --flavour="${HADRIAN_FLAVOUR_STAGE1}"
-
-# Patch settings again
-update_linux_link_flags "${settings_file}"
+# Build stage1 libraries (using orchestrator)
+build_stage1_libs HADRIAN_BUILD "${HADRIAN_FLAVOUR_STAGE1}" "${settings_file}"
 
 # ============================================================
 # POWERPC64LE: GHCPLATFORM.H PATCHING
@@ -196,10 +190,8 @@ echo "=== Building Stage 2 Target Binaries ==="
 
 export GHC="${SRC_DIR}/_build/ghc-stage1"
 
-echo "  Building target binaries (race prevention)"
-run_and_log "stage2_ghc-bin" "${HADRIAN_BUILD[@]}" stage2:exe:ghc-bin --flavour="${HADRIAN_FLAVOUR_STAGE2}"
-run_and_log "stage2_ghc-pkg" "${HADRIAN_BUILD[@]}" stage2:exe:ghc-pkg --flavour="${HADRIAN_FLAVOUR_STAGE2}"
-run_and_log "stage2_hsc2hs" "${HADRIAN_BUILD[@]}" stage2:exe:hsc2hs --flavour="${HADRIAN_FLAVOUR_STAGE2}"
+# Build stage2 using orchestrator (libraries then executable)
+build_stage2 HADRIAN_BUILD "${HADRIAN_FLAVOUR_STAGE2}"
 
 # ============================================================
 # BINARY DISTRIBUTION
