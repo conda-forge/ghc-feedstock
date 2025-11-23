@@ -535,10 +535,9 @@ mkdir -p ${_SRC_DIR}/_build
 )
 
 echo ">$(find ${SRC_DIR}/hadrian/dist-newstyle -name hadrian.exe -type f | head -1)<"
-_hadrian_bin_unix=$(find "${SRC_DIR}"/hadrian/dist-newstyle -name hadrian.exe -type f | head -1)
-# Convert to Windows path format for execution
-_hadrian_bin=$(cygpath -w "${_hadrian_bin_unix}")
-echo "Hadrian binary (Windows path): ${_hadrian_bin}"
+_hadrian_bin=$(find "${SRC_DIR}"/hadrian/dist-newstyle -name hadrian.exe -type f | head -1)
+echo "Hadrian binary (Unix path): ${_hadrian_bin}"
+# MSYS2 bash can execute .exe directly with Unix paths
 _hadrian_build=("${_hadrian_bin}" "-j${CPU_COUNT}" "--directory" "${SRC_DIR}")
 
 # Build stage1 GHC
