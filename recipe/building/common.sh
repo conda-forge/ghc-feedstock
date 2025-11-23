@@ -12,11 +12,22 @@ run_and_log() {
   echo "Running: ${cmd[*]}"
   local start_time=$(date +%s)
   local exit_status_file=$(mktemp)
+
+  # On Windows, wrap .exe execution in cmd.exe to avoid MSYS2 bash compatibility issues
+  local actual_cmd=("${cmd[@]}")
+  if [[ "$OSTYPE" == "msys" || "$OSTYPE" == "cygwin" ]] && [[ "${cmd[0]}" == *.exe ]]; then
+    # Convert Unix path to Windows path for cmd.exe
+    local exe_path=$(cygpath -w "${cmd[0]}" 2>/dev/null || echo "${cmd[0]}")
+    # Build cmd.exe invocation with proper quoting
+    actual_cmd=(cmd.exe /c "\"${exe_path}\" ${cmd[@]:1}")
+    echo "Windows execution wrapper: cmd.exe /c \"${exe_path}\" ${cmd[@]:1}"
+  fi
+
   # Run the command in a subshell to prevent set -e from terminating
   (
     # Temporarily disable errexit in this subshell
     set +e
-    "${cmd[@]}" > "${SRC_DIR}/_logs/${_log_index}_${_logname}.log" 2>&1
+    "${actual_cmd[@]}" > "${SRC_DIR}/_logs/${_log_index}_${_logname}.log" 2>&1
     echo $? > "$exit_status_file"
   ) &
   local cmd_pid=$!
