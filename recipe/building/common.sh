@@ -14,20 +14,42 @@ run_and_log() {
   local exit_status_file=$(mktemp)
 
   # On Windows, wrap .exe execution in cmd.exe to avoid MSYS2 bash compatibility issues
-  local actual_cmd=("${cmd[@]}")
+  local use_windows_wrapper=0
+  local windows_cmd_string=""
   if [[ "$OSTYPE" == "msys" || "$OSTYPE" == "cygwin" ]] && [[ "${cmd[0]}" == *.exe ]]; then
+    use_windows_wrapper=1
     # Convert Unix path to Windows path for cmd.exe
     local exe_path=$(cygpath -w "${cmd[0]}" 2>/dev/null || echo "${cmd[0]}")
-    # Build cmd.exe invocation with proper quoting
-    actual_cmd=(cmd.exe /c "\"${exe_path}\" ${cmd[@]:1}")
-    echo "Windows execution wrapper: cmd.exe /c \"${exe_path}\" ${cmd[@]:1}"
+
+    # Convert Unix paths in arguments to Windows format
+    # This prevents /c/path being interpreted as a cmd.exe flag
+    local -a converted_args=()
+    for arg in "${cmd[@]:1}"; do
+      # Check if argument contains Unix absolute paths (/c/... or /d/...)
+      if [[ "$arg" =~ ^--prefix=(/[a-z]/.+)$ ]]; then
+        # Extract path and convert
+        local path_part="${BASH_REMATCH[1]}"
+        local win_path=$(cygpath -w "$path_part" 2>/dev/null || echo "$path_part")
+        converted_args+=("--prefix=$win_path")
+      else
+        converted_args+=("$arg")
+      fi
+    done
+
+    # Build cmd.exe command as a string (cmd.exe /c needs string, not array)
+    windows_cmd_string="\"${exe_path}\" ${converted_args[*]}"
+    echo "Windows execution wrapper: cmd.exe /c ${windows_cmd_string}"
   fi
 
   # Run the command in a subshell to prevent set -e from terminating
   (
     # Temporarily disable errexit in this subshell
     set +e
-    "${actual_cmd[@]}" > "${SRC_DIR}/_logs/${_log_index}_${_logname}.log" 2>&1
+    if [[ $use_windows_wrapper -eq 1 ]]; then
+      cmd.exe /c "${windows_cmd_string}" > "${SRC_DIR}/_logs/${_log_index}_${_logname}.log" 2>&1
+    else
+      "${cmd[@]}" > "${SRC_DIR}/_logs/${_log_index}_${_logname}.log" 2>&1
+    fi
     echo $? > "$exit_status_file"
   ) &
   local cmd_pid=$!
