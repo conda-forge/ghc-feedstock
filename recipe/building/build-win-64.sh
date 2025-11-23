@@ -631,7 +631,14 @@ echo "*** Final cabal PATH verification ***"
 export PATH="${_BUILD_PREFIX}/bin:${PATH}"
 grep -A 10 "include-dirs:" rts/rts.cabal.in
 
-run_and_log "stage1_ghc" "${_hadrian_build[@]}" stage1:exe:ghc-bin --flavour=quickest --docs=none --progress-info=none
+echo "=== Building Stage1 GHC (direct execution, no wrapper) ==="
+echo "Command: ${_hadrian_build[@]} stage1:exe:ghc-bin --flavour=quickest --docs=none --progress-info=none"
+echo "Starting at: $(date)"
+set -x
+"${_hadrian_build[@]}" stage1:exe:ghc-bin --flavour=quickest --docs=none --progress-info=none
+set +x
+echo "Finished at: $(date)"
+echo "Exit code: $?"
 
 # Find Stage0 settings file (location may vary on Windows)
 echo "=== Locating Stage0 settings file ==="
