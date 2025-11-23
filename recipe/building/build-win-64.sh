@@ -639,7 +639,7 @@ if [[ -f "${_hadrian_bin}" ]]; then
   echo ""
   echo "Testing hadrian.exe execution via cmd.exe:"
   _hadrian_win=$(cygpath -w "${_hadrian_bin}")
-  cmd.exe /c "\"${_hadrian_win}\" --help" || echo "hadrian.exe --help failed with exit code: $?"
+  cmd.exe /s /c "\"${_hadrian_win}\" --help" || echo "hadrian.exe --help failed with exit code: $?"
 else
   echo "✗ ERROR: Hadrian binary not found at ${_hadrian_bin}"
   echo "Searching for hadrian.exe:"
@@ -654,10 +654,14 @@ _hadrian_win=$(cygpath -w "${_hadrian_bin}")
 _src_win=$(cygpath -w "${SRC_DIR}")
 echo "Hadrian (Windows path): ${_hadrian_win}"
 echo "SRC_DIR (Windows path): ${_src_win}"
+
+# Use cmd.exe /s /c for special quote handling
+# With /s, cmd.exe strips outer quotes and executes what's inside
+# Format: cmd.exe /s /c ""quoted program" args"
 echo ""
 echo "Starting at: $(date)"
 set -x
-cmd.exe /c "\"${_hadrian_win}\" -j${CPU_COUNT} --directory \"${_src_win}\" stage1:exe:ghc-bin --flavour=quickest --docs=none --progress-info=none"
+cmd.exe /s /c "\"${_hadrian_win}\" -j${CPU_COUNT} --directory \"${_src_win}\" stage1:exe:ghc-bin --flavour=quickest --docs=none --progress-info=none"
 stage1_exit=$?
 set +x
 echo "Finished at: $(date)"
