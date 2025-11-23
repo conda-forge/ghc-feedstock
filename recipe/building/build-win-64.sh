@@ -508,14 +508,14 @@ mkdir -p ${_SRC_DIR}/_build
     # Use --extra-lib-dirs to ensure libgcc.a is found (provides __udivti3/__umodti3)
     # Use --ghc-options to explicitly link with -lgcc (not just the directory)
     # Use --ghc-options to set PE image base to prevent "section below image base" error
-    timeout 600 "${CABAL}" v2-build -j --with-ld="${LD}" --extra-lib-dirs="${_BUILD_PREFIX}/Library/lib/gcc/x86_64-w64-mingw32/15.2.0" --ghc-options="-optl-lgcc -optl-Wl,--image-base,0x140000000" hadrian 2>&1 | tee "${_SRC_DIR}"/cabal-build.log
+    timeout 600 "${CABAL}" v2-build -j --with-ld="${LD}" --extra-lib-dirs="${_BUILD_PREFIX}/Library/lib/gcc/x86_64-w64-mingw32/15.2.0" --ghc-options="-optl-lgcc -optl--image-base -optl0x140000000" hadrian 2>&1 | tee "${_SRC_DIR}"/cabal-build.log
     _cabal_exit_code=${PIPESTATUS[0]}
 
     if [[ $_cabal_exit_code -ne 0 ]]; then
       echo "=== Cabal build FAILED with exit code ${_cabal_exit_code} ==="
       for pkg in file-io clock js-dgtable heaps js-flot js-jquery os-string splitmix primitive utf8-string directory random; do
         echo "Testing package: $pkg"
-        timeout 60 "${CABAL}" v2-build --with-ld="${LD}" --extra-lib-dirs="${_BUILD_PREFIX}/Library/lib/gcc/x86_64-w64-mingw32/15.2.0" --ghc-options="-optl-lgcc -optl-Wl,--image-base,0x140000000" "$pkg" 2>&1 | tee "${_SRC_DIR}/package-${pkg}.log"
+        timeout 60 "${CABAL}" v2-build --with-ld="${LD}" --extra-lib-dirs="${_BUILD_PREFIX}/Library/lib/gcc/x86_64-w64-mingw32/15.2.0" --ghc-options="-optl-lgcc -optl--image-base -optl0x140000000" "$pkg" 2>&1 | tee "${_SRC_DIR}/package-${pkg}.log"
         pkg_exit=$?
         if [[ $pkg_exit -eq 0 ]]; then
           echo "  \u2713 $pkg: SUCCESS"
@@ -527,7 +527,7 @@ mkdir -p ${_SRC_DIR}/_build
       done
       
       echo "=== Retrying with verbose output for failed packages ==="
-      timeout 300 "${CABAL}" v2-build -j -v3 --with-ld="${LD}" --extra-lib-dirs="${_BUILD_PREFIX}/Library/lib/gcc/x86_64-w64-mingw32/15.2.0" --ghc-options="-optl-lgcc -optl-Wl,--image-base,0x140000000" hadrian 2>&1 | tee "${_SRC_DIR}"/cabal-verbose.log
+      timeout 300 "${CABAL}" v2-build -j -v3 --with-ld="${LD}" --extra-lib-dirs="${_BUILD_PREFIX}/Library/lib/gcc/x86_64-w64-mingw32/15.2.0" --ghc-options="-optl-lgcc -optl--image-base -optl0x140000000" hadrian 2>&1 | tee "${_SRC_DIR}"/cabal-verbose.log
       exit 1
     else
       echo "=== Cabal build SUCCEEDED ==="
