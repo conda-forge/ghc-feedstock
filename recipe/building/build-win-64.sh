@@ -632,9 +632,39 @@ export PATH="${_BUILD_PREFIX}/bin:${PATH}"
 grep -A 10 "include-dirs:" rts/rts.cabal.in
 
 run_and_log "stage1_ghc" "${_hadrian_build[@]}" stage1:exe:ghc-bin --flavour=quickest --docs=none --progress-info=none
+
+# Find Stage0 settings file (location may vary on Windows)
+echo "=== Locating Stage0 settings file ==="
 settings_file="${_SRC_DIR}"/_build/stage0/lib/settings
+
+if [[ ! -f "${settings_file}" ]]; then
+  echo "Settings file not at expected location: ${settings_file}"
+  echo ""
+  echo "Checking if _build directory exists..."
+  if [[ -d "${_SRC_DIR}/_build" ]]; then
+    echo "✓ _build directory exists"
+    echo "Contents of _build:"
+    ls -la "${_SRC_DIR}/_build" 2>/dev/null | head -20
+  else
+    echo "✗ _build directory does NOT exist"
+  fi
+  echo ""
+  echo "Searching for all 'settings' files under SRC_DIR..."
+  find "${_SRC_DIR}" -name "settings" -type f 2>/dev/null | while read -r found_settings; do
+    echo "  Found: ${found_settings}"
+  done
+  echo ""
+  # Try to find the first settings file
+  found_settings=$(find "${_SRC_DIR}" -name "settings" -type f 2>/dev/null | head -1)
+  if [[ -n "${found_settings}" ]]; then
+    echo "Using first found settings file: ${found_settings}"
+    settings_file="${found_settings}"
+  fi
+fi
+
 if [[ -f "${settings_file}" ]]; then
   echo "=== Updating Stage0 settings with conda include paths ==="
+  echo "Settings file: ${settings_file}"
   # Add -I flags to C compiler flags for ffi.h, gmp.h, etc.
   # CRITICAL: Use _PREFIX (Unix paths) NOT PREFIX (Windows paths with \b escape sequences)
   perl -pi -e "s#(C compiler flags\", \")([^\"]*)(\")#\$1\$2 -I${_PREFIX}/Library/include -I${_BUILD_PREFIX}/Library/include\$3#" "${settings_file}"
@@ -642,6 +672,7 @@ if [[ -f "${settings_file}" ]]; then
   grep "C compiler flags\|C++ compiler flags" "${settings_file}"
 else
   echo "WARNING: Stage0 settings file not found at ${settings_file}"
+  echo "Continuing without settings file modifications..."
 fi
 
 run_and_log "stage1_pkg" "${_hadrian_build[@]}" stage1:exe:ghc-pkg --flavour=quickest --docs=none --progress-info=none
@@ -652,19 +683,25 @@ run_and_log "stage1_lib" "${_hadrian_build[@]}" stage1:lib:ghc --flavour=quickes
   grep -n "include-dirs\|extra-include-dirs\|/c/bld" "${SRC_DIR}"/rts/rts.cabal | head -20; \
   exit 1; \
 }
-  
-# perl -pi -e "s#((dllwrap|windres|llc|opt|clang) command\", \")[^\"]*#\$1${conda_target}-\$2#" "${settings_file}"
-perl -pi -e "s#(Use inplace MinGW toolchain\", \")[^\"]*#\$1NO#" "${settings_file}"
-perl -pi -e "s#(Use LibFFI\", \")[^\"]*#\$1YES#" "${settings_file}"
 
-echo "=== Redirecting mingw paths to conda-forge in Stage0 settings ==="
-# Reassign mingw references to conda-forge MinGW (same as ghc-bootstrap)
-perl -pi -e 's#\$topdir/../mingw//bin/(llvm-)?##' "${settings_file}"
-perl -pi -e 's#-I\$topdir/../mingw//include#-I\$topdir/../../Library/include#g' "${settings_file}"
-perl -pi -e 's#-L\$topdir/../mingw//lib#-L\$topdir/../../Library/lib#g' "${settings_file}"
-perl -pi -e 's#-L\$topdir/../mingw//x86_64-w64-mingw32/lib#-L\$topdir/../../Library/bin -L\$topdir/../../Library/x86_64-w64-mingw32/sysroot/usr/lib -Wl,-rpath,\$topdir/../../Library/x86_64-w64-mingw32/sysroot/usr/lib#g' "${settings_file}"
+# Apply additional settings modifications if file exists
+if [[ -f "${settings_file}" ]]; then
+  echo "=== Redirecting mingw paths to conda-forge in Stage0 settings ==="
+  # perl -pi -e "s#((dllwrap|windres|llc|opt|clang) command\", \")[^\"]*#\$1${conda_target}-\$2#" "${settings_file}"
+  perl -pi -e "s#(Use inplace MinGW toolchain\", \")[^\"]*#\$1NO#" "${settings_file}"
+  perl -pi -e "s#(Use LibFFI\", \")[^\"]*#\$1YES#" "${settings_file}"
 
-cat "${_SRC_DIR}"/_build/stage0/lib/settings | grep -A1 "mingw\|C compiler\|LibFFI"
+  # Reassign mingw references to conda-forge MinGW (same as ghc-bootstrap)
+  perl -pi -e 's#\$topdir/../mingw//bin/(llvm-)?##' "${settings_file}"
+  perl -pi -e 's#-I\$topdir/../mingw//include#-I\$topdir/../../Library/include#g' "${settings_file}"
+  perl -pi -e 's#-L\$topdir/../mingw//lib#-L\$topdir/../../Library/lib#g' "${settings_file}"
+  perl -pi -e 's#-L\$topdir/../mingw//x86_64-w64-mingw32/lib#-L\$topdir/../../Library/bin -L\$topdir/../../Library/x86_64-w64-mingw32/sysroot/usr/lib -Wl,-rpath,\$topdir/../../Library/x86_64-w64-mingw32/sysroot/usr/lib#g' "${settings_file}"
+
+  echo "=== Stage0 settings after modifications ==="
+  cat "${settings_file}" | grep -A1 "mingw\|C compiler\|LibFFI" || echo "(No matching lines found)"
+else
+  echo "WARNING: Skipping Stage0 settings modifications - file not found at: ${settings_file}"
+fi
 
 run_and_log "stage2_exe" "${_hadrian_build[@]}" stage2:exe:ghc-bin --flavour=release --freeze1 --docs=none --progress-info=none
 
