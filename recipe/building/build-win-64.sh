@@ -551,6 +551,18 @@ echo "File permissions: $(ls -l "${_hadrian_bin}")"
 echo "File type: $(file "${_hadrian_bin}" 2>/dev/null || echo "file command not available")"
 echo "MD5 checksum: $(md5sum "${_hadrian_bin}" 2>/dev/null | cut -d' ' -f1 || echo "md5sum not available")"
 
+# Examine PE headers in detail
+echo "=== Examining PE headers ==="
+if command -v objdump &>/dev/null; then
+  echo "--- PE Optional Header (ImageBase, SectionAlignment, etc) ---"
+  objdump -p "${_hadrian_bin}" 2>&1 | grep -E "ImageBase|SectionAlignment|FileAlignment|AddressOfEntryPoint|Magic|Subsystem" | head -20
+  echo ""
+  echo "--- Section Table (checking for sections below image base) ---"
+  objdump -h "${_hadrian_bin}" 2>&1 | head -30
+else
+  echo "objdump not available for PE header inspection"
+fi
+
 # Check DLL dependencies
 echo "=== Checking DLL dependencies ==="
 if command -v ldd &>/dev/null; then
@@ -561,15 +573,51 @@ else
   echo "No DLL dependency checker available"
 fi
 
-# Try to execute hadrian --version to test if it's actually runnable
-echo "=== Testing hadrian execution ==="
+# Try multiple execution methods to diagnose the issue
+echo "=== Testing hadrian execution (multiple methods) ==="
+
+# Convert to Windows path for cmd.exe/PowerShell
+_hadrian_win_path=$(cygpath -w "${_hadrian_bin}" 2>/dev/null || echo "${_hadrian_bin}")
+echo "Windows path: ${_hadrian_win_path}"
+
+# Test 1: Direct execution from bash (Unix path)
+echo "--- Test 1: Direct bash execution (Unix path) ---"
 set +e
 "${_hadrian_bin}" --version 2>&1 | head -5
-_hadrian_test_exit=$?
+_test1_exit=$?
 set -e
-echo "Hadrian test execution exit code: ${_hadrian_test_exit}"
-if [[ ${_hadrian_test_exit} -ne 0 ]]; then
-  echo "WARNING: Hadrian binary test execution failed with exit code ${_hadrian_test_exit}"
+echo "Exit code: ${_test1_exit}"
+
+# Test 2: Execution via cmd.exe
+echo "--- Test 2: Execution via cmd.exe ---"
+set +e
+cmd.exe /c "\"${_hadrian_win_path}\" --version" 2>&1 | head -5
+_test2_exit=$?
+set -e
+echo "Exit code: ${_test2_exit}"
+
+# Test 3: Check if it's a valid PE executable
+echo "--- Test 3: PE executable validation ---"
+if command -v objdump &>/dev/null; then
+  # Check if entry point exists and is valid
+  entry_point=$(objdump -p "${_hadrian_bin}" 2>&1 | grep "AddressOfEntryPoint" | awk '{print $2}')
+  echo "Entry point address: ${entry_point:-NOT FOUND}"
+
+  # Check subsystem type
+  subsystem=$(objdump -p "${_hadrian_bin}" 2>&1 | grep "Subsystem" | head -1)
+  echo "Subsystem: ${subsystem:-NOT FOUND}"
+fi
+
+# Summary
+echo "=== Execution Test Summary ==="
+echo "Test 1 (bash direct): exit code ${_test1_exit}"
+echo "Test 2 (cmd.exe): exit code ${_test2_exit}"
+if [[ ${_test2_exit} -eq 0 ]]; then
+  echo "✓ Binary IS executable via cmd.exe - bash execution issue confirmed"
+  echo "This is likely an MSYS2/Cygwin compatibility issue, not a malformed binary"
+elif [[ ${_test1_exit} -eq 126 ]] && [[ ${_test2_exit} -ne 0 ]]; then
+  echo "✗ Binary is NOT executable by any method - likely malformed PE binary"
+  echo "The 'section below image base' warning indicates real PE format issues"
 fi
 
 # MSYS2 bash can execute .exe directly with Unix paths
