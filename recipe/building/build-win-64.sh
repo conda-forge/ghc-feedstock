@@ -535,7 +535,7 @@ mkdir -p ${_SRC_DIR}/_build
   popd
 )
 
-_hadrian_bin=$(find "${SRC_DIR}"/hadrian/dist-newstyle -name hadrian.exe -type f | head -1)
+_hadrian_bin=$(find "${_SRC_DIR}"/hadrian/dist-newstyle -name hadrian.exe -type f | head -1)
 echo "Hadrian binary: ${_hadrian_bin}"
 
 # Verify the hadrian binary
@@ -637,9 +637,8 @@ if [[ -f "${_hadrian_bin}" ]]; then
   ls -lh "${_hadrian_bin}"
   file "${_hadrian_bin}"
   echo ""
-  echo "Testing hadrian.exe execution via cmd.exe:"
-  _hadrian_win=$(cygpath -w "${_hadrian_bin}")
-  cmd.exe /s /c "\"${_hadrian_win}\" --help" || echo "hadrian.exe --help failed with exit code: $?"
+  echo "Testing hadrian.exe direct execution from MSYS2 bash:"
+  "${_hadrian_bin}" --help || echo "hadrian.exe --help failed with exit code: $?"
 else
   echo "✗ ERROR: Hadrian binary not found at ${_hadrian_bin}"
   echo "Searching for hadrian.exe:"
@@ -648,39 +647,19 @@ else
 fi
 
 echo ""
-echo "=== Building Stage1 GHC (using .bat wrapper to avoid quoting issues) ==="
-# Convert paths to Windows format for cmd.exe
-_hadrian_win=$(cygpath -w "${_hadrian_bin}")
-_src_win=$(cygpath -w "${SRC_DIR}")
-echo "Hadrian (Windows path): ${_hadrian_win}"
-echo "SRC_DIR (Windows path): ${_src_win}"
-
-# Create temporary .bat file to execute hadrian
-# This avoids all bash->cmd.exe quoting issues
-_stage1_bat="${SRC_DIR}/run_stage1.bat"
-cat > "${_stage1_bat}" <<'EOF_BAT'
-@echo off
-EOF_BAT
-# Append the actual command with expanded variables
-echo "\"${_hadrian_win}\" -j${CPU_COUNT} --directory \"${_src_win}\" stage1:exe:ghc-bin --flavour=quickest --docs=none --progress-info=none" >> "${_stage1_bat}"
-
-echo "Created batch file: ${_stage1_bat}"
-echo "Contents:"
-cat "${_stage1_bat}"
+echo "=== Building Stage1 GHC (direct .exe execution from bash) ==="
+echo "Hadrian path: ${_hadrian_bin}"
+echo "Working directory: ${SRC_DIR}"
+echo "CPU count: ${CPU_COUNT}"
 echo ""
 echo "Starting at: $(date)"
-# Convert to Windows path WITHOUT quotes - cmd.exe /c doesn't need quotes for simple paths
-_stage1_bat_win=$(cygpath -w "${_stage1_bat}")
-echo "Batch file Windows path: ${_stage1_bat_win}"
+echo "Executing hadrian.exe directly from MSYS2 bash..."
 set -x
-cmd.exe /c ${_stage1_bat_win}
+"${_hadrian_bin}" -j"${CPU_COUNT}" --directory "${SRC_DIR}" stage1:exe:ghc-bin --flavour=quickest --docs=none --progress-info=none
 stage1_exit=$?
 set +x
 echo "Finished at: $(date)"
 echo "Exit code: $stage1_exit"
-
-# Clean up batch file
-rm -f "${_stage1_bat}"
 
 if [[ $stage1_exit -ne 0 ]]; then
   echo "ERROR: Stage1 build failed!"
