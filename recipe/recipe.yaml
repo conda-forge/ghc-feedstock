@@ -1,5 +1,5 @@
 context:
-  version: "9.6.7"
+  version: "9.2.8"
 
 package:
   name: ghc
@@ -39,7 +39,7 @@ requirements:
     - if: target_platform != "linux-aarch64" and target_platform != "linux-ppc64le"
       then:
         - cabal ==3.10.3.0
-        - ghc-bootstrap ==9.6.7
+        - ghc-bootstrap ==9.2.8
     - llvm-tools ${{ c_compiler_version }}.*
     - perl 5.32.*
     - pkg-config
