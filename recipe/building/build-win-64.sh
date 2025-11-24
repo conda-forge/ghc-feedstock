@@ -501,24 +501,30 @@ mkdir -p ${_SRC_DIR}/_build
     "${GHC}" --print-libdir || { echo "ERROR: GHC --print-libdir failed"; exit 1; }
     echo "Bootstrap GHC is functional"
 
-    echo "=== Building Hadrian with GCC cpp (configured in bootstrap settings) ==="
-    # CRITICAL: Use -j1 to avoid parallel build race conditions on Windows
-    # Windows builds are prone to deadlocks in package registration and file operations
-    # Use --with-ld to ensure cabal uses GNU ld, not lld
-    # Use --extra-lib-dirs to ensure libgcc.a is found (provides __udivti3/__umodti3)
-    # Use --ghc-options to explicitly link with -lgcc (not just the directory)
-    # Use --ghc-options to set PE image base to prevent "section below image base" error
-    # Build DYNAMIC hadrian.exe (removed --enable-executable-static)
-    # Hypothesis: Static linking incompatible with our custom CRT stubs (crt2.o + mingw32_stubs)
-    # The static Haskell RTS may need runtime initialization that our stubs don't provide
-    timeout 600 "${CABAL}" v2-build -j --with-ld="${LD}" --extra-lib-dirs="${_BUILD_PREFIX}/Library/lib/gcc/x86_64-w64-mingw32/15.2.0" --ghc-options="-optl-lgcc -optl-Wl,--image-base -optl-Wl,0x140000000" hadrian 2>&1 | tee "${_SRC_DIR}"/cabal-build.log
+    echo "=== Building Hadrian WITHOUT custom CRT flags ==="
+    # CRITICAL DISCOVERY: Bootstrap GHC works, but hadrian built WITH bootstrap GHC doesn't
+    # Root cause: Bootstrap GHC inherits our custom CFLAGS/LDFLAGS with -nostartfiles/-nodefaultlibs
+    # These flags break Haskell executables - they need standard MinGW CRT initialization
+    # Bootstrap GHC was built by conda-forge with NORMAL flags
+    # Solution: Clear custom flags so hadrian is built like bootstrap GHC was
+
+    # Save LD for --with-ld (still need GNU ld not lld)
+    _SAVED_LD="${LD}"
+
+    # Clear the problematic flags - let GHC use its own defaults
+    unset CFLAGS CXXFLAGS LDFLAGS LIBS
+
+    echo "Cleared CFLAGS/CXXFLAGS/LDFLAGS/LIBS - using GHC defaults"
+    echo "Building hadrian with standard MinGW linking (like bootstrap GHC)"
+
+    timeout 600 "${CABAL}" v2-build -j --with-ld="${_SAVED_LD}" hadrian 2>&1 | tee "${_SRC_DIR}"/cabal-build.log
     _cabal_exit_code=${PIPESTATUS[0]}
 
     if [[ $_cabal_exit_code -ne 0 ]]; then
       echo "=== Cabal build FAILED with exit code ${_cabal_exit_code} ==="
       for pkg in file-io clock js-dgtable heaps js-flot js-jquery os-string splitmix primitive utf8-string directory random; do
         echo "Testing package: $pkg"
-        timeout 60 "${CABAL}" v2-build --with-ld="${LD}" --extra-lib-dirs="${_BUILD_PREFIX}/Library/lib/gcc/x86_64-w64-mingw32/15.2.0" --ghc-options="-optl-lgcc -optl-Wl,--image-base -optl-Wl,0x140000000" "$pkg" 2>&1 | tee "${_SRC_DIR}/package-${pkg}.log"
+        timeout 60 "${CABAL}" v2-build --with-ld="${_SAVED_LD}" "$pkg" 2>&1 | tee "${_SRC_DIR}/package-${pkg}.log"
         pkg_exit=$?
         if [[ $pkg_exit -eq 0 ]]; then
           echo "  \u2713 $pkg: SUCCESS"
@@ -530,7 +536,7 @@ mkdir -p ${_SRC_DIR}/_build
       done
       
       echo "=== Retrying with verbose output for failed packages ==="
-      timeout 300 "${CABAL}" v2-build -j -v3 --with-ld="${LD}" --extra-lib-dirs="${_BUILD_PREFIX}/Library/lib/gcc/x86_64-w64-mingw32/15.2.0" --ghc-options="-optl-lgcc -optl-Wl,--image-base -optl-Wl,0x140000000" hadrian 2>&1 | tee "${_SRC_DIR}"/cabal-verbose.log
+      timeout 300 "${CABAL}" v2-build -j -v3 --with-ld="${_SAVED_LD}" hadrian 2>&1 | tee "${_SRC_DIR}"/cabal-verbose.log
       exit 1
     else
       echo "=== Cabal build SUCCEEDED ==="

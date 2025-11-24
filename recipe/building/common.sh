@@ -24,6 +24,7 @@ run_and_log() {
     # Convert Unix paths in arguments to Windows format
     # This prevents /c/path being interpreted as a cmd.exe flag
     local -a converted_args=()
+    local prev_arg=""
     for arg in "${cmd[@]:1}"; do
       # Check if argument contains Unix absolute paths (/c/... or /d/...)
       if [[ "$arg" =~ ^--(prefix|directory)=(/[a-z]/.+)$ ]]; then
@@ -32,19 +33,24 @@ run_and_log() {
         local path_part="${BASH_REMATCH[2]}"
         local win_path=$(cygpath -w "$path_part" 2>/dev/null || echo "$path_part")
         converted_args+=("--${flag_name}=$win_path")
+        prev_arg="--${flag_name}=$win_path"
       elif [[ "$arg" == "--directory" ]] || [[ "$arg" == "--prefix" ]]; then
         # Flag without = means next arg is the path - just pass flag for now
         converted_args+=("$arg")
-      elif [[ "${converted_args[-1]}" == "--directory" ]] || [[ "${converted_args[-1]}" == "--prefix" ]]; then
+        prev_arg="$arg"
+      elif [[ "$prev_arg" == "--directory" ]] || [[ "$prev_arg" == "--prefix" ]]; then
         # This arg is a path following --directory or --prefix flag
         if [[ "$arg" =~ ^/[a-z]/.+ ]]; then
           local win_path=$(cygpath -w "$arg" 2>/dev/null || echo "$arg")
           converted_args+=("$win_path")
+          prev_arg="$win_path"
         else
           converted_args+=("$arg")
+          prev_arg="$arg"
         fi
       else
         converted_args+=("$arg")
+        prev_arg="$arg"
       fi
     done
 
