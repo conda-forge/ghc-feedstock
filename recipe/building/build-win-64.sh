@@ -515,16 +515,31 @@ mkdir -p ${_SRC_DIR}/_build
     _SAVED_LDFLAGS="${LDFLAGS}"
     _SAVED_LIBS="${LIBS}"
 
-    # Set MINIMAL flags for Haskell executables (no custom CRT, standard MinGW)
-    # Keep target and basic paths, remove -nostartfiles/-nodefaultlibs and custom crt2.o
+    # CRITICAL: Temporarily patch bootstrap GHC settings to use minimal flags
+    # Bootstrap settings currently have -nostartfiles/-nodefaultlibs which breaks test programs
+    # Directory package's configure needs to compile and RUN test C programs
+    _bootstrap_settings="${_BUILD_PREFIX}/ghc-bootstrap/lib/settings"
+
+    echo "=== Temporarily patching bootstrap GHC settings for hadrian build ==="
+    # Save current "C compiler flags" line
+    _saved_c_flags=$(grep "C compiler flags" "${_bootstrap_settings}")
+    _saved_cxx_flags=$(grep "C++ compiler flags" "${_bootstrap_settings}")
+
+    # Replace with minimal flags (no -nostartfiles/-nodefaultlibs)
+    _minimal_cflags="--target=x86_64-w64-mingw32 -fuse-ld=bfd -I${_BUILD_PREFIX}/Library/include -I${_PREFIX}/Library/include"
+    perl -pi -e "s#(C compiler flags\", \")[^\"]*#\$1${_minimal_cflags}#" "${_bootstrap_settings}"
+    perl -pi -e "s#(C\\+\\+ compiler flags\", \")[^\"]*#\$1${_minimal_cflags}#" "${_bootstrap_settings}"
+
+    echo "Patched bootstrap GHC settings with minimal flags"
+    grep "C compiler flags" "${_bootstrap_settings}"
+
+    # Set MINIMAL environment flags to match
     export CFLAGS="--target=x86_64-w64-mingw32 -fuse-ld=bfd"
     export CXXFLAGS="--target=x86_64-w64-mingw32 -fuse-ld=bfd"
     export LDFLAGS="-fuse-ld=bfd -L${_BUILD_PREFIX}/Library/lib"
     unset LIBS  # No custom crt2.o or stubs
 
     echo "Using MINIMAL flags for hadrian (standard MinGW CRT, not custom)"
-    echo "CFLAGS: ${CFLAGS}"
-    echo "LDFLAGS: ${LDFLAGS}"
 
     # Use -j1 to avoid parallel build race conditions with directory package
     # directory-1.3.9.0 uses "legacy fallback" (Setup.hs) and fails with exit 77 in parallel builds
@@ -552,6 +567,20 @@ mkdir -p ${_SRC_DIR}/_build
     else
       echo "=== Cabal build SUCCEEDED ==="
     fi
+
+    # Restore bootstrap GHC settings with custom CRT flags
+    echo "=== Restoring bootstrap GHC settings with custom CRT flags ==="
+    echo "${_saved_c_flags}" | perl -pe 's/(C compiler flags", ").*/$1/' > /tmp/restore_c.txt
+    perl -pi -e "s#C compiler flags\", \"[^\"]*#$(cat /tmp/restore_c.txt | sed 's#\\#\\\\#g')#" "${_bootstrap_settings}"
+    echo "${_saved_cxx_flags}" | perl -pe 's/(C\+\+ compiler flags", ").*/$1/' > /tmp/restore_cxx.txt
+    perl -pi -e "s#C\\+\\+ compiler flags\", \"[^\"]*#$(cat /tmp/restore_cxx.txt | sed 's#\\#\\\\#g')#" "${_bootstrap_settings}"
+
+    # Actually, just re-apply the original settings
+    perl -pi -e "s#(C compiler flags\", \")[^\"]*#\$1${_SAVED_CFLAGS} -I${_PREFIX}/Library/include#" "${_bootstrap_settings}"
+    perl -pi -e "s#(C\\+\\+ compiler flags\", \")[^\"]*#\$1${_SAVED_CXXFLAGS} -I${_PREFIX}/Library/include#" "${_bootstrap_settings}"
+
+    echo "Restored bootstrap GHC settings"
+    grep "C compiler flags" "${_bootstrap_settings}"
 
     # Restore original flags for GHC configure and builds
     export CFLAGS="${_SAVED_CFLAGS}"
