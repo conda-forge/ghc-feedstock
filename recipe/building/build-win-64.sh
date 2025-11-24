@@ -526,7 +526,9 @@ mkdir -p ${_SRC_DIR}/_build
     echo "CFLAGS: ${CFLAGS}"
     echo "LDFLAGS: ${LDFLAGS}"
 
-    timeout 600 "${CABAL}" v2-build -j --with-ld="${_SAVED_LD}" hadrian 2>&1 | tee "${_SRC_DIR}"/cabal-build.log
+    # Use -j1 to avoid parallel build race conditions with directory package
+    # directory-1.3.9.0 uses "legacy fallback" (Setup.hs) and fails with exit 77 in parallel builds
+    timeout 600 "${CABAL}" v2-build -j1 --with-ld="${_SAVED_LD}" hadrian 2>&1 | tee "${_SRC_DIR}"/cabal-build.log
     _cabal_exit_code=${PIPESTATUS[0]}
 
     if [[ $_cabal_exit_code -ne 0 ]]; then
@@ -545,7 +547,7 @@ mkdir -p ${_SRC_DIR}/_build
       done
       
       echo "=== Retrying with verbose output for failed packages ==="
-      timeout 300 "${CABAL}" v2-build -j -v3 --with-ld="${_SAVED_LD}" hadrian 2>&1 | tee "${_SRC_DIR}"/cabal-verbose.log
+      timeout 300 "${CABAL}" v2-build -j1 -v3 --with-ld="${_SAVED_LD}" hadrian 2>&1 | tee "${_SRC_DIR}"/cabal-verbose.log
       exit 1
     else
       echo "=== Cabal build SUCCEEDED ==="
