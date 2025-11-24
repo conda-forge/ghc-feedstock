@@ -1,6 +1,24 @@
 #!/usr/bin/env bash
 set -eu
 
+# ============================================================================
+# EXPERIMENTAL MSVCRT BRANCH (feat/v9.6.7-windows-msvcrt)
+# ============================================================================
+# This branch tests conda-forge's recommended Microsoft MSVCRT approach
+# instead of MinGW msvcrt. Key differences from primary branch:
+#
+# 1. KEEPS -fms-runtime-lib=dll flag (uses Microsoft MSVCRT)
+# 2. Uses lld linker in MSVC mode (not GNU ld/bfd)
+# 3. KEEPS -Wl,-defaultlib: flags (MSVC-specific)
+# 4. Uses conda's default LD (lld-link.exe)
+#
+# Primary branch (feat/v9.6.7-non-unix) uses MinGW msvcrt + GNU ld.
+# This experiment validates if MSVCRT integration is viable for GHC.
+#
+# Created: 2025-11-24 after discovering CRT mismatch issue (Build #1400116)
+# See CLAUDE.md for full context and rationale.
+# ============================================================================
+
 _log_index=0
 
 source "${RECIPE_DIR}"/building/common.sh
@@ -28,18 +46,18 @@ LDFLAGS=$(echo "${LDFLAGS}" | sed "s|%BUILD_PREFIX%|${_BUILD_PREFIX}|g")
 CFLAGS="${CFLAGS//-nostdlib/}"
 CXXFLAGS="${CXXFLAGS//-nostdlib/}"
 LDFLAGS="${LDFLAGS//-nostdlib/}"
-# Use GNU ld (bfd) for MinGW compatibility (lld defaults to MSVC mode on Windows)
-CFLAGS=$(echo "${CFLAGS}" | sed 's/-fuse-ld=lld/-fuse-ld=bfd/g')
-CXXFLAGS=$(echo "${CXXFLAGS}" | sed 's/-fuse-ld=lld/-fuse-ld=bfd/g')
-LDFLAGS=$(echo "${LDFLAGS}" | sed 's/-fuse-ld=lld/-fuse-ld=bfd/g')
-# Remove problematic -Wl,-defaultlib: flags that are MSVC-specific
-LDFLAGS=$(echo "${LDFLAGS}" | sed 's/-Wl,-defaultlib:[^ ]*//g')
+# EXPERIMENTAL MSVCRT BRANCH: Use lld (MSVC mode) for Microsoft MSVCRT
+# Keep conda's default -fuse-ld=lld instead of forcing bfd
+# CFLAGS=$(echo "${CFLAGS}" | sed 's/-fuse-ld=lld/-fuse-ld=bfd/g')
+# CXXFLAGS=$(echo "${CXXFLAGS}" | sed 's/-fuse-ld=lld/-fuse-ld=bfd/g')
+# LDFLAGS=$(echo "${LDFLAGS}" | sed 's/-fuse-ld=lld/-fuse-ld=bfd/g')
+# EXPERIMENTAL MSVCRT BRANCH: KEEP -Wl,-defaultlib: flags (they're for MSVC/lld)
+# LDFLAGS=$(echo "${LDFLAGS}" | sed 's/-Wl,-defaultlib:[^ ]*//g')
 # Remove -fstack-protector-strong which generates __security_cookie calls incompatible with MinGW+Clang
 CFLAGS=$(echo "${CFLAGS}" | sed 's/-fstack-protector-strong//g')
 CXXFLAGS=$(echo "${CXXFLAGS}" | sed 's/-fstack-protector-strong//g')
-# Remove -fms-runtime-lib=dll which forces Microsoft MSVCRT (we want MinGW's msvcrt)
-CFLAGS=$(echo "${CFLAGS}" | sed 's/-fms-runtime-lib=dll//g')
-CXXFLAGS=$(echo "${CXXFLAGS}" | sed 's/-fms-runtime-lib=dll//g')
+# EXPERIMENTAL MSVCRT BRANCH: KEEP -fms-runtime-lib=dll to use Microsoft MSVCRT
+# This tests conda-forge's recommended MSVCRT approach vs MinGW msvcrt
 
 # Get Clang's builtin include directory and compiler-rt library
 CLANG_RESOURCE_DIR=$(${CC} -print-resource-dir | sed 's#\\#/#g' | sed 's#^C:/#/c/#')
@@ -71,12 +89,11 @@ if [ -z "${COMPILER_RT_LIB}" ]; then
   exit 1
 fi
 
-# Use STANDARD MinGW linking - no custom CRT flags
-# Bootstrap GHC needs normal MinGW CRT so Haskell programs can do stdio properly
-# The -nodefaultlibs/-nostartfiles flags break Haskell RTS initialization
-export CFLAGS="--target=x86_64-w64-mingw32 -fuse-ld=bfd -I${_BUILD_PREFIX}/Library/include ${CFLAGS:-}"
-export CXXFLAGS="--target=x86_64-w64-mingw32 -fuse-ld=bfd -I${_BUILD_PREFIX}/Library/include ${CXXFLAGS:-}"
-export LDFLAGS="-fuse-ld=bfd -L${_BUILD_PREFIX}/Library/lib -L${_BUILD_PREFIX}/Library/lib/gcc/x86_64-w64-mingw32/15.2.0 ${LDFLAGS:-}"
+# EXPERIMENTAL MSVCRT BRANCH: Use Microsoft MSVCRT with lld linker
+# Test if conda's recommended MSVCRT approach works better than MinGW
+export CFLAGS="--target=x86_64-w64-mingw32 -I${_BUILD_PREFIX}/Library/include ${CFLAGS:-}"
+export CXXFLAGS="--target=x86_64-w64-mingw32 -I${_BUILD_PREFIX}/Library/include ${CXXFLAGS:-}"
+export LDFLAGS="-L${_BUILD_PREFIX}/Library/lib ${LDFLAGS:-}"
 
 # Bug in ghc-bootstrap
 #WINDRES_PATH="${BUILD_PREFIX//\\/\\\\}\\\\Library\\\\bin\\\\${WINDRES}"
@@ -123,11 +140,10 @@ if [[ -f "${settings_file}" ]]; then
   # Add -I flags to C compiler flags for ffi.h, gmp.h, etc.
   # CRITICAL: Use _PREFIX (Unix paths) NOT PREFIX (Windows paths with \b escape sequences)
 
-  # CRITICAL: Override conda's LD=lld-link.exe with GNU ld
-  # Conda-forge Windows toolchain sets LD to lld-link.exe (MSVC linker)
-  # We need GNU ld for MinGW object files
-  export LD="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-ld.exe"
-  echo "LD overridden to: ${LD}"
+  # EXPERIMENTAL MSVCRT BRANCH: KEEP conda's default LD (lld-link.exe)
+  # Test if MSVC-mode linker works better than GNU ld with MSVCRT
+  # export LD="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-ld.exe"
+  echo "LD using conda default: ${LD}"
 
   # Convert Unix paths to Windows format for GHC settings
   # GHC on Windows needs Windows paths to execute programs
