@@ -508,14 +508,23 @@ mkdir -p ${_SRC_DIR}/_build
     # Bootstrap GHC was built by conda-forge with NORMAL flags
     # Solution: Clear custom flags so hadrian is built like bootstrap GHC was
 
-    # Save LD for --with-ld (still need GNU ld not lld)
+    # Save current flags and LD
     _SAVED_LD="${LD}"
+    _SAVED_CFLAGS="${CFLAGS}"
+    _SAVED_CXXFLAGS="${CXXFLAGS}"
+    _SAVED_LDFLAGS="${LDFLAGS}"
+    _SAVED_LIBS="${LIBS}"
 
-    # Clear the problematic flags - let GHC use its own defaults
-    unset CFLAGS CXXFLAGS LDFLAGS LIBS
+    # Set MINIMAL flags for Haskell executables (no custom CRT, standard MinGW)
+    # Keep target and basic paths, remove -nostartfiles/-nodefaultlibs and custom crt2.o
+    export CFLAGS="--target=x86_64-w64-mingw32 -fuse-ld=bfd"
+    export CXXFLAGS="--target=x86_64-w64-mingw32 -fuse-ld=bfd"
+    export LDFLAGS="-fuse-ld=bfd -L${_BUILD_PREFIX}/Library/lib"
+    unset LIBS  # No custom crt2.o or stubs
 
-    echo "Cleared CFLAGS/CXXFLAGS/LDFLAGS/LIBS - using GHC defaults"
-    echo "Building hadrian with standard MinGW linking (like bootstrap GHC)"
+    echo "Using MINIMAL flags for hadrian (standard MinGW CRT, not custom)"
+    echo "CFLAGS: ${CFLAGS}"
+    echo "LDFLAGS: ${LDFLAGS}"
 
     timeout 600 "${CABAL}" v2-build -j --with-ld="${_SAVED_LD}" hadrian 2>&1 | tee "${_SRC_DIR}"/cabal-build.log
     _cabal_exit_code=${PIPESTATUS[0]}
@@ -541,6 +550,15 @@ mkdir -p ${_SRC_DIR}/_build
     else
       echo "=== Cabal build SUCCEEDED ==="
     fi
+
+    # Restore original flags for GHC configure and builds
+    export CFLAGS="${_SAVED_CFLAGS}"
+    export CXXFLAGS="${_SAVED_CXXFLAGS}"
+    export LDFLAGS="${_SAVED_LDFLAGS}"
+    export LIBS="${_SAVED_LIBS}"
+    export LD="${_SAVED_LD}"
+    echo "Restored original CFLAGS/LDFLAGS/LIBS for GHC builds"
+
   popd
 )
 
