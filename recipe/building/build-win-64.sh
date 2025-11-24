@@ -568,27 +568,23 @@ mkdir -p ${_SRC_DIR}/_build
       echo "=== Cabal build SUCCEEDED ==="
     fi
 
-    # Restore bootstrap GHC settings with custom CRT flags
-    echo "=== Restoring bootstrap GHC settings with custom CRT flags ==="
-    echo "${_saved_c_flags}" | perl -pe 's/(C compiler flags", ").*/$1/' > /tmp/restore_c.txt
-    perl -pi -e "s#C compiler flags\", \"[^\"]*#$(cat /tmp/restore_c.txt | sed 's#\\#\\\\#g')#" "${_bootstrap_settings}"
-    echo "${_saved_cxx_flags}" | perl -pe 's/(C\+\+ compiler flags", ").*/$1/' > /tmp/restore_cxx.txt
-    perl -pi -e "s#C\\+\\+ compiler flags\", \"[^\"]*#$(cat /tmp/restore_cxx.txt | sed 's#\\#\\\\#g')#" "${_bootstrap_settings}"
-
-    # Actually, just re-apply the original settings
-    perl -pi -e "s#(C compiler flags\", \")[^\"]*#\$1${_SAVED_CFLAGS} -I${_PREFIX}/Library/include#" "${_bootstrap_settings}"
-    perl -pi -e "s#(C\\+\\+ compiler flags\", \")[^\"]*#\$1${_SAVED_CXXFLAGS} -I${_PREFIX}/Library/include#" "${_bootstrap_settings}"
-
-    echo "Restored bootstrap GHC settings"
+    # KEEP minimal bootstrap GHC settings for Stage1/Stage2 builds
+    # The custom CRT flags (-nostartfiles -nodefaultlibs) are ONLY for the
+    # FINAL GHC being built, NOT for the bootstrap GHC used during builds.
+    # Restoring them here caused directory configure to fail (test programs
+    # couldn't execute), resulting in Stage1/Stage2 builds producing no output.
+    echo "=== Keeping minimal bootstrap GHC settings for all builds ==="
+    echo "Bootstrap GHC settings remain patched with minimal flags:"
     grep "C compiler flags" "${_bootstrap_settings}"
 
-    # Restore original flags for GHC configure and builds
+    # Restore environment variables (but NOT bootstrap GHC settings)
+    # These affect the configure script and Hadrian builds, but not bootstrap GHC
     export CFLAGS="${_SAVED_CFLAGS}"
     export CXXFLAGS="${_SAVED_CXXFLAGS}"
     export LDFLAGS="${_SAVED_LDFLAGS}"
     export LIBS="${_SAVED_LIBS}"
     export LD="${_SAVED_LD}"
-    echo "Restored original CFLAGS/LDFLAGS/LIBS for GHC builds"
+    echo "Restored original CFLAGS/LDFLAGS/LIBS environment variables"
 
   popd
 )
