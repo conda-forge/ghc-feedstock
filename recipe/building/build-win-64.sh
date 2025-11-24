@@ -622,7 +622,10 @@ elif [[ ${_test1_exit} -eq 126 ]] && [[ ${_test2_exit} -ne 0 ]]; then
 fi
 
 # MSYS2 bash can execute .exe directly with Unix paths
-_hadrian_build=("${_hadrian_bin}" "-j${CPU_COUNT}" "--directory" "${_SRC_DIR}")
+# But when executed via cmd.exe wrapper, paths must be in Windows format
+# Convert _SRC_DIR (Unix /c/path) to Windows format (C:/path) for hadrian --directory
+_SRC_DIR_WIN=$(echo "${_SRC_DIR}" | sed 's#^/c/#C:/#')
+_hadrian_build=("${_hadrian_bin}" "-j${CPU_COUNT}" "--directory" "${_SRC_DIR_WIN}")
 
 # Build stage1 GHC
 echo "*** Building stage1 GHC ***"
