@@ -243,4 +243,11 @@ if [[ -d "${PREFIX}"/lib/${conda_target}-ghc-"${PKG_VERSION}" ]]; then
   ln -sf "${PREFIX}"/lib/ghc-"${PKG_VERSION}" "${PREFIX}"/lib/"${conda_target}"-ghc-"${PKG_VERSION}"
 fi
 
+# ==============================================================================
+# POST-BUILD CLEANUP (shared with all platforms)
+# ==============================================================================
+
+source "${RECIPE_DIR}/building/lib/99-post-build-cleanup.sh"
+run_post_build_cleanup
+
 echo "=== Build completed successfully ==="

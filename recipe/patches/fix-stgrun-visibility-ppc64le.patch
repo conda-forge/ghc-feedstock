@@ -4,8 +4,8 @@
  	.section	".text"
  	.align 2
          .globl StgRun
-+#if !defined(DYNAMIC)
-+/* Only hide symbol in static libraries, not shared libraries */
++#if !defined(__PIC__)
++/* Only hide symbol in static libraries, not shared libraries (-fPIC) */
          .hidden StgRun
 +#endif
          .type StgRun,@function

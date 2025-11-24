@@ -74,50 +74,8 @@ common_flow_execute_all
 # COMMON POST-BUILD CLEANUP (all platforms)
 # ==============================================================================
 
-echo ""
-echo "=== Post-Build Cleanup ==="
-
-# Install bash completion
-echo "  Installing bash completion..."
-mkdir -p "${PREFIX}"/etc/bash_completion.d
-cp utils/completion/ghc.bash "${PREFIX}"/etc/bash_completion.d/ghc
-
-# Clean up package cache (we use ghc-pkg in activation)
-echo "  Cleaning package cache..."
-rm -f "${PREFIX}"/lib/*ghc-"${PKG_VERSION}"/lib/package.conf.d/package.cache
-rm -f "${PREFIX}"/lib/*ghc-"${PKG_VERSION}"/lib/package.conf.d/package.cache.lock
-
-# Install activation script
-echo "  Installing activation script..."
-mkdir -p "${PREFIX}/etc/conda/activate.d"
-cp "${RECIPE_DIR}/activate.sh" "${PREFIX}/etc/conda/activate.d/${PKG_NAME}_activate.sh"
-
-# Cleanup hard-coded build paths in settings file
-echo "  Cleaning build paths from settings file..."
-settings_file=$(find "${PREFIX}"/lib/ -name settings | head -1)
-if [[ -n "${settings_file}" ]]; then
-  perl -pi -e "s#(${BUILD_PREFIX}|${PREFIX})/(bin|lib)/##g" "${settings_file}"
-fi
-
-# Create symlinks for dynamic libraries (remove -ghc<version> suffix)
-echo "  Creating library symlinks..."
-find "${PREFIX}/lib" -name "*-ghc${PKG_VERSION}.dylib" -o -name "*-ghc${PKG_VERSION}.so" | while read -r lib; do
-  base_lib="${lib//-ghc${PKG_VERSION}./.}"
-  if [[ ! -e "$base_lib" ]]; then
-    ln -s "$(basename "$lib")" "$base_lib"
-  fi
-done
-
-# Collect license files from libraries
-echo "  Collecting license files..."
-for lic_file in $(find "${SRC_DIR}"/libraries/*/LICENSE); do
-  folder=$(dirname "${lic_file}")
-  mkdir -p "${SRC_DIR}"/license_files/"${folder}"
-  cp "${lic_file}" "${SRC_DIR}"/license_files/"${folder}"
-done
-
-echo "  Cleanup complete"
-echo ""
+source "${RECIPE_DIR}/building/lib/99-post-build-cleanup.sh"
+run_post_build_cleanup
 
 # ==============================================================================
 # BUILD COMPLETE
