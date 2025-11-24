@@ -638,6 +638,53 @@ if [[ -f "${_hadrian_bin}" ]]; then
   echo "✓ Hadrian binary exists"
   ls -lh "${_hadrian_bin}"
   file "${_hadrian_bin}"
+
+  echo ""
+  echo "=== DLL DEPENDENCY ANALYSIS ==="
+
+  # Method 1: objdump -p (static analysis - shows what DLLs binary declares it needs)
+  echo "--- Method 1: objdump -p (declared DLL dependencies) ---"
+  if command -v objdump &>/dev/null; then
+    objdump -p "${_hadrian_bin}" | grep "DLL Name" || echo "No DLL dependencies found (or objdump failed)"
+  else
+    echo "objdump not available"
+  fi
+
+  # Method 2: ldd (runtime analysis - tries to resolve DLLs)
+  echo ""
+  echo "--- Method 2: ldd (runtime DLL resolution) ---"
+  if command -v ldd &>/dev/null; then
+    ldd "${_hadrian_bin}" || echo "ldd failed (may indicate missing DLLs)"
+  else
+    echo "ldd not available"
+  fi
+
+  # Method 3: ntldd (better alternative for Windows - if available)
+  echo ""
+  echo "--- Method 3: ntldd (Windows-specific DLL analysis) ---"
+  if command -v ntldd &>/dev/null; then
+    ntldd "${_hadrian_bin}" || echo "ntldd failed"
+  else
+    echo "ntldd not available (package: mingw-w64-x86_64-ntldd)"
+  fi
+
+  # Show current PATH to see if MinGW DLLs are accessible
+  echo ""
+  echo "--- Current PATH (checking for MinGW DLL directories) ---"
+  echo "${PATH}" | tr ':' '\n' | grep -i "mingw\|library"
+
+  # Check if critical DLLs exist in expected locations
+  echo ""
+  echo "--- Checking for critical MinGW DLLs ---"
+  for dll in libgcc_s_seh-1.dll libwinpthread-1.dll libstdc++-6.dll; do
+    dll_path="${_BUILD_PREFIX}/Library/bin/${dll}"
+    if [[ -f "${dll_path}" ]]; then
+      echo "✓ Found: ${dll}"
+    else
+      echo "✗ Missing: ${dll}"
+    fi
+  done
+
   echo ""
   echo "Testing hadrian.exe direct execution from MSYS2 bash:"
   "${_hadrian_bin}" --help || echo "hadrian.exe --help failed with exit code: $?"
@@ -648,25 +695,10 @@ else
   exit 1
 fi
 
-echo ""
-echo "=== Building Stage1 GHC (direct .exe execution from bash) ==="
-echo "Hadrian path: ${_hadrian_bin}"
-echo "Working directory: ${_SRC_DIR}"
-echo "CPU count: ${CPU_COUNT}"
-echo ""
-echo "Starting at: $(date)"
-echo "Executing hadrian.exe directly from MSYS2 bash..."
-set -x
-"${_hadrian_bin}" -j"${CPU_COUNT}" --directory "${_SRC_DIR}" stage1:exe:ghc-bin --flavour=quickest --docs=none --progress-info=none
-stage1_exit=$?
-set +x
-echo "Finished at: $(date)"
-echo "Exit code: $stage1_exit"
-
-if [[ $stage1_exit -ne 0 ]]; then
-  echo "ERROR: Stage1 build failed!"
-  exit $stage1_exit
-fi
+echo "=== Building Stage1 GHC using run_and_log (cmd.exe wrapper) ==="
+# MSYS2 bash cannot execute Windows PE binaries directly (Exec format error)
+# But cmd.exe CAN execute them, so use run_and_log which wraps in cmd.exe
+run_and_log "stage1_ghc" "${_hadrian_build[@]}" stage1:exe:ghc-bin --flavour=quickest --docs=none --progress-info=none
 
 # Find Stage0 settings file (location may vary on Windows)
 echo "=== Locating Stage0 settings file ==="
