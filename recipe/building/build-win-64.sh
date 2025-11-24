@@ -648,24 +648,36 @@ else
 fi
 
 echo ""
-echo "=== Building Stage1 GHC (using cmd.exe wrapper) ==="
+echo "=== Building Stage1 GHC (using .bat wrapper to avoid quoting issues) ==="
 # Convert paths to Windows format for cmd.exe
 _hadrian_win=$(cygpath -w "${_hadrian_bin}")
 _src_win=$(cygpath -w "${SRC_DIR}")
 echo "Hadrian (Windows path): ${_hadrian_win}"
 echo "SRC_DIR (Windows path): ${_src_win}"
 
-# Use cmd.exe /s /c for special quote handling
-# With /s, cmd.exe strips outer quotes and executes what's inside
-# Format: cmd.exe /s /c ""quoted program" args"
+# Create temporary .bat file to execute hadrian
+# This avoids all bash->cmd.exe quoting issues
+_stage1_bat="${SRC_DIR}/run_stage1.bat"
+cat > "${_stage1_bat}" <<EOF
+@echo off
+"${_hadrian_win}" -j${CPU_COUNT} --directory "${_src_win}" stage1:exe:ghc-bin --flavour=quickest --docs=none --progress-info=none
+EOF
+
+echo "Created batch file: ${_stage1_bat}"
+echo "Contents:"
+cat "${_stage1_bat}"
 echo ""
 echo "Starting at: $(date)"
 set -x
-cmd.exe /s /c "\"${_hadrian_win}\" -j${CPU_COUNT} --directory \"${_src_win}\" stage1:exe:ghc-bin --flavour=quickest --docs=none --progress-info=none"
+cmd.exe /c "$(cygpath -w "${_stage1_bat}")"
 stage1_exit=$?
 set +x
 echo "Finished at: $(date)"
 echo "Exit code: $stage1_exit"
+
+# Clean up batch file
+rm -f "${_stage1_bat}"
+
 if [[ $stage1_exit -ne 0 ]]; then
   echo "ERROR: Stage1 build failed!"
   exit $stage1_exit
