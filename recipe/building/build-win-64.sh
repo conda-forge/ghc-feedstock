@@ -644,7 +644,7 @@ echo "Exit code: ${_test1_exit}"
 # Test 2: Execution via cmd.exe
 echo "--- Test 2: Execution via cmd.exe ---"
 set +e
-cmd.exe /c "\"${_hadrian_win_path}\" --version" 2>&1 | head -5
+cmd.exe /c "\"${_hadrian_win_path}\" --version" 2>&1 | head -5 | grep '0.1.0.0'
 _test2_exit=$?
 set -e
 echo "Exit code: ${_test2_exit}"
@@ -742,19 +742,64 @@ if [[ -f "${_hadrian_bin}" ]]; then
   "${_hadrian_bin}" --help || echo "hadrian.exe --help failed with exit code: $?"
 
   echo ""
-  echo "=== CRITICAL TEST: Can cmd.exe execute hadrian.exe? ==="
+  echo "=== CRITICAL TEST: Verify Haskell RTS and stdio work ==="
+
+  # Test 1: Can bootstrap GHC print anything?
+  echo "--- Test 1: Bootstrap GHC version output ---"
+  "${_BUILD_PREFIX}/ghc-bootstrap/bin/ghc.exe" --version || echo "Bootstrap GHC --version failed: $?"
+
+  # Test 2: Compile minimal Haskell program with bootstrap GHC
+  echo "--- Test 2: Compile minimal Haskell program ---"
+  cat > "${_SRC_DIR}/test_stdio.hs" <<'EOF'
+main :: IO ()
+main = putStrLn "Haskell stdio works!"
+EOF
+
+  "${_BUILD_PREFIX}/ghc-bootstrap/bin/ghc.exe" -o "${_SRC_DIR}/test_stdio.exe" "${_SRC_DIR}/test_stdio.hs" 2>&1 | head -20
+  _compile_exit=$?
+  echo "Compilation exit code: ${_compile_exit}"
+
+  if [[ ${_compile_exit} -eq 0 ]] && [[ -f "${_SRC_DIR}/test_stdio.exe" ]]; then
+    echo "--- Test 3: Execute compiled Haskell program ---"
+    _test_win=$(cygpath -w "${_SRC_DIR}/test_stdio.exe")
+    cmd.exe /c "${_test_win}"
+    _exec_exit=$?
+    echo "Execution exit code: ${_exec_exit}"
+
+    if [[ ${_exec_exit} -ne 0 ]]; then
+      echo "✗ ERROR: Simple Haskell program cannot execute"
+      echo "This indicates Haskell RTS or stdio is broken"
+      exit 1
+    fi
+  else
+    echo "✗ ERROR: Cannot compile simple Haskell program"
+    echo "This indicates bootstrap GHC has issues"
+    exit 1
+  fi
+
+  # Test 4: Can hadrian print anything?
+  echo "--- Test 4: Hadrian version output ---"
   _hadrian_win=$(cygpath -w "${_hadrian_bin}")
   echo "Testing: cmd.exe /c \"${_hadrian_win}\" --version"
-  cmd.exe /c "${_hadrian_win}" --version
-  _cmd_exit=$?
-  echo "cmd.exe execution exit code: ${_cmd_exit}"
+  cmd.exe /c "${_hadrian_win}" --version 2>&1 | tee "${_SRC_DIR}/hadrian_version.log"
+  _hadrian_exit=$?
+  echo "Hadrian --version exit code: ${_hadrian_exit}"
 
-  if [[ ${_cmd_exit} -ne 0 ]]; then
-    echo "✗ ERROR: cmd.exe CANNOT execute hadrian.exe!"
-    echo "This is a fundamental problem - hadrian.exe is broken or incompatible"
+  echo "Hadrian version output size: $(wc -c < "${_SRC_DIR}/hadrian_version.log") bytes"
+
+  if [[ $(wc -c < "${_SRC_DIR}/hadrian_version.log") -lt 10 ]]; then
+    echo "✗ ERROR: Hadrian produces NO output (less than 10 bytes)"
+    echo "This is the core problem - hadrian.exe is non-functional"
+    echo ""
+    echo "Comparing bootstrap GHC output vs hadrian output:"
+    echo "Bootstrap GHC worked (printed version)"
+    echo "Simple Haskell program worked (printed message)"
+    echo "Hadrian does NOT work (prints nothing)"
+    echo ""
+    echo "This suggests hadrian-specific issue, not general Haskell RTS issue"
     exit 1
   else
-    echo "✓ SUCCESS: cmd.exe CAN execute hadrian.exe"
+    echo "✓ SUCCESS: Hadrian produces output"
   fi
 else
   echo "✗ ERROR: Hadrian binary not found at ${_hadrian_bin}"
