@@ -68,14 +68,12 @@ if [ -z "${COMPILER_RT_LIB}" ]; then
   exit 1
 fi
 
-# Configure Clang for MinGW with all necessary include paths and defines
-# NOTE: Use -I instead of -isystem to avoid path validation issues on Windows
-# -nodefaultlibs: Skip automatic library linking (we specify explicitly: MinGW + compiler-rt builtins)
-# -nostartfiles: Don't auto-include CRT startup files (we'll specify crt2.o explicitly in LIBS)
-# -Wl,--subsystem,console: Set PE subsystem to console (not GUI)
-export CFLAGS="--target=x86_64-w64-mingw32 -fuse-ld=bfd -nodefaultlibs -D__MINGW32__ -D_VA_LIST_DEFINED -Dva_list=__builtin_va_list -I${CLANG_BUILTIN_INCLUDE} -I${_BUILD_PREFIX}/Library/include ${CFLAGS:-}"
-export CXXFLAGS="--target=x86_64-w64-mingw32 -fuse-ld=bfd -nodefaultlibs -D__MINGW32__ -D_VA_LIST_DEFINED -Dva_list=__builtin_va_list -I${CLANG_BUILTIN_INCLUDE} -I${_BUILD_PREFIX}/Library/include ${CXXFLAGS:-}"
-export LDFLAGS="-fuse-ld=bfd -nostartfiles -L${_BUILD_PREFIX}/Library/lib -L${_BUILD_PREFIX}/Library/lib/gcc/x86_64-w64-mingw32/15.2.0 -L${_BUILD_PREFIX}/Library/mingw-w64/lib -Wl,--subsystem,console -Wl,--image-base,0x140000000 ${LDFLAGS:-}"
+# Use STANDARD MinGW linking - no custom CRT flags
+# Bootstrap GHC needs normal MinGW CRT so Haskell programs can do stdio properly
+# The -nodefaultlibs/-nostartfiles flags break Haskell RTS initialization
+export CFLAGS="--target=x86_64-w64-mingw32 -fuse-ld=bfd -I${_BUILD_PREFIX}/Library/include ${CFLAGS:-}"
+export CXXFLAGS="--target=x86_64-w64-mingw32 -fuse-ld=bfd -I${_BUILD_PREFIX}/Library/include ${CXXFLAGS:-}"
+export LDFLAGS="-fuse-ld=bfd -L${_BUILD_PREFIX}/Library/lib -L${_BUILD_PREFIX}/Library/lib/gcc/x86_64-w64-mingw32/15.2.0 ${LDFLAGS:-}"
 
 # Bug in ghc-bootstrap
 #WINDRES_PATH="${BUILD_PREFIX//\\/\\\\}\\\\Library\\\\bin\\\\${WINDRES}"
@@ -96,37 +94,8 @@ echo "Created ${CHKSTK_OBJ}"
 ${AR} rcs "${CHKSTK_LIB}" "${CHKSTK_OBJ}"
 echo "Created ${CHKSTK_LIB}"
 
-echo "=== Building mingw32 runtime library WITHOUT GUI startup ==="
-# Extract real libmingw32.a and remove ONLY crtexewin.o (GUI startup)
-# This gives us real implementations of runtime functions without the conflict
-MINGW32_STUBS_LIB="${_BUILD_PREFIX}/Library/lib/libmingw32_stubs.a"
-MINGW32_ORIG="${_BUILD_PREFIX}/Library/x86_64-w64-mingw32/sysroot/usr/lib/libmingw32.a"
-MINGW32_EXTRACT="${_SRC_DIR}/mingw32_extract"
-
-# Create extraction directory
-mkdir -p "${MINGW32_EXTRACT}"
-cd "${MINGW32_EXTRACT}"
-
-# Extract all object files from original libmingw32.a
-${AR} x "${MINGW32_ORIG}"
-echo "Extracted $(ls -1 *.o | wc -l) object files from libmingw32.a"
-
-# List all object files to see what we have
-echo "Object files in libmingw32.a:"
-ls -1 *.o
-
-# Remove GUI startup objects (crtexewin.o and any variants)
-rm -f *crtexewin*.o
-echo "Removed GUI startup objects"
-echo "Remaining object files: $(ls -1 *.o | wc -l)"
-
-# Repackage into our library WITHOUT GUI startup
-${AR} rcs "${MINGW32_STUBS_LIB}" *.o
-echo "Created ${MINGW32_STUBS_LIB} with real MinGW runtime (no GUI startup)"
-
-# Clean up
-cd "${_SRC_DIR}"
-rm -rf "${MINGW32_EXTRACT}"
+# NOTE: mingw32_stubs.a no longer needed with standard MinGW linking
+# Using normal libmingw32.a from MinGW - no custom extraction required
 
 # Install windres.bat wrapper
 # windres uses "gcc -E" by default, but we only have clang
@@ -134,21 +103,12 @@ rm -rf "${MINGW32_EXTRACT}"
 cp "${_RECIPE_DIR}/building/windres.bat" "${_BUILD_PREFIX}/Library/bin/windres.bat"
 echo "Installed windres.bat wrapper to ${_BUILD_PREFIX}/Library/bin/"
 
-# Verify libraries were created
+# Verify chkstk library was created
 if [ -f "${CHKSTK_LIB}" ]; then
     echo "✓ Library exists: ${CHKSTK_LIB}"
     ls -lh "${CHKSTK_LIB}"
 else
     echo "✗ ERROR: Library NOT created at ${CHKSTK_LIB}"
-    exit 1
-fi
-
-if [ -f "${MINGW32_STUBS_LIB}" ]; then
-    echo "✓ Library exists: ${MINGW32_STUBS_LIB}"
-    ls -lh "${MINGW32_STUBS_LIB}"
-else
-    echo "✗ ERROR: Library NOT created at ${MINGW32_STUBS_LIB}"
-    echo "Check if ${_RECIPE_DIR}/building/mingw32_stubs.c exists and compiles"
     exit 1
 fi
 
@@ -358,22 +318,9 @@ do
   fi
 done
 
-# The ___chkstk_ms library has been created upfront (lines 58-79)
-# Now add it to both LIBS and LDFLAGS
-
-# LIBS is used by autoconf-based configure AND Cabal when building Hadrian
-# CRITICAL: Link order - CRT startup object FIRST, then libraries
-# CRITICAL: -lmingw32 needs ___chkstk_ms, so chkstk_ms must come AFTER mingw32
-# With -nostartfiles, we must explicitly specify crt2.o (console CRT) not crtexewin.o (GUI)
-# NOTE: Now that GCC lib path is in LDFLAGS, we can safely add -lgcc
-# This is needed for Cabal when linking Hadrian (before GHC settings are used)
-CRT2_OBJ="${_BUILD_PREFIX}/Library/x86_64-w64-mingw32/sysroot/usr/lib/crt2.o"
-export LIBS="${CRT2_OBJ} -Wl,--subsystem,console -lmoldname -lmingwex -lmingw32_stubs ${CHKSTK_LIB} -lgcc -lmsvcrt -lkernel32 -ladvapi32"
-
-# CRITICAL: Reinforce subsystem flag in LDFLAGS
-# -Wl,--subsystem,console: Use console entry point (main) instead of GUI (WinMain)
-# NOTE: crt2.o is in LIBS, not here, to avoid duplication
-export LDFLAGS="${LDFLAGS} -Wl,--subsystem,console"
+# LIBS - let configure use standard MinGW linking
+# No custom CRT objects needed with normal linking
+export LIBS=""
 
 # Use GNU ld for linking (compatible with MinGW libraries)
 # CRITICAL: Use Windows format path for tool execution (GHC on Windows needs C:/path format)
@@ -412,40 +359,11 @@ perl -pi -e 's#^system-merge-objects\s*=\s*.*ld\.lld.*$#system-merge-objects = '
 
 cat "${_SRC_DIR}"/hadrian/cfg/system.config | grep "include-dir\|lib-dir\|windres\|dllwrap\|system-mingw\|system-ffi\|merge-objects"
 
-# Ensure CFLAGS/CXXFLAGS include conda headers for the build phase too
-# export CFLAGS="${CFLAGS} -fno-stack-protector -fno-stack-check -I${PREFIX}/Library/include -I${BUILD_PREFIX}/Library/include"
-# export CXXFLAGS="${CXXFLAGS} -fno-stack-protector -fno-stack-check -I${PREFIX}/Library/include -I${BUILD_PREFIX}/Library/include"
-# export LDFLAGS="${LDFLAGS} -fno-stack-protector"
-# export CABFLAGS="--with-compiler=${GHC} --ghc-options=-optc-fno-stack-protector --ghc-options=-optc-fno-stack-check"
-# Enable debugging mode for more verbose output
-# export GHC_DEBUG=1
-
-# Fix MinGW-w64 pseudo relocation errors on Windows
-# lld doesn't support GCC-generated relocation type 0xe (IMAGE_REL_AMD64_ADDR32NB)
-# Solution: Use static linking for ghc.exe to avoid DLL relocation issues
 mkdir -p ${_SRC_DIR}/_build
-# cat > ${_SRC_DIR}/_build/hadrian.settings << EOF
-# stage1.ghc-bin.ghc.link.opts += -optl-static
-# stage1.ghc-pkg.ghc.link.opts += -optl-static
-# stage1.hsc2hs.ghc.link.opts += -optl-static
-# EOF
 
+# Build Hadrian
 (
-  # CRITICAL: Isolate Hadrian build environment from configure-time link flags
-  # The configure-time LIBS contains crt2.o which conflicts with Hadrian's builds
-  # TWO SEPARATE CONTEXTS:
-  # 1. Configure context (uses LDFLAGS/LIBS) - needs crt2.o for console startup
-  # 2. Hadrian context (uses GHC settings file) - gets startup from GHC's settings
-  #
-  # SOLUTION: GHC settings file now has -nostartfiles + explicit crt2.o in correct order
-  # This ensures Hadrian builds use bootstrap GHC settings (which are now correct)
-  # We don't need to modify LIBS here since GHC ignores LIBS env var
-
-  echo "=== Hadrian subshell: Using GHC settings file for link flags (not LIBS) ==="
-
   pushd "${_SRC_DIR}"/hadrian
-    # WINDOWS CPP FIX: GCC cpp with -traditional flag configured in bootstrap settings
-    # No need for cabal.project workarounds - GCC's cpp handles Haskell # identifiers correctly
 
     # CRITICAL: Test GHC before cabal build to ensure it's functional
     echo "=== Testing bootstrap GHC invocation ==="
@@ -455,90 +373,17 @@ mkdir -p ${_SRC_DIR}/_build
     "${GHC}" --print-libdir || { echo "ERROR: GHC --print-libdir failed"; exit 1; }
     echo "Bootstrap GHC is functional"
 
-    echo "=== Building Hadrian WITHOUT custom CRT flags ==="
-    # CRITICAL DISCOVERY: Bootstrap GHC works, but hadrian built WITH bootstrap GHC doesn't
-    # Root cause: Bootstrap GHC inherits our custom CFLAGS/LDFLAGS with -nostartfiles/-nodefaultlibs
-    # These flags break Haskell executables - they need standard MinGW CRT initialization
-    # Bootstrap GHC was built by conda-forge with NORMAL flags
-    # Solution: Clear custom flags so hadrian is built like bootstrap GHC was
-
-    # Save current flags and LD
-    _SAVED_LD="${LD}"
-    _SAVED_CFLAGS="${CFLAGS}"
-    _SAVED_CXXFLAGS="${CXXFLAGS}"
-    _SAVED_LDFLAGS="${LDFLAGS}"
-    _SAVED_LIBS="${LIBS}"
-
-    # CRITICAL: Temporarily patch bootstrap GHC settings to use minimal flags
-    # Bootstrap settings currently have -nostartfiles/-nodefaultlibs which breaks test programs
-    # Directory package's configure needs to compile and RUN test C programs
-    _bootstrap_settings="${_BUILD_PREFIX}/ghc-bootstrap/lib/settings"
-
-    echo "=== Temporarily patching bootstrap GHC settings for hadrian build ==="
-    # Save current "C compiler flags" line
-    _saved_c_flags=$(grep "C compiler flags" "${_bootstrap_settings}")
-    _saved_cxx_flags=$(grep "C++ compiler flags" "${_bootstrap_settings}")
-
-    # Replace with minimal flags (no -nostartfiles/-nodefaultlibs)
-    _minimal_cflags="--target=x86_64-w64-mingw32 -fuse-ld=bfd -I${_BUILD_PREFIX}/Library/include -I${_PREFIX}/Library/include"
-    perl -pi -e "s#(C compiler flags\", \")[^\"]*#\$1${_minimal_cflags}#" "${_bootstrap_settings}"
-    perl -pi -e "s#(C\\+\\+ compiler flags\", \")[^\"]*#\$1${_minimal_cflags}#" "${_bootstrap_settings}"
-
-    echo "Patched bootstrap GHC settings with minimal flags"
-    grep "C compiler flags" "${_bootstrap_settings}"
-
-    # Set MINIMAL environment flags to match
-    export CFLAGS="--target=x86_64-w64-mingw32 -fuse-ld=bfd"
-    export CXXFLAGS="--target=x86_64-w64-mingw32 -fuse-ld=bfd"
-    export LDFLAGS="-fuse-ld=bfd -L${_BUILD_PREFIX}/Library/lib"
-    unset LIBS  # No custom crt2.o or stubs
-
-    echo "Using MINIMAL flags for hadrian (standard MinGW CRT, not custom)"
-
-    # Use -j1 to avoid parallel build race conditions with directory package
-    # directory-1.3.9.0 uses "legacy fallback" (Setup.hs) and fails with exit 77 in parallel builds
-    timeout 600 "${CABAL}" v2-build -j1 --with-ld="${_SAVED_LD}" hadrian 2>&1 | tee "${_SRC_DIR}"/cabal-build.log
+    echo "=== Building Hadrian ==="
+    # Using standard MinGW linking - no custom CRT complexity
+    timeout 600 "${CABAL}" v2-build -j1 --with-ld="${LD}" hadrian 2>&1 | tee "${_SRC_DIR}"/cabal-build.log
     _cabal_exit_code=${PIPESTATUS[0]}
 
     if [[ $_cabal_exit_code -ne 0 ]]; then
       echo "=== Cabal build FAILED with exit code ${_cabal_exit_code} ==="
-      for pkg in file-io clock js-dgtable heaps js-flot js-jquery os-string splitmix primitive utf8-string directory random; do
-        echo "Testing package: $pkg"
-        timeout 60 "${CABAL}" v2-build --with-ld="${_SAVED_LD}" "$pkg" 2>&1 | tee "${_SRC_DIR}/package-${pkg}.log"
-        pkg_exit=$?
-        if [[ $pkg_exit -eq 0 ]]; then
-          echo "  \u2713 $pkg: SUCCESS"
-        elif [[ $pkg_exit -eq 124 ]]; then
-          echo "  \u2717 $pkg: TIMEOUT after 60s"
-        else
-          echo "  \u2717 $pkg: FAILED with exit code $pkg_exit"
-        fi
-      done
-      
-      echo "=== Retrying with verbose output for failed packages ==="
-      timeout 300 "${CABAL}" v2-build -j1 -v3 --with-ld="${_SAVED_LD}" hadrian 2>&1 | tee "${_SRC_DIR}"/cabal-verbose.log
       exit 1
-    else
-      echo "=== Cabal build SUCCEEDED ==="
     fi
 
-    # KEEP minimal bootstrap GHC settings for Stage1/Stage2 builds
-    # The custom CRT flags (-nostartfiles -nodefaultlibs) are ONLY for the
-    # FINAL GHC being built, NOT for the bootstrap GHC used during builds.
-    # Restoring them here caused directory configure to fail (test programs
-    # couldn't execute), resulting in Stage1/Stage2 builds producing no output.
-    echo "=== Keeping minimal bootstrap GHC settings for all builds ==="
-    echo "Bootstrap GHC settings remain patched with minimal flags:"
-    grep "C compiler flags" "${_bootstrap_settings}"
-
-    # Restore environment variables (but NOT bootstrap GHC settings)
-    # These affect the configure script and Hadrian builds, but not bootstrap GHC
-    export CFLAGS="${_SAVED_CFLAGS}"
-    export CXXFLAGS="${_SAVED_CXXFLAGS}"
-    export LDFLAGS="${_SAVED_LDFLAGS}"
-    export LIBS="${_SAVED_LIBS}"
-    export LD="${_SAVED_LD}"
-    echo "Restored original CFLAGS/LDFLAGS/LIBS environment variables"
+    echo "=== Cabal build SUCCEEDED ==="
 
   popd
 )
