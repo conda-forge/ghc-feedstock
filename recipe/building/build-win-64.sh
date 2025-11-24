@@ -278,12 +278,12 @@ else
 fi
 cat "${settings_file}"
 
-cd "${SRC_DIR}"
+cd "${_SRC_DIR}"
 
 # Clean any stale .cabal directory that might have permission issues
 # This prevents "you don't have permission to modify this file" errors on package.cache
 echo "=== Cleaning stale .cabal directory to prevent permission issues ==="
-rm -rf "${SRC_DIR}/.cabal" || true
+rm -rf "${_SRC_DIR}/.cabal" || true
 rm -rf "${HOME}/.cabal" || true
 
 mkdir -p ".cabal" && "${CABAL}" user-config init
@@ -291,13 +291,13 @@ mkdir -p ".cabal" && "${CABAL}" user-config init
 # Configure Cabal to use single-threaded builds on Windows to avoid race conditions
 # This prevents parallel ghc-pkg updates from conflicting on package.cache
 # echo "=== Configuring Cabal for single-threaded builds ==="
-# echo "jobs: 1" >> "${SRC_DIR}/.cabal/config"
+# echo "jobs: 1" >> "${_SRC_DIR}/.cabal/config"
 
 # CRITICAL: Add custom chkstk_ms library to Cabal's global GHC options
 # This ensures ALL packages link against our custom library that provides ___chkstk_ms
 # The library must be passed as a linker option, not in LDFLAGS (which would add it to compile commands)
 echo "=== Configuring Cabal to use custom chkstk_ms library ==="
-cat >> "${SRC_DIR}/.cabal/config" << EOF
+cat >> "${_SRC_DIR}/.cabal/config" << EOF
 
 -- Add custom chkstk_ms library to all builds
 -- This library provides the ___chkstk_ms symbol required by MinGW runtime
@@ -305,7 +305,7 @@ ghc-options: -optl${CHKSTK_LIB}
 EOF
 
 echo "=== Updated .cabal/config with chkstk_ms library ==="
-tail -5 "${SRC_DIR}/.cabal/config"
+tail -5 "${_SRC_DIR}/.cabal/config"
 
 run_and_log "cabal-update" "${CABAL}" v2-update
 
@@ -439,24 +439,24 @@ cat "${_SRC_DIR}"/hadrian/cfg/system.config
 # Use forward slashes to avoid escape sequence issues (\n, \t, \b, etc.)
 perl -pi -e "s#(^python\\s*=).*#\$1 ${_PYTHON}#" "${_SRC_DIR}"/hadrian/cfg/system.config
 echo "=== Converting FFI paths to Windows format in system.config ==="
-perl -pi -e 's#^ffi-include-dir\s*=\s*/c/#ffi-include-dir   = C:/#' "${SRC_DIR}"/hadrian/cfg/system.config
-perl -pi -e 's#^ffi-lib-dir\s*=\s*/c/#ffi-lib-dir       = C:/#' "${SRC_DIR}"/hadrian/cfg/system.config
-perl -pi -e 's#^([a-z-]+dir)\s*=\s*/c/#$1 = C:/#g' "${SRC_DIR}"/hadrian/cfg/system.config
-perl -pi -e "s#^(intree-gmp\s*=\s*).*#\$1NO#" "${SRC_DIR}"/hadrian/cfg/system.config
+perl -pi -e 's#^ffi-include-dir\s*=\s*/c/#ffi-include-dir   = C:/#' "${_SRC_DIR}"/hadrian/cfg/system.config
+perl -pi -e 's#^ffi-lib-dir\s*=\s*/c/#ffi-lib-dir       = C:/#' "${_SRC_DIR}"/hadrian/cfg/system.config
+perl -pi -e 's#^([a-z-]+dir)\s*=\s*/c/#$1 = C:/#g' "${_SRC_DIR}"/hadrian/cfg/system.config
+perl -pi -e "s#^(intree-gmp\s*=\s*).*#\$1NO#" "${_SRC_DIR}"/hadrian/cfg/system.config
 
 echo "=== Forcing system toolchain and libffi settings ==="
 # Force use of conda toolchain (not inplace MinGW)
-perl -pi -e 's#^use-system-mingw\s*=\s*.*$#use-system-mingw = YES#' "${SRC_DIR}"/hadrian/cfg/system.config
-perl -pi -e 's#^windows-toolchain-autoconf\s*=\s*.*$#windows-toolchain-autoconf = NO#' "${SRC_DIR}"/hadrian/cfg/system.config
+perl -pi -e 's#^use-system-mingw\s*=\s*.*$#use-system-mingw = YES#' "${_SRC_DIR}"/hadrian/cfg/system.config
+perl -pi -e 's#^windows-toolchain-autoconf\s*=\s*.*$#windows-toolchain-autoconf = NO#' "${_SRC_DIR}"/hadrian/cfg/system.config
 # Force use of conda libffi
-perl -pi -e 's#^use-system-ffi\s*=\s*.*$#use-system-ffi = YES#' "${SRC_DIR}"/hadrian/cfg/system.config
+perl -pi -e 's#^use-system-ffi\s*=\s*.*$#use-system-ffi = YES#' "${_SRC_DIR}"/hadrian/cfg/system.config
 
 # CRITICAL: Fix system-merge-objects to use GNU ld instead of lld
 # The bootstrap GHC's system-merge-objects points to ld.lld.exe which expects MSVC .lib files
 # We need GNU ld which works with MinGW .a files
-perl -pi -e 's#^system-merge-objects\s*=\s*.*ld\.lld.*$#system-merge-objects = '"${LD}"'#' "${SRC_DIR}"/hadrian/cfg/system.config
+perl -pi -e 's#^system-merge-objects\s*=\s*.*ld\.lld.*$#system-merge-objects = '"${LD}"'#' "${_SRC_DIR}"/hadrian/cfg/system.config
 
-cat "${SRC_DIR}"/hadrian/cfg/system.config | grep "include-dir\|lib-dir\|windres\|dllwrap\|system-mingw\|system-ffi\|merge-objects"
+cat "${_SRC_DIR}"/hadrian/cfg/system.config | grep "include-dir\|lib-dir\|windres\|dllwrap\|system-mingw\|system-ffi\|merge-objects"
 
 # Ensure CFLAGS/CXXFLAGS include conda headers for the build phase too
 # export CFLAGS="${CFLAGS} -fno-stack-protector -fno-stack-check -I${PREFIX}/Library/include -I${BUILD_PREFIX}/Library/include"
@@ -620,7 +620,7 @@ elif [[ ${_test1_exit} -eq 126 ]] && [[ ${_test2_exit} -ne 0 ]]; then
 fi
 
 # MSYS2 bash can execute .exe directly with Unix paths
-_hadrian_build=("${_hadrian_bin}" "-j${CPU_COUNT}" "--directory" "${SRC_DIR}")
+_hadrian_build=("${_hadrian_bin}" "-j${CPU_COUNT}" "--directory" "${_SRC_DIR}")
 
 # Build stage1 GHC
 echo "*** Building stage1 GHC ***"
@@ -642,20 +642,20 @@ if [[ -f "${_hadrian_bin}" ]]; then
 else
   echo "✗ ERROR: Hadrian binary not found at ${_hadrian_bin}"
   echo "Searching for hadrian.exe:"
-  find "${SRC_DIR}" -name "hadrian.exe" -type f
+  find "${_SRC_DIR}" -name "hadrian.exe" -type f
   exit 1
 fi
 
 echo ""
 echo "=== Building Stage1 GHC (direct .exe execution from bash) ==="
 echo "Hadrian path: ${_hadrian_bin}"
-echo "Working directory: ${SRC_DIR}"
+echo "Working directory: ${_SRC_DIR}"
 echo "CPU count: ${CPU_COUNT}"
 echo ""
 echo "Starting at: $(date)"
 echo "Executing hadrian.exe directly from MSYS2 bash..."
 set -x
-"${_hadrian_bin}" -j"${CPU_COUNT}" --directory "${SRC_DIR}" stage1:exe:ghc-bin --flavour=quickest --docs=none --progress-info=none
+"${_hadrian_bin}" -j"${CPU_COUNT}" --directory "${_SRC_DIR}" stage1:exe:ghc-bin --flavour=quickest --docs=none --progress-info=none
 stage1_exit=$?
 set +x
 echo "Finished at: $(date)"
@@ -712,8 +712,8 @@ run_and_log "stage1_pkg" "${_hadrian_build[@]}" stage1:exe:ghc-pkg --flavour=qui
 run_and_log "stage1_hs" "${_hadrian_build[@]}" stage1:exe:hsc2hs --flavour=quickest --docs=none --progress-info=none
 run_and_log "stage1_lib" "${_hadrian_build[@]}" stage1:lib:ghc --flavour=quickest --docs=none --progress-info=none || { \
   echo "=== Checking if Hadrian patch was applied ==="; \
-  grep -A 3 "interpolateSetting.*FFIIncludeDir" "${SRC_DIR}"/hadrian/src/Rules/Generate.hs || echo "ERROR: Hadrian patch NOT applied!"; \
-  grep -n "include-dirs\|extra-include-dirs\|/c/bld" "${SRC_DIR}"/rts/rts.cabal | head -20; \
+  grep -A 3 "interpolateSetting.*FFIIncludeDir" "${_SRC_DIR}"/hadrian/src/Rules/Generate.hs || echo "ERROR: Hadrian patch NOT applied!"; \
+  grep -n "include-dirs\|extra-include-dirs\|/c/bld" "${_SRC_DIR}"/rts/rts.cabal | head -20; \
   exit 1; \
 }
 
