@@ -621,11 +621,8 @@ elif [[ ${_test1_exit} -eq 126 ]] && [[ ${_test2_exit} -ne 0 ]]; then
   echo "The 'section below image base' warning indicates real PE format issues"
 fi
 
-# MSYS2 bash can execute .exe directly with Unix paths
-# But when executed via cmd.exe wrapper, paths must be in Windows format
-# Convert _SRC_DIR (Unix /c/path) to Windows format (C:/path) for hadrian --directory
-_SRC_DIR_WIN=$(echo "${_SRC_DIR}" | sed 's#^/c/#C:/#')
-_hadrian_build=("${_hadrian_bin}" "-j${CPU_COUNT}" "--directory" "${_SRC_DIR_WIN}")
+# run_and_log will convert paths to Windows format when executing via cmd.exe
+_hadrian_build=("${_hadrian_bin}" "-j${CPU_COUNT}" "--directory" "${_SRC_DIR}")
 
 # Build stage1 GHC
 echo "*** Building stage1 GHC ***"
@@ -691,6 +688,22 @@ if [[ -f "${_hadrian_bin}" ]]; then
   echo ""
   echo "Testing hadrian.exe direct execution from MSYS2 bash:"
   "${_hadrian_bin}" --help || echo "hadrian.exe --help failed with exit code: $?"
+
+  echo ""
+  echo "=== CRITICAL TEST: Can cmd.exe execute hadrian.exe? ==="
+  _hadrian_win=$(cygpath -w "${_hadrian_bin}")
+  echo "Testing: cmd.exe /c \"${_hadrian_win}\" --version"
+  cmd.exe /c "${_hadrian_win}" --version
+  _cmd_exit=$?
+  echo "cmd.exe execution exit code: ${_cmd_exit}"
+
+  if [[ ${_cmd_exit} -ne 0 ]]; then
+    echo "✗ ERROR: cmd.exe CANNOT execute hadrian.exe!"
+    echo "This is a fundamental problem - hadrian.exe is broken or incompatible"
+    exit 1
+  else
+    echo "✓ SUCCESS: cmd.exe CAN execute hadrian.exe"
+  fi
 else
   echo "✗ ERROR: Hadrian binary not found at ${_hadrian_bin}"
   echo "Searching for hadrian.exe:"
