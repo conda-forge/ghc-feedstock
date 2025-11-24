@@ -716,13 +716,19 @@ EOF
   if [[ ${_compile_exit} -eq 0 ]] && [[ -f "${_SRC_DIR}/test_stdio.exe" ]]; then
     echo "--- Test 3: Execute compiled Haskell program ---"
     _test_win=$(cygpath -w "${_SRC_DIR}/test_stdio.exe")
-    cmd.exe /c "${_test_win}"
+    cmd.exe /c "${_test_win}" 2>&1 | tee "${_SRC_DIR}/test_stdio.log"
     _exec_exit=$?
     echo "Execution exit code: ${_exec_exit}"
 
-    if [[ ${_exec_exit} -ne 0 ]]; then
-      echo "✗ ERROR: Simple Haskell program cannot execute"
-      echo "This indicates Haskell RTS or stdio is broken"
+    # Check if program actually printed the expected message
+    if grep -q "Haskell stdio works!" "${_SRC_DIR}/test_stdio.log"; then
+      echo "✓ Test program printed output - stdio works!"
+    else
+      echo "✗ ERROR: Test program produced NO output"
+      echo "Output captured ($(wc -c < "${_SRC_DIR}/test_stdio.log") bytes):"
+      cat "${_SRC_DIR}/test_stdio.log"
+      echo ""
+      echo "This indicates Haskell RTS stdio is broken"
       exit 1
     fi
   else
@@ -739,21 +745,16 @@ EOF
   _hadrian_exit=$?
   echo "Hadrian --version exit code: ${_hadrian_exit}"
 
-  echo "Hadrian version output size: $(wc -c < "${_SRC_DIR}/hadrian_version.log") bytes"
-
-  if [[ $(wc -c < "${_SRC_DIR}/hadrian_version.log") -lt 10 ]]; then
-    echo "✗ ERROR: Hadrian produces NO output (less than 10 bytes)"
-    echo "This is the core problem - hadrian.exe is non-functional"
-    echo ""
-    echo "Comparing bootstrap GHC output vs hadrian output:"
-    echo "Bootstrap GHC worked (printed version)"
-    echo "Simple Haskell program worked (printed message)"
-    echo "Hadrian does NOT work (prints nothing)"
-    echo ""
-    echo "This suggests hadrian-specific issue, not general Haskell RTS issue"
-    exit 1
+  # Check if hadrian actually printed version info (not just cmd.exe banner)
+  if grep -qE "(Hadrian|hadrian|version [0-9])" "${_SRC_DIR}/hadrian_version.log"; then
+    echo "✓ Hadrian produces actual output"
   else
-    echo "✓ SUCCESS: Hadrian produces output"
+    echo "✗ ERROR: Hadrian produces NO actual output"
+    echo "Output captured ($(wc -c < "${_SRC_DIR}/hadrian_version.log") bytes):"
+    cat "${_SRC_DIR}/hadrian_version.log"
+    echo ""
+    echo "Haskell RTS stdio is broken - no Haskell programs can print"
+    exit 1
   fi
 else
   echo "✗ ERROR: Hadrian binary not found at ${_hadrian_bin}"
