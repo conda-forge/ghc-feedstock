@@ -1,6 +1,7 @@
 --- a/rts/StgCRunAsm.S
 +++ b/rts/StgCRunAsm.S
-@@ -32,7 +32,9 @@
+@@ -40,7 +40,9 @@
+ 	.section	".toc","aw"
  	.section	".text"
  	.align 2
          .globl StgRun
