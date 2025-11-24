@@ -42,6 +42,12 @@ export M4=${BUILD_PREFIX}/bin/m4
 export PYTHON=${BUILD_PREFIX}/bin/python
 # Ensure BUILD_PREFIX/bin is FIRST in PATH (for bash 5.2+ support)
 export PATH=${BUILD_PREFIX}/bin:${BUILD_PREFIX}/ghc-bootstrap/bin${PATH:+:}${PATH:-}
+# Set GHC to bootstrap compiler (if not already set by platform config)
+# For native builds, use 'which ghc' to find it dynamically (handles both ghc-bootstrap and ghc packages)
+# For cross-compile, setup_cross_build_env will override this.
+if [[ -z "${GHC:-}" ]]; then
+  export GHC=$(which ghc 2>/dev/null || echo "")
+fi
 
 # ==============================================================================
 # PLATFORM DETECTION AND CONFIGURATION
