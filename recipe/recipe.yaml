@@ -193,7 +193,8 @@ about:
   license: BSD-3-Clause
   license_file:
     - LICENSE
-    - license_files
+    - share/doc/*/LICENSE
+    - share/doc/*/*/LICENSE
   summary: Glorious Glasgow Haskell Compilation System
   description: |
     GHC is a state-of-the-art, open source, compiler and interactive environment 
