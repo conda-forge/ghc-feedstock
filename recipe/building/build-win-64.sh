@@ -208,62 +208,15 @@ if [[ -f "${settings_file}" ]]; then
   # -traditional-cpp: Traditional (pre-standard) preprocessing, handles # in identifiers
   perl -pi -e "s#(Haskell CPP flags\", \")[^\"]*#\$1-E -undef -traditional-cpp -I${_BUILD_PREFIX}/Library/include -I${_PREFIX}/Library/include#" "${settings_file}"
 
-  # Add MinGW runtime libraries to "C compiler link flags"
-  # CRITICAL: Link order matters - user objects first, then helper libs, then -lmingw32 LAST
-  # -lmingw32 provides console CRT startup BUT also defines main() that calls user's main()
-  # It must come AFTER user objects so user's main() is found first
-  # Use -Xlinker to pass ONLY to linker (not to compile-only invocations)
-  CHKSTK_DIR="${_BUILD_PREFIX}/Library/lib"
-  GCC_LIB_DIR="${_BUILD_PREFIX}/Library/lib/gcc/x86_64-w64-mingw32/15.2.0"
-  MINGW_SYSROOT="${_BUILD_PREFIX}/Library/x86_64-w64-mingw32/sysroot/usr/lib"
-
-  # Convert Unix path to Windows-style path with forward slashes for ld.bfd
-  # ld.bfd on Windows understands C:/path/to/file format
-  # NOTE: %BUILD_PREFIX% in logs is display-only; actual values ARE expanded
-  # Some scripts need _XXX (Unix paths), others need %XXX% (Windows paths)
-  CHKSTK_DIR_WIN=$(echo "${CHKSTK_DIR}" | sed 's#^/c/#C:/#')
-  GCC_LIB_DIR_WIN=$(echo "${GCC_LIB_DIR}" | sed 's#^/c/#C:/#')
-  WIN_MINGW_SYSROOT=$(echo "${MINGW_SYSROOT}" | sed 's#^/c/#C:/#')
-  CRT2_WIN_PATH="${WIN_MINGW_SYSROOT}/crt2.o"
-  COMPILER_RT_WIN=$(echo "${COMPILER_RT_LIB}" | sed 's#^/c/#C:/#')
-
-  # Build complete link flags string - libraries come AFTER user objects
-  # Use GNU ld (bfd) with GNU-style subsystem flag
-  # CRITICAL: -nostartfiles prevents DEFAULT startups, but not those IN libraries
-  # libmingw32.a contains crtexewin.o which conflicts with our crt2.o
-  # Use --allow-multiple-definition so linker uses FIRST definition (our crt2.o)
-  LINK_FLAGS="-fuse-ld=bfd -nostartfiles -Wl,--allow-multiple-definition -Wl,--subsystem,console"
-  LINK_FLAGS="${LINK_FLAGS} -Xlinker -L${CHKSTK_DIR_WIN} -Xlinker -L${GCC_LIB_DIR_WIN} -Xlinker -L${WIN_MINGW_SYSROOT}"
-  # Console CRT startup - use --whole-archive to force inclusion FIRST
-  # This ensures crt2.o's main() is resolved before libmingw32.a is scanned
-  LINK_FLAGS="${LINK_FLAGS} -Wl,--whole-archive -Xlinker ${CRT2_WIN_PATH} -Wl,--no-whole-archive"
-  # MinGW helper libraries
-  LINK_FLAGS="${LINK_FLAGS} -Xlinker -lmoldname"
-  LINK_FLAGS="${LINK_FLAGS} -Xlinker -lmingwex"
-  # CRITICAL: Skip -lmingw32 entirely to avoid crtexewin.o conflict
-  # Instead, use our stub library with just the symbols we need
-  LINK_FLAGS="${LINK_FLAGS} -Xlinker -lmingw32_stubs"
-  # Then chkstk_ms (provides symbols needed by mingw32)
-  LINK_FLAGS="${LINK_FLAGS} -Xlinker -lchkstk_ms"
-  # System libraries and compiler builtins
-  # CRITICAL: Need BOTH libgcc (for __udivti3/__umodti3) AND compiler-rt (other builtins)
-  # Bootstrap GHC's RtsSymbols references these 128-bit integer operation symbols
-  LINK_FLAGS="${LINK_FLAGS} -Xlinker -lgcc"
-  LINK_FLAGS="${LINK_FLAGS} -Xlinker -lmsvcrt"
-  # Link compiler-rt directly (not via -l flag, as it's a .lib file for GNU ld)
-  LINK_FLAGS="${LINK_FLAGS} -Xlinker ${COMPILER_RT_WIN}"
-  LINK_FLAGS="${LINK_FLAGS} -Xlinker -lkernel32"
-  LINK_FLAGS="${LINK_FLAGS} -Xlinker -ladvapi32"
-
-  perl -pi -e "s#(C compiler link flags\", \")[^\"]*#\$1${LINK_FLAGS}#" "${settings_file}"
-  perl -pi -e "s#(ld is GNU ld\", \")[^\"]*#\$1YES#" "${settings_file}"
-
-  # Also add to "ld flags" for direct ld invocations (use bare library names, no -Xlinker)
-  # CRITICAL: --subsystem,console for console entry point (GNU ld syntax with comma separator)
-  # CRITICAL: Use stub library instead of full libmingw32.a
-  # CRITICAL: Need -lgcc for __udivti3/__umodti3 symbols from RtsSymbols
-  # Link compiler-rt directly (not via -l flag, as it's a .lib file for GNU ld)
-  perl -pi -e "s#(ld flags\", \")([^\"]*)#\$1\$2 -nostartfiles --allow-multiple-definition --subsystem,console -L${CHKSTK_DIR_WIN} -L${GCC_LIB_DIR_WIN} -L${WIN_MINGW_SYSROOT} --whole-archive ${CRT2_WIN_PATH} --no-whole-archive -lmoldname -lmingwex -lmingw32_stubs -lchkstk_ms -lgcc -lmsvcrt ${COMPILER_RT_WIN} -lkernel32 -ladvapi32#" "${settings_file}"
+  # DO NOT patch bootstrap GHC link flags with custom CRT!
+  # The custom CRT flags (-nostartfiles, custom crt2.o) break stdio initialization
+  # for Haskell programs. Bootstrap GHC must use NORMAL MinGW linking so that
+  # Haskell executables (including hadrian) can do stdio properly.
+  #
+  # The custom CRT flags are ONLY needed for the FINAL Stage1/Stage2 GHC being
+  # built, NOT for intermediate Haskell programs compiled during the build.
+  #
+  # We only fix the merge-objects command to use GNU ld instead of lld.
 
   # CRITICAL: Fix merge-objects to use GNU ld (ld.bfd) instead of lld
   # The bootstrap GHC has system-merge-objects pointing to ld.lld.exe which uses MSVC-style .lib files
@@ -272,7 +225,8 @@ if [[ -f "${settings_file}" ]]; then
   # IMPORTANT: Use LD_WIN (Windows format) not LD (Unix format) for tool execution
   perl -pi -e "s#(Merge objects command\", \")[^\"]*#\$1${LD_WIN}#" "${settings_file}"
 
-  grep "C compiler flags\|C++ compiler flags\|Merge objects\|ld is GNU\|ld flags" "${settings_file}"
+  echo "Bootstrap GHC settings - only merge-objects modified:"
+  grep "Merge objects command" "${settings_file}"
 else
   echo "WARNING: Stage0 settings file not found at ${settings_file}"
 fi
