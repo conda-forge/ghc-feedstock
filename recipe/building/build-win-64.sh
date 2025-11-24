@@ -69,35 +69,12 @@ CXXFLAGS=$(echo "${CXXFLAGS}" | sed 's/-fstack-protector-strong//g')
 CFLAGS=$(echo "${CFLAGS}" | sed 's/-fms-runtime-lib=dll//g')
 CXXFLAGS=$(echo "${CXXFLAGS}" | sed 's/-fms-runtime-lib=dll//g')
 
-# Get Clang's builtin include directory and compiler-rt library
-CLANG_RESOURCE_DIR=$(${CC} -print-resource-dir | sed 's#\\#/#g' | sed 's#^C:/#/c/#')
-CLANG_BUILTIN_INCLUDE="${CLANG_RESOURCE_DIR}/include"
-
-# Find compiler-rt builtins library
-# Try multiple possible locations (compiler-rt_win-64 package provides .lib file)
-COMPILER_RT_CANDIDATES=(
-  "${CLANG_RESOURCE_DIR}/lib/x86_64-w64-windows-gnu/libclang_rt.builtins.a"
-  "${CLANG_RESOURCE_DIR}/lib/windows/libclang_rt.builtins-x86_64.a"
-  "${CLANG_RESOURCE_DIR}/lib/windows/clang_rt.builtins-x86_64.lib"
-  "${_BUILD_PREFIX}/Library/lib/clang/19/lib/windows/clang_rt.builtins-x86_64.lib"
-)
-
-COMPILER_RT_LIB=""
-for candidate in "${COMPILER_RT_CANDIDATES[@]}"; do
-  echo "Checking for compiler-rt at: ${candidate}"
-  if [ -f "${candidate}" ]; then
-    COMPILER_RT_LIB="${candidate}"
-    echo "Found compiler-rt: ${COMPILER_RT_LIB}"
-    break
-  fi
-done
-
-if [ -z "${COMPILER_RT_LIB}" ]; then
-  echo "ERROR: Could not find compiler-rt builtins library"
-  echo "Searched in:"
-  printf '%s\n' "${COMPILER_RT_CANDIDATES[@]}"
-  exit 1
-fi
+# EXPERIMENTAL GCC BRANCH: GCC uses libgcc, not compiler-rt
+# compiler-rt is Clang's runtime library, GCC has its own libgcc
+# We don't need to find it explicitly - we link it via -lgcc flag
+# GCC provides libgcc builtin functions natively
+echo "=== Using GCC runtime (libgcc) instead of compiler-rt ==="
+COMPILER_RT_LIB=""  # Empty - not used with GCC
 
 # EXPERIMENTAL GCC BRANCH: Use GCC with UCRT
 # Remove Clang-specific flags (--target, explicit -fuse-ld)
@@ -331,23 +308,9 @@ MSVC_VER=$(ls -1 "${MSVC_BASE}" 2>/dev/null | sort -V | tail -1)
 # Get short path for MSVC include (has vcruntime.h)
 MSVC_INCLUDE="${MSVC_BASE}"/"${MSVC_VER}"/include
 
-# MinGW libraries that Clang might not add automatically (already configured above)
-# CRITICAL: Find and explicitly link compiler-rt builtins library
-# Try both .a (MinGW format) and .lib (MSVC format) extensions
-COMPILER_RT_LIB=""
-for candidate in \
-  "${CLANG_RESOURCE_DIR}/lib/x86_64-w64-windows-gnu/libclang_rt.builtins.a" \
-  "${CLANG_RESOURCE_DIR}/lib/windows/libclang_rt.builtins-x86_64.a" \
-  "${CLANG_RESOURCE_DIR}/lib/windows/clang_rt.builtins-x86_64.lib" \
-  "${CLANG_RESOURCE_DIR}/lib/x86_64-pc-windows-gnu/libclang_rt.builtins.a"
-do
-  echo "Checking for compiler-rt at: ${candidate}"
-  if [ -f "${candidate}" ]; then
-    COMPILER_RT_LIB="${candidate}"
-    echo "Found compiler-rt: ${COMPILER_RT_LIB}"
-    break
-  fi
-done
+# GCC BRANCH: GCC uses libgcc, not compiler-rt
+# This duplicate compiler-rt detection removed for GCC compatibility
+echo "=== Using libgcc (GCC builtin library) ==="
 
 # LIBS - let configure use standard MinGW linking
 # No custom CRT objects needed with normal linking
@@ -753,8 +716,7 @@ if [[ -f "${settings_file}" ]]; then
   # CRITICAL: Use -lucrt (Universal C Runtime) NOT -lmsvcrt (old runtime)
   # Bootstrap GHC was built with UCRT (mingw-w64-ucrt-x86_64-crt-git)
   LINK_FLAGS="${LINK_FLAGS} -Xlinker -lucrt"
-  # Link compiler-rt directly (not via -l flag, as it's a .lib file for GNU ld)
-  LINK_FLAGS="${LINK_FLAGS} -Xlinker ${COMPILER_RT_LIB}"
+  # GCC BRANCH: libgcc provides all builtins, no need for compiler-rt
   LINK_FLAGS="${LINK_FLAGS} -Xlinker -lkernel32"
   LINK_FLAGS="${LINK_FLAGS} -Xlinker -ladvapi32"
 
@@ -764,8 +726,8 @@ if [[ -f "${settings_file}" ]]; then
   # CRITICAL: --subsystem,console for console entry point (GNU ld syntax with comma separator)
   # CRITICAL: Need -lgcc for __udivti3/__umodti3 symbols from RtsSymbols
   # CRITICAL: Use -lucrt (Universal C Runtime) to match bootstrap GHC
-  # Link compiler-rt directly (not via -l flag, as it's a .lib file for GNU ld)
-  perl -pi -e "s#(ld flags\", \")#\$1--subsystem,console -L${CHKSTK_DIR} -L${MINGW_SYSROOT} -lmoldname -lmingwex -lmingw32 -lchkstk_ms -lgcc -lucrt ${COMPILER_RT_LIB} -lkernel32 -ladvapi32 #" "${settings_file}"
+  # GCC BRANCH: libgcc provides all builtins, no need for compiler-rt
+  perl -pi -e "s#(ld flags\", \")#\$1--subsystem,console -L${CHKSTK_DIR} -L${MINGW_SYSROOT} -lmoldname -lmingwex -lmingw32 -lchkstk_ms -lgcc -lucrt -lkernel32 -ladvapi32 #" "${settings_file}"
 
   echo "=== Stage1 settings after patching (COMPLETE FILE) ==="
   cat "${settings_file}"
