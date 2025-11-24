@@ -286,7 +286,7 @@ echo "=== Cleaning stale .cabal directory to prevent permission issues ==="
 rm -rf "${_SRC_DIR}/.cabal" || true
 rm -rf "${HOME}/.cabal" || true
 
-mkdir -p ".cabal" && "${CABAL}" user-config init
+mkdir -p "${_SRC_DIR}/.cabal" && "${CABAL}" user-config init
 
 # Configure Cabal to use single-threaded builds on Windows to avoid race conditions
 # This prevents parallel ghc-pkg updates from conflicting on package.cache
