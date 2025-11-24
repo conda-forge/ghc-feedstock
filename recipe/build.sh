@@ -11,6 +11,20 @@
 #   3. Execute common build flow (customized via platform hooks)
 #   4. Common post-build cleanup
 # ==============================================================================
+#
+# CRITICAL: Ensure we're using conda bash 5.2+, not system bash
+# The shebang uses /bin/bash, but conda-build will invoke this with the
+# build environment's bash through its own execution wrapper.
+if [[ ${BASH_VERSINFO[0]} -lt 5 || (${BASH_VERSINFO[0]} -eq 5 && ${BASH_VERSINFO[1]} -lt 2) ]]; then
+  echo "ERROR: This script requires bash 5.2 or later (found ${BASH_VERSION})"
+  echo "Attempting to re-exec with conda bash..."
+  if [[ -x "${BUILD_PREFIX}/bin/bash" ]]; then
+    exec "${BUILD_PREFIX}/bin/bash" "$0" "$@"
+  else
+    echo "ERROR: Could not find conda bash at ${BUILD_PREFIX}/bin/bash"
+    exit 1
+  fi
+fi
 
 set -eu
 
