@@ -37,6 +37,9 @@ LDFLAGS=$(echo "${LDFLAGS}" | sed 's/-Wl,-defaultlib:[^ ]*//g')
 # Remove -fstack-protector-strong which generates __security_cookie calls incompatible with MinGW+Clang
 CFLAGS=$(echo "${CFLAGS}" | sed 's/-fstack-protector-strong//g')
 CXXFLAGS=$(echo "${CXXFLAGS}" | sed 's/-fstack-protector-strong//g')
+# Remove -fms-runtime-lib=dll which forces Microsoft MSVCRT (we want MinGW's msvcrt)
+CFLAGS=$(echo "${CFLAGS}" | sed 's/-fms-runtime-lib=dll//g')
+CXXFLAGS=$(echo "${CXXFLAGS}" | sed 's/-fms-runtime-lib=dll//g')
 
 # Get Clang's builtin include directory and compiler-rt library
 CLANG_RESOURCE_DIR=$(${CC} -print-resource-dir | sed 's#\\#/#g' | sed 's#^C:/#/c/#')
