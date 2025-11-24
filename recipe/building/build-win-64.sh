@@ -722,7 +722,9 @@ if [[ -f "${settings_file}" ]]; then
   # System libraries and compiler builtins
   # CRITICAL: Need -lgcc for __udivti3/__umodti3 symbols from RtsSymbols
   LINK_FLAGS="${LINK_FLAGS} -Xlinker -lgcc"
-  LINK_FLAGS="${LINK_FLAGS} -Xlinker -lmsvcrt"
+  # CRITICAL: Use -lucrt (Universal C Runtime) NOT -lmsvcrt (old runtime)
+  # Bootstrap GHC was built with UCRT (mingw-w64-ucrt-x86_64-crt-git)
+  LINK_FLAGS="${LINK_FLAGS} -Xlinker -lucrt"
   # Link compiler-rt directly (not via -l flag, as it's a .lib file for GNU ld)
   LINK_FLAGS="${LINK_FLAGS} -Xlinker ${COMPILER_RT_LIB}"
   LINK_FLAGS="${LINK_FLAGS} -Xlinker -lkernel32"
@@ -733,8 +735,9 @@ if [[ -f "${settings_file}" ]]; then
   # Also add to "ld flags" for direct ld invocations (use bare library names, no -Xlinker)
   # CRITICAL: --subsystem,console for console entry point (GNU ld syntax with comma separator)
   # CRITICAL: Need -lgcc for __udivti3/__umodti3 symbols from RtsSymbols
+  # CRITICAL: Use -lucrt (Universal C Runtime) to match bootstrap GHC
   # Link compiler-rt directly (not via -l flag, as it's a .lib file for GNU ld)
-  perl -pi -e "s#(ld flags\", \")#\$1--subsystem,console -L${CHKSTK_DIR} -L${MINGW_SYSROOT} -lmoldname -lmingwex -lmingw32 -lchkstk_ms -lgcc -lmsvcrt ${COMPILER_RT_LIB} -lkernel32 -ladvapi32 #" "${settings_file}"
+  perl -pi -e "s#(ld flags\", \")#\$1--subsystem,console -L${CHKSTK_DIR} -L${MINGW_SYSROOT} -lmoldname -lmingwex -lmingw32 -lchkstk_ms -lgcc -lucrt ${COMPILER_RT_LIB} -lkernel32 -ladvapi32 #" "${settings_file}"
 
   echo "=== Stage1 settings after patching (COMPLETE FILE) ==="
   cat "${settings_file}"
