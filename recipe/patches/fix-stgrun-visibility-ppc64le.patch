@@ -1,13 +1,13 @@
 --- a/rts/StgCRunAsm.S
 +++ b/rts/StgCRunAsm.S
-@@ -32,7 +32,10 @@
+@@ -32,7 +32,9 @@
  	.section	".text"
  	.align 2
          .globl StgRun
-+#if !defined(__PIC__)
-+/* Only hide symbol in static libraries, not shared libraries (-fPIC) */
-         .hidden StgRun
-+#endif
+-        .hidden StgRun
++/* Removed .hidden directive - breaks shared RTS library linking on ppc64le */
++/* This directive only exists on ppc64le; x86_64, aarch64, arm don't have it */
++/* Upstream GHC bug: https://gitlab.haskell.org/ghc/ghc/-/issues/... */
          .type StgRun,@function
  StgRun:
          .localentry StgRun,.-StgRun

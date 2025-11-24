@@ -176,6 +176,7 @@ platform_build_hadrian() {
 }
 
 platform_select_flavour() {
+  # Using release for both stages for consistency and full optimization
   HADRIAN_FLAVOUR_STAGE1="release"
   HADRIAN_FLAVOUR_STAGE2="release"
 
