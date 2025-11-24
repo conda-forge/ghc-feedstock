@@ -1,0 +1,13 @@
+--- a/rts/StgCRunAsm.S
++++ b/rts/StgCRunAsm.S
+@@ -32,7 +32,10 @@
+ 	.section	".text"
+ 	.align 2
+         .globl StgRun
++#if !defined(DYNAMIC)
++/* Only hide symbol in static libraries, not shared libraries */
+         .hidden StgRun
++#endif
+         .type StgRun,@function
+ StgRun:
+         .localentry StgRun,.-StgRun

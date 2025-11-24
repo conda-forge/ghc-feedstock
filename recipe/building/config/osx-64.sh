@@ -110,24 +110,42 @@ platform_select_flavour() {
 }
 
 platform_pre_stage1() {
-  # Patch settings file for macOS before stage1 build
-  local settings_file="${SRC_DIR}/_build/stage0/lib/settings"
-  echo "  Patching stage0 settings..."
-  patch_macos_settings "${settings_file}"
+  # Patch bootstrap compiler settings before building stage1
+  # Bootstrap (stage0) compiler is used to build stage1
+  # Use helper function to find settings dynamically (future-proof for different bootstrap sources)
+  local bootstrap_settings
+  bootstrap_settings=$(get_bootstrap_settings_path)
+  if [[ $? -ne 0 ]]; then
+    echo "  ERROR: Could not find bootstrap settings file"
+    return 1
+  fi
+
+  echo "  Patching bootstrap (stage0) settings at ${bootstrap_settings}..."
+  patch_macos_settings "${bootstrap_settings}"
 }
 
 platform_post_stage1() {
-  # Patch settings again after stage1 (may get overwritten)
-  local settings_file="${SRC_DIR}/_build/stage0/lib/settings"
-  echo "  Re-patching stage0 settings..."
-  patch_macos_settings "${settings_file}"
+  # Patch stage1 compiler settings after it's built
+  # Stage1 lives in _build/stage0/ (built BY stage0)
+  # These settings will be used to build stage2
+  local stage1_settings="${SRC_DIR}/_build/stage0/lib/settings"
+
+  echo "  Patching stage1 settings (in _build/stage0/)..."
+  if [[ -f "${stage1_settings}" ]]; then
+    patch_macos_settings "${stage1_settings}"
+  else
+    echo "  WARNING: stage1 settings not found at ${stage1_settings}"
+  fi
 }
 
 platform_pre_stage2() {
-  # Patch stage1 settings before stage2 build
-  local settings_file="${SRC_DIR}/_build/stage1/lib/settings"
-  echo "  Patching stage1 settings..."
-  patch_macos_settings "${settings_file}"
+  # Re-patch stage1 settings before stage2 build (if Hadrian regenerated them)
+  # Stage1 compiler (in _build/stage0/) will be used to build stage2
+  local stage1_settings="${SRC_DIR}/_build/stage0/lib/settings"
+  echo "  Re-patching stage1 settings..."
+  if [[ -f "${stage1_settings}" ]]; then
+    patch_macos_settings "${stage1_settings}"
+  fi
 }
 
 # platform_post_stage2() - Use default (no-op)
