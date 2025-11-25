@@ -49,9 +49,11 @@ export RANLIB="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-ranlib.exe"
 # CRITICAL: This MUST happen before patching bootstrap settings file
 # CRITICAL: Replace ALL conda variables with Unix paths to prevent backslash escape issues
 # When %PREFIX% expands to C:\bld\..., the \b becomes backspace character!
+echo "=== BEFORE expansion: CFLAGS=${CFLAGS}"
 CFLAGS=$(echo "${CFLAGS}" | perl -pe "s|%BUILD_PREFIX%|${_BUILD_PREFIX}|g; s|%PREFIX%|${_PREFIX}|g; s|%SRC_DIR%|${_SRC_DIR}|g")
 CXXFLAGS=$(echo "${CXXFLAGS}" | perl -pe "s|%BUILD_PREFIX%|${_BUILD_PREFIX}|g; s|%PREFIX%|${_PREFIX}|g; s|%SRC_DIR%|${_SRC_DIR}|g")
 LDFLAGS=$(echo "${LDFLAGS}" | perl -pe "s|%BUILD_PREFIX%|${_BUILD_PREFIX}|g; s|%PREFIX%|${_PREFIX}|g; s|%SRC_DIR%|${_SRC_DIR}|g")
+echo "=== AFTER expansion: CFLAGS=${CFLAGS}"
 CFLAGS=$(echo "${CFLAGS}" | perl -pe "s|\$ENV{BUILD_PREFIX}|${_BUILD_PREFIX}|g; s|\$ENV{PREFIX}|${_PREFIX}|g; s|\$ENV{SRC_DIR}|${_SRC_DIR}|g")
 CXXFLAGS=$(echo "${CXXFLAGS}" | perl -pe "s|\$ENV{BUILD_PREFIX}|${_BUILD_PREFIX}|g; s|\$ENV{PREFIX}|${_PREFIX}|g; s|\$ENV{SRC_DIR}|${_SRC_DIR}|g")
 LDFLAGS=$(echo "${LDFLAGS}" | perl -pe "s|\$ENV{BUILD_PREFIX}|${_BUILD_PREFIX}|g; s|\$ENV{PREFIX}|${_PREFIX}|g; s|\$ENV{SRC_DIR}|${_SRC_DIR}|g")
@@ -352,6 +354,14 @@ echo "=== Expanding conda variables in system.config ==="
 perl -pi -e "s#%PREFIX%#${_PREFIX}#g" "${_SRC_DIR}"/hadrian/cfg/system.config
 perl -pi -e "s#%BUILD_PREFIX%#${_BUILD_PREFIX}#g" "${_SRC_DIR}"/hadrian/cfg/system.config
 perl -pi -e "s#%SRC_DIR%#${_SRC_DIR}#g" "${_SRC_DIR}"/hadrian/cfg/system.config
+
+perl -pi -e "s#\$ENV{PREFIX}#${_PREFIX}#g" "${_SRC_DIR}"/hadrian/cfg/system.config
+perl -pi -e "s#\$ENV{BUILD_PREFIX}#${_BUILD_PREFIX}#g" "${_SRC_DIR}"/hadrian/cfg/system.config
+perl -pi -e "s#\$ENV{SRC_DIR}#${_SRC_DIR}#g" "${_SRC_DIR}"/hadrian/cfg/system.config
+
+grep "%PREFIX%" "${_SRC_DIR}"/hadrian/cfg/system.config
+grep "C:" "${_SRC_DIR}"/hadrian/cfg/system.config
+grep "${PREFIX}" "${_SRC_DIR}"/hadrian/cfg/system.config
 
 echo "=== Converting FFI paths to Windows format in system.config ==="
 perl -pi -e 's#^ffi-include-dir\s*=\s*/c/#ffi-include-dir   = C:/#' "${_SRC_DIR}"/hadrian/cfg/system.config
