@@ -14,9 +14,10 @@ run_and_log() {
   local exit_status_file=$(mktemp)
 
   # On Windows, wrap .exe execution in cmd.exe to avoid MSYS2 bash compatibility issues
+  # DISABLED: Direct bash execution with Unix paths works fine on Windows
   local use_windows_wrapper=0
   local windows_cmd_string=""
-  if [[ "$OSTYPE" == "msys" || "$OSTYPE" == "cygwin" ]] && [[ "${cmd[0]}" == *.exe ]]; then
+  if false && [[ "$OSTYPE" == "msys" || "$OSTYPE" == "cygwin" ]] && [[ "${cmd[0]}" == *.exe ]]; then
     use_windows_wrapper=1
     # Convert Unix path to Windows path for cmd.exe
     local exe_path=$(cygpath -w "${cmd[0]}" 2>/dev/null || echo "${cmd[0]}")
