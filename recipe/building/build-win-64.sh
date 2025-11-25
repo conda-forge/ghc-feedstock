@@ -52,9 +52,9 @@ export RANLIB="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-ranlib.exe"
 CFLAGS=$(echo "${CFLAGS}" | perl -pe "s|%BUILD_PREFIX%|${_BUILD_PREFIX}|g; s|%PREFIX%|${_PREFIX}|g; s|%SRC_DIR%|${_SRC_DIR}|g")
 CXXFLAGS=$(echo "${CXXFLAGS}" | perl -pe "s|%BUILD_PREFIX%|${_BUILD_PREFIX}|g; s|%PREFIX%|${_PREFIX}|g; s|%SRC_DIR%|${_SRC_DIR}|g")
 LDFLAGS=$(echo "${LDFLAGS}" | perl -pe "s|%BUILD_PREFIX%|${_BUILD_PREFIX}|g; s|%PREFIX%|${_PREFIX}|g; s|%SRC_DIR%|${_SRC_DIR}|g")
-CFLAGS=$(echo "${CFLAGS}" | perl -pe "s|${BUILD_PREFIX}|${_BUILD_PREFIX}|g; s|${PREFIX}|${_PREFIX}|g; s|%SRC_DIR%|${_SRC_DIR}|g")
-CXXFLAGS=$(echo "${CXXFLAGS}" | perl -pe "s|${BUILD_PREFIX}|${_BUILD_PREFIX}|g; s|${PREFIX}|${_PREFIX}|g; s|%SRC_DIR%|${_SRC_DIR}|g")
-LDFLAGS=$(echo "${LDFLAGS}" | perl -pe "s|${BUILD_PREFIX}|${_BUILD_PREFIX}|g; s|${PREFIX}|${_PREFIX}|g; s|%SRC_DIR%|${_SRC_DIR}|g")
+CFLAGS=$(echo "${CFLAGS}" | perl -pe "s|\$ENV{BUILD_PREFIX}|${_BUILD_PREFIX}|g; s|\$ENV{PREFIX}|${_PREFIX}|g; s|\$ENV{SRC_DIR}|${_SRC_DIR}|g")
+CXXFLAGS=$(echo "${CXXFLAGS}" | perl -pe "s|\$ENV{BUILD_PREFIX}|${_BUILD_PREFIX}|g; s|\$ENV{PREFIX}|${_PREFIX}|g; s|\$ENV{SRC_DIR}|${_SRC_DIR}|g")
+LDFLAGS=$(echo "${LDFLAGS}" | perl -pe "s|\$ENV{BUILD_PREFIX}|${_BUILD_PREFIX}|g; s|\$ENV{PREFIX}|${_PREFIX}|g; s|\$ENV{SRC_DIR}|${_SRC_DIR}|g")
 
 # Remove problematic flags from conda environment
 CFLAGS="${CFLAGS//-nostdlib/}"
@@ -72,6 +72,9 @@ CXXFLAGS=$(echo "${CXXFLAGS}" | perl -pe 's/-fstack-protector-strong//g')
 # Remove -fms-runtime-lib=dll which forces Microsoft MSVCRT (we want MinGW's msvcrt)
 CFLAGS=$(echo "${CFLAGS}" | perl -pe 's/-fms-runtime-lib=dll//g')
 CXXFLAGS=$(echo "${CXXFLAGS}" | perl -pe 's/-fms-runtime-lib=dll//g')
+# Remove -fdebug-prefix-map flags which contain %PREFIX%/%SRC_DIR% that cause path corruption
+CFLAGS=$(echo "${CFLAGS}" | perl -pe 's/-fdebug-prefix-map=[^ ]*//g')
+CXXFLAGS=$(echo "${CXXFLAGS}" | perl -pe 's/-fdebug-prefix-map=[^ ]*//g')
 
 # EXPERIMENTAL GCC BRANCH: GCC uses libgcc, not compiler-rt
 # compiler-rt is Clang's runtime library, GCC has its own libgcc
