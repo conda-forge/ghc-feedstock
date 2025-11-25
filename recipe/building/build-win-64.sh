@@ -692,7 +692,7 @@ else
   echo "WARNING: Skipping Stage0 settings modifications - file not found at: ${settings_file}"
 fi
 
-run_and_log "stage2_exe" "${_hadrian_build[@]}" stage2:exe:ghc-bin --flavour=release --freeze1 --docs=none --progress-info=none
+run_and_log "stage2_exe" "${_hadrian_build[@]}" stage2:exe:ghc-bin --flavour=quickest --freeze1 --docs=none --progress-info=none
 
 # Patch Stage1 settings file (created by stage2:exe:ghc-bin)
 settings_file="${_SRC_DIR}"/_build/stage1/lib/settings
@@ -768,5 +768,5 @@ else
   echo "WARNING: Stage1 settings file not found at ${settings_file}"
 fi
 
-run_and_log "stage2_lib" "${_hadrian_build[@]}" stage2:lib:ghc --flavour=release --freeze1 --docs=none --progress-info=none
-run_and_log "install" "${_hadrian_build[@]}" install --prefix="${_PREFIX}" --flavour=release --freeze1 --freeze2 --docs=none
+run_and_log "stage2_lib" "${_hadrian_build[@]}" stage2:lib:ghc --flavour=quickest --freeze1 --docs=none --progress-info=none
+run_and_log "install" "${_hadrian_build[@]}" install --prefix="${_PREFIX}" --flavour=quickest --freeze1 --freeze2 --docs=none
