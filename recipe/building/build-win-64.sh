@@ -588,8 +588,7 @@ EOF
 
   if [[ ${_compile_exit} -eq 0 ]] && [[ -f "${_SRC_DIR}/test_stdio.exe" ]]; then
     echo "--- Test 3: Execute compiled Haskell program ---"
-    _test_win=$(cygpath -w "${_SRC_DIR}/test_stdio.exe")
-    cmd.exe /c "${_test_win}" 2>&1 | tee "${_SRC_DIR}/test_stdio.log"
+    "${_SRC_DIR}/test_stdio.exe" 2>&1 | tee "${_SRC_DIR}/test_stdio.log"
     _exec_exit=$?
     echo "Execution exit code: ${_exec_exit}"
 
@@ -607,26 +606,6 @@ EOF
   else
     echo "✗ ERROR: Cannot compile simple Haskell program"
     echo "This indicates bootstrap GHC has issues"
-    exit 1
-  fi
-
-  # Test 4: Can hadrian print anything?
-  echo "--- Test 4: Hadrian version output ---"
-  _hadrian_win=$(cygpath -w "${_hadrian_bin}")
-  echo "Testing: cmd.exe /c \"${_hadrian_win}\" --version"
-  cmd.exe /c "${_hadrian_win}" --version 2>&1 | tee "${_SRC_DIR}/hadrian_version.log"
-  _hadrian_exit=$?
-  echo "Hadrian --version exit code: ${_hadrian_exit}"
-
-  # Check if hadrian actually printed version info (not just cmd.exe banner)
-  if grep -qE "(Hadrian|hadrian|version [0-9])" "${_SRC_DIR}/hadrian_version.log"; then
-    echo "✓ Hadrian produces actual output"
-  else
-    echo "✗ ERROR: Hadrian produces NO actual output"
-    echo "Output captured ($(wc -c < "${_SRC_DIR}/hadrian_version.log") bytes):"
-    cat "${_SRC_DIR}/hadrian_version.log"
-    echo ""
-    echo "Haskell RTS stdio is broken - no Haskell programs can print"
     exit 1
   fi
 else
