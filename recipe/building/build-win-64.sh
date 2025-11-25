@@ -339,6 +339,14 @@ cat "${_SRC_DIR}"/hadrian/cfg/system.config
 # Fix Python path in system.config (configure sets Linux path, we need Windows)
 # Use forward slashes to avoid escape sequence issues (\n, \t, \b, etc.)
 perl -pi -e "s#(^python\\s*=).*#\$1 ${_PYTHON}#" "${_SRC_DIR}"/hadrian/cfg/system.config
+
+echo "=== Expanding conda variables in system.config ==="
+# Replace %PREFIX%, %BUILD_PREFIX%, %SRC_DIR% with their Unix path equivalents
+# This prevents backslash escape sequences when Windows expands these variables
+perl -pi -e "s#%PREFIX%#${_PREFIX}#g" "${_SRC_DIR}"/hadrian/cfg/system.config
+perl -pi -e "s#%BUILD_PREFIX%#${_BUILD_PREFIX}#g" "${_SRC_DIR}"/hadrian/cfg/system.config
+perl -pi -e "s#%SRC_DIR%#${_SRC_DIR}#g" "${_SRC_DIR}"/hadrian/cfg/system.config
+
 echo "=== Converting FFI paths to Windows format in system.config ==="
 perl -pi -e 's#^ffi-include-dir\s*=\s*/c/#ffi-include-dir   = C:/#' "${_SRC_DIR}"/hadrian/cfg/system.config
 perl -pi -e 's#^ffi-lib-dir\s*=\s*/c/#ffi-lib-dir       = C:/#' "${_SRC_DIR}"/hadrian/cfg/system.config
@@ -352,10 +360,11 @@ perl -pi -e 's#^windows-toolchain-autoconf\s*=\s*.*$#windows-toolchain-autoconf 
 # Force use of conda libffi
 perl -pi -e 's#^use-system-ffi\s*=\s*.*$#use-system-ffi = YES#' "${_SRC_DIR}"/hadrian/cfg/system.config
 
-# CRITICAL: Fix system-merge-objects to use GNU ld instead of lld
-# The bootstrap GHC's system-merge-objects points to ld.lld.exe which expects MSVC .lib files
+# CRITICAL: Fix system-merge-objects to use GNU ld
+# The bootstrap's system-merge-objects may point to wrong ld (ld.lld, or nonexistent mingw/bin/ld.exe)
 # We need GNU ld which works with MinGW .a files
-perl -pi -e 's#^system-merge-objects\s*=\s*.*ld\.lld.*$#system-merge-objects = '"${LD}"'#' "${_SRC_DIR}"/hadrian/cfg/system.config
+# Match ANY line with system-merge-objects, not just those containing ld.lld
+perl -pi -e 's#^system-merge-objects\s*=\s*.*$#system-merge-objects = '"${LD}"'#' "${_SRC_DIR}"/hadrian/cfg/system.config
 
 cat "${_SRC_DIR}"/hadrian/cfg/system.config | grep "include-dir\|lib-dir\|windres\|dllwrap\|system-mingw\|system-ffi\|merge-objects"
 
