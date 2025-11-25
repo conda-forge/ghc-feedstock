@@ -30,6 +30,8 @@ export _PYTHON="${_BUILD_PREFIX}/python.exe"
 export GHC="${BUILD_PREFIX}\\ghc-bootstrap\\bin\\ghc.exe"
 export LIBRARY_PATH="${_BUILD_PREFIX}/Library/lib${LIBRARY_PATH:+:}${LIBRARY_PATH:-}"
 
+conda_target=x86_64-w64-mingw32
+
 # EXPERIMENTAL: Override conda's CC/CXX to use GCC instead of Clang
 # Bootstrap GHC was built with GCC, so we should use GCC for consistency
 export CC="x86_64-w64-mingw32-gcc"
