@@ -49,26 +49,29 @@ export RANLIB="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-ranlib.exe"
 # CRITICAL: This MUST happen before patching bootstrap settings file
 # CRITICAL: Replace ALL conda variables with Unix paths to prevent backslash escape issues
 # When %PREFIX% expands to C:\bld\..., the \b becomes backspace character!
-CFLAGS=$(echo "${CFLAGS}" | sed "s|%BUILD_PREFIX%|${_BUILD_PREFIX}|g; s|%PREFIX%|${_PREFIX}|g; s|%SRC_DIR%|${_SRC_DIR}|g")
-CXXFLAGS=$(echo "${CXXFLAGS}" | sed "s|%BUILD_PREFIX%|${_BUILD_PREFIX}|g; s|%PREFIX%|${_PREFIX}|g; s|%SRC_DIR%|${_SRC_DIR}|g")
-LDFLAGS=$(echo "${LDFLAGS}" | sed "s|%BUILD_PREFIX%|${_BUILD_PREFIX}|g; s|%PREFIX%|${_PREFIX}|g; s|%SRC_DIR%|${_SRC_DIR}|g")
+CFLAGS=$(echo "${CFLAGS}" | perl -pe "s|%BUILD_PREFIX%|${_BUILD_PREFIX}|g; s|%PREFIX%|${_PREFIX}|g; s|%SRC_DIR%|${_SRC_DIR}|g")
+CXXFLAGS=$(echo "${CXXFLAGS}" | perl -pe "s|%BUILD_PREFIX%|${_BUILD_PREFIX}|g; s|%PREFIX%|${_PREFIX}|g; s|%SRC_DIR%|${_SRC_DIR}|g")
+LDFLAGS=$(echo "${LDFLAGS}" | perl -pe "s|%BUILD_PREFIX%|${_BUILD_PREFIX}|g; s|%PREFIX%|${_PREFIX}|g; s|%SRC_DIR%|${_SRC_DIR}|g")
+CFLAGS=$(echo "${CFLAGS}" | perl -pe "s|${BUILD_PREFIX}|${_BUILD_PREFIX}|g; s|${PREFIX}|${_PREFIX}|g; s|%SRC_DIR%|${_SRC_DIR}|g")
+CXXFLAGS=$(echo "${CXXFLAGS}" | perl -pe "s|${BUILD_PREFIX}|${_BUILD_PREFIX}|g; s|${PREFIX}|${_PREFIX}|g; s|%SRC_DIR%|${_SRC_DIR}|g")
+LDFLAGS=$(echo "${LDFLAGS}" | perl -pe "s|${BUILD_PREFIX}|${_BUILD_PREFIX}|g; s|${PREFIX}|${_PREFIX}|g; s|%SRC_DIR%|${_SRC_DIR}|g")
 
 # Remove problematic flags from conda environment
 CFLAGS="${CFLAGS//-nostdlib/}"
 CXXFLAGS="${CXXFLAGS//-nostdlib/}"
 LDFLAGS="${LDFLAGS//-nostdlib/}"
 # Use GNU ld (bfd) for MinGW compatibility (lld defaults to MSVC mode on Windows)
-CFLAGS=$(echo "${CFLAGS}" | sed 's/-fuse-ld=lld/-fuse-ld=bfd/g')
-CXXFLAGS=$(echo "${CXXFLAGS}" | sed 's/-fuse-ld=lld/-fuse-ld=bfd/g')
-LDFLAGS=$(echo "${LDFLAGS}" | sed 's/-fuse-ld=lld/-fuse-ld=bfd/g')
+CFLAGS=$(echo "${CFLAGS}" | perl -pe 's/-fuse-ld=lld/-fuse-ld=bfd/g')
+CXXFLAGS=$(echo "${CXXFLAGS}" | perl -pe 's/-fuse-ld=lld/-fuse-ld=bfd/g')
+LDFLAGS=$(echo "${LDFLAGS}" | perl -pe 's/-fuse-ld=lld/-fuse-ld=bfd/g')
 # Remove problematic -Wl,-defaultlib: flags that are MSVC-specific
-LDFLAGS=$(echo "${LDFLAGS}" | sed 's/-Wl,-defaultlib:[^ ]*//g')
+LDFLAGS=$(echo "${LDFLAGS}" | perl -pe 's/-Wl,-defaultlib:[^ ]*//g')
 # Remove -fstack-protector-strong which generates __security_cookie calls incompatible with MinGW+Clang
-CFLAGS=$(echo "${CFLAGS}" | sed 's/-fstack-protector-strong//g')
-CXXFLAGS=$(echo "${CXXFLAGS}" | sed 's/-fstack-protector-strong//g')
+CFLAGS=$(echo "${CFLAGS}" | perl -pe 's/-fstack-protector-strong//g')
+CXXFLAGS=$(echo "${CXXFLAGS}" | perl -pe 's/-fstack-protector-strong//g')
 # Remove -fms-runtime-lib=dll which forces Microsoft MSVCRT (we want MinGW's msvcrt)
-CFLAGS=$(echo "${CFLAGS}" | sed 's/-fms-runtime-lib=dll//g')
-CXXFLAGS=$(echo "${CXXFLAGS}" | sed 's/-fms-runtime-lib=dll//g')
+CFLAGS=$(echo "${CFLAGS}" | perl -pe 's/-fms-runtime-lib=dll//g')
+CXXFLAGS=$(echo "${CXXFLAGS}" | perl -pe 's/-fms-runtime-lib=dll//g')
 
 # EXPERIMENTAL GCC BRANCH: GCC uses libgcc, not compiler-rt
 # compiler-rt is Clang's runtime library, GCC has its own libgcc
