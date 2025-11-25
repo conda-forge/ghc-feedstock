@@ -74,11 +74,12 @@ CXXFLAGS=$(echo "${CXXFLAGS}" | perl -pe 's/-fstack-protector-strong//g')
 # Remove -fms-runtime-lib=dll which forces Microsoft MSVCRT (we want MinGW's msvcrt)
 CFLAGS=$(echo "${CFLAGS}" | perl -pe 's/-fms-runtime-lib=dll//g')
 CXXFLAGS=$(echo "${CXXFLAGS}" | perl -pe 's/-fms-runtime-lib=dll//g')
-# Remove flags containing unexpanded conda variables that cause path corruption
-# This includes -fdebug-prefix-map=, -isystem, -I, and any other flags with %VAR%
-CFLAGS=$(echo "${CFLAGS}" | perl -pe 's/-[^ ]*%[A-Z_]+%[^ ]*//g')
-CXXFLAGS=$(echo "${CXXFLAGS}" | perl -pe 's/-[^ ]*%[A-Z_]+%[^ ]*//g')
-LDFLAGS=$(echo "${LDFLAGS}" | perl -pe 's/-[^ ]*%[A-Z_]+%[^ ]*//g')
+# Remove problematic flags that conda sets with Windows paths containing backslashes
+# -fdebug-prefix-map: Contains SRC_DIR/PREFIX with backslashes
+# -isystem: Contains PREFIX path with backslashes that become corrupted (C:\bld → C:␈ld)
+CFLAGS=$(echo "${CFLAGS}" | perl -pe 's/-fdebug-prefix-map=[^ ]*//g; s/-isystem [^ ]*//g')
+CXXFLAGS=$(echo "${CXXFLAGS}" | perl -pe 's/-fdebug-prefix-map=[^ ]*//g; s/-isystem [^ ]*//g')
+# We add our own -I flags with correct Unix paths below
 
 # EXPERIMENTAL GCC BRANCH: GCC uses libgcc, not compiler-rt
 # compiler-rt is Clang's runtime library, GCC has its own libgcc
