@@ -362,9 +362,9 @@ perl -pi -e "s#\$ENV{PREFIX}#${_PREFIX}#g" "${_SRC_DIR}"/hadrian/cfg/system.conf
 perl -pi -e "s#\$ENV{BUILD_PREFIX}#${_BUILD_PREFIX}#g" "${_SRC_DIR}"/hadrian/cfg/system.config
 perl -pi -e "s#\$ENV{SRC_DIR}#${_SRC_DIR}#g" "${_SRC_DIR}"/hadrian/cfg/system.config
 
-grep "%PREFIX%" "${_SRC_DIR}"/hadrian/cfg/system.config
-grep "C:" "${_SRC_DIR}"/hadrian/cfg/system.config
-grep "${PREFIX}" "${_SRC_DIR}"/hadrian/cfg/system.config
+grep "%PREFIX%" "${_SRC_DIR}"/hadrian/cfg/system.config || true
+grep "C:" "${_SRC_DIR}"/hadrian/cfg/system.config || true
+grep "${PREFIX}" "${_SRC_DIR}"/hadrian/cfg/system.config || true
 
 echo "=== Converting FFI paths to Windows format in system.config ==="
 perl -pi -e 's#^ffi-include-dir\s*=\s*/c/#ffi-include-dir   = C:/#' "${_SRC_DIR}"/hadrian/cfg/system.config
