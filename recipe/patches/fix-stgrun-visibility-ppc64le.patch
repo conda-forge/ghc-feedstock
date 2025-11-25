@@ -5,7 +5,7 @@
  	.align 2
          .globl StgRun
 -        .hidden StgRun
-+/*      .hidden StgRun  -- REMOVED: breaks shared RTS library linking on ppc64le */
++#       .hidden StgRun  # REMOVED: breaks shared RTS library linking on ppc64le
          .type StgRun,@function
  StgRun:
          .localentry StgRun,.-StgRun
