@@ -403,7 +403,7 @@ mkdir -p ${_SRC_DIR}/_build
 
     echo "=== Building Hadrian ==="
     # Using standard MinGW linking - no custom CRT complexity
-    timeout 600 "${CABAL}" v2-build -j1 --with-ld="${LD}" hadrian 2>&1 | tee "${_SRC_DIR}"/cabal-build.log
+    "${CABAL}" v2-build -j1 --with-ld="${LD}" hadrian 2>&1 | tee "${_SRC_DIR}"/cabal-build.log
     _cabal_exit_code=${PIPESTATUS[0]}
 
     if [[ $_cabal_exit_code -ne 0 ]]; then
