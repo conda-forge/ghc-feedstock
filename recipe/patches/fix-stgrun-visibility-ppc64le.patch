@@ -1,7 +1,6 @@
 --- a/rts/StgCRunAsm.S
 +++ b/rts/StgCRunAsm.S
-@@ -44,7 +44,7 @@
- 	.section	".toc","aw"
+@@ -41,7 +41,7 @@
  	.section	".text"
  	.align 2
          .globl StgRun
@@ -12,25 +11,21 @@
          .localentry StgRun,.-StgRun
 --- a/rts/StgCRun.c
 +++ b/rts/StgCRun.c
-@@ -603,7 +603,7 @@ static void USED_IF_THREADS
- StgRunIsImplementedInAssembler(void)
+@@ -600,7 +600,7 @@
  {
          __asm__ volatile (
                  "\t.globl StgRun\n"
 -                "\t.hidden StgRun\n"
-+                /* "\t.hidden StgRun\n" -- REMOVED: breaks shared RTS linking */
++                /* "\t.hidden StgRun\n" */
                  "\t.type StgRun,@function\n"
                  "StgRun:\n"
                  "\tmflr 0\n"
-@@ -708,7 +708,7 @@ static void USED_IF_THREADS
- StgRunIsImplementedInAssembler(void)
- {
-         __asm__ volatile (
+@@ -710,7 +710,7 @@
                  ".section \".opd\",\"aw\"\n"
                  ".align 3\n"
                  ".globl StgRun\n"
 -                ".hidden StgRun\n"
-+                /* ".hidden StgRun\n" -- REMOVED: breaks shared RTS linking */
++                /* ".hidden StgRun\n" */
                  "StgRun:\n"
                  "\t.quad\t.StgRun,.TOC.@tocbase,0\n"
                  "\t.size StgRun,.-StgRun\n"
