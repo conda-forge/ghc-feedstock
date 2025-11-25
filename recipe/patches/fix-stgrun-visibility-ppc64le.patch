@@ -1,36 +1,31 @@
 --- a/rts/StgCRunAsm.S
 +++ b/rts/StgCRunAsm.S
-@@ -40,7 +40,9 @@
+@@ -41,7 +41,7 @@
  	.section	".toc","aw"
  	.section	".text"
  	.align 2
          .globl StgRun
 -        .hidden StgRun
-+/* Removed .hidden directive - breaks shared RTS library linking on ppc64le */
-+/* This directive only exists on ppc64le; x86_64, aarch64, arm don't have it */
-+/* Upstream GHC bug: https://gitlab.haskell.org/ghc/ghc/-/issues/... */
++/*      .hidden StgRun  -- REMOVED: breaks shared RTS library linking on ppc64le */
          .type StgRun,@function
  StgRun:
          .localentry StgRun,.-StgRun
 --- a/rts/StgCRun.c
 +++ b/rts/StgCRun.c
-@@ -600,7 +600,8 @@
- {
+@@ -601,7 +601,7 @@
          __asm__ volatile (
                  "\t.globl StgRun\n"
 -                "\t.hidden StgRun\n"
-+                // Removed .hidden directive - breaks shared RTS library linking
-+                // "\t.hidden StgRun\n"
++                /* "\t.hidden StgRun\n" -- REMOVED: breaks shared RTS linking */
                  "\t.type StgRun,@function\n"
                  "StgRun:\n"
                  "\tmflr 0\n"
-@@ -705,7 +706,8 @@
+@@ -706,7 +706,7 @@
                  ".section \".opd\",\"aw\"\n"
                  ".align 3\n"
                  ".globl StgRun\n"
 -                ".hidden StgRun\n"
-+                // Removed .hidden directive - breaks shared RTS library linking
-+                // ".hidden StgRun\n"
++                /* ".hidden StgRun\n" -- REMOVED: breaks shared RTS linking */
                  "StgRun:\n"
                  "\t.quad\t.StgRun,.TOC.@tocbase,0\n"
                  "\t.size StgRun,.-StgRun\n"
