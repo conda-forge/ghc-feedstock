@@ -82,6 +82,8 @@ run_post_build_cleanup() {
   # Collect license files from libraries
   echo "  Collecting license files..."
   local license_count=0
+
+  # Copy from source tree to SRC_DIR/license_files (for conda-build)
   for lic_file in "${SRC_DIR}"/libraries/*/LICENSE; do
     if [[ -f "${lic_file}" ]]; then
       folder=$(dirname "${lic_file}")
@@ -90,10 +92,30 @@ run_post_build_cleanup() {
       ((license_count++)) || true
     fi
   done
+
+  # Also copy installed licenses from lib/ to share/doc/ (for recipe.yaml glob patterns)
+  # GHC installs licenses under: lib/ghc-VERSION/lib/{arch}-{os}-ghc-VERSION/PACKAGE/LICENSE
+  local lib_license_count=0
+  for lic_file in "${PREFIX}"/lib/ghc-*/lib/*/*/LICENSE; do
+    if [[ -f "${lic_file}" ]]; then
+      # Extract package name from path: lib/ghc-9.10.3/lib/x86_64-linux-ghc-9.10.3/base-4.19.0.0/LICENSE
+      local pkg_name=$(basename "$(dirname "${lic_file}")")
+      mkdir -p "${PREFIX}/share/doc/${pkg_name}"
+      cp "${lic_file}" "${PREFIX}/share/doc/${pkg_name}/LICENSE"
+      ((lib_license_count++)) || true
+    fi
+  done
+
   if [[ $license_count -gt 0 ]]; then
-    echo "  Collected $license_count license files"
+    echo "  Collected $license_count license files from source"
   else
-    echo "  WARNING: No library license files found"
+    echo "  WARNING: No library license files found in source"
+  fi
+
+  if [[ $lib_license_count -gt 0 ]]; then
+    echo "  Copied $lib_license_count license files from lib/ to share/doc/"
+  else
+    echo "  WARNING: No installed library licenses found in lib/"
   fi
 
   echo "  Cleanup complete"
