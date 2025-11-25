@@ -12,3 +12,25 @@
          .type StgRun,@function
  StgRun:
          .localentry StgRun,.-StgRun
+--- a/rts/StgCRun.c
++++ b/rts/StgCRun.c
+@@ -600,7 +600,8 @@
+ {
+         __asm__ volatile (
+                 "\t.globl StgRun\n"
+-                "\t.hidden StgRun\n"
++                // Removed .hidden directive - breaks shared RTS library linking
++                // "\t.hidden StgRun\n"
+                 "\t.type StgRun,@function\n"
+                 "StgRun:\n"
+                 "\tmflr 0\n"
+@@ -705,7 +706,8 @@
+                 ".section \".opd\",\"aw\"\n"
+                 ".align 3\n"
+                 ".globl StgRun\n"
+-                ".hidden StgRun\n"
++                // Removed .hidden directive - breaks shared RTS library linking
++                // ".hidden StgRun\n"
+                 "StgRun:\n"
+                 "\t.quad\t.StgRun,.TOC.@tocbase,0\n"
+                 "\t.size StgRun,.-StgRun\n"
