@@ -1,6 +1,6 @@
 --- a/rts/StgCRunAsm.S
 +++ b/rts/StgCRunAsm.S
-@@ -41,7 +41,7 @@
+@@ -44,7 +44,7 @@
  	.section	".toc","aw"
  	.section	".text"
  	.align 2
@@ -12,7 +12,9 @@
          .localentry StgRun,.-StgRun
 --- a/rts/StgCRun.c
 +++ b/rts/StgCRun.c
-@@ -601,7 +601,7 @@
+@@ -603,7 +603,7 @@ static void USED_IF_THREADS
+ StgRunIsImplementedInAssembler(void)
+ {
          __asm__ volatile (
                  "\t.globl StgRun\n"
 -                "\t.hidden StgRun\n"
@@ -20,7 +22,10 @@
                  "\t.type StgRun,@function\n"
                  "StgRun:\n"
                  "\tmflr 0\n"
-@@ -706,7 +706,7 @@
+@@ -708,7 +708,7 @@ static void USED_IF_THREADS
+ StgRunIsImplementedInAssembler(void)
+ {
+         __asm__ volatile (
                  ".section \".opd\",\"aw\"\n"
                  ".align 3\n"
                  ".globl StgRun\n"
