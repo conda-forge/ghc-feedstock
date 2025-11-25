@@ -83,6 +83,12 @@ export CFLAGS="-I${_BUILD_PREFIX}/Library/include ${CFLAGS:-}"
 export CXXFLAGS="-I${_BUILD_PREFIX}/Library/include ${CXXFLAGS:-}"
 export LDFLAGS="-L${_BUILD_PREFIX}/Library/lib -L${_BUILD_PREFIX}/Library/lib/gcc/x86_64-w64-mingw32/15.2.0 ${LDFLAGS:-}"
 
+echo "=== Debugging CFLAGS for GCC ==="
+echo "CC=${CC}"
+echo "CFLAGS=${CFLAGS}"
+echo "CXXFLAGS=${CXXFLAGS}"
+echo "LDFLAGS=${LDFLAGS}"
+
 # Bug in ghc-bootstrap
 #WINDRES_PATH="${BUILD_PREFIX//\\/\\\\}\\\\Library\\\\bin\\\\${WINDRES}"
 #perl -pi -e "s#WINDRES_CMD=.*windres\.exe#WINDRES_CMD=${WINDRES_PATH}#" "${_BUILD_PREFIX}"/ghc-bootstrap/bin/windres.bat
@@ -198,7 +204,13 @@ if [[ -f "${settings_file}" ]]; then
 else
   echo "WARNING: Stage0 settings file not found at ${settings_file}"
 fi
+
+echo "=== Full bootstrap settings file ==="
 cat "${settings_file}"
+
+echo ""
+echo "=== Key settings for debugging GCC issue ==="
+grep -E "C compiler (command|flags)|Haskell CPP" "${settings_file}" || echo "No matches found"
 
 cd "${_SRC_DIR}"
 
@@ -215,19 +227,12 @@ mkdir -p "${_SRC_DIR}/.cabal" && "${CABAL}" user-config init
 # echo "=== Configuring Cabal for single-threaded builds ==="
 # echo "jobs: 1" >> "${_SRC_DIR}/.cabal/config"
 
-# CRITICAL: Add custom chkstk_ms library to Cabal's global GHC options
+# CRITICAL: Pass chkstk_ms library through LDFLAGS for linking
 # This ensures ALL packages link against our custom library that provides ___chkstk_ms
-# The library must be passed as a linker option, not in LDFLAGS (which would add it to compile commands)
-echo "=== Configuring Cabal to use custom chkstk_ms library ==="
-cat >> "${_SRC_DIR}/.cabal/config" << EOF
-
--- Add custom chkstk_ms library to all builds
--- This library provides the ___chkstk_ms symbol required by MinGW runtime
-ghc-options: -optl${CHKSTK_LIB}
-EOF
-
-echo "=== Updated .cabal/config with chkstk_ms library ==="
-tail -5 "${_SRC_DIR}/.cabal/config"
+# Add to LDFLAGS so it's used during linking but not during compilation-only operations
+echo "=== Adding chkstk_ms library to LDFLAGS ==="
+export LDFLAGS="${LDFLAGS} -lchkstk_ms"
+echo "LDFLAGS=${LDFLAGS}"
 
 run_and_log "cabal-update" "${CABAL}" v2-update
 
