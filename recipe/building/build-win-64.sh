@@ -47,10 +47,11 @@ export RANLIB="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-ranlib.exe"
 
 # Configure CFLAGS/CXXFLAGS/LDFLAGS early so bootstrap settings get correct values
 # CRITICAL: This MUST happen before patching bootstrap settings file
-# CRITICAL: Replace %BUILD_PREFIX% with actual Unix paths in conda's environment
-CFLAGS=$(echo "${CFLAGS}" | sed "s|%BUILD_PREFIX%|${_BUILD_PREFIX}|g")
-CXXFLAGS=$(echo "${CXXFLAGS}" | sed "s|%BUILD_PREFIX%|${_BUILD_PREFIX}|g")
-LDFLAGS=$(echo "${LDFLAGS}" | sed "s|%BUILD_PREFIX%|${_BUILD_PREFIX}|g")
+# CRITICAL: Replace ALL conda variables with Unix paths to prevent backslash escape issues
+# When %PREFIX% expands to C:\bld\..., the \b becomes backspace character!
+CFLAGS=$(echo "${CFLAGS}" | sed "s|%BUILD_PREFIX%|${_BUILD_PREFIX}|g; s|%PREFIX%|${_PREFIX}|g; s|%SRC_DIR%|${_SRC_DIR}|g")
+CXXFLAGS=$(echo "${CXXFLAGS}" | sed "s|%BUILD_PREFIX%|${_BUILD_PREFIX}|g; s|%PREFIX%|${_PREFIX}|g; s|%SRC_DIR%|${_SRC_DIR}|g")
+LDFLAGS=$(echo "${LDFLAGS}" | sed "s|%BUILD_PREFIX%|${_BUILD_PREFIX}|g; s|%PREFIX%|${_PREFIX}|g; s|%SRC_DIR%|${_SRC_DIR}|g")
 
 # Remove problematic flags from conda environment
 CFLAGS="${CFLAGS//-nostdlib/}"
