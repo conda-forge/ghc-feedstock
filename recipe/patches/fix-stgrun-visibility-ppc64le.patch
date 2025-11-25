@@ -20,7 +20,7 @@
                  "\t.type StgRun,@function\n"
                  "StgRun:\n"
                  "\tmflr 0\n"
-@@ -710,7 +710,7 @@
+@@ -705,7 +705,7 @@
                  ".section \".opd\",\"aw\"\n"
                  ".align 3\n"
                  ".globl StgRun\n"
