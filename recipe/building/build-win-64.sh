@@ -74,9 +74,11 @@ CXXFLAGS=$(echo "${CXXFLAGS}" | perl -pe 's/-fstack-protector-strong//g')
 # Remove -fms-runtime-lib=dll which forces Microsoft MSVCRT (we want MinGW's msvcrt)
 CFLAGS=$(echo "${CFLAGS}" | perl -pe 's/-fms-runtime-lib=dll//g')
 CXXFLAGS=$(echo "${CXXFLAGS}" | perl -pe 's/-fms-runtime-lib=dll//g')
-# Remove -fdebug-prefix-map flags which contain %PREFIX%/%SRC_DIR% that cause path corruption
-CFLAGS=$(echo "${CFLAGS}" | perl -pe 's/-fdebug-prefix-map=[^ ]*//g')
-CXXFLAGS=$(echo "${CXXFLAGS}" | perl -pe 's/-fdebug-prefix-map=[^ ]*//g')
+# Remove flags containing unexpanded conda variables that cause path corruption
+# This includes -fdebug-prefix-map=, -isystem, -I, and any other flags with %VAR%
+CFLAGS=$(echo "${CFLAGS}" | perl -pe 's/-[^ ]*%[A-Z_]+%[^ ]*//g')
+CXXFLAGS=$(echo "${CXXFLAGS}" | perl -pe 's/-[^ ]*%[A-Z_]+%[^ ]*//g')
+LDFLAGS=$(echo "${LDFLAGS}" | perl -pe 's/-[^ ]*%[A-Z_]+%[^ ]*//g')
 
 # EXPERIMENTAL GCC BRANCH: GCC uses libgcc, not compiler-rt
 # compiler-rt is Clang's runtime library, GCC has its own libgcc
