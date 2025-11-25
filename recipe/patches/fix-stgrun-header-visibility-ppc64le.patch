@@ -1,0 +1,18 @@
+--- a/rts/StgRun.h
++++ b/rts/StgRun.h
+@@ -7,7 +7,14 @@
+  *
+  * ---------------------------------------------------------------------------*/
+
+-RTS_PRIVATE StgRegTable * StgRun (StgFunPtr f, StgRegTable *basereg);
++// PowerPC64LE: Don't use RTS_PRIVATE (visibility("hidden")) for StgRun
++// Hidden symbols cannot be exported from shared libraries
++// This breaks shared RTS library linking on ppc64le
++#if defined(powerpc64le_HOST_ARCH)
++StgRegTable * StgRun (StgFunPtr f, StgRegTable *basereg);
++#else
++RTS_PRIVATE StgRegTable * StgRun (StgFunPtr f, StgRegTable *basereg);
++#endif
+
+ #if defined(USE_MINIINTERPRETER)
+ RTS_PRIVATE StgWord stg_stop_thread_info;

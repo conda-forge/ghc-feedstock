@@ -16,6 +16,7 @@ source:
         then:
           - patches/fix-stgcrun-ppc64le-abi-v2.patch
           - patches/fix-stgrun-visibility-ppc64le.patch
+          - patches/fix-stgrun-header-visibility-ppc64le.patch
       - if: arm64
         then:
           - patches/fix-regparm-arm64.patch
