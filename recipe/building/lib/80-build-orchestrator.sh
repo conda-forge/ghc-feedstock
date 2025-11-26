@@ -340,6 +340,12 @@ install_bindist() {
   export LDFLAGS="-L${BUILD_PREFIX}/lib"
   export CPPFLAGS="-I${BUILD_PREFIX}/include"
 
+  # CRITICAL: Override MergeObjsCmd from bindist settings file
+  # The bindist settings file contains TARGET architecture tools (aarch64-conda-linux-gnu-ld)
+  # But we need BUILD architecture tools (x86_64-conda-linux-gnu-ld) for installation
+  export MergeObjsCmd="${BUILD_PREFIX}/bin/${conda_host}-ld"
+  export SettingsMergeObjectsCommand="${BUILD_PREFIX}/bin/${conda_host}-ld"
+
   echo "  Cleared autoconf cache variables and compiler flags for bindist configure"
   echo "  CC: ${CC}"
   echo "  CXX: ${CXX}"
