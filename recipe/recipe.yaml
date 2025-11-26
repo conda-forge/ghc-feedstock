@@ -25,6 +25,16 @@ source:
       - if: osx
         then:
           - patches/remove-dangerous-macos-linker-flags.patch
+      - if: not unix
+        then:
+          - patches/skip-mingw-copy-conda.patch
+          - patches/force-system-gmp-windows.patch
+          - patches/add-ffi-include-dir-substitution.patch
+          - patches/fix-windows-thriomanager-include.patch
+          - patches/add-threadlabels-include-consolehandler.patch
+          - patches/fix-windows-utimbuf-type.patch
+          - patches/disable-split-sections-windows.patch
+          - patches/skip-mingw-detection-error.patch
 
 build:
   number: 0
