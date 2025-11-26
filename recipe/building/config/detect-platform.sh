@@ -53,11 +53,6 @@ detect_and_load_platform_config() {
     if [[ "${target_platform}" =~ darwin|osx ]]; then
       platform_config="osx-arm64"
       echo "  Detected: macOS cross-compile (x86_64 → arm64)"
-      echo "  WARNING: osx-arm64 unified config not yet implemented"
-      echo "  Falling back to original build-osx-arm64.sh script"
-      # Source original script and return
-      source "${RECIPE_DIR}/building/build-osx-arm64.sh"
-      exit 0
     else
       platform_config="linux-cross"
       echo "  Detected: Linux cross-compile (${build_platform} → ${target_platform})"

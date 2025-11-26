@@ -16,8 +16,7 @@
 # The shebang uses /bin/bash, but conda-build will invoke this with the
 # build environment's bash through its own execution wrapper.
 if [[ ${BASH_VERSINFO[0]} -lt 5 || (${BASH_VERSINFO[0]} -eq 5 && ${BASH_VERSINFO[1]} -lt 2) ]]; then
-  echo "ERROR: This script requires bash 5.2 or later (found ${BASH_VERSION})"
-  echo "Attempting to re-exec with conda bash..."
+  echo "re-exec with conda bash..."
   if [[ -x "${BUILD_PREFIX}/bin/bash" ]]; then
     exec "${BUILD_PREFIX}/bin/bash" "$0" "$@"
   else
@@ -87,9 +86,9 @@ if [[ "${target_platform}" == *"ppc64le"* ]]; then
     exit 1
   fi
 
-  # Check StgRun.h - should have ppc64le conditional without RTS_PRIVATE
-  if grep -q "powerpc64le_HOST_ARCH" "${SRC_DIR}/rts/StgRun.h"; then
-    echo "  ✓ StgRun.h: powerpc64le_HOST_ARCH conditional present"
+  # Check StgRun.h - should have PowerPC conditional without RTS_PRIVATE
+  if grep -q "powerpc64_HOST_ARCH" "${SRC_DIR}/rts/StgRun.h"; then
+    echo "  ✓ StgRun.h: powerpc64_HOST_ARCH conditional present"
   else
     echo "  ✗ ERROR: StgRun.h patch not applied!"
     cat "${SRC_DIR}/rts/StgRun.h"

@@ -224,6 +224,15 @@ platform_build_stage1() {
     export RANLIB="${BUILD_PREFIX}/bin/${conda_host}-ranlib"
     export STRIP="${BUILD_PREFIX}/bin/${conda_host}-strip"
 
+    # Create symlinks so unprefixed tools resolve to BUILD architecture
+    ln -sf "${BUILD_PREFIX}/bin/${conda_host}-ar" "${BUILD_PREFIX}/bin/ar"
+    ln -sf "${BUILD_PREFIX}/bin/${conda_host}-as" "${BUILD_PREFIX}/bin/as"
+    ln -sf "${BUILD_PREFIX}/bin/${conda_host}-ld" "${BUILD_PREFIX}/bin/ld"
+
+    # Disable copy optimization for cross-compilation (force building cross binary)
+    perl -i -pe 's/\(True, s\) \| s > stage0InTree ->/\(False, s\) | s > stage0InTree \&\& False ->/' \
+      "${SRC_DIR}/hadrian/src/Rules/Program.hs"
+
     # Build stage1 exe + tools
     echo "  Building stage 1 compiler binary"
     run_and_log "stage1_ghc-bin" "${hadrian_cmd[@]}" stage1:exe:ghc-bin --flavour="${flavour}" || true
@@ -254,6 +263,20 @@ platform_build_stage1_libs() {
   local flavour="$2"
 
   echo "=== Building Stage 1 Libraries (arm64) ==="
+
+  # CRITICAL: Fix architecture defines in _build directory
+  # Stage1 exe build generates new .buildinfo and setup-config files
+  # These must be fixed before building libraries for correct target architecture
+  echo "  Fixing architecture defines in _build directory..."
+  local count=0
+  find "${SRC_DIR}/_build" -name "*.buildinfo" -o -name "setup-config" | while read -r file; do
+    if [ -f "$file" ] && grep -q "x86_64_HOST_ARCH" "$file" 2>/dev/null; then
+      perl -pi -e 's/-Dx86_64_HOST_ARCH=1/-Daarch64_HOST_ARCH=1/g' "$file"
+      echo "    Fixed: $file"
+      count=$((count + 1))
+    fi
+  done
+  echo "  Fixed ${count} files in _build"
 
   # Build libraries in dependency order (race condition prevention)
   run_and_log "stage1_ghc-prim" "${hadrian_cmd[@]}" stage1:lib:ghc-prim --flavour="${flavour}"
@@ -308,6 +331,34 @@ platform_install() {
     --freeze2
 }
 
+# ==============================================================================
+# POST-INSTALL
+# ==============================================================================
+
+platform_post_install() {
+  # Create symlinks from triplet-prefixed binaries to unprefixed names
+  echo "=== Creating binary symlinks ==="
+
+  pushd "${PREFIX}/bin" >/dev/null
+  for bin in ghc ghci ghc-pkg hp2ps hsc2hs; do
+    if [[ -f "${conda_target}-${bin}" ]] && [[ ! -f "${bin}" ]]; then
+      ln -sf "${conda_target}-${bin}" "${bin}"
+      echo "  ${bin} → ${conda_target}-${bin}"
+    fi
+  done
+  popd >/dev/null
+
+  # Rename and symlink library directory if needed
+  if [[ -d "${PREFIX}/lib/${conda_target}-ghc-${PKG_VERSION}" ]]; then
+    echo "=== Renaming library directory ==="
+    mv "${PREFIX}/lib/${conda_target}-ghc-${PKG_VERSION}" "${PREFIX}/lib/ghc-${PKG_VERSION}"
+    ln -sf "${PREFIX}/lib/ghc-${PKG_VERSION}" "${PREFIX}/lib/${conda_target}-ghc-${PKG_VERSION}"
+    echo "  ${conda_target}-ghc-${PKG_VERSION} → ghc-${PKG_VERSION}"
+  fi
+
+  echo "=== Post-install complete ==="
+}
+
 # Export all functions
 export -f platform_detect_architecture
 export -f platform_setup_bootstrap
@@ -322,3 +373,4 @@ export -f platform_build_stage1_libs
 export -f platform_build_stage2
 export -f platform_build_cabal_syntax
 export -f platform_install
+export -f platform_post_install

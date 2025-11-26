@@ -4,7 +4,7 @@
 
  #pragma once
 
-+#if defined(powerpc64le_HOST_ARCH)
++#if defined(powerpc64_HOST_ARCH)
 +StgRegTable * StgRun (StgFunPtr f, StgRegTable *basereg);
 +#else
  RTS_PRIVATE StgRegTable * StgRun (StgFunPtr f, StgRegTable *basereg);

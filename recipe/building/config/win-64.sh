@@ -122,7 +122,9 @@ platform_setup_cabal() {
   rm -rf "${_SRC_DIR}/.cabal" "${HOME}/.cabal" 2>/dev/null || true
 
   mkdir -p "${_SRC_DIR}/.cabal"
-  "${CABAL}" user-config init
+
+  # Use --force to overwrite existing config (may exist from previous run)
+  "${CABAL}" user-config init --force
 
   # Update Cabal package database
   run_and_log "cabal-update" "${CABAL}" v2-update
