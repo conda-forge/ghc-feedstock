@@ -96,6 +96,31 @@ platform_setup_environment() {
     echo "  PowerPC64LE detected: Configuring ABI v2"
     export CFLAGS="${CFLAGS:-} -mabi=elfv2 -Dpowerpc64le_HOST_ARCH -Dlinux_HOST_OS"
     export CXXFLAGS="${CXXFLAGS:-} -mabi=elfv2 -Dpowerpc64le_HOST_ARCH -Dlinux_HOST_OS"
+
+    # CRITICAL: Patch bootstrap GHC's StgRun.h to remove RTS_PRIVATE
+    # The bootstrap GHC (stage0) compiler uses its own headers when compiling stage1 RTS
+    # Without this, StgRun is marked hidden and cannot be exported from shared libraries
+    echo "  Patching bootstrap GHC StgRun.h for PowerPC64LE shared library support..."
+
+    # Find bootstrap GHC's StgRun.h (look in CROSS_ENV_PATH and BUILD_PREFIX)
+    local bootstrap_stgrun
+    for search_path in "${CROSS_ENV_PATH}" "${BUILD_PREFIX}"; do
+      bootstrap_stgrun=$(find "${search_path}" -name "StgRun.h" -path "*/ghc-bootstrap/*" 2>/dev/null | head -1)
+      if [[ -n "${bootstrap_stgrun}" && -f "${bootstrap_stgrun}" ]]; then
+        break
+      fi
+    done
+
+    if [[ -n "${bootstrap_stgrun}" && -f "${bootstrap_stgrun}" ]]; then
+      echo "    Found: ${bootstrap_stgrun}"
+      # Remove RTS_PRIVATE from StgRun declaration
+      # This allows StgRun to be exported from shared libraries
+      perl -i -pe 's/^(RTS_PRIVATE\s+StgRegTable\s+\*\s+StgRun)/StgRegTable * StgRun/' "${bootstrap_stgrun}"
+      echo "    ✓ Bootstrap StgRun.h patched successfully"
+    else
+      echo "    WARNING: Bootstrap StgRun.h not found - shared library builds may fail"
+      echo "    Searched in: ${CROSS_ENV_PATH} and ${BUILD_PREFIX}"
+    fi
   fi
 }
 
