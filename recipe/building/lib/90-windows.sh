@@ -193,7 +193,9 @@ patch_bootstrap_settings_windows() {
   #
   # TIMING: Must run AFTER create_chkstk_stub() and BEFORE configure
 
-  local settings_file="${_BUILD_PREFIX}/ghc-bootstrap/lib/ghc-9.6.7/lib/settings"
+  # Windows ghc-bootstrap package installs to lib/settings (no version subdir)
+  # Unlike Linux/macOS which use lib/ghc-VERSION/lib/settings
+  local settings_file="${_BUILD_PREFIX}/ghc-bootstrap/lib/settings"
 
   if [[ ! -f "${settings_file}" ]]; then
     echo "WARNING: Bootstrap settings file not found at ${settings_file}"

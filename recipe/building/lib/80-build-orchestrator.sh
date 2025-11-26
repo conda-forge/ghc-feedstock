@@ -40,17 +40,20 @@ set -eu
 #   $2 - cabal_path: Path to cabal executable (optional, defaults to BUILD_PREFIX/bin/cabal)
 #   $3 - with_gcc: Explicit GCC path for --with-gcc (optional for cross-compile)
 #   $4 - with_ar: Explicit AR path for --with-ar (optional for cross-compile)
+#   $5 - with_ghc: Explicit GHC path for --with-ghc (optional, for bootstrap GHC)
 #
 build_hadrian_binary() {
   local -n hadrian_cmd="$1"
   local cabal_path="${2:-${BUILD_PREFIX}/bin/cabal}"
   local with_gcc="${3:-}"
   local with_ar="${4:-}"
+  local with_ghc="${5:-}"
 
   echo "=== Building Hadrian ==="
 
   # Build cabal options
   local cabal_opts="-j hadrian"
+  [[ -n "$with_ghc" ]] && cabal_opts="--with-ghc=${with_ghc} ${cabal_opts}"
   [[ -n "$with_gcc" ]] && cabal_opts="--with-gcc=${with_gcc} ${cabal_opts}"
   [[ -n "$with_ar" ]] && cabal_opts="--with-ar=${with_ar} ${cabal_opts}"
 

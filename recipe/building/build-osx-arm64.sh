@@ -49,6 +49,9 @@ ghc_path="${osx_64_env}"/ghc-bootstrap/bin
 echo "  Bootstrap environment: ${osx_64_env}"
 export GHC="${ghc_path}"/ghc
 
+# Add GHC to PATH so cabal can find it
+export PATH="${ghc_path}:${PATH}"
+
 # Recache and verify
 "${ghc_path}"/ghc-pkg recache
 "${GHC}" --version || { echo "ERROR: Bootstrap GHC failed"; exit 1; }
@@ -125,8 +128,7 @@ fix_cross_architecture_defines "x86_64" "aarch64"
 # HADRIAN BUILD
 # ============================================================
 
-declare -a HADRIAN_BUILD
-build_hadrian_binary HADRIAN_BUILD "${CABAL}" "${CC_FOR_BUILD}" "${AR_STAGE0}"
+HADRIAN_BUILD=$(build_hadrian_cross "${GHC}" "${AR_STAGE0}" "${CC_STAGE0}" "${LD_STAGE0}")
 
 # ============================================================
 # BUILD CONFIGURATION
