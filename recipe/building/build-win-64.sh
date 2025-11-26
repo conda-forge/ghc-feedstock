@@ -717,7 +717,9 @@ if [[ -f "${settings_file}" ]]; then
 
   # Build complete link flags string - libraries come AFTER user objects
   # Use GNU ld (bfd) with GNU-style subsystem flag
-  LINK_FLAGS="-Wl,--subsystem,console -Xlinker -L${CHKSTK_DIR} -Xlinker -L${MINGW_SYSROOT}"
+  # CRITICAL: Use high image base to avoid 32-bit pseudo relocation errors
+  # GHC executables are large and need to be in same memory range as Windows system DLLs
+  LINK_FLAGS="-Wl,--subsystem,console -Wl,--image-base=0x140000000 -Wl,--dynamicbase -Wl,--high-entropy-va -Xlinker -L${CHKSTK_DIR} -Xlinker -L${MINGW_SYSROOT}"
   # MinGW helper libraries
   LINK_FLAGS="${LINK_FLAGS} -Xlinker -lmoldname"
   LINK_FLAGS="${LINK_FLAGS} -Xlinker -lmingwex"
@@ -739,10 +741,11 @@ if [[ -f "${settings_file}" ]]; then
 
   # Also add to "ld flags" for direct ld invocations (use bare library names, no -Xlinker)
   # CRITICAL: --subsystem,console for console entry point (GNU ld syntax with comma separator)
+  # CRITICAL: Use high image base to avoid 32-bit pseudo relocation errors
   # CRITICAL: Need -lgcc for __udivti3/__umodti3 symbols from RtsSymbols
   # CRITICAL: Use -lucrt (Universal C Runtime) to match bootstrap GHC
   # GCC BRANCH: libgcc provides all builtins, no need for compiler-rt
-  perl -pi -e "s#(ld flags\", \")#\$1--subsystem,console -L${CHKSTK_DIR} -L${MINGW_SYSROOT} -lmoldname -lmingwex -lmingw32 -lchkstk_ms -lgcc -lucrt -lkernel32 -ladvapi32 #" "${settings_file}"
+  perl -pi -e "s#(ld flags\", \")#\$1--subsystem,console --image-base=0x140000000 --dynamicbase --high-entropy-va -L${CHKSTK_DIR} -L${MINGW_SYSROOT} -lmoldname -lmingwex -lmingw32 -lchkstk_ms -lgcc -lucrt -lkernel32 -ladvapi32 #" "${settings_file}"
 
   echo "=== Stage1 settings after patching (COMPLETE FILE) ==="
   cat "${settings_file}"
