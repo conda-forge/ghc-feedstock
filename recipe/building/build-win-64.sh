@@ -777,7 +777,10 @@ fi
 # touchy was built during stage1:exe:ghc-bin with Stage0 settings (no --enable-auto-import)
 # We need to rebuild it with Stage1 settings so it doesn't crash with relocation errors
 echo "=== Rebuilding touchy.exe with patched Stage1 settings ==="
-# Delete old touchy.exe to force Hadrian to rebuild it (otherwise it's a no-op)
+# Delete all touchy build artifacts to force Hadrian to rebuild it (otherwise it's a no-op)
+echo "Deleting touchy build artifacts..."
+rm -rf "${_SRC_DIR}/_build/stage1/utils/touchy"
+rm -f "${_SRC_DIR}/_build/stage1/bin/touchy.exe"
 rm -f "${_SRC_DIR}/_build/stage1/lib/bin/touchy.exe"
 run_and_log "stage1_touchy_rebuild" "${_hadrian_build[@]}" stage1:exe:touchy --flavour=quickest --docs=none --progress-info=none
 
