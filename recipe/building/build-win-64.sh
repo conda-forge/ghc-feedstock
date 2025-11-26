@@ -773,5 +773,11 @@ else
   echo "WARNING: Stage1 settings file not found at ${settings_file}"
 fi
 
+# Rebuild touchy.exe with the patched Stage1 settings
+# touchy was built during stage1:exe:ghc-bin with Stage0 settings (no --enable-auto-import)
+# We need to rebuild it with Stage1 settings so it doesn't crash with relocation errors
+echo "=== Rebuilding touchy.exe with patched Stage1 settings ==="
+run_and_log "stage1_touchy_rebuild" "${_hadrian_build[@]}" stage1:exe:touchy --flavour=quickest --docs=none --progress-info=none
+
 run_and_log "stage2_lib" "${_hadrian_build[@]}" stage2:lib:ghc --flavour=quickest --freeze1 --docs=none --progress-info=none
 run_and_log "install" "${_hadrian_build[@]}" install --prefix="${_PREFIX}" --flavour=quickest --freeze1 --freeze2 --docs=none
