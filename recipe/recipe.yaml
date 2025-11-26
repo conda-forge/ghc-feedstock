@@ -77,6 +77,14 @@ requirements:
         - m2-sed
         - m2-which
 
+    # Cross-compilation: Build script installs ghc-bootstrap manually
+    # Native builds: Use ghc-bootstrap from conda
+    - if: target_platform != "linux-aarch64" and target_platform != "linux-ppc64le" and target_platform != "osx-arm64"
+      then:
+        - cabal ==3.10.3.0
+        - ghc-bootstrap ==9.6.7
+
+    # Cross-compilation dependencies (for sysroot)
     - if: build_platform != target_platform
       then:
         - gmp
@@ -84,9 +92,6 @@ requirements:
         - libiconv
         - if: unix
           then: ncurses
-      else:
-        - cabal ==3.10.3.0
-        - ghc-bootstrap ==9.6.7
   host:
     - gmp
     - libiconv

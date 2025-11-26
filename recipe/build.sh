@@ -62,6 +62,44 @@ source "${RECIPE_DIR}/building/common.sh"
 source "${RECIPE_DIR}/building/lib/90-common-flow.sh"
 
 # ==============================================================================
+# VERIFY CRITICAL PATCHES (PPC64LE only)
+# ==============================================================================
+# After Issues #23, #27, #30: Patches can fail silently!
+# Verify critical StgRun patches were applied on ppc64le
+if [[ "${target_platform}" == *"ppc64le"* ]]; then
+  echo "=== Verifying PPC64LE StgRun patches applied ==="
+
+  # Check StgCRunAsm.S - should have .hidden commented out with #
+  if grep -q "^#.*\.hidden StgRun" "${SRC_DIR}/rts/StgCRunAsm.S"; then
+    echo "  ✓ StgCRunAsm.S: .hidden StgRun commented out"
+  else
+    echo "  ✗ ERROR: StgCRunAsm.S patch not applied!"
+    grep -n "\.hidden StgRun" "${SRC_DIR}/rts/StgCRunAsm.S" || true
+    exit 1
+  fi
+
+  # Check StgCRun.c - should have .hidden commented out with /* */
+  if grep -q "/\*.*\.hidden StgRun" "${SRC_DIR}/rts/StgCRun.c"; then
+    echo "  ✓ StgCRun.c: .hidden StgRun directives commented out"
+  else
+    echo "  ✗ ERROR: StgCRun.c patch not applied!"
+    grep -n "\.hidden StgRun" "${SRC_DIR}/rts/StgCRun.c" || true
+    exit 1
+  fi
+
+  # Check StgRun.h - should have ppc64le conditional without RTS_PRIVATE
+  if grep -q "powerpc64le_HOST_ARCH" "${SRC_DIR}/rts/StgRun.h"; then
+    echo "  ✓ StgRun.h: powerpc64le_HOST_ARCH conditional present"
+  else
+    echo "  ✗ ERROR: StgRun.h patch not applied!"
+    cat "${SRC_DIR}/rts/StgRun.h"
+    exit 1
+  fi
+
+  echo "=== All PPC64LE patches verified ==="
+fi
+
+# ==============================================================================
 # EXECUTE BUILD FLOW
 # ==============================================================================
 # The common flow orchestrates all build phases, calling platform-specific
