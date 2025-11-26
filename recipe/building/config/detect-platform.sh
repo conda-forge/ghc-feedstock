@@ -32,6 +32,10 @@ detect_and_load_platform_config() {
   local config_dir="${RECIPE_DIR}/building/config"
   local platform_config=""
 
+  # Default build_platform to target_platform if not set (native builds)
+  # build_platform is only set by conda-build during cross-compilation
+  : "${build_platform:=${target_platform}}"
+
   echo "=== Platform Detection ==="
   echo "  build_platform: ${build_platform}"
   echo "  target_platform: ${target_platform}"
