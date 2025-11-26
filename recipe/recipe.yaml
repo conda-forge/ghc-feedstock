@@ -34,6 +34,7 @@ source:
           - patches/fix-windows-utimbuf-type.patch
           - patches/disable-split-sections-windows.patch
           - patches/skip-mingw-detection-error.patch
+          - patches/fix-windows-reportmemorymap-format.patch
 
 build:
   number: 0
