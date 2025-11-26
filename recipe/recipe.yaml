@@ -22,6 +22,8 @@ source:
           - patches/disable-split-sections-windows.patch
           - patches/skip-mingw-detection-error.patch
           - patches/fix-windows-reportmemorymap-format.patch
+          - patches/fix-windows-pei386-format.patch
+          - patches/fix-windows-mmap-format.patch
       - if: osx and arm64
         then:
           - patches/patch-rpath-macos.patch

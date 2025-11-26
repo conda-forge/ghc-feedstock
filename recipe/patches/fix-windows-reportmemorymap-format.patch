@@ -1,16 +1,15 @@
 --- a/rts/ReportMemoryMap.c
 +++ b/rts/ReportMemoryMap.c
-@@ -62,9 +62,11 @@ void reportMemoryMap(void)
-         case MEM_PRIVATE: type = "private"; break;
-         case MEM_MAPPED:  type = "mapped";  break;
+@@ -63,9 +63,11 @@ void reportMemoryMap(void)
+             }
+
+-            debugBelch("%08llx-%08llx %8zuK %3s (%s)\n",
++            // Windows MinGW doesn't support %zu format specifier properly
++            // Use %llu instead and cast to unsigned long long
++            debugBelch("%08llx-%08llx %8lluK %3s (%s)\n",
+                        (uintptr_t) info.BaseAddress,
+                        (uintptr_t) info.BaseAddress + info.RegionSize,
+-                       (size_t) info.RegionSize,
++                       (unsigned long long) (info.RegionSize / 1024),
+                        protection, type);
          }
--        debugBelch("%08llx-%08llx %8zuK %3s (%s)\n",
-+        // Windows MinGW doesn't support %zu format specifier properly
-+        // Use %llu instead and cast to unsigned long long
-+        debugBelch("%08llx-%08llx %8lluK %3s (%s)\n",
-                    (uintptr_t) info.BaseAddress,
-                    (uintptr_t) info.BaseAddress + info.RegionSize,
--                   (size_t) info.RegionSize,
-+                   (unsigned long long) (info.RegionSize / 1024),
-                    protection, type);
-     }
