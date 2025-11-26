@@ -620,7 +620,7 @@ fi
 echo "=== Building Stage1 GHC using run_and_log (cmd.exe wrapper) ==="
 # MSYS2 bash cannot execute Windows PE binaries directly (Exec format error)
 # But cmd.exe CAN execute them, so use run_and_log which wraps in cmd.exe
-run_and_log "stage1_ghc" "${_hadrian_build[@]}" stage1:exe:ghc-bin --flavour=quick --docs=none --progress-info=none
+run_and_log "stage1_ghc" "${_hadrian_build[@]}" stage1:exe:ghc-bin --flavour=quickest --docs=none --progress-info=none
 
 # Find Stage0 settings file (location may vary on Windows)
 echo "=== Locating Stage0 settings file ==="
@@ -664,9 +664,9 @@ else
   echo "Continuing without settings file modifications..."
 fi
 
-run_and_log "stage1_pkg" "${_hadrian_build[@]}" stage1:exe:ghc-pkg --flavour=quick --docs=none --progress-info=none
-run_and_log "stage1_hs" "${_hadrian_build[@]}" stage1:exe:hsc2hs --flavour=quick --docs=none --progress-info=none
-run_and_log "stage1_lib" "${_hadrian_build[@]}" stage1:lib:ghc --flavour=quick --docs=none --progress-info=none || { \
+run_and_log "stage1_pkg" "${_hadrian_build[@]}" stage1:exe:ghc-pkg --flavour=quickest --docs=none --progress-info=none
+run_and_log "stage1_hs" "${_hadrian_build[@]}" stage1:exe:hsc2hs --flavour=quickest --docs=none --progress-info=none
+run_and_log "stage1_lib" "${_hadrian_build[@]}" stage1:lib:ghc --flavour=quickest --docs=none --progress-info=none || { \
   echo "=== Checking if Hadrian patch was applied ==="; \
   grep -A 3 "interpolateSetting.*FFIIncludeDir" "${_SRC_DIR}"/hadrian/src/Rules/Generate.hs || echo "ERROR: Hadrian patch NOT applied!"; \
   grep -n "include-dirs\|extra-include-dirs\|/c/bld" "${_SRC_DIR}"/rts/rts.cabal | head -20; \
@@ -692,7 +692,7 @@ else
   echo "WARNING: Skipping Stage0 settings modifications - file not found at: ${settings_file}"
 fi
 
-run_and_log "stage2_exe" "${_hadrian_build[@]}" stage2:exe:ghc-bin --flavour=quick --freeze1 --docs=none --progress-info=none
+run_and_log "stage2_exe" "${_hadrian_build[@]}" stage2:exe:ghc-bin --flavour=quickest --freeze1 --docs=none --progress-info=none
 
 # Patch Stage1 settings file (created by stage2:exe:ghc-bin)
 settings_file="${_SRC_DIR}"/_build/stage1/lib/settings
@@ -718,8 +718,9 @@ if [[ -f "${settings_file}" ]]; then
   # Build complete link flags string - libraries come AFTER user objects
   # Use GNU ld (bfd) with GNU-style subsystem flag
   # CRITICAL: Use high image base to avoid 32-bit pseudo relocation errors
-  # GHC executables are large and need to be in same memory range as Windows system DLLs
-  LINK_FLAGS="-Wl,--subsystem,console -Wl,--image-base=0x140000000 -Wl,--dynamicbase -Wl,--high-entropy-va -Xlinker -L${CHKSTK_DIR} -Xlinker -L${MINGW_SYSROOT}"
+  # CRITICAL: --enable-auto-import generates proper PE import tables for DLL references
+  # Without it, linker uses pseudo relocations which fail with high/low address gaps
+  LINK_FLAGS="-Wl,--subsystem,console -Wl,--enable-auto-import -Wl,--image-base=0x140000000 -Wl,--dynamicbase -Wl,--high-entropy-va -Xlinker -L${CHKSTK_DIR} -Xlinker -L${MINGW_SYSROOT}"
   # MinGW helper libraries
   LINK_FLAGS="${LINK_FLAGS} -Xlinker -lmoldname"
   LINK_FLAGS="${LINK_FLAGS} -Xlinker -lmingwex"
@@ -741,11 +742,12 @@ if [[ -f "${settings_file}" ]]; then
 
   # Also add to "ld flags" for direct ld invocations (use bare library names, no -Xlinker)
   # CRITICAL: --subsystem,console for console entry point (GNU ld syntax with comma separator)
+  # CRITICAL: --enable-auto-import generates proper PE import tables for DLL references
   # CRITICAL: Use high image base to avoid 32-bit pseudo relocation errors
   # CRITICAL: Need -lgcc for __udivti3/__umodti3 symbols from RtsSymbols
   # CRITICAL: Use -lucrt (Universal C Runtime) to match bootstrap GHC
   # GCC BRANCH: libgcc provides all builtins, no need for compiler-rt
-  perl -pi -e "s#(ld flags\", \")#\$1--subsystem,console --image-base=0x140000000 --dynamicbase --high-entropy-va -L${CHKSTK_DIR} -L${MINGW_SYSROOT} -lmoldname -lmingwex -lmingw32 -lchkstk_ms -lgcc -lucrt -lkernel32 -ladvapi32 #" "${settings_file}"
+  perl -pi -e "s#(ld flags\", \")#\$1--subsystem,console --enable-auto-import --image-base=0x140000000 --dynamicbase --high-entropy-va -L${CHKSTK_DIR} -L${MINGW_SYSROOT} -lmoldname -lmingwex -lmingw32 -lchkstk_ms -lgcc -lucrt -lkernel32 -ladvapi32 #" "${settings_file}"
 
   echo "=== Stage1 settings after patching (COMPLETE FILE) ==="
   cat "${settings_file}"
@@ -771,5 +773,5 @@ else
   echo "WARNING: Stage1 settings file not found at ${settings_file}"
 fi
 
-run_and_log "stage2_lib" "${_hadrian_build[@]}" stage2:lib:ghc --flavour=quick --freeze1 --docs=none --progress-info=none
-run_and_log "install" "${_hadrian_build[@]}" install --prefix="${_PREFIX}" --flavour=quick --freeze1 --freeze2 --docs=none
+run_and_log "stage2_lib" "${_hadrian_build[@]}" stage2:lib:ghc --flavour=quickest --freeze1 --docs=none --progress-info=none
+run_and_log "install" "${_hadrian_build[@]}" install --prefix="${_PREFIX}" --flavour=quickest --freeze1 --freeze2 --docs=none
