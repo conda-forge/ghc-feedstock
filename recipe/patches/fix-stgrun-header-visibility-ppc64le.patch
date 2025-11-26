@@ -1,15 +1,14 @@
---- a/rts/StgRun.h
-+++ b/rts/StgRun.h
-@@ -7,7 +7,11 @@
-  *
-  * ---------------------------------------------------------------------------*/
-
--RTS_PRIVATE StgRegTable * StgRun (StgFunPtr f, StgRegTable *basereg);
+--- a/rts/StgRun.h	2025-11-25 21:04:39.420426480 -0600
++++ b/rts/StgRun.h	2025-11-25 21:04:39.420426480 -0600
+@@ -8,4 +8,11 @@
+ 
+ #pragma once
+ 
 +#if defined(powerpc64le_HOST_ARCH)
 +StgRegTable * StgRun (StgFunPtr f, StgRegTable *basereg);
 +#else
-+RTS_PRIVATE StgRegTable * StgRun (StgFunPtr f, StgRegTable *basereg);
+ RTS_PRIVATE StgRegTable * StgRun (StgFunPtr f, StgRegTable *basereg);
 +#endif
-
- #if defined(USE_MINIINTERPRETER)
- RTS_PRIVATE StgWord stg_stop_thread_info;
++
++#if defined(USE_MINIINTERPRETER)
++RTS_PRIVATE StgWord stg_stop_thread_info;
