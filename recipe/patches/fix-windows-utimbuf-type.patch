@@ -1,6 +1,7 @@
---- a/libraries/base/System/Posix/Internals.hs
-+++ b/libraries/base/System/Posix/Internals.hs
-@@ -78,7 +78,11 @@ data {-# CTYPE "struct termios" #-} CTermios
+--- a/libraries/ghc-internal/src/GHC/Internal/System/Posix/Internals.hs
++++ b/libraries/ghc-internal/src/GHC/Internal/System/Posix/Internals.hs
+@@ -98,7 +98,11 @@ data {-# CTYPE "struct stat" #-}  CStat
+ data {-# CTYPE "struct termios" #-} CTermios
  data {-# CTYPE "struct tm" #-} CTm
  data {-# CTYPE "struct tms" #-} CTms
 +#if defined(mingw32_HOST_OS)

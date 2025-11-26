@@ -1,9 +1,9 @@
 --- a/hadrian/src/Builder.hs
 +++ b/hadrian/src/Builder.hs
-@@ -247,7 +247,8 @@
+@@ -242,7 +242,8 @@
+             unlitPath  <- builderPath Unlit
+
              return $ [ unlitPath ]
-                   ++ ghcdeps
-                   ++ [ touchyPath          | windowsHost ]
 -                  ++ [ root -/- mingwStamp | windowsHost ]
 +                  -- Skip mingw bundling - conda-forge provides toolchain
 +                  -- ++ [ root -/- mingwStamp | windowsHost ]

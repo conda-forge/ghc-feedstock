@@ -1,7 +1,6 @@
 --- a/hadrian/src/Settings/Builders/SplitSections.hs
 +++ b/hadrian/src/Settings/Builders/SplitSections.hs
-@@ -13,12 +13,14 @@ import Oracles.Setting
- splitSectionsArgs :: Args
+@@ -13,12 +13,15 @@
  splitSectionsArgs = do
    pkg <- getPackage
    osx <- expr isOsxTarget
