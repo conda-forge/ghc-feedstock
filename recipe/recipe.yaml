@@ -86,7 +86,7 @@ requirements:
           then: ncurses
       else:
         - cabal ==3.10.3.0
-        - ghc-bootstrap ==9.2.8
+        - ghc-bootstrap ==9.6.7
   host:
     - gmp
     - libiconv
