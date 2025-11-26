@@ -54,7 +54,7 @@ setup_cross_build_env() {
     --platform "${platform}" \
     -c conda-forge \
     cabal==3.10.3.0 \
-    ghc-bootstrap==9.6.7 \
+    ghc-bootstrap==9.2.8 \
     "${extra_packages[@]}"
 
   # Get environment path

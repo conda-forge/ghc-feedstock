@@ -41,7 +41,7 @@ conda create -y \
     --platform osx-64 \
     -c conda-forge \
     cabal==3.10.3.0 \
-    ghc-bootstrap==9.6.7
+    ghc-bootstrap==9.2.8
 
 osx_64_env=$(conda info --envs | grep osx64_env | awk '{print $2}')
 ghc_path="${osx_64_env}"/ghc-bootstrap/bin

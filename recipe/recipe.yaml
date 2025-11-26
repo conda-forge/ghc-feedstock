@@ -46,10 +46,6 @@ requirements:
     - ${{ compiler('cxx') }}
     - ${{ stdlib('c') }}
     - binutils >=${{ binutils_version }}
-    - if: target_platform != "linux-aarch64" and target_platform != "linux-ppc64le"
-      then:
-        - cabal ==3.10.3.0
-        - ghc-bootstrap ==9.6.7
     - llvm-tools ${{ c_compiler_version }}.*
     - perl 5.32.*
     - pkg-config
@@ -66,6 +62,20 @@ requirements:
         - m4
         - make
         - sed
+      else:
+        - compiler-rt_win-64
+        - libgcc-devel_win-64
+        - m2-autoconf
+        - m2-automake-wrapper
+        - m2-bash
+        - m2-coreutils
+        - m2-file
+        - m2-findutils
+        - m2-grep
+        - m2-m4
+        - m2-make
+        - m2-sed
+        - m2-which
 
     - if: build_platform != target_platform
       then:
@@ -74,6 +84,9 @@ requirements:
         - libiconv
         - if: unix
           then: ncurses
+      else:
+        - cabal ==3.10.3.0
+        - ghc-bootstrap ==9.2.8
   host:
     - gmp
     - libiconv
