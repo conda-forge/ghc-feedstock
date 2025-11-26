@@ -70,6 +70,9 @@ detect_and_load_platform_config() {
     elif [[ "${build_platform}" =~ linux ]]; then
       platform_config="linux-64"
       echo "  Detected: Linux native (x86_64)"
+    elif [[ "${build_platform}" =~ win ]]; then
+      platform_config="windows-64"
+      echo "  Detected: Windows native (x86_64)"
     else
       echo "ERROR: Unknown build platform: ${build_platform}"
       return 1
