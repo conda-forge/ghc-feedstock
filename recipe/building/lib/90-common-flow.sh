@@ -196,6 +196,8 @@ common_flow_build_hadrian() {
 #        platform_post_stage1, platform_pre_stage2, build_stage2,
 #        platform_post_stage2
 #
+# Platform can override by providing platform_build_stage1/platform_build_stage2
+#
 common_flow_build_stages() {
   echo ""
   echo "=== Build Stages ==="
@@ -210,7 +212,20 @@ common_flow_build_stages() {
   echo "  Flavour: ${HADRIAN_FLAVOUR_STAGE1:-${HADRIAN_FLAVOUR}}"
 
   platform_pre_stage1
-  build_stage1 HADRIAN_BUILD "${HADRIAN_FLAVOUR_STAGE1:-${HADRIAN_FLAVOUR}}"
+
+  # Check if platform provides custom stage1 build
+  if type -t platform_build_stage1 >/dev/null 2>&1; then
+    echo "  Using platform-specific stage1 build"
+    platform_build_stage1 HADRIAN_BUILD "${HADRIAN_FLAVOUR_STAGE1:-${HADRIAN_FLAVOUR}}"
+
+    # Check for additional platform hooks (e.g., osx-arm64 libs)
+    if type -t platform_build_stage1_libs >/dev/null 2>&1; then
+      platform_build_stage1_libs HADRIAN_BUILD "${HADRIAN_FLAVOUR_STAGE1:-${HADRIAN_FLAVOUR}}"
+    fi
+  else
+    build_stage1 HADRIAN_BUILD "${HADRIAN_FLAVOUR_STAGE1:-${HADRIAN_FLAVOUR}}"
+  fi
+
   platform_post_stage1
 
   # Stage 2
@@ -219,7 +234,20 @@ common_flow_build_stages() {
   echo "  Flavour: ${HADRIAN_FLAVOUR_STAGE2:-${HADRIAN_FLAVOUR}}"
 
   platform_pre_stage2
-  build_stage2 HADRIAN_BUILD "${HADRIAN_FLAVOUR_STAGE2:-${HADRIAN_FLAVOUR}}"
+
+  # Check if platform provides custom stage2 build
+  if type -t platform_build_stage2 >/dev/null 2>&1; then
+    echo "  Using platform-specific stage2 build"
+    platform_build_stage2 HADRIAN_BUILD "${HADRIAN_FLAVOUR_STAGE2:-${HADRIAN_FLAVOUR}}"
+  else
+    build_stage2 HADRIAN_BUILD "${HADRIAN_FLAVOUR_STAGE2:-${HADRIAN_FLAVOUR}}"
+  fi
+
+  # Check for additional platform hooks (e.g., osx-arm64 Cabal-syntax race prevention)
+  if type -t platform_build_cabal_syntax >/dev/null 2>&1; then
+    platform_build_cabal_syntax HADRIAN_BUILD "${HADRIAN_FLAVOUR_STAGE2:-${HADRIAN_FLAVOUR}}"
+  fi
+
   platform_post_stage2
 
   echo ""
@@ -235,24 +263,32 @@ common_flow_build_stages() {
 # Calls: platform_install_method, platform_install_native or
 #        platform_install_bindist, platform_post_install
 #
+# Platform can override by providing platform_install function
+#
 common_flow_install() {
   echo ""
   echo "=== Installation Phase ==="
 
-  # Determine installation method
-  platform_install_method
-  echo "  Installation method: ${INSTALL_METHOD}"
-
-  # Execute installation
-  if [[ "${INSTALL_METHOD}" == "native" ]]; then
-    echo "  Installing using native method..."
-    platform_install_native
-  elif [[ "${INSTALL_METHOD}" == "bindist" ]]; then
-    echo "  Installing using bindist method..."
-    platform_install_bindist
+  # Check if platform provides custom install
+  if type -t platform_install >/dev/null 2>&1; then
+    echo "  Using platform-specific installation"
+    platform_install HADRIAN_BUILD "${HADRIAN_FLAVOUR}"
   else
-    echo "ERROR: Unknown INSTALL_METHOD: ${INSTALL_METHOD}"
-    return 1
+    # Determine installation method
+    platform_install_method
+    echo "  Installation method: ${INSTALL_METHOD}"
+
+    # Execute installation
+    if [[ "${INSTALL_METHOD}" == "native" ]]; then
+      echo "  Installing using native method..."
+      platform_install_native
+    elif [[ "${INSTALL_METHOD}" == "bindist" ]]; then
+      echo "  Installing using bindist method..."
+      platform_install_bindist
+    else
+      echo "ERROR: Unknown INSTALL_METHOD: ${INSTALL_METHOD}"
+      return 1
+    fi
   fi
 
   # Post-install hook
