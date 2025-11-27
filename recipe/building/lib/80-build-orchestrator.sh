@@ -92,8 +92,8 @@ configure_ghc() {
 
   # Allow platform to request verbose configure (skip run_and_log wrapper)
   if [[ "${CONFIGURE_VERBOSE:-false}" == "true" ]]; then
-    echo "  (Verbose mode: real-time output)"
-    "${SRC_DIR}"/configure "${sys_cfg[@]}" "${cfg_args[@]}"
+    echo "  (Verbose mode: real-time output with --verbose flag)"
+    "${SRC_DIR}"/configure --verbose "${sys_cfg[@]}" "${cfg_args[@]}"
   else
     run_and_log "ghc-configure" "${SRC_DIR}"/configure "${sys_cfg[@]}" "${cfg_args[@]}"
   fi
