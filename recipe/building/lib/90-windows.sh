@@ -81,16 +81,13 @@ setup_windows_gcc_toolchain() {
   # BASH/MSYS2 handles UNIX-style paths fine, only specific tools need Windows format
   export AR="x86_64-w64-mingw32-ar.exe"
   export AS="x86_64-w64-mingw32-as.exe"
+  export LD="x86_64-w64-mingw32-ld.exe"
   export NM="x86_64-w64-mingw32-nm.exe"
   export OBJCOPY="x86_64-w64-mingw32-objcopy.exe"
   export OBJDUMP="x86_64-w64-mingw32-objdump.exe"
   export RANLIB="x86_64-w64-mingw32-ranlib.exe"
   export READELF="x86_64-w64-mingw32-readelf.exe"
   export STRIP="x86_64-w64-mingw32-strip.exe"
-
-  # Explicitly unset LD - conda sets it with Windows path, causes backslash mangling
-  # GCC toolchain locates ld correctly without LD env var
-  unset LD
 
   # Use GNU ld (bfd) for MinGW compatibility (lld defaults to MSVC mode on Windows)
   CFLAGS=$(echo "${CFLAGS}" | perl -pe 's/-fuse-ld=lld/-fuse-ld=bfd/g')
