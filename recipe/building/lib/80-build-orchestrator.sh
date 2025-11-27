@@ -163,11 +163,16 @@ build_stage2() {
   echo "=== Building Stage 2 Compiler ==="
 
   # Build core libraries in dependency order (race condition prevention)
-  run_and_log "stage2_ghc-prim" "${hadrian[@]}" stage2:lib:ghc-prim --flavour="${flavour}" --freeze1
-  run_and_log "stage2_ghc-bignum" "${hadrian[@]}" stage2:lib:ghc-bignum --flavour="${flavour}" --freeze1
+  # Using -VV for verbose output to diagnose issues
+  echo "Building stage2:lib:ghc-prim..."
+  "${hadrian[@]}" stage2:lib:ghc-prim --flavour="${flavour}" --freeze1 -VV
+
+  echo "Building stage2:lib:ghc-bignum..."
+  "${hadrian[@]}" stage2:lib:ghc-bignum --flavour="${flavour}" --freeze1 -VV
 
   # Build compiler executable
-  run_and_log "stage2_exe" "${hadrian[@]}" stage2:exe:ghc-bin --flavour="${flavour}" --freeze1
+  echo "Building stage2:exe:ghc-bin..."
+  "${hadrian[@]}" stage2:exe:ghc-bin --flavour="${flavour}" --freeze1 -VV
 
   # Patch stage1 settings if provided (used by stage2 compiler)
   if [[ -n "$settings_file" ]]; then
@@ -175,7 +180,8 @@ build_stage2() {
   fi
 
   # Build ghc library (used by ghci and plugins)
-  run_and_log "stage2_lib" "${hadrian[@]}" stage2:lib:ghc --flavour="${flavour}" --freeze1
+  echo "Building stage2:lib:ghc..."
+  "${hadrian[@]}" stage2:lib:ghc --flavour="${flavour}" --freeze1 -VV
 
   echo "=== Stage 2 Complete ==="
 }
