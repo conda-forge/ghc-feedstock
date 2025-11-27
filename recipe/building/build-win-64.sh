@@ -931,7 +931,69 @@ echo "Created fake mingw at: ${fake_mingw}"
 ls -la "${fake_mingw}"
 echo ""
 
-run_and_log "install" "${_hadrian_build[@]}" install --prefix="${_PREFIX}" --flavour=quickest --freeze1 --freeze2 --docs=none
+# Don't use Hadrian's install target - it tries to run sh configure which fails on Windows
+# Instead, create binary-dist-dir and manually copy to PREFIX
+echo "Creating binary distribution directory..."
+run_and_log "binary_dist" "${_hadrian_build[@]}" binary-dist --flavour=quickest --freeze1 --freeze2 --docs=none
+
+echo ""
+echo "========================================================================"
+echo "=== Manually installing GHC to PREFIX ==="
+echo "========================================================================"
+
+bindist_dir="${_SRC_DIR}/_build/bindist/ghc-${PKG_VERSION}-x86_64-w64-mingw32"
+if [[ ! -d "${bindist_dir}" ]]; then
+  echo "ERROR: Binary distribution directory not found at ${bindist_dir}"
+  ls -la "${_SRC_DIR}/_build/bindist/" || echo "bindist directory doesn't exist"
+  exit 1
+fi
+
+echo "Binary distribution directory: ${bindist_dir}"
+echo "Installing to: ${_PREFIX}"
+echo ""
+
+# Copy the entire bindist to PREFIX/lib (where GHC expects to be installed on Windows)
+ghc_lib_dir="${_PREFIX}/lib"
+echo "Creating ${ghc_lib_dir}..."
+mkdir -p "${ghc_lib_dir}"
+
+echo "Copying bindist contents to ${ghc_lib_dir}..."
+cp -r "${bindist_dir}"/* "${ghc_lib_dir}/"
+
+echo "✓ Files copied successfully"
+ls -la "${ghc_lib_dir}" | head -20
+
+# Create wrapper scripts in PREFIX/bin
+echo ""
+echo "Creating wrapper scripts in ${_PREFIX}/bin..."
+mkdir -p "${_PREFIX}/bin"
+
+# GHC wrapper
+cat > "${_PREFIX}/bin/ghc.bat" << 'EOF'
+@echo off
+"%~dp0..\lib\bin\ghc-${PKG_VERSION}.exe" %*
+EOF
+
+# GHC-PKG wrapper
+cat > "${_PREFIX}/bin/ghc-pkg.bat" << 'EOF'
+@echo off
+"%~dp0..\lib\bin\ghc-pkg-${PKG_VERSION}.exe" %*
+EOF
+
+# GHCI wrapper
+cat > "${_PREFIX}/bin/ghci.bat" << 'EOF'
+@echo off
+"%~dp0..\lib\bin\ghci-${PKG_VERSION}.exe" %*
+EOF
+
+# RUNGHC wrapper
+cat > "${_PREFIX}/bin/runghc.bat" << 'EOF'
+@echo off
+"%~dp0..\lib\bin\runghc-${PKG_VERSION}.exe" %*
+EOF
+
+echo "✓ Wrapper scripts created"
+ls -la "${_PREFIX}/bin" | grep "\.bat$"
 
 echo ""
 echo "========================================================================"
@@ -940,10 +1002,10 @@ echo "========================================================================"
 echo "Removing fake mingw from installation and creating minimal structure..."
 echo ""
 
-# Remove the fake mingw that got copied during install
+# The fake mingw got copied to lib/mingw during the bindist copy
 installed_mingw="${_PREFIX}/lib/mingw"
 if [[ -d "${installed_mingw}" ]]; then
-  echo "Removing installed fake mingw at: ${installed_mingw}"
+  echo "Removing copied fake mingw at: ${installed_mingw}"
   rm -rf "${installed_mingw}"
 fi
 
@@ -959,6 +1021,17 @@ echo "✓ Post-install mingw setup complete"
 ls -la "${installed_mingw}"
 echo ""
 
+# Verify installation
 echo "========================================================================"
-echo "=== GHC 9.6.7 Windows build completed successfully! ==="
+echo "=== Verifying GHC installation ==="
+echo "========================================================================"
+echo "GHC binaries in ${_PREFIX}/bin:"
+ls -la "${_PREFIX}/bin" | grep -E "\.(bat|exe)$" || echo "No .bat/.exe files found"
+echo ""
+echo "GHC library directory:"
+ls -la "${_PREFIX}/lib/bin" | head -10 || echo "lib/bin doesn't exist"
+echo ""
+
+echo "========================================================================"
+echo "=== GHC ${PKG_VERSION} Windows build completed successfully! ==="
 echo "========================================================================"
