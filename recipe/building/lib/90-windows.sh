@@ -71,8 +71,8 @@ setup_windows_gcc_toolchain() {
   local conda_target=x86_64-w64-mingw32
 
   # Override conda's CC/CXX to use GCC instead of Clang
-  export CC="x86_64-w64-mingw32-gcc"
-  export CXX="x86_64-w64-mingw32-g++"
+  export CC="x86_64-w64-mingw32-gcc.exe"
+  export CXX="x86_64-w64-mingw32-g++.exe"
   # NOTE: CPP is set by platform config (win-64.sh) to "gcc -E"
   # Do NOT override here - standalone cpp doesn't handle GHC's configure flags
 
