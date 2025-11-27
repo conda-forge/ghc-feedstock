@@ -201,8 +201,15 @@ platform_build_hadrian() {
 
   # macOS path length limits require copying Hadrian to shorter path
   # rattler-build uses long placeholder prefixes that exceed exec limits
+  # CRITICAL: Even 'cp' fails with long paths, so cd to source dir first
   local hadrian_short="/tmp/hadrian"
-  cp "${hadrian_path}" "${hadrian_short}"
+  local hadrian_dir=$(dirname "${hadrian_path}")
+  local hadrian_name=$(basename "${hadrian_path}")
+
+  pushd "${hadrian_dir}" >/dev/null
+  cp "${hadrian_name}" "${hadrian_short}"
+  popd >/dev/null
+
   chmod +x "${hadrian_short}"
 
   echo "  Copied Hadrian: ${hadrian_short}"

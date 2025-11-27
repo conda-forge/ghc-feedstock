@@ -264,4 +264,30 @@ platform_install_bindist() {
   install_bindist "${BINDIST_PATH}" BINDIST_CONFIG "${conda_host}" "${target_arch}"
 }
 
-# platform_post_install() - Use default (no-op)
+platform_post_install() {
+  # Create symlinks from triplet-prefixed binaries to unprefixed names
+  # Cross-compiled GHC creates binaries like: aarch64-unknown-linux-gnu-ghc
+  # Users expect to invoke: ghc
+  echo "=== Creating binary symlinks for cross-compiled GHC ==="
+
+  pushd "${PREFIX}/bin" >/dev/null
+  for bin in ghc ghci ghc-pkg hp2ps hsc2hs; do
+    if [[ -f "${ghc_target}-${bin}" ]] && [[ ! -f "${bin}" ]]; then
+      ln -sf "${ghc_target}-${bin}" "${bin}"
+      echo "  ${bin} → ${ghc_target}-${bin}"
+    fi
+  done
+  popd >/dev/null
+
+  # Rename and symlink library directory if needed
+  # GHC installs to: lib/aarch64-unknown-linux-gnu-ghc-9.10.3
+  # Standard expects: lib/ghc-9.10.3
+  if [[ -d "${PREFIX}/lib/${ghc_target}-ghc-${PKG_VERSION}" ]] && [[ ! -d "${PREFIX}/lib/ghc-${PKG_VERSION}" ]]; then
+    echo "=== Renaming library directory ==="
+    mv "${PREFIX}/lib/${ghc_target}-ghc-${PKG_VERSION}" "${PREFIX}/lib/ghc-${PKG_VERSION}"
+    ln -sf "${PREFIX}/lib/ghc-${PKG_VERSION}" "${PREFIX}/lib/${ghc_target}-ghc-${PKG_VERSION}"
+    echo "  ${ghc_target}-ghc-${PKG_VERSION} → ghc-${PKG_VERSION}"
+  fi
+
+  echo "=== Cross-compilation post-install complete ==="
+}

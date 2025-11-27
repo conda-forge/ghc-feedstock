@@ -89,7 +89,15 @@ configure_ghc() {
   local -n cfg_args="$2"
 
   echo "=== Running GHC Configure ==="
-  run_and_log "ghc-configure" "${SRC_DIR}"/configure "${sys_cfg[@]}" "${cfg_args[@]}"
+
+  # Allow platform to request verbose configure (skip run_and_log wrapper)
+  if [[ "${CONFIGURE_VERBOSE:-false}" == "true" ]]; then
+    echo "  (Verbose mode: real-time output)"
+    "${SRC_DIR}"/configure "${sys_cfg[@]}" "${cfg_args[@]}"
+  else
+    run_and_log "ghc-configure" "${SRC_DIR}"/configure "${sys_cfg[@]}" "${cfg_args[@]}"
+  fi
+
   echo "=== Configure Complete ==="
 }
 

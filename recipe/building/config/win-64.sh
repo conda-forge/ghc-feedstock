@@ -174,9 +174,13 @@ platform_pre_configure() {
   export MergeObjsCmd="${LD_WIN}"
   export MergeObjsArgs=""
 
+  # Enable verbose configure (skip run_and_log wrapper for debugging)
+  export CONFIGURE_VERBOSE=true
+
   echo "  Pre-configure exports:"
   echo "    LD=${LD}"
   echo "    MergeObjsCmd=${MergeObjsCmd}"
+  echo "    CONFIGURE_VERBOSE=${CONFIGURE_VERBOSE}"
 }
 
 # ==============================================================================
