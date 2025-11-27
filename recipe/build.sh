@@ -68,8 +68,8 @@ source "${RECIPE_DIR}/building/lib/90-common-flow.sh"
 if [[ "${target_platform}" == *"ppc64le"* ]]; then
   echo "=== Verifying PPC64LE StgRun patches applied ==="
 
-  # Check StgCRunAsm.S - should have .hidden commented out with #
-  if grep -q "^#.*\.hidden StgRun" "${SRC_DIR}/rts/StgCRunAsm.S"; then
+  # Check StgCRunAsm.S - should have .hidden commented out with /* */ (file is preprocessed)
+  if grep -q "/\*.*\.hidden StgRun" "${SRC_DIR}/rts/StgCRunAsm.S"; then
     echo "  ✓ StgCRunAsm.S: .hidden StgRun commented out"
   else
     echo "  ✗ ERROR: StgCRunAsm.S patch not applied!"
