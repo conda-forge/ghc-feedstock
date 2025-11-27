@@ -906,4 +906,59 @@ echo ""
   echo "========================================================================"
   exit ${stage2_exit}
 }
+
+echo ""
+echo "========================================================================"
+echo "=== Creating fake mingw directory for binary distribution ==="
+echo "========================================================================"
+echo "Hadrian's binary distribution tries to copy _build/mingw, but we use"
+echo "conda-forge's MinGW instead. Creating placeholder structure..."
+echo ""
+
+# Create fake mingw directory structure to satisfy Hadrian's binary dist
+fake_mingw="${_SRC_DIR}/_build/mingw"
+mkdir -p "${fake_mingw}"/{include,lib,bin,share}
+echo "This is a placeholder mingw directory." > "${fake_mingw}"/README.txt
+echo "Conda-forge provides the actual MinGW toolchain." >> "${fake_mingw}"/README.txt
+echo "See: skip-mingw-copy-conda.patch" >> "${fake_mingw}"/README.txt
+
+# Create minimal placeholder files so the directory isn't completely empty
+for subdir in include lib bin share; do
+  echo "Fake mingw directory - conda-forge provides toolchain" > "${fake_mingw}/${subdir}/__placeholder__"
+done
+
+echo "Created fake mingw at: ${fake_mingw}"
+ls -la "${fake_mingw}"
+echo ""
+
 run_and_log "install" "${_hadrian_build[@]}" install --prefix="${_PREFIX}" --flavour=quickest --freeze1 --freeze2 --docs=none
+
+echo ""
+echo "========================================================================"
+echo "=== Post-install: Replace bundled mingw with conda-forge toolchain ==="
+echo "========================================================================"
+echo "Removing fake mingw from installation and creating minimal structure..."
+echo ""
+
+# Remove the fake mingw that got copied during install
+installed_mingw="${_PREFIX}/lib/mingw"
+if [[ -d "${installed_mingw}" ]]; then
+  echo "Removing installed fake mingw at: ${installed_mingw}"
+  rm -rf "${installed_mingw}"
+fi
+
+# Create minimal mingw directory structure with placeholders (like ghc-bootstrap)
+echo "Creating minimal mingw structure at: ${installed_mingw}"
+mkdir -p "${installed_mingw}"/{include,lib,bin,share}
+echo "Fake mingw directory created - conda-forge provides toolchain" > "${installed_mingw}"/include/__unused__
+echo "Fake mingw directory created - conda-forge provides toolchain" > "${installed_mingw}"/lib/__unused__
+echo "Fake mingw directory created - conda-forge provides toolchain" > "${installed_mingw}"/bin/__unused__
+echo "Fake mingw directory created - conda-forge provides toolchain" > "${installed_mingw}"/share/__unused__
+
+echo "✓ Post-install mingw setup complete"
+ls -la "${installed_mingw}"
+echo ""
+
+echo "========================================================================"
+echo "=== GHC 9.6.7 Windows build completed successfully! ==="
+echo "========================================================================"
