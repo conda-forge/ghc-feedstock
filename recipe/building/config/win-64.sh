@@ -93,6 +93,9 @@ platform_setup_environment() {
   # Windows-specific environment configuration
   # Critical: Must happen BEFORE configure
 
+  # Set toolchain early (matches working Windows branch)
+  export CPP="x86_64-w64-mingw32-cpp"
+
   # Step 1: Path conversion and flag cleanup
   setup_windows_paths
 
@@ -109,6 +112,9 @@ platform_setup_environment() {
   # Step 5: Patch bootstrap GHC settings
   # CRITICAL: Must happen AFTER chkstk creation, BEFORE configure
   patch_bootstrap_settings_windows
+
+  echo "  Toolchain setup:"
+  echo "    CPP=${CPP}"
 }
 
 # ==============================================================================
@@ -168,16 +174,9 @@ platform_pre_configure() {
   export MergeObjsCmd="${LD_WIN}"
   export MergeObjsArgs=""
 
-  # Override GHC's CPP flags test which fails with GCC 15.2 on Windows
-  # The test checks if 'gcc -E -CC -Wno-unicode -nostdinc' works
-  # but gets only line directives instead of preprocessed content
-  # This is safe to override - the flags will work fine during actual builds
-  export ghc_cv_gcc_supports_no_unicode=yes
-
   echo "  Pre-configure exports:"
   echo "    LD=${LD}"
   echo "    MergeObjsCmd=${MergeObjsCmd}"
-  echo "    ghc_cv_gcc_supports_no_unicode=${ghc_cv_gcc_supports_no_unicode}"
 }
 
 # ==============================================================================
