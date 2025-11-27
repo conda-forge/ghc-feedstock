@@ -35,6 +35,7 @@ source:
           - patches/disable-split-sections-windows.patch
           - patches/skip-mingw-detection-error.patch
           - patches/fix-windows-reportmemorymap-format.patch
+          - patches/fix-js-cpp-test-windows-line-endings.patch
 
 build:
   number: 0

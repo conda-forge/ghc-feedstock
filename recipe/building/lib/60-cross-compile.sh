@@ -150,7 +150,7 @@ build_hadrian_cross() {
   echo "  CC: ${cc_stage0}" >&2
   echo "  LD: ${ld_stage0}" >&2
 
-  pushd "${SRC_DIR}/hadrian" || return 1
+  pushd "${SRC_DIR}/hadrian" >&2 || return 1
 
   # CRITICAL: Override CFLAGS/LDFLAGS if provided
   # This prevents target architecture flags from contaminating Hadrian build
@@ -193,7 +193,7 @@ build_hadrian_cross() {
 
   local exit_code=${PIPESTATUS[0]}
 
-  popd || return 1
+  popd >&2 || return 1
 
   if [[ $exit_code -ne 0 ]]; then
     echo "=== Cabal build FAILED with exit code ${exit_code} ===" >&2
