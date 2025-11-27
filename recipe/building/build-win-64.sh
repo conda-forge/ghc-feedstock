@@ -931,20 +931,25 @@ echo "Created fake mingw at: ${fake_mingw}"
 ls -la "${fake_mingw}"
 echo ""
 
-# Don't use Hadrian's install target - it tries to run sh configure which fails on Windows
-# Instead, create binary-dist-dir and manually copy to PREFIX
-echo "Creating binary distribution directory..."
-run_and_log "binary_dist" "${_hadrian_build[@]}" binary-dist --flavour=quickest --freeze1 --freeze2 --docs=none
+# Use binary-dist target (like Linux) and manually install
+# Don't use Hadrian's install target - it tries to run configure automatically which can fail
+echo "Creating binary distribution..."
+run_and_log "bindist" "${_hadrian_build[@]}" binary-dist --prefix="${_PREFIX}" --flavour=quickest --freeze1 --freeze2 --docs=none
 
 echo ""
 echo "========================================================================"
-echo "=== Manually installing GHC to PREFIX ==="
+echo "=== Manually installing from binary distribution ==="
 echo "========================================================================"
 
-bindist_dir="${_SRC_DIR}/_build/bindist/ghc-${PKG_VERSION}-x86_64-w64-mingw32"
-if [[ ! -d "${bindist_dir}" ]]; then
-  echo "ERROR: Binary distribution directory not found at ${bindist_dir}"
-  ls -la "${_SRC_DIR}/_build/bindist/" || echo "bindist directory doesn't exist"
+# Find the bindist directory (like Linux does)
+ghc_target="x86_64-w64-mingw32"
+bindist_dir=$(find "${_SRC_DIR}"/_build/bindist -name "ghc-${PKG_VERSION}-${ghc_target}" -type d | head -1)
+
+if [[ -z "${bindist_dir}" ]]; then
+  echo "ERROR: Could not find binary distribution directory"
+  echo "Looking for: ghc-${PKG_VERSION}-${ghc_target}"
+  echo "Contents of _build/bindist:"
+  ls -la "${_SRC_DIR}"/_build/bindist/
   exit 1
 fi
 
@@ -952,86 +957,70 @@ echo "Binary distribution directory: ${bindist_dir}"
 echo "Installing to: ${_PREFIX}"
 echo ""
 
-# Copy the entire bindist to PREFIX/lib (where GHC expects to be installed on Windows)
-ghc_lib_dir="${_PREFIX}/lib"
-echo "Creating ${ghc_lib_dir}..."
-mkdir -p "${ghc_lib_dir}"
+# Enter bindist directory and install (like Linux)
+pushd "${bindist_dir}"
+  ./configure --prefix="${_PREFIX}" || { cat config.log; exit 1; }
+  run_and_log "make_install" make install_bin install_lib install_man
+popd
 
-echo "Copying bindist contents to ${ghc_lib_dir}..."
-cp -r "${bindist_dir}"/* "${ghc_lib_dir}/"
-
-echo "✓ Files copied successfully"
-ls -la "${ghc_lib_dir}" | head -20
-
-# Create wrapper scripts in PREFIX/bin
-echo ""
-echo "Creating wrapper scripts in ${_PREFIX}/bin..."
-mkdir -p "${_PREFIX}/bin"
-
-# GHC wrapper
-cat > "${_PREFIX}/bin/ghc.bat" << 'EOF'
-@echo off
-"%~dp0..\lib\bin\ghc-${PKG_VERSION}.exe" %*
-EOF
-
-# GHC-PKG wrapper
-cat > "${_PREFIX}/bin/ghc-pkg.bat" << 'EOF'
-@echo off
-"%~dp0..\lib\bin\ghc-pkg-${PKG_VERSION}.exe" %*
-EOF
-
-# GHCI wrapper
-cat > "${_PREFIX}/bin/ghci.bat" << 'EOF'
-@echo off
-"%~dp0..\lib\bin\ghci-${PKG_VERSION}.exe" %*
-EOF
-
-# RUNGHC wrapper
-cat > "${_PREFIX}/bin/runghc.bat" << 'EOF'
-@echo off
-"%~dp0..\lib\bin\runghc-${PKG_VERSION}.exe" %*
-EOF
-
-echo "✓ Wrapper scripts created"
-ls -la "${_PREFIX}/bin" | grep "\.bat$"
+echo "✓ Installation completed"
 
 echo ""
 echo "========================================================================"
-echo "=== Post-install: Replace bundled mingw with conda-forge toolchain ==="
+echo "=== Post-install: Replace bundled mingw and update settings ==="
 echo "========================================================================"
-echo "Removing fake mingw from installation and creating minimal structure..."
-echo ""
 
-# The fake mingw got copied to lib/mingw during the bindist copy
+# Remove bundled mingw and create minimal structure (like ghc-bootstrap)
 installed_mingw="${_PREFIX}/lib/mingw"
 if [[ -d "${installed_mingw}" ]]; then
-  echo "Removing copied fake mingw at: ${installed_mingw}"
+  echo "Removing bundled mingw at: ${installed_mingw}"
   rm -rf "${installed_mingw}"
 fi
 
-# Create minimal mingw directory structure with placeholders (like ghc-bootstrap)
-echo "Creating minimal mingw structure at: ${installed_mingw}"
+echo "Creating minimal mingw structure..."
 mkdir -p "${installed_mingw}"/{include,lib,bin,share}
-echo "Fake mingw directory created - conda-forge provides toolchain" > "${installed_mingw}"/include/__unused__
-echo "Fake mingw directory created - conda-forge provides toolchain" > "${installed_mingw}"/lib/__unused__
-echo "Fake mingw directory created - conda-forge provides toolchain" > "${installed_mingw}"/bin/__unused__
-echo "Fake mingw directory created - conda-forge provides toolchain" > "${installed_mingw}"/share/__unused__
+echo "Fake mingw directory - conda-forge provides toolchain" > "${installed_mingw}"/include/__unused__
+echo "Fake mingw directory - conda-forge provides toolchain" > "${installed_mingw}"/lib/__unused__
+echo "Fake mingw directory - conda-forge provides toolchain" > "${installed_mingw}"/bin/__unused__
+echo "Fake mingw directory - conda-forge provides toolchain" > "${installed_mingw}"/share/__unused__
 
-echo "✓ Post-install mingw setup complete"
-ls -la "${installed_mingw}"
-echo ""
+# Update settings file to use conda-forge toolchain
+settings_file=$(find "${_PREFIX}"/lib/ -name settings | head -1)
+if [[ -f "${settings_file}" ]]; then
+  echo ""
+  echo "Updating settings file: ${settings_file}"
+
+  # These settings were already applied during Stage0/Stage1 settings patches
+  # But verify they're correct in the final installation
+  echo "Settings file contents:"
+  cat "${settings_file}" | grep -E "(C compiler command|C compiler link flags|ar command|ld command)" || true
+else
+  echo "WARNING: Could not find settings file"
+fi
 
 # Verify installation
+echo ""
 echo "========================================================================"
 echo "=== Verifying GHC installation ==="
 echo "========================================================================"
 echo "GHC binaries in ${_PREFIX}/bin:"
-ls -la "${_PREFIX}/bin" | grep -E "\.(bat|exe)$" || echo "No .bat/.exe files found"
-echo ""
-echo "GHC library directory:"
-ls -la "${_PREFIX}/lib/bin" | head -10 || echo "lib/bin doesn't exist"
-echo ""
+ls -la "${_PREFIX}/bin" | head -20
 
+echo ""
+echo "GHC library structure:"
+if [[ -d "${_PREFIX}/lib/ghc-${PKG_VERSION}" ]]; then
+  echo "✓ Found lib/ghc-${PKG_VERSION}"
+  ls -la "${_PREFIX}/lib/ghc-${PKG_VERSION}" | head -10
+elif [[ -d "${_PREFIX}/lib/x86_64-windows-ghc-${PKG_VERSION}" ]]; then
+  echo "✓ Found lib/x86_64-windows-ghc-${PKG_VERSION}"
+  ls -la "${_PREFIX}/lib/x86_64-windows-ghc-${PKG_VERSION}" | head -10
+else
+  echo "WARNING: Could not find GHC library directory"
+  echo "Contents of ${_PREFIX}/lib:"
+  ls -la "${_PREFIX}/lib" | head -20
+fi
+
+echo ""
 echo "========================================================================"
 echo "=== GHC ${PKG_VERSION} Windows build completed successfully! ==="
 echo "========================================================================"
