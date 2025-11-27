@@ -1,0 +1,30 @@
+--- a/utils/hp2ps/Utilities.c
++++ b/utils/hp2ps/Utilities.c
+@@ -1,9 +1,7 @@
+ #include "Main.h"
+ #include <stdio.h>
+ #include <string.h>
++#include <stdlib.h>
+ #include "Error.h"
+
+-extern void* malloc();
+-
+ char*
+ Basename(char *name)
+ {
+@@ -70,7 +68,6 @@ xmalloc(intish n)
+ {
+     void* r;
+
+-    extern void* malloc();
+     r = (void*) malloc(n);
+     if (r == NULL) {
+         (void) fprintf(stderr, "%s: out of memory\n", hpfile);
+@@ -82,7 +79,6 @@ void*
+ xrealloc(void *p, intish n)
+ {
+     void* r;
+-    extern void *realloc();
+
+     r = realloc(p, n);
+     if (r == NULL) {
