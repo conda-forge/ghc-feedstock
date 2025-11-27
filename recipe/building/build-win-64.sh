@@ -776,13 +776,27 @@ fi
 # Rebuild touchy.exe with the patched Stage1 settings
 # touchy was built during stage1:exe:ghc-bin with Stage0 settings (no --enable-auto-import)
 # We need to rebuild it with Stage1 settings so it doesn't crash with relocation errors
-echo "=== Rebuilding touchy.exe with patched Stage1 settings ==="
-# Delete all touchy build artifacts to force Hadrian to rebuild it (otherwise it's a no-op)
-echo "Deleting touchy build artifacts..."
-rm -rf "${_SRC_DIR}/_build/stage1/utils/touchy"
-rm -f "${_SRC_DIR}/_build/stage1/bin/touchy.exe"
-rm -f "${_SRC_DIR}/_build/stage1/lib/bin/touchy.exe"
-run_and_log "stage1_touchy_rebuild" "${_hadrian_build[@]}" stage1:exe:touchy --flavour=quickest --docs=none --progress-info=none
+echo "=== Rebuilding touchy.exe with correct linker flags ==="
+# Compile touchy.c directly with gcc using the correct flags
+touchy_source="${_SRC_DIR}/utils/touchy/touchy.c"
+touchy_output="${_SRC_DIR}/_build/stage1/lib/bin/touchy.exe"
+if [[ -f "${touchy_source}" ]]; then
+  echo "Compiling touchy.exe with --enable-auto-import..."
+  mkdir -p "$(dirname "${touchy_output}")"
+  gcc "${touchy_source}" -o "${touchy_output}" \
+    -Wl,--enable-auto-import \
+    -Wl,--image-base=0x140000000 \
+    -Wl,--dynamicbase \
+    -Wl,--high-entropy-va \
+    -lucrt -lkernel32 || {
+    echo "ERROR: Failed to compile touchy.exe"
+    exit 1
+  }
+  echo "Successfully compiled touchy.exe"
+  ls -lh "${touchy_output}"
+else
+  echo "WARNING: touchy.c not found at ${touchy_source}"
+fi
 
 run_and_log "stage2_lib" "${_hadrian_build[@]}" stage2:lib:ghc --flavour=quickest --freeze1 --docs=none --progress-info=none
 run_and_log "install" "${_hadrian_build[@]}" install --prefix="${_PREFIX}" --flavour=quickest --freeze1 --freeze2 --docs=none
