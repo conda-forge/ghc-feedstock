@@ -92,8 +92,17 @@ configure_ghc() {
 
   # Allow platform to request verbose configure (skip run_and_log wrapper)
   if [[ "${CONFIGURE_VERBOSE:-false}" == "true" ]]; then
-    echo "  (Verbose mode: real-time output with --verbose flag)"
-    "${SRC_DIR}"/configure --verbose "${sys_cfg[@]}" "${cfg_args[@]}"
+    echo "  (Verbose mode: real-time output, will dump config.log on failure)"
+    "${SRC_DIR}"/configure "${sys_cfg[@]}" "${cfg_args[@]}" || {
+      echo ""
+      echo "=== Configure failed! Dumping config.log ==="
+      if [[ -f "${SRC_DIR}/config.log" ]]; then
+        cat "${SRC_DIR}/config.log"
+      else
+        echo "ERROR: config.log not found at ${SRC_DIR}/config.log"
+      fi
+      exit 1
+    }
   else
     run_and_log "ghc-configure" "${SRC_DIR}"/configure "${sys_cfg[@]}" "${cfg_args[@]}"
   fi
