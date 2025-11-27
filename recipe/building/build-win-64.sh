@@ -818,7 +818,8 @@ if [[ -f "${touchy_source}" ]]; then
 
   mkdir -p "$(dirname "${touchy_output}")"
 
-  echo "Running: gcc ${touchy_source} -o ${touchy_output} \\"
+  echo "Using CC=${CC}"
+  echo "Running: ${CC} ${touchy_source} -o ${touchy_output} \\"
   echo "  -Wl,--enable-auto-import \\"
   echo "  -Wl,--image-base=0x140000000 \\"
   echo "  -Wl,--dynamicbase \\"
@@ -826,7 +827,7 @@ if [[ -f "${touchy_source}" ]]; then
   echo "  -lucrt -lkernel32"
   echo ""
 
-  gcc "${touchy_source}" -o "${touchy_output}" \
+  "${CC}" "${touchy_source}" -o "${touchy_output}" \
     -Wl,--enable-auto-import \
     -Wl,--image-base=0x140000000 \
     -Wl,--dynamicbase \
