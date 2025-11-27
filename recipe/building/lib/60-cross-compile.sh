@@ -144,25 +144,25 @@ build_hadrian_cross() {
   local extra_cflags="${5:-}"
   local extra_ldflags="${6:-}"
 
-  echo "=== Building Hadrian with dependencies ==="
-  echo "  GHC: ${ghc_path}"
-  echo "  AR: ${ar_stage0}"
-  echo "  CC: ${cc_stage0}"
-  echo "  LD: ${ld_stage0}"
+  echo "=== Building Hadrian with dependencies ===" >&2
+  echo "  GHC: ${ghc_path}" >&2
+  echo "  AR: ${ar_stage0}" >&2
+  echo "  CC: ${cc_stage0}" >&2
+  echo "  LD: ${ld_stage0}" >&2
 
   pushd "${SRC_DIR}/hadrian" || return 1
 
   # CRITICAL: Override CFLAGS/LDFLAGS if provided
   # This prevents target architecture flags from contaminating Hadrian build
   if [[ -n "$extra_cflags" ]]; then
-    echo "  Overriding CFLAGS for build machine:"
-    echo "    ${extra_cflags}"
+    echo "  Overriding CFLAGS for build machine:" >&2
+    echo "    ${extra_cflags}" >&2
     export CFLAGS="$extra_cflags"
   fi
 
   if [[ -n "$extra_ldflags" ]]; then
-    echo "  Overriding LDFLAGS for build machine:"
-    echo "    ${extra_ldflags}"
+    echo "  Overriding LDFLAGS for build machine:" >&2
+    echo "    ${extra_ldflags}" >&2
     export LDFLAGS="$extra_ldflags"
   fi
 
@@ -196,8 +196,8 @@ build_hadrian_cross() {
   popd || return 1
 
   if [[ $exit_code -ne 0 ]]; then
-    echo "=== Cabal build FAILED with exit code ${exit_code} ==="
-    echo "See ${SRC_DIR}/cabal-verbose.log for details"
+    echo "=== Cabal build FAILED with exit code ${exit_code} ===" >&2
+    echo "See ${SRC_DIR}/cabal-verbose.log for details" >&2
     return 1
   fi
 
