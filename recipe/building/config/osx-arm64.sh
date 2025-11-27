@@ -80,7 +80,10 @@ platform_setup_bootstrap() {
   # Export bootstrap tools
   export GHC="${ghc_path}/ghc"
   export CABAL="${osx_64_env}/bin/cabal"
-  export CABAL_DIR="${SRC_DIR}/.cabal"
+
+  # CRITICAL: Use very short path for cabal directory to avoid path length limits
+  # macOS has exec path limits that affect both linker output and file operations
+  export CABAL_DIR="/tmp/cb"
 
   # Add GHC to PATH so cabal can find it
   export PATH="${ghc_path}:${PATH}"
@@ -93,6 +96,7 @@ platform_setup_bootstrap() {
   }
 
   echo "  Bootstrap GHC ready"
+  echo "  Cabal directory: ${CABAL_DIR}"
 
   # Store environment path for later hooks
   export OSX64_ENV="${osx_64_env}"
@@ -199,23 +203,30 @@ platform_build_hadrian() {
   local hadrian_path
   hadrian_path=$(build_hadrian_cross "${GHC}" "${AR_STAGE0}" "${CC_STAGE0}" "${LD_STAGE0}")
 
-  # macOS path length limits require copying Hadrian to shorter path
-  # rattler-build uses long placeholder prefixes that exceed exec limits
-  # CRITICAL: Even 'cp' fails with long paths, so cd to source dir first
-  local hadrian_short="/tmp/hadrian"
-  local hadrian_dir=$(dirname "${hadrian_path}")
-  local hadrian_name=$(basename "${hadrian_path}")
+  # Try to use Hadrian directly first (with short CABAL_DIR this should work)
+  if [[ -x "${hadrian_path}" ]]; then
+    echo "  Using Hadrian directly: ${hadrian_path}"
+    HADRIAN_BUILD=("${hadrian_path}" "-j${CPU_COUNT}" "--directory" "${SRC_DIR}")
+  else
+    # Fallback: Copy to short path if direct use fails
+    # This shouldn't be needed with CABAL_DIR=/tmp/cb but kept as safety
+    echo "  Warning: Hadrian path too long, copying to short path"
+    local hadrian_short="/tmp/hadrian-bin"
+    local hadrian_dir=$(dirname "${hadrian_path}")
+    local hadrian_name=$(basename "${hadrian_path}")
 
-  pushd "${hadrian_dir}" >/dev/null
-  cp "${hadrian_name}" "${hadrian_short}"
-  popd >/dev/null
+    # Remove destination if it exists
+    rm -f "${hadrian_short}"
 
-  chmod +x "${hadrian_short}"
+    pushd "${hadrian_dir}" >/dev/null
+    cp "${hadrian_name}" "${hadrian_short}"
+    popd >/dev/null
 
-  echo "  Copied Hadrian: ${hadrian_short}"
+    chmod +x "${hadrian_short}"
 
-  # Build command array with shorter path
-  HADRIAN_BUILD=("${hadrian_short}" "-j${CPU_COUNT}" "--directory" "${SRC_DIR}")
+    echo "  Copied Hadrian: ${hadrian_short}"
+    HADRIAN_BUILD=("${hadrian_short}" "-j${CPU_COUNT}" "--directory" "${SRC_DIR}")
+  fi
 
   echo "  Hadrian command: ${HADRIAN_BUILD[*]}"
 }

@@ -39,7 +39,7 @@ export _SRC_DIR="${SRC_DIR}"
 # PLATFORM METADATA
 # ==============================================================================
 
-PLATFORM_NAME="windows-64"
+PLATFORM_NAME="win-64"
 PLATFORM_TYPE="native"
 INSTALL_METHOD="native"
 
