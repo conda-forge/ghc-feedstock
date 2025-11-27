@@ -216,11 +216,9 @@ platform_build_hadrian() {
 
   pushd "${_SRC_DIR}/hadrian" >/dev/null
 
-  # Use LD in Windows format
-  local LD_UNIX="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-ld.exe"
-  local LD_WIN=$(echo "${LD_UNIX}" | sed 's#^/c/#C:/#')
-
-  run_and_log "build-hadrian" "${CABAL}" v2-build -j1 --with-ld="${LD_WIN}" hadrian
+  # Build Hadrian without --with-ld (cabal will use system default)
+  # Note: Passing --with-ld causes path mangling issues on Windows
+  run_and_log "build-hadrian" "${CABAL}" v2-build -j1 hadrian
 
   popd >/dev/null
 
