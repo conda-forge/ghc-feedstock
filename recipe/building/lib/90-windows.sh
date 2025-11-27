@@ -76,10 +76,18 @@ setup_windows_gcc_toolchain() {
   # NOTE: CPP is set by platform config (win-64.sh) to "gcc -E"
   # Do NOT override here - standalone cpp doesn't handle GHC's configure flags
 
-  # Define toolchain variables
-  # NOTE: LD not exported - GCC toolchain locates ld correctly (see configure output)
+  # Override conda's toolchain vars with UNIX-style paths
+  # Conda sets these with %BUILD_PREFIX% which may expand to Windows paths with backslashes
+  # BASH/MSYS2 handles UNIX-style paths fine, only specific tools need Windows format
   export AR="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-ar.exe"
+  export AS="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-as.exe"
+  export NM="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-nm.exe"
+  export OBJCOPY="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-objcopy.exe"
+  export OBJDUMP="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-objdump.exe"
   export RANLIB="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-ranlib.exe"
+  export READELF="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-readelf.exe"
+  export STRIP="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-strip.exe"
+  # NOTE: LD not set - GCC toolchain locates it correctly (avoids path issues)
 
   # Use GNU ld (bfd) for MinGW compatibility (lld defaults to MSVC mode on Windows)
   CFLAGS=$(echo "${CFLAGS}" | perl -pe 's/-fuse-ld=lld/-fuse-ld=bfd/g')
