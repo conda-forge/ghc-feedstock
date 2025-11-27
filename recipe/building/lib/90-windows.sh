@@ -19,14 +19,14 @@ setup_windows_paths() {
 
   # Expand conda variables in CFLAGS/CXXFLAGS/LDFLAGS
   # Replace %PREFIX%, %BUILD_PREFIX%, %SRC_DIR% with Unix path equivalents
-  CFLAGS=$(echo "${CFLAGS}" | perl -pe "s|%BUILD_PREFIX%|${_BUILD_PREFIX}|g; s|%PREFIX%|${_PREFIX}|g; s|%SRC_DIR%|${_SRC_DIR}|g")
-  CXXFLAGS=$(echo "${CXXFLAGS}" | perl -pe "s|%BUILD_PREFIX%|${_BUILD_PREFIX}|g; s|%PREFIX%|${_PREFIX}|g; s|%SRC_DIR%|${_SRC_DIR}|g")
-  LDFLAGS=$(echo "${LDFLAGS}" | perl -pe "s|%BUILD_PREFIX%|${_BUILD_PREFIX}|g; s|%PREFIX%|${_PREFIX}|g; s|%SRC_DIR%|${_SRC_DIR}|g")
+  CFLAGS=$(echo "${CFLAGS}" | perl -pe "s|%BUILD_PREFIX%|${BUILD_PREFIX}|g; s|%PREFIX%|${PREFIX}|g; s|%SRC_DIR%|${SRC_DIR}|g")
+  CXXFLAGS=$(echo "${CXXFLAGS}" | perl -pe "s|%BUILD_PREFIX%|${BUILD_PREFIX}|g; s|%PREFIX%|${PREFIX}|g; s|%SRC_DIR%|${SRC_DIR}|g")
+  LDFLAGS=$(echo "${LDFLAGS}" | perl -pe "s|%BUILD_PREFIX%|${BUILD_PREFIX}|g; s|%PREFIX%|${PREFIX}|g; s|%SRC_DIR%|${SRC_DIR}|g")
 
   # Also handle $ENV{VAR} style references
-  CFLAGS=$(echo "${CFLAGS}" | perl -pe "s|\$ENV{BUILD_PREFIX}|${_BUILD_PREFIX}|g; s|\$ENV{PREFIX}|${_PREFIX}|g; s|\$ENV{SRC_DIR}|${_SRC_DIR}|g")
-  CXXFLAGS=$(echo "${CXXFLAGS}" | perl -pe "s|\$ENV{BUILD_PREFIX}|${_BUILD_PREFIX}|g; s|\$ENV{PREFIX}|${_PREFIX}|g; s|\$ENV{SRC_DIR}|${_SRC_DIR}|g")
-  LDFLAGS=$(echo "${LDFLAGS}" | perl -pe "s|\$ENV{BUILD_PREFIX}|${_BUILD_PREFIX}|g; s|\$ENV{PREFIX}|${_PREFIX}|g; s|\$ENV{SRC_DIR}|${_SRC_DIR}|g")
+  CFLAGS=$(echo "${CFLAGS}" | perl -pe "s|\$ENV{BUILD_PREFIX}|${BUILD_PREFIX}|g; s|\$ENV{PREFIX}|${PREFIX}|g; s|\$ENV{SRC_DIR}|${SRC_DIR}|g")
+  CXXFLAGS=$(echo "${CXXFLAGS}" | perl -pe "s|\$ENV{BUILD_PREFIX}|${BUILD_PREFIX}|g; s|\$ENV{PREFIX}|${PREFIX}|g; s|\$ENV{SRC_DIR}|${SRC_DIR}|g")
+  LDFLAGS=$(echo "${LDFLAGS}" | perl -pe "s|\$ENV{BUILD_PREFIX}|${BUILD_PREFIX}|g; s|\$ENV{PREFIX}|${PREFIX}|g; s|\$ENV{SRC_DIR}|${SRC_DIR}|g")
 
   # Remove problematic flags from conda environment
   CFLAGS="${CFLAGS//-nostdlib/}"
@@ -79,14 +79,14 @@ setup_windows_gcc_toolchain() {
   # Override conda's toolchain vars with UNIX-style paths
   # Conda sets these with %BUILD_PREFIX% which may expand to Windows paths with backslashes
   # BASH/MSYS2 handles UNIX-style paths fine, only specific tools need Windows format
-  export AR="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-ar.exe"
-  export AS="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-as.exe"
-  export NM="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-nm.exe"
-  export OBJCOPY="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-objcopy.exe"
-  export OBJDUMP="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-objdump.exe"
-  export RANLIB="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-ranlib.exe"
-  export READELF="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-readelf.exe"
-  export STRIP="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-strip.exe"
+  export AR="${BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-ar.exe"
+  export AS="${BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-as.exe"
+  export NM="${BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-nm.exe"
+  export OBJCOPY="${BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-objcopy.exe"
+  export OBJDUMP="${BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-objdump.exe"
+  export RANLIB="${BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-ranlib.exe"
+  export READELF="${BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-readelf.exe"
+  export STRIP="${BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-strip.exe"
 
   # Explicitly unset LD - conda sets it with Windows path, causes backslash mangling
   # GCC toolchain locates ld correctly without LD env var
@@ -98,15 +98,15 @@ setup_windows_gcc_toolchain() {
   LDFLAGS=$(echo "${LDFLAGS}" | perl -pe 's/-fuse-ld=lld/-fuse-ld=bfd/g')
 
   # Add include and library paths
-  export CFLAGS="-I${_BUILD_PREFIX}/Library/include ${CFLAGS:-}"
-  export CXXFLAGS="-I${_BUILD_PREFIX}/Library/include ${CXXFLAGS:-}"
-  export LDFLAGS="-L${_BUILD_PREFIX}/Library/lib -L${_BUILD_PREFIX}/Library/lib/gcc/x86_64-w64-mingw32/15.2.0 ${LDFLAGS:-}"
+  export CFLAGS="-I${BUILD_PREFIX}/Library/include ${CFLAGS:-}"
+  export CXXFLAGS="-I${BUILD_PREFIX}/Library/include ${CXXFLAGS:-}"
+  export LDFLAGS="-L${BUILD_PREFIX}/Library/lib -L${BUILD_PREFIX}/Library/lib/gcc/x86_64-w64-mingw32/15.2.0 ${LDFLAGS:-}"
 
   # GCC uses libgcc, not compiler-rt
   export COMPILER_RT_LIB=""
 
   # Set library path for runtime linking
-  export LIBRARY_PATH="${_BUILD_PREFIX}/Library/lib${LIBRARY_PATH:+:}${LIBRARY_PATH:-}"
+  export LIBRARY_PATH="${BUILD_PREFIX}/Library/lib${LIBRARY_PATH:+:}${LIBRARY_PATH:-}"
 }
 
 # ============================================================================
@@ -120,7 +120,7 @@ create_chkstk_stub() {
   #
   # CRITICAL: Must be created BEFORE updating bootstrap settings file
 
-  pushd "${_SRC_DIR}" >/dev/null
+  pushd "${SRC_DIR}" >/dev/null
 
   # Create assembly stub
   cat > chkstk_ms.s <<'EOF'
@@ -138,10 +138,10 @@ EOF
   x86_64-w64-mingw32-ar rcs libchkstk_ms.a chkstk_ms.o
 
   # Install to library directory
-  cp libchkstk_ms.a "${_BUILD_PREFIX}/Library/lib/"
+  cp libchkstk_ms.a "${BUILD_PREFIX}/Library/lib/"
 
   # Verify library was created
-  if [[ ! -f "${_BUILD_PREFIX}/Library/lib/libchkstk_ms.a" ]]; then
+  if [[ ! -f "${BUILD_PREFIX}/Library/lib/libchkstk_ms.a" ]]; then
     echo "ERROR: Failed to create chkstk_ms library"
     exit 1
   fi
@@ -207,7 +207,7 @@ patch_bootstrap_settings_windows() {
 
   # Windows ghc-bootstrap package installs to lib/settings (no version subdir)
   # Unlike Linux/macOS which use lib/ghc-VERSION/lib/settings
-  local settings_file="${_BUILD_PREFIX}/ghc-bootstrap/lib/settings"
+  local settings_file="${BUILD_PREFIX}/ghc-bootstrap/lib/settings"
 
   if [[ ! -f "${settings_file}" ]]; then
     echo "WARNING: Bootstrap settings file not found at ${settings_file}"
@@ -216,7 +216,7 @@ patch_bootstrap_settings_windows() {
 
   # Convert LD to Windows format for tool execution
   # GHC on Windows needs C:/path format, not /c/path
-  local LD_UNIX="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-ld.exe"
+  local LD_UNIX="${BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-ld.exe"
   local LD_WIN=$(echo "${LD_UNIX}" | sed 's#^/c/#C:/#')
 
   # Fix merge-objects to use GNU ld (ld.bfd) instead of lld
@@ -235,7 +235,7 @@ patch_system_config_windows() {
   #
   # TIMING: Must run AFTER configure
 
-  local config_file="${_SRC_DIR}/hadrian/cfg/system.config"
+  local config_file="${SRC_DIR}/hadrian/cfg/system.config"
 
   if [[ ! -f "${config_file}" ]]; then
     echo "ERROR: system.config not found at ${config_file}"
@@ -246,12 +246,12 @@ patch_system_config_windows() {
   perl -pi -e "s#(^python\\s*=).*#\$1 ${_PYTHON}#" "${config_file}"
 
   # Expand conda variables to Unix paths (prevent backslash escapes)
-  perl -pi -e "s#%PREFIX%#${_PREFIX}#g" "${config_file}"
-  perl -pi -e "s#%BUILD_PREFIX%#${_BUILD_PREFIX}#g" "${config_file}"
-  perl -pi -e "s#%SRC_DIR%#${_SRC_DIR}#g" "${config_file}"
-  perl -pi -e "s#\$ENV{PREFIX}#${_PREFIX}#g" "${config_file}"
-  perl -pi -e "s#\$ENV{BUILD_PREFIX}#${_BUILD_PREFIX}#g" "${config_file}"
-  perl -pi -e "s#\$ENV{SRC_DIR}#${_SRC_DIR}#g" "${config_file}"
+  perl -pi -e "s#%PREFIX%#${PREFIX}#g" "${config_file}"
+  perl -pi -e "s#%BUILD_PREFIX%#${BUILD_PREFIX}#g" "${config_file}"
+  perl -pi -e "s#%SRC_DIR%#${SRC_DIR}#g" "${config_file}"
+  perl -pi -e "s#\$ENV{PREFIX}#${PREFIX}#g" "${config_file}"
+  perl -pi -e "s#\$ENV{BUILD_PREFIX}#${BUILD_PREFIX}#g" "${config_file}"
+  perl -pi -e "s#\$ENV{SRC_DIR}#${SRC_DIR}#g" "${config_file}"
 
   # Convert FFI paths to Windows format
   perl -pi -e 's#^ffi-include-dir\s*=\s*/c/#ffi-include-dir   = C:/#' "${config_file}"
@@ -269,7 +269,7 @@ patch_system_config_windows() {
   perl -pi -e 's#^use-system-ffi\s*=\s*.*$#use-system-ffi = YES#' "${config_file}"
 
   # Fix system-merge-objects to use GNU ld (Windows format)
-  local LD_UNIX="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-ld.exe"
+  local LD_UNIX="${BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-ld.exe"
   local LD_WIN=$(echo "${LD_UNIX}" | sed 's#^/c/#C:/#')
   perl -pi -e 's#^system-merge-objects\s*=\s*.*$#system-merge-objects = '"${LD_WIN}"'#' "${config_file}"
 }

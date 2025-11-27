@@ -27,13 +27,8 @@ source "${RECIPE_DIR}/building/config/common-hooks.sh"
 # WINDOWS PATH INITIALIZATION
 # ==============================================================================
 # Convert conda environment variables from Windows paths to Unix paths
-# MSYS2/Git Bash provides these as Unix paths (/c/...), but some code needs
-# Windows paths (C:\...), so we keep both versions.
-
-# Unix-style paths (for MSYS2/Git Bash tools)
-export _BUILD_PREFIX="${BUILD_PREFIX}"
-export _PREFIX="${PREFIX}"
-export _SRC_DIR="${SRC_DIR}"
+# BUILD_PREFIX, PREFIX, SRC_DIR are already in UNIX format from build.bat
+# DO NOT create wrapper variables - use them directly
 
 # ==============================================================================
 # PLATFORM METADATA
@@ -66,10 +61,10 @@ platform_setup_bootstrap() {
   # Windows-specific bootstrap environment
   # Bootstrap GHC is at BUILD_PREFIX/ghc-bootstrap/bin/ghc.exe
 
-  export PATH="${_BUILD_PREFIX}/ghc-bootstrap/bin${PATH:+:}${PATH:-}:/c/Windows/System32"
-  export CABAL="${_BUILD_PREFIX}/bin/cabal"
+  export PATH="${BUILD_PREFIX}/ghc-bootstrap/bin${PATH:+:}${PATH:-}:/c/Windows/System32"
+  export CABAL="${BUILD_PREFIX}/bin/cabal"
   export CABAL_DIR="${SRC_DIR}\.cabal"
-  export _PYTHON="${_BUILD_PREFIX}/python.exe"
+  export _PYTHON="${BUILD_PREFIX}/python.exe"
   export GHC="${BUILD_PREFIX}\\ghc-bootstrap\\bin\\ghc.exe"
 
   # Test bootstrap GHC is functional
@@ -81,8 +76,8 @@ platform_setup_bootstrap() {
   echo "  Bootstrap GHC is functional"
 
   # Copy m4 to bin for autoconf
-  mkdir -p "${_BUILD_PREFIX}/bin"
-  cp "${_BUILD_PREFIX}/Library/usr/bin/m4.exe" "${_BUILD_PREFIX}/bin/" 2>/dev/null || true
+  mkdir -p "${BUILD_PREFIX}/bin"
+  cp "${BUILD_PREFIX}/Library/usr/bin/m4.exe" "${BUILD_PREFIX}/bin/" 2>/dev/null || true
 }
 
 # ==============================================================================
@@ -126,11 +121,11 @@ platform_setup_environment() {
 platform_setup_cabal() {
   # Windows-specific Cabal configuration
 
-  mkdir -p "${_SRC_DIR}/.cabal"
+  mkdir -p "${SRC_DIR}/.cabal"
 
   # Only init if config doesn't exist (avoid "already exists" error)
   # The --force flag doesn't work reliably in all cabal versions
-  if [[ ! -f "${_SRC_DIR}/.cabal/config" ]]; then
+  if [[ ! -f "${SRC_DIR}/.cabal/config" ]]; then
     "${CABAL}" user-config init
   else
     echo "  Cabal config already exists, skipping init"
@@ -147,7 +142,7 @@ platform_setup_cabal() {
 platform_build_system_config() {
   # System configuration for Windows build
   SYSTEM_CONFIG=(
-    --prefix="${_PREFIX}"
+    --prefix="${PREFIX}"
   )
 }
 
@@ -175,7 +170,7 @@ platform_pre_configure() {
 
   # MergeObjs configuration (for ghc-toolchain)
   # Convert to Windows path with forward slashes (avoids backslash escape issues)
-  local LD_UNIX="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-ld.exe"
+  local LD_UNIX="${BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-ld.exe"
   local LD_WIN=$(echo "${LD_UNIX}" | perl -pe 's{^/c/}{C:/}; s{\\}{/}g')
   export MergeObjsCmd="${LD_WIN}"
   export MergeObjsArgs=""
@@ -218,7 +213,7 @@ platform_build_hadrian() {
   # CRITICAL: Use single-threaded build (-j1) to avoid race conditions
   # Parallel ghc-pkg updates can conflict on package.cache
 
-  pushd "${_SRC_DIR}/hadrian" >/dev/null
+  pushd "${SRC_DIR}/hadrian" >/dev/null
 
   # Build Hadrian without --with-ld (cabal will use system default)
   # Note: Passing --with-ld causes path mangling issues on Windows
@@ -227,7 +222,7 @@ platform_build_hadrian() {
   popd >/dev/null
 
   # Find and verify Hadrian binary
-  _hadrian_bin=$(find "${_SRC_DIR}"/hadrian/dist-newstyle -name hadrian.exe -type f | head -1)
+  _hadrian_bin=$(find "${SRC_DIR}"/hadrian/dist-newstyle -name hadrian.exe -type f | head -1)
 
   if [[ ! -f "${_hadrian_bin}" ]]; then
     echo "ERROR: Hadrian binary not found after build"
