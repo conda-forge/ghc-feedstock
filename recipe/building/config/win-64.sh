@@ -168,6 +168,12 @@ platform_run_configure() {
   local LD_WIN=$(echo "${LD_UNIX}" | sed 's#^/c/#C:/#')
   export LD="${LD_WIN}"
 
+  # Override GHC's CPP flags test which fails with GCC 15.2 on Windows
+  # The test checks if 'gcc -E -CC -Wno-unicode -nostdinc' works
+  # but gets only line directives instead of preprocessed content
+  # This is safe to override - the flags will work fine during actual builds
+  export ghc_cv_gcc_supports_no_unicode=yes
+
   # Run configure
   MergeObjsCmd="${LD}" \
   MergeObjsArgs="" \

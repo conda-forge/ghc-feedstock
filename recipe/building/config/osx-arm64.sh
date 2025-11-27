@@ -146,14 +146,11 @@ platform_build_system_config() {
 }
 
 platform_build_configure_args() {
-  # Cross-compile specific autoconf variables
-  local -n args="$1"
+  # Build standard configure args first
+  build_configure_args CONFIGURE_ARGS
 
-  # Start with common configure args
-  build_configure_args args
-
-  # Add cross-compile specific overrides
-  args+=(
+  # Add cross-compile specific autoconf variables
+  CONFIGURE_ARGS+=(
     ac_cv_lib_ffi_ffi_call=yes
     ac_cv_path_AR="${BUILD_PREFIX}/bin/${conda_target}-ar"
     ac_cv_path_AS="${BUILD_PREFIX}/bin/${conda_target}-as"
