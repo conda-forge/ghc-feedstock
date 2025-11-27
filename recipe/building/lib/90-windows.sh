@@ -77,7 +77,7 @@ setup_windows_gcc_toolchain() {
   # Do NOT override here - standalone cpp doesn't handle GHC's configure flags
 
   # Define toolchain variables
-  export LD="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-ld.exe"
+  # NOTE: LD not exported - GCC toolchain locates ld correctly (see configure output)
   export AR="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-ar.exe"
   export RANLIB="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-ranlib.exe"
 
