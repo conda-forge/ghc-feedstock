@@ -172,8 +172,14 @@ build_hadrian_cross() {
   # Note: The dependency list was removed because it contained obsolete packages
   # (e.g., file-io, js-*, etc.) that are not needed for GHC 9.10.3's Hadrian.
   # Cabal will automatically resolve the actual dependencies from hadrian.cabal.
+  #
+  # CRITICAL: Use short builddir path to avoid macOS exec length limits
+  # The default dist-newstyle path under $SRC_DIR/hadrian/ is too long
+  local hadrian_builddir="/tmp/hb"
+  mkdir -p "${hadrian_builddir}"
 
   "${CABAL}" v2-build \
+    --builddir="${hadrian_builddir}" \
     --with-ar="${ar_stage0}" \
     --with-gcc="${cc_stage0}" \
     --with-ghc="${ghc_path}" \
@@ -192,9 +198,9 @@ build_hadrian_cross() {
     return 1
   fi
 
-  # Find hadrian binary location
+  # Find hadrian binary location in short builddir
   local hadrian_path
-  hadrian_path=$(find "${SRC_DIR}/hadrian" -type f -name hadrian -perm /111 | head -1)
+  hadrian_path=$(find "${hadrian_builddir}" -type f -name hadrian -perm /111 | head -1)
 
   if [[ -z "$hadrian_path" ]]; then
     echo "=== ERROR: Could not find hadrian binary ===" >&2
