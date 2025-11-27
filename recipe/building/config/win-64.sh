@@ -93,8 +93,10 @@ platform_setup_environment() {
   # Windows-specific environment configuration
   # Critical: Must happen BEFORE configure
 
-  # Set toolchain early (matches working Windows branch)
-  export CPP="x86_64-w64-mingw32-cpp"
+  # CRITICAL: Use gcc -E as preprocessor, not standalone cpp
+  # GHC's configure tests preprocessor flags that only work with gcc -E
+  # The standalone cpp doesn't handle -CC -Wno-unicode -nostdinc correctly
+  export CPP="${BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-gcc -E"
 
   # Step 1: Path conversion and flag cleanup
   setup_windows_paths
