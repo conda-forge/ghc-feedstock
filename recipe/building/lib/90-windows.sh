@@ -79,14 +79,14 @@ setup_windows_gcc_toolchain() {
   # Override conda's toolchain vars with UNIX-style paths
   # Conda sets these with %BUILD_PREFIX% which may expand to Windows paths with backslashes
   # BASH/MSYS2 handles UNIX-style paths fine, only specific tools need Windows format
-  export AR="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-ar.exe"
-  export AS="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-as.exe"
-  export NM="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-nm.exe"
-  export OBJCOPY="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-objcopy.exe"
-  export OBJDUMP="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-objdump.exe"
-  export RANLIB="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-ranlib.exe"
-  export READELF="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-readelf.exe"
-  export STRIP="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-strip.exe"
+  export AR="x86_64-w64-mingw32-ar.exe"
+  export AS="x86_64-w64-mingw32-as.exe"
+  export NM="x86_64-w64-mingw32-nm.exe"
+  export OBJCOPY="x86_64-w64-mingw32-objcopy.exe"
+  export OBJDUMP="x86_64-w64-mingw32-objdump.exe"
+  export RANLIB="x86_64-w64-mingw32-ranlib.exe"
+  export READELF="x86_64-w64-mingw32-readelf.exe"
+  export STRIP="x86_64-w64-mingw32-strip.exe"
 
   # Explicitly unset LD - conda sets it with Windows path, causes backslash mangling
   # GCC toolchain locates ld correctly without LD env var
@@ -214,15 +214,7 @@ patch_bootstrap_settings_windows() {
     return 1
   fi
 
-  # Convert LD to Windows format for tool execution
-  # GHC on Windows needs C:/path format, not /c/path
-  local LD_UNIX="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-ld.exe"
-  local LD_WIN=$(echo "${LD_UNIX}" | sed 's#^/c/#C:/#')
-
-  # Fix merge-objects to use GNU ld (ld.bfd) instead of lld
-  # The bootstrap GHC has system-merge-objects pointing to ld.lld.exe (MSVC-style)
-  # We need GNU ld which works with MinGW .a files
-  perl -pi -e "s#(Merge objects command\", \")[^\"]*#\$1${LD_WIN}#" "${settings_file}"
+  perl -pi -e "s#(Merge objects command\", \")[^\"]*#\$1${LD}#" "${settings_file}"
 }
 
 # ============================================================================
@@ -269,9 +261,7 @@ patch_system_config_windows() {
   perl -pi -e 's#^use-system-ffi\s*=\s*.*$#use-system-ffi = YES#' "${config_file}"
 
   # Fix system-merge-objects to use GNU ld (Windows format)
-  local LD_UNIX="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-ld.exe"
-  local LD_WIN=$(echo "${LD_UNIX}" | sed 's#^/c/#C:/#')
-  perl -pi -e 's#^system-merge-objects\s*=\s*.*$#system-merge-objects = '"${LD_WIN}"'#' "${config_file}"
+  perl -pi -e 's#^system-merge-objects\s*=\s*.*$#system-merge-objects = '"${LD}"'#' "${config_file}"
 }
 
 # ============================================================================

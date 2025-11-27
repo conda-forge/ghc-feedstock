@@ -96,7 +96,7 @@ platform_setup_environment() {
   # CRITICAL: Use gcc -E as preprocessor, not standalone cpp
   # GHC's configure tests preprocessor flags that only work with gcc -E
   # The standalone cpp doesn't handle -CC -Wno-unicode -nostdinc correctly
-  export CPP="${BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-gcc -E"
+  export CPP="x86_64-w64-mingw32-gcc -E"
 
   # Step 1: Path conversion and flag cleanup
   setup_windows_paths
@@ -168,16 +168,7 @@ platform_build_configure_args() {
 
 platform_pre_configure() {
   # Windows-specific pre-configure setup
-
-  # Don't set LD explicitly - let GHC configure find it through GCC toolchain
-  # Setting LD causes path mangling issues with backslashes (e.g., \b interpreted as backspace)
-  # GHC's configure and ghc-toolchain will locate ld correctly via gcc
-
-  # MergeObjs configuration (for ghc-toolchain)
-  # Convert to Windows path with forward slashes (avoids backslash escape issues)
-  local LD_UNIX="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-ld.exe"
-  local LD_WIN=$(echo "${LD_UNIX}" | perl -pe 's{^/c/}{C:/}; s{\\}{/}g')
-  export MergeObjsCmd="${LD_WIN}"
+  export MergeObjsCmd="${LD}"
   export MergeObjsArgs=""
 
   # Enable verbose configure (skip run_and_log wrapper for debugging)
