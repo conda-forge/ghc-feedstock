@@ -181,6 +181,9 @@ build_hadrian_cross() {
   rm -rf "${hadrian_builddir}"  # Clean previous builds
   mkdir -p "${hadrian_builddir}"
 
+  # CRITICAL: Redirect cabal output to stderr to prevent stdout contamination
+  # When this function is called via hadrian_path=$(build_hadrian_cross ...),
+  # ANY stdout output gets captured. We only want the final echo "${hadrian_path}".
   "${CABAL}" v2-build \
     --builddir="${hadrian_builddir}" \
     --with-ar="${ar_stage0}" \
@@ -189,7 +192,7 @@ build_hadrian_cross() {
     --with-ld="${ld_stage0}" \
     -j \
     hadrian \
-    2>&1 | tee "${SRC_DIR}/cabal-verbose.log"
+    2>&1 | tee "${SRC_DIR}/cabal-verbose.log" >&2
 
   local exit_code=${PIPESTATUS[0]}
 
