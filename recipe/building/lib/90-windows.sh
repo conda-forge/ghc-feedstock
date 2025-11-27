@@ -104,6 +104,10 @@ setup_windows_gcc_toolchain() {
 
   # Set library path for runtime linking
   export LIBRARY_PATH="${_BUILD_PREFIX}/Library/lib${LIBRARY_PATH:+:}${LIBRARY_PATH:-}"
+
+  if [[ -f "${_BUILD_PREFIX}"/ghc-bootstrap/bin/windres.bat ]]; then
+    perl -pi -e 's/findstr/C:\\Windows\\System32\\findstr/g' "${_BUILD_PREFIX}"/ghc-bootstrap/bin/windres.bat
+  fi
 }
 
 # ============================================================================
