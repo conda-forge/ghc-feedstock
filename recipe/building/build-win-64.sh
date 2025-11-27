@@ -776,27 +776,133 @@ fi
 # Rebuild touchy.exe with the patched Stage1 settings
 # touchy was built during stage1:exe:ghc-bin with Stage0 settings (no --enable-auto-import)
 # We need to rebuild it with Stage1 settings so it doesn't crash with relocation errors
-echo "=== Rebuilding touchy.exe with correct linker flags ==="
+echo ""
+echo "========================================================================"
+echo "=== REBUILDING touchy.exe with correct linker flags ==="
+echo "========================================================================"
+
 # Compile touchy.c directly with gcc using the correct flags
 touchy_source="${_SRC_DIR}/utils/touchy/touchy.c"
 touchy_output="${_SRC_DIR}/_build/stage1/lib/bin/touchy.exe"
+
+echo ""
+echo "--- Checking for old touchy.exe ---"
+if [[ -f "${touchy_output}" ]]; then
+  echo "✓ Old touchy.exe exists at: ${touchy_output}"
+  ls -lh "${touchy_output}"
+  file "${touchy_output}" || true
+
+  echo ""
+  echo "Checking DLL dependencies of old touchy.exe:"
+  if command -v ldd &>/dev/null; then
+    ldd "${touchy_output}" 2>&1 | head -15 || true
+  fi
+
+  echo ""
+  echo "Attempting to execute old touchy.exe --version:"
+  "${touchy_output}" --version 2>&1 || echo "ERROR: Old touchy.exe failed to execute (exit code: $?)"
+
+  echo ""
+  echo "Deleting old touchy.exe..."
+  rm -f "${touchy_output}"
+else
+  echo "✗ No old touchy.exe found (expected for first build)"
+fi
+
+echo ""
+echo "--- Compiling new touchy.exe ---"
 if [[ -f "${touchy_source}" ]]; then
-  echo "Compiling touchy.exe with --enable-auto-import..."
+  echo "Source: ${touchy_source}"
+  echo "Output: ${touchy_output}"
+  echo ""
+
   mkdir -p "$(dirname "${touchy_output}")"
+
+  echo "Running: gcc ${touchy_source} -o ${touchy_output} \\"
+  echo "  -Wl,--enable-auto-import \\"
+  echo "  -Wl,--image-base=0x140000000 \\"
+  echo "  -Wl,--dynamicbase \\"
+  echo "  -Wl,--high-entropy-va \\"
+  echo "  -lucrt -lkernel32"
+  echo ""
+
   gcc "${touchy_source}" -o "${touchy_output}" \
     -Wl,--enable-auto-import \
     -Wl,--image-base=0x140000000 \
     -Wl,--dynamicbase \
     -Wl,--high-entropy-va \
-    -lucrt -lkernel32 || {
+    -lucrt -lkernel32 2>&1 || {
+    echo ""
+    echo "========================================================================"
     echo "ERROR: Failed to compile touchy.exe"
+    echo "========================================================================"
     exit 1
   }
-  echo "Successfully compiled touchy.exe"
-  ls -lh "${touchy_output}"
+
+  echo ""
+  echo "✓ Compilation succeeded!"
+
+  echo ""
+  echo "--- Verifying new touchy.exe ---"
+  if [[ -f "${touchy_output}" ]]; then
+    echo "✓ New touchy.exe exists:"
+    ls -lh "${touchy_output}"
+    file "${touchy_output}" || true
+
+    echo ""
+    echo "DLL dependencies:"
+    if command -v ldd &>/dev/null; then
+      ldd "${touchy_output}" 2>&1 | head -15 || true
+    fi
+
+    echo ""
+    echo "Attempting to execute new touchy.exe --version:"
+    "${touchy_output}" --version 2>&1 || echo "ERROR: New touchy.exe failed to execute (exit code: $?)"
+
+    echo ""
+    echo "Testing basic touchy.exe functionality (create temp file):"
+    temp_test_file="${SRC_DIR}/_test_touchy_$$"
+    touch "${temp_test_file}" || echo "WARNING: touch command failed"
+    if [[ -f "${temp_test_file}" ]]; then
+      echo "Running: ${touchy_output} ${temp_test_file}"
+      "${touchy_output}" "${temp_test_file}" 2>&1 && echo "✓ touchy.exe successfully touched test file" || echo "ERROR: touchy.exe failed (exit code: $?)"
+      rm -f "${temp_test_file}"
+    fi
+  else
+    echo ""
+    echo "========================================================================"
+    echo "ERROR: touchy.exe was not created!"
+    echo "========================================================================"
+    exit 1
+  fi
 else
-  echo "WARNING: touchy.c not found at ${touchy_source}"
+  echo ""
+  echo "========================================================================"
+  echo "ERROR: touchy.c not found at ${touchy_source}"
+  echo "========================================================================"
+  exit 1
 fi
 
-run_and_log "stage2_lib" "${_hadrian_build[@]}" stage2:lib:ghc --flavour=quickest --freeze1 --docs=none --progress-info=none
+echo ""
+echo "========================================================================"
+echo "=== touchy.exe rebuild complete ==="
+echo "========================================================================"
+echo ""
+
+echo ""
+echo "========================================================================"
+echo "=== BUILDING Stage2 lib:ghc (live output, no logging) ==="
+echo "========================================================================"
+echo "Command: ${_hadrian_build[*]} stage2:lib:ghc --flavour=quickest --freeze1 --docs=none --progress-info=none"
+echo ""
+
+# Run directly without run_and_log wrapper to see all output in real-time
+"${_hadrian_build[@]}" stage2:lib:ghc --flavour=quickest --freeze1 --docs=none --progress-info=none || {
+  stage2_exit=$?
+  echo ""
+  echo "========================================================================"
+  echo "ERROR: stage2:lib:ghc failed with exit code ${stage2_exit}"
+  echo "========================================================================"
+  exit ${stage2_exit}
+}
 run_and_log "install" "${_hadrian_build[@]}" install --prefix="${_PREFIX}" --flavour=quickest --freeze1 --freeze2 --docs=none
