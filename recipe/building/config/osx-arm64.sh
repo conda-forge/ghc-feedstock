@@ -203,30 +203,15 @@ platform_build_hadrian() {
   local hadrian_path
   hadrian_path=$(build_hadrian_cross "${GHC}" "${AR_STAGE0}" "${CC_STAGE0}" "${LD_STAGE0}")
 
-  # Try to use Hadrian directly first (with short CABAL_DIR this should work)
-  if [[ -x "${hadrian_path}" ]]; then
-    echo "  Using Hadrian directly: ${hadrian_path}"
-    HADRIAN_BUILD=("${hadrian_path}" "-j${CPU_COUNT}" "--directory" "${SRC_DIR}")
-  else
-    # Fallback: Copy to short path if direct use fails
-    # This shouldn't be needed with CABAL_DIR=/tmp/cb but kept as safety
-    echo "  Warning: Hadrian path too long, copying to short path"
-    local hadrian_short="/tmp/hadrian-bin"
-    local hadrian_dir=$(dirname "${hadrian_path}")
-    local hadrian_name=$(basename "${hadrian_path}")
-
-    # Remove destination if it exists
-    rm -f "${hadrian_short}"
-
-    pushd "${hadrian_dir}" >/dev/null
-    cp "${hadrian_name}" "${hadrian_short}"
-    popd >/dev/null
-
-    chmod +x "${hadrian_short}"
-
-    echo "  Copied Hadrian: ${hadrian_short}"
-    HADRIAN_BUILD=("${hadrian_short}" "-j${CPU_COUNT}" "--directory" "${SRC_DIR}")
+  # Verify Hadrian was built successfully
+  if [[ ! -f "${hadrian_path}" ]]; then
+    echo "ERROR: Hadrian binary not found at ${hadrian_path}"
+    exit 1
   fi
+
+  # Use Hadrian directly - with short builddir (/tmp/b) it should work
+  echo "  Using Hadrian: ${hadrian_path}"
+  HADRIAN_BUILD=("${hadrian_path}" "-j${CPU_COUNT}" "--directory" "${SRC_DIR}")
 
   echo "  Hadrian command: ${HADRIAN_BUILD[*]}"
 }

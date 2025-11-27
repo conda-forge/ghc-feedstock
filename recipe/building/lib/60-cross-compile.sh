@@ -173,9 +173,12 @@ build_hadrian_cross() {
   # (e.g., file-io, js-*, etc.) that are not needed for GHC 9.10.3's Hadrian.
   # Cabal will automatically resolve the actual dependencies from hadrian.cabal.
   #
-  # CRITICAL: Use short builddir path to avoid macOS exec length limits
+  # CRITICAL: Use VERY short builddir path to avoid macOS exec length limits
   # The default dist-newstyle path under $SRC_DIR/hadrian/ is too long
-  local hadrian_builddir="/tmp/hb"
+  # Even /tmp/hb results in paths like: /tmp/hb/build/x86_64-osx/.../hadrian (83 chars)
+  # macOS has strict exec path limits, so use absolute minimum
+  local hadrian_builddir="/tmp/b"
+  rm -rf "${hadrian_builddir}"  # Clean previous builds
   mkdir -p "${hadrian_builddir}"
 
   "${CABAL}" v2-build \
