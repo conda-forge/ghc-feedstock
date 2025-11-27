@@ -11,20 +11,11 @@
 -
  char*
  Basename(char *name)
+@@ -88,7 +86,6 @@ void *
+ xrealloc(void *p, size_t n)
  {
-@@ -70,7 +68,6 @@ xmalloc(intish n)
- {
-     void* r;
-
--    extern void* malloc();
-     r = (void*) malloc(n);
-     if (r == NULL) {
-         (void) fprintf(stderr, "%s: out of memory\n", hpfile);
-@@ -82,7 +79,6 @@ void*
- xrealloc(void *p, intish n)
- {
-     void* r;
+     void *r;
 -    extern void *realloc();
 
      r = realloc(p, n);
-     if (r == NULL) {
+     if (!r) {
