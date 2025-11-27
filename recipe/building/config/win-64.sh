@@ -169,10 +169,14 @@ platform_build_configure_args() {
 platform_pre_configure() {
   # Windows-specific pre-configure setup
 
-  # Use GNU ld for linking (Windows format path for tool execution)
+  # Don't set LD explicitly - let GHC configure find it through GCC toolchain
+  # Setting LD causes path mangling issues with backslashes (e.g., \b interpreted as backspace)
+  # GHC's configure and ghc-toolchain will locate ld correctly via gcc
+
+  # MergeObjs configuration (for ghc-toolchain)
+  # Convert to Windows path with forward slashes (avoids backslash escape issues)
   local LD_UNIX="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-ld.exe"
-  local LD_WIN=$(echo "${LD_UNIX}" | sed 's#^/c/#C:/#')
-  export LD="${LD_WIN}"
+  local LD_WIN=$(echo "${LD_UNIX}" | perl -pe 's{^/c/}{C:/}; s{\\}{/}g')
   export MergeObjsCmd="${LD_WIN}"
   export MergeObjsArgs=""
 
@@ -180,7 +184,7 @@ platform_pre_configure() {
   export CONFIGURE_VERBOSE=true
 
   echo "  Pre-configure exports:"
-  echo "    LD=${LD}"
+  echo "    LD not set (gcc toolchain will provide)"
   echo "    MergeObjsCmd=${MergeObjsCmd}"
   echo "    CONFIGURE_VERBOSE=${CONFIGURE_VERBOSE}"
 }
