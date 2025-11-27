@@ -87,7 +87,10 @@ setup_windows_gcc_toolchain() {
   export RANLIB="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-ranlib.exe"
   export READELF="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-readelf.exe"
   export STRIP="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-strip.exe"
-  # NOTE: LD not set - GCC toolchain locates it correctly (avoids path issues)
+
+  # Explicitly unset LD - conda sets it with Windows path, causes backslash mangling
+  # GCC toolchain locates ld correctly without LD env var
+  unset LD
 
   # Use GNU ld (bfd) for MinGW compatibility (lld defaults to MSVC mode on Windows)
   CFLAGS=$(echo "${CFLAGS}" | perl -pe 's/-fuse-ld=lld/-fuse-ld=bfd/g')
