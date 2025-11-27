@@ -199,8 +199,15 @@ platform_build_hadrian() {
   local hadrian_path
   hadrian_path=$(build_hadrian_cross "${GHC}" "${AR_STAGE0}" "${CC_STAGE0}" "${LD_STAGE0}")
 
-  # Build command array
-  HADRIAN_BUILD=("${hadrian_path}" "-j${CPU_COUNT}" "--directory" "${SRC_DIR}")
+  # macOS path length limits require symlinking Hadrian to shorter path
+  # rattler-build uses long placeholder prefixes that exceed exec limits
+  local hadrian_symlink="/tmp/hadrian-$$"
+  ln -sf "${hadrian_path}" "${hadrian_symlink}"
+
+  echo "  Created symlink: ${hadrian_symlink} -> ${hadrian_path}"
+
+  # Build command array with shorter path
+  HADRIAN_BUILD=("${hadrian_symlink}" "-j${CPU_COUNT}" "--directory" "${SRC_DIR}")
 
   echo "  Hadrian command: ${HADRIAN_BUILD[*]}"
 }

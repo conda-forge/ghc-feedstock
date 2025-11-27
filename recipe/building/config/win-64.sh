@@ -144,29 +144,29 @@ platform_build_system_config() {
 }
 
 platform_build_configure_args() {
-  # Configure arguments for Windows build
-  CONFIGURE_ARGS=(
+  # Build standard configure args first
+  build_configure_args CONFIGURE_ARGS
+
+  # Add Windows-specific configure arguments
+  CONFIGURE_ARGS+=(
     --enable-distro-toolchain
-    --with-system-libffi=yes
     --with-intree-gmp=no
-    --with-curses-includes="${_PREFIX}"/Library/include
-    --with-curses-libraries="${_PREFIX}"/Library/lib
-    --with-ffi-includes="${_PREFIX}"/Library/include
-    --with-ffi-libraries="${_PREFIX}"/Library/lib
-    --with-gmp-includes="${_PREFIX}"/Library/include
-    --with-gmp-libraries="${_PREFIX}"/Library/lib
-    --with-iconv-includes="${_PREFIX}"/Library/include
-    --with-iconv-libraries="${_PREFIX}"/Library/lib
   )
 }
 
-platform_run_configure() {
-  # Run configure with Windows-specific settings
+# ==============================================================================
+# PRE-CONFIGURE SETUP
+# ==============================================================================
+
+platform_pre_configure() {
+  # Windows-specific pre-configure setup
 
   # Use GNU ld for linking (Windows format path for tool execution)
   local LD_UNIX="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-ld.exe"
   local LD_WIN=$(echo "${LD_UNIX}" | sed 's#^/c/#C:/#')
   export LD="${LD_WIN}"
+  export MergeObjsCmd="${LD_WIN}"
+  export MergeObjsArgs=""
 
   # Override GHC's CPP flags test which fails with GCC 15.2 on Windows
   # The test checks if 'gcc -E -CC -Wno-unicode -nostdinc' works
@@ -174,10 +174,10 @@ platform_run_configure() {
   # This is safe to override - the flags will work fine during actual builds
   export ghc_cv_gcc_supports_no_unicode=yes
 
-  # Run configure
-  MergeObjsCmd="${LD}" \
-  MergeObjsArgs="" \
-  ./configure "${CONFIGURE_ARGS[@]}" || { cat config.log; exit 1; }
+  echo "  Pre-configure exports:"
+  echo "    LD=${LD}"
+  echo "    MergeObjsCmd=${MergeObjsCmd}"
+  echo "    ghc_cv_gcc_supports_no_unicode=${ghc_cv_gcc_supports_no_unicode}"
 }
 
 # ==============================================================================
