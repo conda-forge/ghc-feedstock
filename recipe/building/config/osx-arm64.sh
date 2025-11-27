@@ -121,7 +121,13 @@ platform_setup_environment() {
 platform_setup_cabal() {
   # Initialize cabal in custom directory
   mkdir -p "${CABAL_DIR}"
-  "${CABAL}" user-config init
+
+  # Only init if config doesn't exist (avoid "already exists" error)
+  if [[ ! -f "${CABAL_DIR}/config" ]]; then
+    "${CABAL}" user-config init
+  else
+    echo "  Cabal config already exists, skipping init"
+  fi
 
   run_and_log "cabal-update" "${CABAL}" v2-update
 }

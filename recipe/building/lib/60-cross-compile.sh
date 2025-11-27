@@ -82,7 +82,13 @@ setup_cross_build_env() {
 
   # Initialize cabal
   mkdir -p "${CABAL_DIR}"
-  "${CABAL}" user-config init
+
+  # Only init if config doesn't exist (avoid "already exists" error)
+  if [[ ! -f "${CABAL_DIR}/config" ]]; then
+    "${CABAL}" user-config init
+  else
+    echo "  Cabal config already exists, skipping init"
+  fi
 
   # Update cabal package list
   run_and_log "cabal-update" "${CABAL}" v2-update

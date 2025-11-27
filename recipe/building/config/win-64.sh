@@ -118,13 +118,15 @@ platform_setup_environment() {
 platform_setup_cabal() {
   # Windows-specific Cabal configuration
 
-  # Clean any stale .cabal directory (permission issues on package.cache)
-  rm -rf "${_SRC_DIR}/.cabal" "${HOME}/.cabal" 2>/dev/null || true
-
   mkdir -p "${_SRC_DIR}/.cabal"
 
-  # Use --force to overwrite existing config (may exist from previous run)
-  "${CABAL}" user-config init --force
+  # Only init if config doesn't exist (avoid "already exists" error)
+  # The --force flag doesn't work reliably in all cabal versions
+  if [[ ! -f "${_SRC_DIR}/.cabal/config" ]]; then
+    "${CABAL}" user-config init
+  else
+    echo "  Cabal config already exists, skipping init"
+  fi
 
   # Update Cabal package database
   run_and_log "cabal-update" "${CABAL}" v2-update

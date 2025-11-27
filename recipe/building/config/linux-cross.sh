@@ -94,12 +94,31 @@ platform_setup_environment() {
   # PowerPC64LE ABI v2 configuration
   if [[ "${target_arch}" == "ppc64le" || "${target_arch}" == "powerpc64le" ]]; then
     echo "  PowerPC64LE detected: Configuring ABI v2"
-    export CFLAGS="${CFLAGS:-} -mabi=elfv2 -Dlinux_HOST_OS"
-    export CXXFLAGS="${CXXFLAGS:-} -mabi=elfv2 -Dlinux_HOST_OS"
+    export CFLAGS="${CFLAGS:-} -mabi=elfv2 -Dpowerpc64le_HOST_ARCH -Dlinux_HOST_OS"
+    export CXXFLAGS="${CXXFLAGS:-} -mabi=elfv2 -Dpowerpc64le_HOST_ARCH -Dlinux_HOST_OS"
 
-    # NOTE: ghc-bootstrap package does NOT install StgRun.h as a public header
-    # StgRun visibility is controlled by patches to the SOURCE tree only
-    # GHC uses powerpc64_HOST_ARCH (not powerpc64le_HOST_ARCH) for both BE and LE
+    # CRITICAL: Patch bootstrap GHC's StgRun.h to remove RTS_PRIVATE
+    # The bootstrap GHC (stage0) compiler uses its own headers when compiling stage1 RTS
+    # Without this, StgRun is marked hidden and cannot be exported from shared libraries
+    echo "  Patching bootstrap GHC StgRun.h for PowerPC64LE shared library support..."
+
+    # Find bootstrap GHC's StgRun.h (look in CROSS_ENV_PATH and BUILD_PREFIX)
+    local bootstrap_stgrun
+    for search_path in "${CROSS_ENV_PATH}" "${BUILD_PREFIX}"; do
+      bootstrap_stgrun=$(find "${search_path}" -name "StgRun.h" -path "*/ghc-bootstrap/*" 2>/dev/null | head -1)
+      if [[ -n "${bootstrap_stgrun}" && -f "${bootstrap_stgrun}" ]]; then
+        break
+      fi
+    done
+
+    if [[ -n "${bootstrap_stgrun}" && -f "${bootstrap_stgrun}" ]]; then
+      # Remove RTS_PRIVATE from StgRegTable declaration (makes StgRun visible for shared libs)
+      perl -i -pe 's/^(RTS_PRIVATE\s+StgRegTable)/StgRegTable/' "${bootstrap_stgrun}"
+      echo "    ✓ Bootstrap StgRun.h patched: ${bootstrap_stgrun}"
+    else
+      echo "    WARNING: Bootstrap StgRun.h not found - shared library builds may fail"
+      echo "    Searched in: ${CROSS_ENV_PATH} and ${BUILD_PREFIX}"
+    fi
   fi
 }
 

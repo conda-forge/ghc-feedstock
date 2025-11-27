@@ -120,7 +120,14 @@ common_flow_setup_cabal() {
   if [[ -z "${CABAL_SKIP_INIT:-}" ]]; then
     if [[ -n "${CABAL:-}" && -n "${CABAL_DIR:-}" ]]; then
       mkdir -p "${CABAL_DIR}"
-      "${CABAL}" user-config init
+
+      # Only init if config doesn't exist (avoid "already exists" error)
+      if [[ ! -f "${CABAL_DIR}/config" ]]; then
+        "${CABAL}" user-config init
+      else
+        echo "  Cabal config already exists, skipping init"
+      fi
+
       run_and_log "cabal-update" "${CABAL}" v2-update
     else
       echo "WARNING: CABAL or CABAL_DIR not set, skipping initialization"
