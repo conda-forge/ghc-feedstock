@@ -61,7 +61,8 @@ platform_setup_bootstrap() {
   # Windows-specific bootstrap environment
   # Bootstrap GHC is at BUILD_PREFIX/ghc-bootstrap/bin/ghc.exe
 
-  export PATH="${_BUILD_PREFIX}/ghc-bootstrap/bin${PATH:+:}${PATH:-}:/c/Windows/System32"
+  # Build clean PATH - don't append conda's bad PATH with unexpanded %BUILD_PREFIX% placeholders
+  export PATH="${_BUILD_PREFIX}/Library/bin:${_BUILD_PREFIX}/ghc-bootstrap/bin:${_BUILD_PREFIX}/bin:/c/Windows/System32:/c/Windows"
   export CABAL="${_BUILD_PREFIX}/bin/cabal"
   export CABAL_DIR="${SRC_DIR}\.cabal"
   export _PYTHON="${_BUILD_PREFIX}/python.exe"
