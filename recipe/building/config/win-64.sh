@@ -277,8 +277,9 @@ platform_build_stage1() {
   # build_stage1 HADRIAN_BUILD "${HADRIAN_FLAVOUR}"
   build_stage1 HADRIAN_BUILD "${HADRIAN_FLAVOUR}" || {
     echo "=== Stage 1 build failed - searching for config.log ===" >&2
+    echo $(find "${_SRC_DIR}" -name "config.log" -type f)
     config_log=$(find "${_SRC_DIR}" -name "config.log" -type f -printf "%T@ %p\n" | sort -n | tail -1 | cut -d' ' -f2-)
-    if [[ -n "${config_log}" ]] && [[ "${config_log}" != "${SRC_DIR}/config.log" ]]; then
+    if [[ -n "${config_log}" ]] && [[ "${config_log}" != "${SRC_DIR}/config.log" ]] && [[ "${config_log}" != "${_SRC_DIR}/config.log" ]]; then
       echo "=== Found config.log at: ${config_log} ===" >&2
       cat "${config_log}"
     else
