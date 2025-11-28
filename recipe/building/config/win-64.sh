@@ -244,6 +244,11 @@ platform_build_stage1() {
   # Hadrian spawns configure for individual packages which need to find gcc
   export PATH="${_BUILD_PREFIX}/Library/bin:${PATH}"
 
+  # Re-export compiler with full path for cabal package configuration
+  # Cabal needs full path when configuring library packages during Stage 1
+  export CC="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-gcc.exe"
+  export CXX="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-g++.exe"
+
   echo "=== DEBUG: Stage1 Build Environment ==="
   echo "  _BUILD_PREFIX: ${_BUILD_PREFIX}"
   echo "  PATH (first 200 chars): ${PATH:0:200}"
