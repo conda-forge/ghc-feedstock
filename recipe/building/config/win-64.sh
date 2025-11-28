@@ -256,6 +256,9 @@ platform_build_stage1() {
   echo "  which gcc: $(which x86_64-w64-mingw32-gcc.exe 2>&1 || echo 'not in PATH')"
   echo "=== END DEBUG ==="
 
+  # Enable verbose mode to see real-time output (skip run_and_log)
+  export STAGE1_VERBOSE=true
+
   build_stage1 HADRIAN_BUILD "${HADRIAN_FLAVOUR}"
 }
 

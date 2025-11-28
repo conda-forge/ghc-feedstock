@@ -140,23 +140,57 @@ build_stage1() {
 
   # Build compiler executable
   export LD_LIBRARY_PATH="${BUILD_PREFIX}/lib:${PREFIX}/lib${LD_LIBRARY_PATH:+:}${LD_LIBRARY_PATH:-}"
-  run_and_log "stage1_exe" "${hadrian[@]}" stage1:exe:ghc-bin --flavour="${flavour}"
 
-  # Build tools
-  run_and_log "stage1_ghc-pkg" "${hadrian[@]}" stage1:exe:ghc-pkg --flavour="${flavour}"
-  run_and_log "stage1_hsc2hs" "${hadrian[@]}" stage1:exe:hsc2hs --flavour="${flavour}"
+  # Allow platform to request verbose build (skip run_and_log wrapper)
+  if [[ "${STAGE1_VERBOSE:-false}" == "true" ]]; then
+    echo "  (Verbose mode: real-time output)"
+    echo "Building stage1:exe:ghc-bin..."
+    "${hadrian[@]}" stage1:exe:ghc-bin --flavour="${flavour}" || exit 1
 
-  # Patch settings if provided (before libraries)
-  if [[ -n "$settings_file" ]]; then
-    update_settings_link_flags "$settings_file"
+    echo "Building stage1:exe:ghc-pkg..."
+    "${hadrian[@]}" stage1:exe:ghc-pkg --flavour="${flavour}" || exit 1
+
+    echo "Building stage1:exe:hsc2hs..."
+    "${hadrian[@]}" stage1:exe:hsc2hs --flavour="${flavour}" || exit 1
+
+    # Patch settings if provided (before libraries)
+    if [[ -n "$settings_file" ]]; then
+      update_settings_link_flags "$settings_file"
+    fi
+
+    echo "Building stage1:lib:ghc-prim..."
+    "${hadrian[@]}" stage1:lib:ghc-prim --flavour="${flavour}" || exit 1
+
+    echo "Building stage1:lib:ghc-bignum..."
+    "${hadrian[@]}" stage1:lib:ghc-bignum --flavour="${flavour}" || exit 1
+
+    echo "Building stage1:lib:ghc-experimental..."
+    "${hadrian[@]}" stage1:lib:ghc-experimental --flavour="${flavour}" || exit 1
+
+    echo "Building stage1:lib:xhtml..."
+    "${hadrian[@]}" stage1:lib:xhtml --flavour="${flavour}" || exit 1
+
+    echo "Building stage1:lib:ghc..."
+    "${hadrian[@]}" stage1:lib:ghc --flavour="${flavour}" || exit 1
+  else
+    run_and_log "stage1_exe" "${hadrian[@]}" stage1:exe:ghc-bin --flavour="${flavour}"
+
+    # Build tools
+    run_and_log "stage1_ghc-pkg" "${hadrian[@]}" stage1:exe:ghc-pkg --flavour="${flavour}"
+    run_and_log "stage1_hsc2hs" "${hadrian[@]}" stage1:exe:hsc2hs --flavour="${flavour}"
+
+    # Patch settings if provided (before libraries)
+    if [[ -n "$settings_file" ]]; then
+      update_settings_link_flags "$settings_file"
+    fi
+
+    # Build libraries in dependency order (race condition prevention)
+    run_and_log "stage1_ghc-prim" "${hadrian[@]}" stage1:lib:ghc-prim --flavour="${flavour}"
+    run_and_log "stage1_ghc-bignum" "${hadrian[@]}" stage1:lib:ghc-bignum --flavour="${flavour}"
+    run_and_log "stage1_ghc-experimental" "${hadrian[@]}" stage1:lib:ghc-experimental --flavour="${flavour}"
+    run_and_log "stage1_xhtml" "${hadrian[@]}" stage1:lib:xhtml --flavour="${flavour}"
+    run_and_log "stage1_lib" "${hadrian[@]}" stage1:lib:ghc --flavour="${flavour}"
   fi
-
-  # Build libraries in dependency order (race condition prevention)
-  run_and_log "stage1_ghc-prim" "${hadrian[@]}" stage1:lib:ghc-prim --flavour="${flavour}"
-  run_and_log "stage1_ghc-bignum" "${hadrian[@]}" stage1:lib:ghc-bignum --flavour="${flavour}"
-  run_and_log "stage1_ghc-experimental" "${hadrian[@]}" stage1:lib:ghc-experimental --flavour="${flavour}"
-  run_and_log "stage1_xhtml" "${hadrian[@]}" stage1:lib:xhtml --flavour="${flavour}"
-  run_and_log "stage1_lib" "${hadrian[@]}" stage1:lib:ghc --flavour="${flavour}"
 
   echo "=== Stage 1 Complete ==="
 }
