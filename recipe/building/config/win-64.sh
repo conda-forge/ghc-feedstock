@@ -237,6 +237,10 @@ platform_build_stage1() {
   # Windows uses the standard build_stage1() from orchestrator
   # with explicit Hadrian binary and race condition prevention
 
+  # Add toolchain to PATH for configure subprocesses
+  # Hadrian spawns configure for individual packages which need to find gcc
+  export PATH="${_BUILD_PREFIX}/Library/bin:${PATH}"
+
   build_stage1 HADRIAN_BUILD "${HADRIAN_FLAVOUR}"
 }
 
@@ -245,6 +249,10 @@ platform_build_stage2() {
   #
   # Windows uses the standard build_stage2() from orchestrator
   # with explicit Hadrian binary and race condition prevention
+
+  # Add toolchain to PATH for configure subprocesses
+  # Hadrian spawns configure for individual packages which need to find gcc
+  export PATH="${_BUILD_PREFIX}/Library/bin:${PATH}"
 
   build_stage2 HADRIAN_BUILD "${HADRIAN_FLAVOUR}"
 }
