@@ -342,6 +342,15 @@ LD_WIN=$(echo "${LD_UNIX}" | sed 's#^/c/#C:/#')
 export LD="${LD_WIN}"
 echo "LD set to Windows format: ${LD}"
 
+echo "=== DEBUG: Checking for GCC before configure ==="
+which x86_64-w64-mingw32-gcc || echo "ERROR: x86_64-w64-mingw32-gcc NOT FOUND"
+which x86_64-w64-mingw32-g++ || echo "ERROR: x86_64-w64-mingw32-g++ NOT FOUND"
+which gcc || echo "gcc not found"
+which clang || echo "clang not found"
+echo "PATH=${PATH}"
+echo "CC=${CC}"
+echo "CXX=${CXX}"
+
 (
   CC=x86_64-w64-mingw32-gcc \
   CXX=x86_64-w64-mingw32-g++ \
