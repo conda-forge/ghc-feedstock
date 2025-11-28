@@ -259,11 +259,106 @@ platform_build_stage2() {
 # ==============================================================================
 
 platform_install() {
-  # Install GHC using standard native installation
+  # Install GHC from binary distribution (like Linux)
   #
-  # Windows uses the standard install_ghc() from orchestrator
+  # Windows must use bindist configure/install instead of Hadrian install
+  # because the installed GHC needs proper Windows-specific configuration
 
-  install_ghc HADRIAN_BUILD "${HADRIAN_FLAVOUR}"
+  echo ""
+  echo "========================================================================"
+  echo "=== Installing GHC from Binary Distribution ==="
+  echo "========================================================================"
+
+  # Find the bindist directory
+  local ghc_target="x86_64-w64-mingw32"
+  local bindist_dir=$(find "${_SRC_DIR}"/_build/bindist -name "ghc-${PKG_VERSION}-${ghc_target}" -type d | head -1)
+
+  if [[ -z "${bindist_dir}" ]]; then
+    echo "ERROR: Could not find binary distribution directory"
+    echo "Looking for: ghc-${PKG_VERSION}-${ghc_target}"
+    echo "Contents of _build/bindist:"
+    ls -la "${_SRC_DIR}"/_build/bindist/ || true
+    exit 1
+  fi
+
+  echo "Binary distribution directory: ${bindist_dir}"
+  echo "Installing to: ${_PREFIX}"
+  echo ""
+
+  # Enter bindist directory and install
+  pushd "${bindist_dir}" >/dev/null
+
+  # Configure with PREFIX (bindist configure is simpler than main configure)
+  ./configure --prefix="${_PREFIX}" || { cat config.log; exit 1; }
+
+  # Install binaries, libraries, and man pages
+  run_and_log "make_install" make install_bin install_lib install_man
+
+  popd >/dev/null
+
+  echo "✓ Installation completed"
+  echo ""
+
+  # Post-install: Replace bundled mingw
+  echo "========================================================================"
+  echo "=== Post-install: Replace bundled mingw and update settings ==="
+  echo "========================================================================"
+
+  # Remove bundled mingw and create minimal structure (like ghc-bootstrap)
+  local installed_mingw="${_PREFIX}/lib/mingw"
+  if [[ -d "${installed_mingw}" ]]; then
+    echo "Removing bundled mingw at: ${installed_mingw}"
+    rm -rf "${installed_mingw}"
+  fi
+
+  echo "Creating minimal mingw structure..."
+  mkdir -p "${installed_mingw}"/{include,lib,bin,share}
+  echo "Fake mingw directory - conda-forge provides toolchain" > "${installed_mingw}"/include/__unused__
+  echo "Fake mingw directory - conda-forge provides toolchain" > "${installed_mingw}"/lib/__unused__
+  echo "Fake mingw directory - conda-forge provides toolchain" > "${installed_mingw}"/bin/__unused__
+  echo "Fake mingw directory - conda-forge provides toolchain" > "${installed_mingw}"/share/__unused__
+
+  # Update settings file to use conda-forge toolchain
+  local settings_file=$(find "${_PREFIX}"/lib/ -name settings | head -1)
+  if [[ -f "${settings_file}" ]]; then
+    echo ""
+    echo "Updating settings file: ${settings_file}"
+
+    # Remove hard-coded build env paths
+    perl -pi -e "s#(${BUILD_PREFIX}|${PREFIX})/(bin|lib)/##g" "${settings_file}"
+
+    echo "Settings file toolchain configuration:"
+    grep -E "(C compiler command|C compiler link flags|ar command|ld command)" "${settings_file}" || true
+  else
+    echo "WARNING: Could not find settings file"
+  fi
+
+  # Verify installation
+  echo ""
+  echo "========================================================================"
+  echo "=== Verifying GHC installation ==="
+  echo "========================================================================"
+  echo "GHC binaries in ${_PREFIX}/bin:"
+  ls -la "${_PREFIX}/bin" | head -20
+
+  echo ""
+  echo "GHC library structure:"
+  if [[ -d "${_PREFIX}/lib/ghc-${PKG_VERSION}" ]]; then
+    echo "✓ Found lib/ghc-${PKG_VERSION}"
+    ls -la "${_PREFIX}/lib/ghc-${PKG_VERSION}" | head -10
+  elif [[ -d "${_PREFIX}/lib/x86_64-windows-ghc-${PKG_VERSION}" ]]; then
+    echo "✓ Found lib/x86_64-windows-ghc-${PKG_VERSION}"
+    ls -la "${_PREFIX}/lib/x86_64-windows-ghc-${PKG_VERSION}" | head -10
+  else
+    echo "WARNING: Could not find GHC library directory"
+    echo "Contents of ${_PREFIX}/lib:"
+    ls -la "${_PREFIX}/lib" | head -20
+  fi
+
+  echo ""
+  echo "========================================================================"
+  echo "=== GHC ${PKG_VERSION} Windows build completed successfully! ==="
+  echo "========================================================================"
 }
 
 # ==============================================================================
