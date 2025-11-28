@@ -225,7 +225,8 @@ platform_build_hadrian() {
   echo "  Hadrian binary: ${_hadrian_bin}"
 
   # Set up HADRIAN_BUILD array for orchestrator functions
-  HADRIAN_BUILD=("${_hadrian_bin}" "-j${CPU_COUNT}" "--directory" "${_SRC_DIR}")
+  # HADRIAN_BUILD=("${_hadrian_bin}" "-j${CPU_COUNT}" "--directory" "${_SRC_DIR}")
+  HADRIAN_BUILD=("${_hadrian_bin}" "-j1" "--directory" "${_SRC_DIR}")
   echo "  Hadrian command: ${HADRIAN_BUILD[*]}"
 }
 
@@ -261,7 +262,18 @@ platform_build_stage1() {
   # Enable verbose mode to see real-time output (skip run_and_log)
   export STAGE1_VERBOSE=true
 
-  build_stage1 HADRIAN_BUILD "${HADRIAN_FLAVOUR}"
+  # build_stage1 HADRIAN_BUILD "${HADRIAN_FLAVOUR}"
+  build_stage1 HADRIAN_BUILD "${HADRIAN_FLAVOUR}" || {
+    echo "=== Stage 1 build failed - searching for config.log ===" >&2
+    config_log=$(find "${_SRC_DIR}" -name "config.log" -type f -printf "%T@ %p\n" | sort -n | tail -1 | cut -d' ' -f2-)
+    if [[ -n "${config_log}" ]]; then
+      echo "=== Found config.log at: ${config_log} ===" >&2
+      cat "${config_log}"
+    else
+      echo "=== No config.log found ===" >&2
+    fi
+    exit 1
+  }
 }
 
 platform_build_stage2() {

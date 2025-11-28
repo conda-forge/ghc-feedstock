@@ -49,6 +49,7 @@ requirements:
     - ${{ compiler('cxx') }}
     - ${{ stdlib('c') }}
     - binutils >=${{ binutils_version }}
+    - curl
     - llvm-tools ${{ c_compiler_version }}.*
     - perl 5.32.*
     - pkg-config
@@ -66,7 +67,6 @@ requirements:
         - make
         - sed
       else:
-        - compiler-rt_win-64
         - libgcc-devel_win-64
         - m2-autoconf
         - m2-automake-wrapper
@@ -78,6 +78,7 @@ requirements:
         - m2-m4
         - m2-make
         - m2-sed
+        - m2-tar
         - m2-which
 
     # Cross-compilation: Build script installs ghc-bootstrap manually
