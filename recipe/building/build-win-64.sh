@@ -959,7 +959,8 @@ echo ""
 
 # Enter bindist directory and install (like Linux)
 pushd "${bindist_dir}"
-  ./configure --prefix="${_PREFIX}" || { cat config.log; exit 1; }
+  ls -l
+  bash configure --prefix="${_PREFIX}" || { cat config.log; exit 1; }
   run_and_log "make_install" make install_bin install_lib install_man
 popd
 
