@@ -198,23 +198,27 @@ if [[ -f "${settings_file}" ]]; then
 
   # DO NOT patch bootstrap GHC link flags with custom CRT!
   # The custom CRT flags (-nostartfiles, custom crt2.o) break stdio initialization
-  # for Haskell programs. Bootstrap GHC must use NORMAL MinGW linking so that
-  # Haskell executables (including hadrian) can do stdio properly.
-  #
-  # The custom CRT flags are ONLY needed for the FINAL Stage1/Stage2 GHC being
-  # built, NOT for intermediate Haskell programs compiled during the build.
-  #
-  # We only fix the merge-objects command to use GNU ld instead of lld.
+  # However, we DO need to add MinGW runtime libraries to "C compiler link flags"
 
-  # CRITICAL: Fix merge-objects to use GNU ld (ld.bfd) instead of lld
-  # The bootstrap GHC has system-merge-objects pointing to ld.lld.exe which uses MSVC-style .lib files
-  # We need GNU ld which works with MinGW .a files
-  # Match any ld command (lld.exe, ld.lld.exe, ld.exe) and replace with our GNU ld
-  # IMPORTANT: Use LD_WIN (Windows format) not LD (Unix format) for tool execution
-  perl -pi -e "s#(Merge objects command\", \")[^\"]*#\$1${LD_WIN}#" "${settings_file}"
+  CHKSTK_DIR=$(dirname "${CHKSTK_LIB}")
+  MINGW_SYSROOT="${_BUILD_PREFIX}/Library/x86_64-w64-mingw32/sysroot/usr/lib"
 
-  echo "Bootstrap GHC settings - only merge-objects modified:"
-  grep "Merge objects command" "${settings_file}"
+  # Build complete link flags string - libraries come AFTER user objects
+  LINK_FLAGS="-Wl,--subsystem,console -Wl,--enable-auto-import -Wl,--image-base=0x140000000 -Wl,--dynamicbase -Wl,--high-entropy-va -Xlinker -L${CHKSTK_DIR} -Xlinker -L${MINGW_SYSROOT}"
+  LINK_FLAGS="${LINK_FLAGS} -Xlinker -lmoldname"
+  LINK_FLAGS="${LINK_FLAGS} -Xlinker -lmingwex"
+  LINK_FLAGS="${LINK_FLAGS} -Xlinker -lmingw32"
+  LINK_FLAGS="${LINK_FLAGS} -Xlinker -lchkstk_ms"
+  LINK_FLAGS="${LINK_FLAGS} -Xlinker -lgcc"
+  # CRITICAL: Use -lucrt (Universal C Runtime) - provides _timezone, _tzname
+  LINK_FLAGS="${LINK_FLAGS} -Xlinker -lucrt"
+  LINK_FLAGS="${LINK_FLAGS} -Xlinker -lkernel32"
+  LINK_FLAGS="${LINK_FLAGS} -Xlinker -ladvapi32"
+
+  # Add MinGW runtime libraries to "C compiler link flags"
+  perl -pi -e "s#(C compiler link flags\", \")#\$1${LINK_FLAGS} #" "${settings_file}"
+
+  cat "${settings_file}" | grep -E "(C compiler command|C compiler link flags|ar command|ld command)" || true
 else
   echo "WARNING: Stage0 settings file not found at ${settings_file}"
 fi
@@ -422,13 +426,7 @@ mkdir -p ${_SRC_DIR}/_build
 
     echo "=== Building Hadrian ==="
     # Using standard MinGW linking - no custom CRT complexity
-    # CRITICAL: Add UCRT and MinGW libraries for proper linking
-    # These libraries provide _timezone, _tzname, and other C runtime symbols
-    # Pass them via --ghc-options so GHC includes them when linking
-    "${CABAL}" v2-build -j1 \
-      --with-ld="${LD}" \
-      --ghc-options="-optl-lmoldname -optl-lmingwex -optl-lmingw32 -optl-lgcc -optl-lucrt -optl-lkernel32" \
-      hadrian 2>&1 | tee "${_SRC_DIR}"/cabal-build.log
+    "${CABAL}" v2-build -j1 --with-ld="${LD}" hadrian 2>&1 | tee "${_SRC_DIR}"/cabal-build.log
     _cabal_exit_code=${PIPESTATUS[0]}
 
     if [[ $_cabal_exit_code -ne 0 ]]; then
