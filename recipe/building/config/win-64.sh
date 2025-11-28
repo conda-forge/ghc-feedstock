@@ -226,6 +226,10 @@ platform_build_hadrian() {
   fi
 
   echo "  Hadrian binary: ${_hadrian_bin}"
+
+  # Set up HADRIAN_BUILD array for orchestrator functions
+  HADRIAN_BUILD=("${_hadrian_bin}" "-j${CPU_COUNT}" "--directory" "${_SRC_DIR}")
+  echo "  Hadrian command: ${HADRIAN_BUILD[*]}"
 }
 
 # ==============================================================================
@@ -238,7 +242,7 @@ platform_build_stage1() {
   # Windows uses the standard build_stage1() from orchestrator
   # with explicit Hadrian binary and race condition prevention
 
-  build_stage1
+  build_stage1 HADRIAN_BUILD "${HADRIAN_FLAVOUR}"
 }
 
 platform_build_stage2() {
@@ -247,7 +251,7 @@ platform_build_stage2() {
   # Windows uses the standard build_stage2() from orchestrator
   # with explicit Hadrian binary and race condition prevention
 
-  build_stage2
+  build_stage2 HADRIAN_BUILD "${HADRIAN_FLAVOUR}"
 }
 
 # ==============================================================================
@@ -259,7 +263,7 @@ platform_install() {
   #
   # Windows uses the standard install_ghc() from orchestrator
 
-  install_ghc
+  install_ghc HADRIAN_BUILD "${HADRIAN_FLAVOUR}"
 }
 
 # ==============================================================================
