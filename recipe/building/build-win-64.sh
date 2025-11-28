@@ -83,14 +83,10 @@ CFLAGS=$(echo "${CFLAGS}" | perl -pe 's/-fdebug-prefix-map=[^ ]*//g; s/-isystem 
 CXXFLAGS=$(echo "${CXXFLAGS}" | perl -pe 's/-fdebug-prefix-map=[^ ]*//g; s/-isystem [^ ]*//g')
 # We add our own -I flags with correct Unix paths below
 
-# EXPERIMENTAL GCC BRANCH: GCC uses libgcc, not compiler-rt
-# compiler-rt is Clang's runtime library, GCC has its own libgcc
-# We don't need to find it explicitly - we link it via -lgcc flag
-# GCC provides libgcc builtin functions natively
-echo "=== Using GCC runtime (libgcc) instead of compiler-rt ==="
-COMPILER_RT_LIB=""  # Empty - not used with GCC
+# GCC uses libgcc runtime (not compiler-rt which is for Clang)
+# We link libgcc via -lgcc flag in the settings file
 
-# EXPERIMENTAL GCC BRANCH: Use GCC with UCRT
+# Use GCC with UCRT
 # Remove Clang-specific flags (--target, explicit -fuse-ld)
 # GCC is built for x86_64-w64-mingw32 by default and uses bfd linker natively
 export CFLAGS="-I${_BUILD_PREFIX}/Library/include ${CFLAGS:-}"
@@ -326,10 +322,6 @@ MSVC_VER=$(ls -1 "${MSVC_BASE}" 2>/dev/null | sort -V | tail -1)
 
 # Get short path for MSVC include (has vcruntime.h)
 MSVC_INCLUDE="${MSVC_BASE}"/"${MSVC_VER}"/include
-
-# GCC BRANCH: GCC uses libgcc, not compiler-rt
-# This duplicate compiler-rt detection removed for GCC compatibility
-echo "=== Using libgcc (GCC builtin library) ==="
 
 # LIBS - let configure use standard MinGW linking
 # No custom CRT objects needed with normal linking
@@ -734,7 +726,6 @@ if [[ -f "${settings_file}" ]]; then
   # CRITICAL: Use -lucrt (Universal C Runtime) NOT -lmsvcrt (old runtime)
   # Bootstrap GHC was built with UCRT (mingw-w64-ucrt-x86_64-crt-git)
   LINK_FLAGS="${LINK_FLAGS} -Xlinker -lucrt"
-  # GCC BRANCH: libgcc provides all builtins, no need for compiler-rt
   LINK_FLAGS="${LINK_FLAGS} -Xlinker -lkernel32"
   LINK_FLAGS="${LINK_FLAGS} -Xlinker -ladvapi32"
 
@@ -746,7 +737,6 @@ if [[ -f "${settings_file}" ]]; then
   # CRITICAL: Use high image base to avoid 32-bit pseudo relocation errors
   # CRITICAL: Need -lgcc for __udivti3/__umodti3 symbols from RtsSymbols
   # CRITICAL: Use -lucrt (Universal C Runtime) to match bootstrap GHC
-  # GCC BRANCH: libgcc provides all builtins, no need for compiler-rt
   perl -pi -e "s#(ld flags\", \")#\$1--subsystem,console --enable-auto-import --image-base=0x140000000 --dynamicbase --high-entropy-va -L${CHKSTK_DIR} -L${MINGW_SYSROOT} -lmoldname -lmingwex -lmingw32 -lchkstk_ms -lgcc -lucrt -lkernel32 -ladvapi32 #" "${settings_file}"
 
   echo "=== Stage1 settings after patching (COMPLETE FILE) ==="

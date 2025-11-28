@@ -59,7 +59,6 @@ requirements:
         - make
         - sed
       else:
-        - compiler-rt_win-64
         - libgcc-devel_win-64
         - m2-autoconf
         - m2-automake-wrapper
