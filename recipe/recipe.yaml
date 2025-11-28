@@ -23,7 +23,13 @@ source:
           - patches/skip-mingw-copy-conda.patch
           - patches/force-system-gmp-windows.patch
           - patches/add-ffi-include-dir-substitution.patch
-          - patches/debug-findcdependencies.patch
+          - patches/fix-windows-thriomanager-include.patch
+          - patches/add-threadlabels-include-consolehandler.patch
+          - patches/fix-windows-utimbuf-type.patch
+          - patches/skip-mingw-detection-error.patch
+          - patches/fix-windows-reportmemorymap-format.patch
+          - patches/fix-windows-pei386-format.patch
+          - patches/fix-hp2ps-utilities-stdlib.patch
       - if: osx
         then:
           - patches/remove-dangerous-macos-linker-flags.patch
@@ -33,7 +39,7 @@ source:
 
 build:
   number: 0
-  skip: not unix
+  skip: unix
 
 requirements:
   build:
@@ -60,23 +66,24 @@ requirements:
         - make
         - sed
       else:
+        - compiler-rt_win-64
+        - libgcc-devel_win-64
         - m2-autoconf
         - m2-automake-wrapper
         - m2-bash
+        - m2-coreutils
+        - m2-file
         - m2-findutils
         - m2-grep
         - m2-m4
         - m2-make
         - m2-sed
-        # - m2-tar
-        - m2-which
-        # - m2-xz
+        - m2-tar
+        - xz-static
 
     - if: build_platform != target_platform
       then:
         - gmp
-        # - libffi
-        # - libiconv
         - if: unix
           then: ncurses
   host:
@@ -85,6 +92,12 @@ requirements:
     - libffi
     - if: unix
       then: ncurses
+  run:
+    - if: unix
+      then: ncurses
+  ignore_run_exports:
+    from_package:
+      - ncurses
     
 tests:
   - package_contents:
@@ -126,7 +139,7 @@ tests:
 
   - script: |
       printf 'main = putStrLn "Hello conda-forge"\n' > hello.hs
-      ghc -v hello.hs && ./hello
+      ghc hello.hs && ./hello
     requirements:
       run:
         - ${{ compiler('c') }}
@@ -135,7 +148,7 @@ tests:
           then: ${{ stdlib('c') }}
         - if: linux
           then: ld_impl_${{ target_platform }} ${{ binutils_version }}
-        - if: osx
+        - if: osx or not unix
           then: lld ${{ c_compiler_version }}.*
 
   - script:
@@ -143,8 +156,8 @@ tests:
         then:
           - printf 'main = putStrLn "Hello threaded conda-forge"\n' > hello_t.hs
           - ghc -threaded hello_t.hs && ./hello_t
-          # - printf 'main = putStrLn "Hello profiled conda-forge"\n' > hello_p.hs
-          # - ghc -v -prof hello_p.hs && ./hello_p
+          - printf 'main = putStrLn "Hello profiled conda-forge"\n' > hello_p.hs
+          - ghc -v -prof hello_p.hs && ./hello_p
         else: echo "Profiling fails on osx"
     requirements:
       run:
@@ -168,7 +181,7 @@ tests:
           then: ${{ stdlib('c') }}
         - if: linux
           then: ld_impl_${{ target_platform }} ${{ binutils_version }}
-        - if: osx
+        - if: osx or not unix
           then: lld ${{ c_compiler_version }}.*
 
   - script:
@@ -187,7 +200,7 @@ tests:
           then: ${{ stdlib('c') }}
         - if: linux
           then: ld_impl_${{ target_platform }} ${{ binutils_version }}
-        - if: osx
+        - if: osx or not unix
           then: lld ${{ c_compiler_version }}.*
 
 
