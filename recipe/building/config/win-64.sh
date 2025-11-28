@@ -241,6 +241,21 @@ platform_build_stage1() {
   # Hadrian spawns configure for individual packages which need to find gcc
   export PATH="${_BUILD_PREFIX}/Library/bin:${PATH}"
 
+  echo "=== DEBUG: Stage1 Build Environment ==="
+  echo "  _BUILD_PREFIX: ${_BUILD_PREFIX}"
+  echo "  PATH (first 200 chars): ${PATH:0:200}"
+  echo "  Looking for GCC at: ${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-gcc.exe"
+  if [[ -f "${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-gcc.exe" ]]; then
+    echo "  ✓ GCC found"
+  else
+    echo "  ✗ GCC NOT FOUND"
+    echo "  Contents of ${_BUILD_PREFIX}/Library/bin:"
+    ls -la "${_BUILD_PREFIX}/Library/bin" | head -20
+  fi
+  echo "  CC=${CC}"
+  echo "  which gcc: $(which x86_64-w64-mingw32-gcc.exe 2>&1 || echo 'not in PATH')"
+  echo "=== END DEBUG ==="
+
   build_stage1 HADRIAN_BUILD "${HADRIAN_FLAVOUR}"
 }
 
