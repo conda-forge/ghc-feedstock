@@ -250,21 +250,6 @@ run_and_log "cabal-update" "${CABAL}" v2-update
 export TMP="$(cygpath -w "${TEMP}")"
 export TMPDIR="$(cygpath -w "${TEMP}")"
 
-# # Find the latest MSVC version directory dynamically
-# MSVC_VERSION_DIR=$(ls -d "C:/Program Files/Microsoft Visual Studio/2022/Enterprise/VC/Tools/MSVC/"*/ 2>/dev/null | sort -V | tail -1 | sed 's/\/$//')
-# 
-# # Use the discovered path or fall back to a default if not found
-# if [ -z "$MSVC_VERSION_DIR" ]; then
-#   echo "Warning: Could not find MSVC tools directory, using fallback path"
-#   MSVC_VERSION_DIR="C:/Program Files/Microsoft Visual Studio/2022/Enterprise/VC/Tools/MSVC/14.38.33130"
-# fi
-# 
-# # Export LIB with the dynamic path
-# export LIB="${BUILD_PREFIX}/Library/lib;${PREFIX}/Library/lib;C:/Program Files (x86)/Windows Kits/10/Lib/10.0.26100.0/um/x64;${MSVC_VERSION_DIR}/lib/x64${LIB:+;}${LIB:-}"
-# 
-# # Export INCLUDE with conda libraries FIRST (for ffi.h, gmp.h, iconv.h, etc.)
-# export INCLUDE="${PREFIX}/Library/include;${BUILD_PREFIX}/Library/include;C:/Program Files (x86)/Windows Kits/10/Include/10.0.26100.0/ucrt;C:/Program Files (x86)/Windows Kits/10/Include/10.0.26100.0/um;C:/Program Files (x86)/Windows Kits/10/Include/10.0.26100.0/shared;${MSVC_VERSION_DIR}/include${INCLUDE:+;}${INCLUDE:-}"
-
 mkdir -p "${_BUILD_PREFIX}/bin"
 cp "${_BUILD_PREFIX}/Library/usr/bin/m4.exe" "${_BUILD_PREFIX}/bin"
 
@@ -315,13 +300,6 @@ CPPWINRT_INCLUDE="${SDK_PATH}"/Include/"${SDK_VER}"/cppwinrt
 WINRT_INCLUDE="${SDK_PATH}"/Include/"${SDK_VER}"/winrt
 UCRT_LIB="${SDK_PATH}"/Lib/"${SDK_VER}"/ucrt/x64
 UM_LIB="${SDK_PATH}"/Lib/"${SDK_VER}"/x64
-
-MSVC_BASE=$(ls -1d /c/Program*/Microsoft*/*/*/VC/Tools/MSVC 2>/dev/null | sort -V | tail -1)
-MSVC_BASE=$(cygpath -u "$(cygpath -d "${MSVC_BASE}")")
-MSVC_VER=$(ls -1 "${MSVC_BASE}" 2>/dev/null | sort -V | tail -1)
-
-# Get short path for MSVC include (has vcruntime.h)
-MSVC_INCLUDE="${MSVC_BASE}"/"${MSVC_VER}"/include
 
 # LIBS - let configure use standard MinGW linking
 # No custom CRT objects needed with normal linking
