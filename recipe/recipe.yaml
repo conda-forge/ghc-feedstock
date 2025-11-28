@@ -73,7 +73,6 @@ requirements:
         - m2-sed
         - m2-tar
         - m2-which
-        - m2-xz
 
     - if: build_platform != target_platform
       then:
