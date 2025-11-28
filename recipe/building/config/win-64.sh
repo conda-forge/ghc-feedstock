@@ -259,6 +259,10 @@ platform_build_stage1() {
   echo "  which gcc: $(which x86_64-w64-mingw32-gcc.exe 2>&1 || echo 'not in PATH')"
   echo "=== END DEBUG ==="
 
+  # Add toolchain to PATH for configure subprocesses
+  # Hadrian spawns configure for individual packages which need to find gcc
+  export PATH="${_BUILD_PREFIX}/Library/bin:${PATH}"
+
   # Enable verbose mode to see real-time output (skip run_and_log)
   export STAGE1_VERBOSE=true
 
