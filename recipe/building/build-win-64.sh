@@ -422,11 +422,13 @@ mkdir -p ${_SRC_DIR}/_build
 
     echo "=== Building Hadrian ==="
     # Using standard MinGW linking - no custom CRT complexity
-    # CRITICAL: Add UCRT and MinGW libraries to LDFLAGS for proper linking
+    # CRITICAL: Add UCRT and MinGW libraries for proper linking
     # These libraries provide _timezone, _tzname, and other C runtime symbols
-    export LDFLAGS="${LDFLAGS} -lmoldname -lmingwex -lmingw32 -lgcc -lucrt -lkernel32"
-    echo "LDFLAGS for Hadrian build: ${LDFLAGS}"
-    "${CABAL}" v2-build -j1 --with-ld="${LD}" hadrian 2>&1 | tee "${_SRC_DIR}"/cabal-build.log
+    # Pass them via --ghc-options so GHC includes them when linking
+    "${CABAL}" v2-build -j1 \
+      --with-ld="${LD}" \
+      --ghc-options="-optl-lmoldname -optl-lmingwex -optl-lmingw32 -optl-lgcc -optl-lucrt -optl-lkernel32" \
+      hadrian 2>&1 | tee "${_SRC_DIR}"/cabal-build.log
     _cabal_exit_code=${PIPESTATUS[0]}
 
     if [[ $_cabal_exit_code -ne 0 ]]; then
