@@ -72,7 +72,7 @@ requirements:
         - m2-make
         - m2-sed
         - m2-tar
-        - m2-which
+        - xz-static
 
     - if: build_platform != target_platform
       then:
