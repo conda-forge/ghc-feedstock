@@ -145,13 +145,13 @@ build_stage1() {
   if [[ "${STAGE1_VERBOSE:-false}" == "true" ]]; then
     echo "  (Verbose mode: real-time output)"
     echo "Building stage1:exe:ghc-bin..."
-    "${hadrian[@]}" stage1:exe:ghc-bin --flavour="${flavour}" || exit 1
+    "${hadrian[@]}" stage1:exe:ghc-bin --flavour="${flavour}" || return 1
 
     echo "Building stage1:exe:ghc-pkg..."
-    "${hadrian[@]}" stage1:exe:ghc-pkg --flavour="${flavour}" || exit 1
+    "${hadrian[@]}" stage1:exe:ghc-pkg --flavour="${flavour}" || return 1
 
     echo "Building stage1:exe:hsc2hs..."
-    "${hadrian[@]}" stage1:exe:hsc2hs --flavour="${flavour}" || exit 1
+    "${hadrian[@]}" stage1:exe:hsc2hs --flavour="${flavour}" || return 1
 
     # Patch settings if provided (before libraries)
     if [[ -n "$settings_file" ]]; then
@@ -159,19 +159,19 @@ build_stage1() {
     fi
 
     echo "Building stage1:lib:ghc-prim..."
-    "${hadrian[@]}" stage1:lib:ghc-prim --flavour="${flavour}" || exit 1
+    "${hadrian[@]}" stage1:lib:ghc-prim --flavour="${flavour}" || return 1
 
     echo "Building stage1:lib:ghc-bignum..."
-    "${hadrian[@]}" stage1:lib:ghc-bignum --flavour="${flavour}" || exit 1
+    "${hadrian[@]}" stage1:lib:ghc-bignum --flavour="${flavour}" || return 1
 
     echo "Building stage1:lib:ghc-experimental..."
-    "${hadrian[@]}" stage1:lib:ghc-experimental --flavour="${flavour}" || exit 1
+    "${hadrian[@]}" stage1:lib:ghc-experimental --flavour="${flavour}" || return 1
 
     echo "Building stage1:lib:xhtml..."
-    "${hadrian[@]}" stage1:lib:xhtml --flavour="${flavour}" || exit 1
+    "${hadrian[@]}" stage1:lib:xhtml --flavour="${flavour}" || return 1
 
     echo "Building stage1:lib:ghc..."
-    "${hadrian[@]}" stage1:lib:ghc --flavour="${flavour}" || exit 1
+    "${hadrian[@]}" stage1:lib:ghc --flavour="${flavour}" || return 1
   else
     run_and_log "stage1_exe" "${hadrian[@]}" stage1:exe:ghc-bin --flavour="${flavour}"
 
