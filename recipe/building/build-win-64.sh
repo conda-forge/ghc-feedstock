@@ -425,8 +425,12 @@ mkdir -p ${_SRC_DIR}/_build
     echo "Bootstrap GHC is functional"
 
     echo "=== Building Hadrian ==="
-    # Using standard MinGW linking - no custom CRT complexity
-    "${CABAL}" v2-build -j1 --with-ld="${LD}" hadrian 2>&1 | tee "${_SRC_DIR}"/cabal-build.log
+    # Using standard MinGW linking with UCRT/MinGW libraries
+    # These libraries are needed because bootstrap GHC's time library uses _timezone and _tzname from UCRT
+    "${CABAL}" v2-build -j1 \
+      --with-ld="${LD}" \
+      --ghc-options="-optl-lmoldname -optl-lmingwex -optl-lmingw32 -optl-lchkstk_ms -optl-lgcc -optl-lucrt -optl-lkernel32 -optl-ladvapi32" \
+      hadrian 2>&1 | tee "${_SRC_DIR}"/cabal-build.log
     _cabal_exit_code=${PIPESTATUS[0]}
 
     if [[ $_cabal_exit_code -ne 0 ]]; then
