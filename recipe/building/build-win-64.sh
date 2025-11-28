@@ -2,21 +2,20 @@
 set -eu
 
 # ============================================================================
-# EXPERIMENTAL GCC BRANCH (feat/v9.6.7-windows-gcc)
+# GHC 9.6.7 Windows Build - GCC Toolchain
 # ============================================================================
-# This branch tests GCC instead of Clang to match bootstrap GHC's compiler.
+# Uses GCC instead of Clang to match bootstrap GHC's compiler.
 #
-# Bootstrap GHC was built with GCC 15.2.0, not Clang. Using Clang to compile
-# Haskell programs might cause ABI mismatches with GCC-compiled RTS libraries.
+# Bootstrap GHC was built with GCC 15.2.0. Using the same compiler ensures
+# ABI compatibility with GCC-compiled RTS libraries and avoids linker issues.
 #
-# Key differences from primary branch:
-# 1. Uses GCC/G++ instead of Clang/Clang++
-# 2. Removes Clang-specific flags (--target, some -f flags)
-# 3. Uses GCC's native MinGW/UCRT support
-# 4. Windres uses GCC as preprocessor (not Clang)
+# Key implementation details:
+# 1. GCC/G++ toolchain (x86_64-w64-mingw32-gcc)
+# 2. UCRT runtime (Universal C Runtime)
+# 3. GNU ld with --enable-auto-import for proper PE import tables
+# 4. High image base (0x140000000) to avoid relocation errors
 #
-# Created: 2025-11-24 after UCRT fix didn't solve stdio issue
-# See CLAUDE.md for full investigation timeline.
+# See CLAUDE.md for full build documentation and troubleshooting.
 # ============================================================================
 
 _log_index=0
@@ -32,12 +31,11 @@ export LIBRARY_PATH="${_BUILD_PREFIX}/Library/lib${LIBRARY_PATH:+:}${LIBRARY_PAT
 
 conda_target=x86_64-w64-mingw32
 
-# EXPERIMENTAL: Override conda's CC/CXX to use GCC instead of Clang
-# Bootstrap GHC was built with GCC, so we should use GCC for consistency
+# Use GCC toolchain to match bootstrap GHC compiler
 export CC="x86_64-w64-mingw32-gcc"
 export CXX="x86_64-w64-mingw32-g++"
 export CPP="x86_64-w64-mingw32-cpp"
-echo "=== Using GCC toolchain instead of Clang ==="
+echo "=== Using GCC toolchain ==="
 echo "CC=${CC}"
 echo "CXX=${CXX}"
 echo "CPP=${CPP}"
