@@ -343,6 +343,8 @@ export LD="${LD_WIN}"
 echo "LD set to Windows format: ${LD}"
 
 (
+  CC=x86_64-w64-mingw32-gcc \
+  CXX=x86_64-w64-mingw32-g++ \
   MergeObjsCmd="${LD}" \
   MergeObjsArgs="" \
   ./configure "${CONFIGURE_ARGS[@]}" || ( cat config.log ; exit 1 )
