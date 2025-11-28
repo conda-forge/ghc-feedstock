@@ -57,6 +57,8 @@ setup_windows_paths() {
   # Set up temp variables with Windows paths
   export TMP="$(cygpath -w "${TEMP}")"
   export TMPDIR="$(cygpath -w "${TEMP}")"
+  
+  export PYTHON=${_BUILD_PREFIX}/bin/python
 }
 
 # ============================================================================
