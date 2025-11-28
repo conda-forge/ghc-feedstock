@@ -1,5 +1,5 @@
---- configure.orig	2025-11-27 11:39:18.029317909 -0600
-+++ configure	2025-11-27 11:39:18.037317888 -0600
+--- a/configure
++++ b/configure
 @@ -7642,7 +7642,7 @@
    if test $? -eq 0 ; then
      # We trim \n due of difference between Emscripten CC and clang.
