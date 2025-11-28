@@ -1,0 +1,48 @@
+=== BASH POST-EXECUTION RESULT ===
+Timestamp: 2025-11-25 15:43:37
+Hook Event: PostToolUse
+Command: cd recipe/patches && ls -la fix-stg* && echo "=== Checking patch order ===" && grep -n "fix-stg" ../recipe.yaml
+Description: Check patch files and their application order
+Success: 
+Error: 
+Permission Denied: false
+Full JSON Data:
+{"session_id":"6b02f762-430c-4efa-8e5d-685b61a4bd2a","transcript_path":"/home/memento/.claude/projects/-home-memento-PycharmProjects-Conda-Feedstocks-ghc-feedstock-9-10-2/6b02f762-430c-4efa-8e5d-685b61a4bd2a.jsonl","cwd":"/home/memento/PycharmProjects/Conda-Feedstocks/ghc-feedstock-9.10.2/recipe/patches","permission_mode":"default","hook_event_name":"PostToolUse","tool_name":"Bash","tool_input":{"command":"cd recipe/patches && ls -la fix-stg* && echo \"=== Checking patch order ===\" && grep -n \"fix-stg\" ../recipe.yaml","description":"Check patch files and their application order"},"tool_response":{"stdout":"-rw-r--r-- 1 memento memento 806 Nov  5 14:13 fix-stgcrun-ppc64le-abi-v2.patch\n-rw------- 1 memento memento 400 Nov 16 15:05 fix-stgcrun-x86-arm64.patch\n-rw------- 1 memento memento 952 Nov 25 12:51 fix-stgrun-visibility-ppc64le.patch\n=== Checking patch order ===\n17:          - patches/fix-stgcrun-ppc64le-abi-v2.patch\n18:          - patches/fix-stgrun-visibility-ppc64le.patch\n23:          - patches/fix-stgcrun-x86-arm64.patch","stderr":"","interrupted":false,"isImage":false},"tool_use_id":"toolu_011RWLh7vfARGkYQBC1tpkK2"}
+---
+
+=== BASH POST-EXECUTION RESULT ===
+Timestamp: 2025-11-25 15:45:20
+Hook Event: PostToolUse
+Command: find /home/memento/PycharmProjects/Conda-Feedstocks/ghc-feedstock-9.10.2 -name "StgCRunAsm.S" -o -name "StgCRun.c" 2>/dev/null | head -5
+Description: Find any built source files in the build tree
+Success: 
+Error: 
+Permission Denied: false
+Full JSON Data:
+{"session_id":"6b02f762-430c-4efa-8e5d-685b61a4bd2a","transcript_path":"/home/memento/.claude/projects/-home-memento-PycharmProjects-Conda-Feedstocks-ghc-feedstock-9-10-2/6b02f762-430c-4efa-8e5d-685b61a4bd2a.jsonl","cwd":"/home/memento/PycharmProjects/Conda-Feedstocks/ghc-feedstock-9.10.2/recipe/patches","permission_mode":"default","hook_event_name":"PostToolUse","tool_name":"Bash","tool_input":{"command":"find /home/memento/PycharmProjects/Conda-Feedstocks/ghc-feedstock-9.10.2 -name \"StgCRunAsm.S\" -o -name \"StgCRun.c\" 2>/dev/null | head -5","description":"Find any built source files in the build tree"},"tool_response":{"stdout":"/home/memento/PycharmProjects/Conda-Feedstocks/ghc-feedstock-9.10.2/build_artifacts/bld/rattler-build_ghc_1763995654/work/rts/StgCRunAsm.S\n/home/memento/PycharmProjects/Conda-Feedstocks/ghc-feedstock-9.10.2/build_artifacts/bld/rattler-build_ghc_1763995654/work/rts/StgCRun.c\n/home/memento/PycharmProjects/Conda-Feedstocks/ghc-feedstock-9.10.2/build_artifacts/src_cache/ghc-9_10_2-src_55fd40a0/rts/StgCRun.c\n/home/memento/PycharmProjects/Conda-Feedstocks/ghc-feedstock-9.10.2/build_artifacts/src_cache/ghc-9_10_2-src_55fd40a0/rts/StgCRunAsm.S\n/home/memento/PycharmProjects/Conda-Feedstocks/ghc-feedstock-9.10.2/build_artifacts/src_cache/ghc-9_10_3-src_d266864b/rts/StgCRunAsm.S","stderr":"","interrupted":false,"isImage":false},"tool_use_id":"toolu_01SphPUQNrNy3qfUoiA86NAd"}
+---
+
+=== BASH POST-EXECUTION RESULT ===
+Timestamp: 2025-11-25 15:45:26
+Hook Event: PostToolUse
+Command: echo "=== StgCRunAsm.S (assembly) - checking .hidden around line 44 ===" && sed -n '40,50p' /home/memento/PycharmProjects/Conda-Feedstocks/ghc-feedstock-9.10.2/build_artifacts/bld/rattler-build_ghc_1763995654/work/rts/StgCRunAsm.S
+Description: Check if .hidden was removed in assembly file
+Success: 
+Error: 
+Permission Denied: false
+Full JSON Data:
+{"session_id":"6b02f762-430c-4efa-8e5d-685b61a4bd2a","transcript_path":"/home/memento/.claude/projects/-home-memento-PycharmProjects-Conda-Feedstocks-ghc-feedstock-9-10-2/6b02f762-430c-4efa-8e5d-685b61a4bd2a.jsonl","cwd":"/home/memento/PycharmProjects/Conda-Feedstocks/ghc-feedstock-9.10.2/recipe/patches","permission_mode":"default","hook_event_name":"PostToolUse","tool_name":"Bash","tool_input":{"command":"echo \"=== StgCRunAsm.S (assembly) - checking .hidden around line 44 ===\" && sed -n '40,50p' /home/memento/PycharmProjects/Conda-Feedstocks/ghc-feedstock-9.10.2/build_artifacts/bld/rattler-build_ghc_1763995654/work/rts/StgCRunAsm.S","description":"Check if .hidden was removed in assembly file"},"tool_response":{"stdout":"=== StgCRunAsm.S (assembly) - checking .hidden around line 44 ===\n\t.section\t\".toc\",\"aw\"\n\t.section\t\".text\"\n\t.align 2\n        .globl StgRun\n        .hidden StgRun\n        .type StgRun,@function\nStgRun:\n        .localentry StgRun,.-StgRun\n\tmflr 0\n        addi 12,1,-(8*18)\n        bl _savegpr1_14","stderr":"","interrupted":false,"isImage":false},"tool_use_id":"toolu_01G57s2Tdn8fe1C4brK2ojum"}
+---
+
+=== BASH POST-EXECUTION RESULT ===
+Timestamp: 2025-11-25 15:45:33
+Hook Event: PostToolUse
+Command: echo "=== StgCRun.c - checking .hidden around line 603 ===" && sed -n '598,608p' /home/memento/PycharmProjects/Conda-Feedstocks/ghc-feedstock-9.10.2/build_artifacts/bld/rattler-build_ghc_1763995654/work/rts/StgCRun.c && echo "" && echo "=== StgCRun.c - checking .hidden around line 713 ===" && sed -n '708,718p' /home/memento/PycharmProjects/Conda-Feedstocks/ghc-feedstock-9.10.2/build_artifacts/bld/rattler-build_ghc_1763995654/work/rts/StgCRun.c
+Description: Check if .hidden was removed in C file
+Success: 
+Error: 
+Permission Denied: false
+Full JSON Data:
+{"session_id":"6b02f762-430c-4efa-8e5d-685b61a4bd2a","transcript_path":"/home/memento/.claude/projects/-home-memento-PycharmProjects-Conda-Feedstocks-ghc-feedstock-9-10-2/6b02f762-430c-4efa-8e5d-685b61a4bd2a.jsonl","cwd":"/home/memento/PycharmProjects/Conda-Feedstocks/ghc-feedstock-9.10.2/recipe/patches","permission_mode":"default","hook_event_name":"PostToolUse","tool_name":"Bash","tool_input":{"command":"echo \"=== StgCRun.c - checking .hidden around line 603 ===\" && sed -n '598,608p' /home/memento/PycharmProjects/Conda-Feedstocks/ghc-feedstock-9.10.2/build_artifacts/bld/rattler-build_ghc_1763995654/work/rts/StgCRun.c && echo \"\" && echo \"=== StgCRun.c - checking .hidden around line 713 ===\" && sed -n '708,718p' /home/memento/PycharmProjects/Conda-Feedstocks/ghc-feedstock-9.10.2/build_artifacts/bld/rattler-build_ghc_1763995654/work/rts/StgCRun.c","description":"Check if .hidden was removed in C file"},"tool_response":{"stdout":"=== StgCRun.c - checking .hidden around line 603 ===\nstatic void STG_USED\nStgRunIsImplementedInAssembler(void)\n{\n        __asm__ volatile (\n                \"\\t.globl StgRun\\n\"\n                \"\\t.hidden StgRun\\n\"\n                \"\\t.type StgRun,@function\\n\"\n                \"StgRun:\\n\"\n                \"\\tmflr 0\\n\"\n                \"\\tstw 0,4(1)\\n\"\n                \"\\tmr 5,1\\n\"\n\n=== StgCRun.c - checking .hidden around line 713 ===\n                \".hidden StgRun\\n\"\n                \"StgRun:\\n\"\n                \"\\t.quad\\t.StgRun,.TOC.@tocbase,0\\n\"\n                \"\\t.size StgRun,.-StgRun\\n\"\n                \".globl StgReturn\\n\"\n                \"StgReturn:\\n\"\n                \"\\t.quad\\t.StgReturn,.TOC.@tocbase,0\\n\"\n                \"\\t.size StgReturn,.-StgReturn\\n\"\n                \".previous\\n\"\n                \".type StgRun,@function\\n\"\n                \".StgRun:\\n\"","stderr":"","interrupted":false,"isImage":false},"tool_use_id":"toolu_01Q3DU6y5oreXDEhLXLnBzY3"}
+---
+
