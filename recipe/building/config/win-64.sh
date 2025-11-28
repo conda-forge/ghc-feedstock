@@ -62,7 +62,8 @@ platform_setup_bootstrap() {
   # Bootstrap GHC is at BUILD_PREFIX/ghc-bootstrap/bin/ghc.exe
 
   # Build clean PATH - don't append conda's bad PATH with unexpanded %BUILD_PREFIX% placeholders
-  export PATH="${_BUILD_PREFIX}/Library/bin:${_BUILD_PREFIX}/ghc-bootstrap/bin:${_BUILD_PREFIX}/bin:/c/Windows/System32:/c/Windows"
+  # Include MSYS2 tools (m2-coreutils, m2-bash, etc.) from Library/usr/bin
+  export PATH="${_BUILD_PREFIX}/Library/bin:${_BUILD_PREFIX}/Library/usr/bin:${_BUILD_PREFIX}/ghc-bootstrap/bin:${_BUILD_PREFIX}/bin:/c/Windows/System32:/c/Windows"
   export CABAL="${_BUILD_PREFIX}/bin/cabal"
   export CABAL_DIR="${SRC_DIR}\.cabal"
   export _PYTHON="${_BUILD_PREFIX}/python.exe"
