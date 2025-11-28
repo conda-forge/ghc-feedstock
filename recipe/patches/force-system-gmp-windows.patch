@@ -1,14 +1,14 @@
 --- a/hadrian/src/Oracles/Flag.hs
 +++ b/hadrian/src/Oracles/Flag.hs
-@@ -4,6 +4,7 @@ module Oracles.Flag (
-     hostSupportsRPATH
-     ) where
+@@ -8,6 +8,7 @@ import Hadrian.Oracles.TextFile
+ import Hadrian.Expression
 
-+import Oracles.Setting (anyTargetOs)
  import Base
- import Oracles.Setting (setting, Setting(..))
++import Oracles.Setting (anyTargetOs)
+ import Oracles.Setting
 
-@@ -73,8 +74,13 @@ flag f = do
+ data Flag = ArSupportsAtFile
+@@ -64,8 +65,13 @@ flag f = do
              NeedLibatomic        -> "need-libatomic"
      value <- lookupSystemConfig key
      when (value `notElem` ["YES", "NO", ""]) . error $ "Configuration flag "
