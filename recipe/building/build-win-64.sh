@@ -931,10 +931,10 @@ echo "Created fake mingw at: ${fake_mingw}"
 ls -la "${fake_mingw}"
 echo ""
 
-# Use binary-dist target (like Linux) and manually install
+# Use binary-dist-gzip target (gzip instead of xz - more widely available)
 # Don't use Hadrian's install target - it tries to run configure automatically which can fail
 echo "Creating binary distribution..."
-run_and_log "bindist" "${_hadrian_build[@]}" binary-dist --prefix="${_PREFIX}" --flavour=quickest --freeze1 --freeze2 --docs=none
+run_and_log "bindist" "${_hadrian_build[@]}" binary-dist-gzip --prefix="${_PREFIX}" --flavour=quickest --freeze1 --freeze2 --docs=none
 
 echo ""
 echo "========================================================================"
