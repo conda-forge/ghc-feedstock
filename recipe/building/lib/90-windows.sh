@@ -109,7 +109,7 @@ setup_windows_gcc_toolchain() {
     # Specific to ghc-bootstrap 9.6.7
     perl -pi -e 's/findstr/C:\\Windows\\System32\\findstr/g' "${_BUILD_PREFIX}"/ghc-bootstrap/bin/windres.bat
     perl -pi -e 's/Library\\x86_64-w64-mingw32\\bin\\windres.exe/Library\\bin\\x86_64-w64-mingw32-windres/' "${_BUILD_PREFIX}"/ghc-bootstrap/bin/windres.bat
-    perl -pi -e 's/REM Set environment variables for windres/set PATH=%BUILD_PREFIX%\\Library\\bin;%PATH%' "${_BUILD_PREFIX}"/ghc-bootstrap/bin/windres.bat
+    perl -pi -e 's/REM Set environment variables for windres/set PATH=%BUILD_PREFIX%\\Library\\bin;%PATH%/' "${_BUILD_PREFIX}"/ghc-bootstrap/bin/windres.bat
     # perl -pi -e 's|PREPROCESSOR_CMD=%CC%|PREPROCESSOR_CMD=%BUILD_PREFIX%\\Library\\bin\\%CC%|' "${_BUILD_PREFIX}"/ghc-bootstrap/bin/windres.bat
   fi
   cat "${_BUILD_PREFIX}"/ghc-bootstrap/bin/windres.bat
