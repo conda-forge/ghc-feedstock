@@ -81,12 +81,8 @@ CFLAGS=$(echo "${CFLAGS}" | perl -pe 's/-fdebug-prefix-map=[^ ]*//g; s/-isystem 
 CXXFLAGS=$(echo "${CXXFLAGS}" | perl -pe 's/-fdebug-prefix-map=[^ ]*//g; s/-isystem [^ ]*//g')
 # We add our own -I flags with correct Unix paths below
 
-# GCC uses libgcc runtime (not compiler-rt which is for Clang)
-# We link libgcc via -lgcc flag in the settings file
-
-# Use GCC with UCRT
-# Remove Clang-specific flags (--target, explicit -fuse-ld)
-# GCC is built for x86_64-w64-mingw32 by default and uses bfd linker natively
+# GCC uses libgcc runtime, linked via -lgcc flag in settings file
+# GCC natively targets x86_64-w64-mingw32 with UCRT and bfd linker
 export CFLAGS="-I${_BUILD_PREFIX}/Library/include ${CFLAGS:-}"
 export CXXFLAGS="-I${_BUILD_PREFIX}/Library/include ${CXXFLAGS:-}"
 export LDFLAGS="-L${_BUILD_PREFIX}/Library/lib -L${_BUILD_PREFIX}/Library/lib/gcc/x86_64-w64-mingw32/15.2.0 ${LDFLAGS:-}"
