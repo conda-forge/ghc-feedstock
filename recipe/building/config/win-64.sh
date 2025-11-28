@@ -208,9 +208,12 @@ platform_build_hadrian() {
 
   pushd "${_SRC_DIR}/hadrian" >/dev/null
 
-  # Build Hadrian without --with-ld (cabal will use system default)
-  # Note: Passing --with-ld causes path mangling issues on Windows
-  run_and_log "build-hadrian" "${CABAL}" v2-build -j1 hadrian
+  # Build Hadrian with explicit compiler path for package configuration
+  # Cabal needs --with-gcc so it knows which compiler to use for dependencies
+  # Note: Passing --with-ld causes path mangling issues, so we omit it
+  run_and_log "build-hadrian" "${CABAL}" v2-build -j1 \
+    --with-gcc="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-gcc.exe" \
+    hadrian
 
   popd >/dev/null
 
@@ -275,11 +278,11 @@ platform_build_stage1() {
   build_stage1 HADRIAN_BUILD "${HADRIAN_FLAVOUR}" || {
     echo "=== Stage 1 build failed - searching for config.log ===" >&2
     config_log=$(find "${_SRC_DIR}" -name "config.log" -type f -printf "%T@ %p\n" | sort -n | tail -1 | cut -d' ' -f2-)
-    if [[ -n "${config_log}" ]]; then
+    if [[ -n "${config_log}" ]] && [[ "${config_log}" != "${SRC_DIR}/config.log" ]]; then
       echo "=== Found config.log at: ${config_log} ===" >&2
       cat "${config_log}"
     else
-      echo "=== No config.log found ===" >&2
+      echo "=== No config.log found (but the main one ===" >&2
     fi
     exit 1
   }
