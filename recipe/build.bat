@@ -7,7 +7,7 @@ echo conda activate --stack "${BUILD_PREFIX}"         >> conda_build.sh
 echo CONDA_PREFIX=${CONDA_PREFIX//\\//}               >> conda_build.sh
 type "%RECIPE_DIR%\build.sh"                          >> conda_build.sh
 
-set PATH=%BUILD_PREFIX\Library\bin;PATH%
+set PATH=%BUILD_PREFIX%\Library\bin;%PATH%
 
 set _PREFIX=%PREFIX:\=/%
 set _BUILD_PREFIX=%BUILD_PREFIX:\=/%
