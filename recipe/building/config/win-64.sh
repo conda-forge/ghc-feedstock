@@ -26,14 +26,9 @@ source "${RECIPE_DIR}/building/config/common-hooks.sh"
 # ==============================================================================
 # WINDOWS PATH INITIALIZATION
 # ==============================================================================
-# Convert conda environment variables from Windows paths to Unix paths
-# MSYS2/Git Bash provides these as Unix paths (/c/...), but some code needs
-# Windows paths (C:\...), so we keep both versions.
-
-# Unix-style paths (for MSYS2/Git Bash tools)
-export _BUILD_PREFIX="${BUILD_PREFIX}"
-export _PREFIX="${PREFIX}"
-export _SRC_DIR="${SRC_DIR}"
+# NOTE: build.bat has already prepared _BUILD_PREFIX, _PREFIX, _SRC_DIR with
+# proper Unix format conversion. DO NOT redefine these variables here!
+# build.bat converts Windows paths (C:\bld\...) to Unix format (/c/bld/...)
 
 # ==============================================================================
 # PLATFORM METADATA
