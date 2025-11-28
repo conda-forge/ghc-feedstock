@@ -351,9 +351,15 @@ echo "PATH=${PATH}"
 echo "CC=${CC}"
 echo "CXX=${CXX}"
 
+# CRITICAL: Force autoconf to use GCC by setting cache variable
+# AC_PROG_CC ignores $CC and searches for standard names (gcc, cc, clang)
+# Since we don't have 'gcc' symlink, autoconf finds system 'clang' instead
+# Setting ac_cv_prog_CC tells autoconf to use our specific compiler
 (
   CC=x86_64-w64-mingw32-gcc \
   CXX=x86_64-w64-mingw32-g++ \
+  ac_cv_prog_CC=x86_64-w64-mingw32-gcc \
+  ac_cv_prog_CXX=x86_64-w64-mingw32-g++ \
   MergeObjsCmd="${LD}" \
   MergeObjsArgs="" \
   ./configure "${CONFIGURE_ARGS[@]}" || ( cat config.log ; exit 1 )
