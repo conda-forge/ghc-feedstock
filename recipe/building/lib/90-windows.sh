@@ -274,9 +274,15 @@ patch_system_config_windows() {
   # CRITICAL: Replace bare compiler names with full paths
   # Hadrian reads these settings and passes them to cabal for package configuration
   # Cabal needs full paths to find the executables
-  local toolchain_dir="${_BUILD_PREFIX}/Library/bin"
-  perl -pi -e "s#^(cc-program\\s*=\\s*)x86_64-w64-mingw32-gcc\\.exe#\$1${toolchain_dir}/x86_64-w64-mingw32-gcc.exe#" "${config_file}"
-  perl -pi -e "s#^(cxx-program\\s*=\\s*)x86_64-w64-mingw32-g\\+\\+\\.exe#\$1${toolchain_dir}/x86_64-w64-mingw32-g++.exe#" "${config_file}"
+  #
+  # IMPORTANT: Must use Windows-style paths (C:/...), not UNIX paths (/c/...)
+  # UNIX paths get converted to invalid \c\... format by ghc-toolchain
+  local toolchain_dir_unix="${_BUILD_PREFIX}/Library/bin"
+  local toolchain_dir_win
+  toolchain_dir_win=$(echo "${toolchain_dir_unix}" | sed 's#^/\([a-z]\)/#\U\1:/#')
+
+  perl -pi -e "s#^(cc-program\\s*=\\s*)x86_64-w64-mingw32-gcc\\.exe#\$1${toolchain_dir_win}/x86_64-w64-mingw32-gcc.exe#" "${config_file}"
+  perl -pi -e "s#^(cxx-program\\s*=\\s*)x86_64-w64-mingw32-g\\+\\+\\.exe#\$1${toolchain_dir_win}/x86_64-w64-mingw32-g++.exe#" "${config_file}"
 }
 
 # ============================================================================
