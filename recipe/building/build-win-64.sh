@@ -429,9 +429,12 @@ mkdir -p ${_SRC_DIR}/_build
     echo "Bootstrap GHC is functional"
 
     echo "=== Building Hadrian ==="
-    # Using standard MinGW linking - link flags already set in settings file's "ld flags"
+    # Using standard MinGW linking - need to pass flags via environment
+    # CRITICAL: Set LDFLAGS so GCC passes these to the linker
+    export LDFLAGS="-L${_BUILD_PREFIX}/Library/lib -L${_BUILD_PREFIX}/Library/x86_64-w64-mingw32/sysroot/usr/lib -lmoldname -lmingwex -lmingw32 -lchkstk_ms -lgcc -lucrt -lkernel32 -ladvapi32"
+    echo "=== LDFLAGS=${LDFLAGS} ==="
+
     "${CABAL}" v2-build -j1 \
-      --with-ld="${LD}" \
       hadrian 2>&1 | tee "${_SRC_DIR}"/cabal-build.log
     _cabal_exit_code=${PIPESTATUS[0]}
 
