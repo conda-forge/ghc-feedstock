@@ -324,7 +324,16 @@ patch_ghc_toolchain_output() {
       # Step 2: Fix remaining directory separators \\ -> /
       perl -pi -e 's#\\\\#/#g' "${toolchain_file}"
 
+      # Step 3: Add .exe extension to Windows executables (gcc, g++, ar, ld, etc.)
+      # ghc-toolchain.exe on Windows strips the .exe extension
+      # Pattern: prgPath = "C:/path/to/tool" -> prgPath = "C:/path/to/tool.exe"
+      perl -pi -e 's#(prgPath\s*=\s*"[^"]*/(x86_64-w64-mingw32-[^"/]+))"#$1.exe"#g' "${toolchain_file}"
+
       echo "    ✓ ${filename} patched"
+
+      # DEBUG: Show sample of patched compiler paths
+      echo "    DEBUG: Sample compiler paths from ${filename}:"
+      grep -E "prgPath.*gcc|prgPath.*g\+\+" "${toolchain_file}" | head -3 || echo "      (no compiler paths found)"
     fi
   done
 
