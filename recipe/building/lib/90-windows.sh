@@ -300,10 +300,13 @@ patch_ghc_toolchain_output() {
 
   echo "  Found ghc-toolchain output, patching paths..."
 
-  # Convert invalid \c\bld\... paths to valid C:/bld/... paths
-  # Pattern: "\\c\\ -> "C:/
-  # Must escape backslashes in both pattern and replacement
+  # Convert invalid \\c\\bld\\... paths to valid C:/bld/... paths
+  # File contains: prgPath = "\\c\\bld\\..."
+  # Step 1: Fix drive letter "\\c\\ -> "C:/
   perl -pi -e 's#"\\\\([a-z])\\\\#"\U$1:/#g' "${toolchain_file}"
+
+  # Step 2: Fix remaining directory separators \\ -> /
+  perl -pi -e 's#\\\\#/#g' "${toolchain_file}"
 
   echo "  ghc-toolchain paths patched"
 }
