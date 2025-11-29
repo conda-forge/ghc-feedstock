@@ -953,8 +953,9 @@ if [[ -f "${settings_file}" ]]; then
   echo ""
   echo "Updating settings file: ${settings_file}"
 
-  perl -pi -e 's#(ld flags",\s*"[^"]*)#$1 -L$topdir/../../lib#' "${settings_file}"
-  perl -pi -e 's#(compiler link flags",\s*"[^"]*)#$1 -Wl,-L$topdir/../../lib#' "${settings_file}"
+  perl -pi -e 's#((?:C compiler|C\+\+ compiler|Haskell CPP|ld|Merge objects|ar|ranlib) command",\s*")[^"]*-(gcc|g\+\+|ld|ar|ranlib)(?:.exe)?#$1x86_64-w64-mingw32-$2.exe#' "${settings_file}"
+  perl -pi -e 's#(compiler link flags",\s*"[^"]*)#$1 -Wl,-L\$topdir/../../lib#' "${settings_file}"
+  perl -pi -e 's#(ld flags",\s*"[^"]*)#$1 -L\$topdir/../../lib#' "${settings_file}"
   cat "${settings_file}"
 else
   echo "WARNING: Could not find settings file"
