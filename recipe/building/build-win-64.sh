@@ -429,10 +429,10 @@ mkdir -p ${_SRC_DIR}/_build
     echo "Bootstrap GHC is functional"
 
     echo "=== Building Hadrian ==="
-    # Using standard MinGW linking - need to pass flags via environment
-    # CRITICAL: Set LDFLAGS so GCC passes these to the linker
-    export LDFLAGS="-L${_BUILD_PREFIX}/Library/lib -L${_BUILD_PREFIX}/Library/x86_64-w64-mingw32/sysroot/usr/lib -lmoldname -lmingwex -lmingw32 -lchkstk_ms -lgcc -lucrt -lkernel32 -ladvapi32"
-    echo "=== LDFLAGS=${LDFLAGS} ==="
+    # CRITICAL: Update index-state in cabal.project to use current packages
+    # The default index-state is from 2022 and prevents seeing newer packages like time-1.12.2
+    # time-1.12.2 is built from source and links correctly, unlike time-1.11.1.1 from ghc-bootstrap
+    perl -pi -e 's/^index-state:.*$/index-state: 2025-11-28T00:00:00Z/' cabal.project
 
     "${CABAL}" v2-build -j1 \
       hadrian 2>&1 | tee "${_SRC_DIR}"/cabal-build.log
