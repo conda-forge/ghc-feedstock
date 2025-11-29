@@ -454,18 +454,27 @@ mkdir -p ${_SRC_DIR}/_build
     if [[ $_cabal_exit_code -ne 0 ]]; then
       echo "=== Cabal build FAILED with exit code ${_cabal_exit_code} ==="
 
-      # Find and print config.log from time package if it exists
+      # Try to find and print config.log from time package
       echo "=== Searching for time package config.log ==="
-      time_config_log=$(find "${_SRC_DIR}"/hadrian/dist-newstyle/tmp -name "config.log" -path "*/time-*/dist/build/config.log" 2>/dev/null | head -1)
-      if [[ -f "${time_config_log}" ]]; then
-        echo "=== Contents of ${time_config_log} ==="
-        cat "${time_config_log}"
-        echo "=== End of config.log ==="
-      else
-        echo "config.log not found at expected location"
-        echo "Searching for any config.log files:"
-        find "${_SRC_DIR}"/hadrian/dist-newstyle -name "config.log" -type f 2>/dev/null || echo "No config.log files found"
-      fi
+
+      # List what's in the tmp directory
+      echo "Contents of hadrian/dist-newstyle/tmp:"
+      ls -la "${_SRC_DIR}"/hadrian/dist-newstyle/tmp/ 2>/dev/null || echo "tmp directory not found"
+
+      # Try to find the time package directory
+      echo ""
+      echo "Looking for time-* directories:"
+      find "${_SRC_DIR}"/hadrian/dist-newstyle/tmp -type d -name "time-*" 2>/dev/null || echo "No time-* directories found"
+
+      # Search for any config.log
+      echo ""
+      echo "Searching for any config.log files:"
+      find "${_SRC_DIR}"/hadrian/dist-newstyle -name "config.log" -type f 2>/dev/null | while read -r log; do
+        echo "=== Found: ${log} ==="
+        echo "Last 100 lines:"
+        tail -100 "${log}"
+        echo "=== End of ${log} ==="
+      done
 
       exit 1
     fi
