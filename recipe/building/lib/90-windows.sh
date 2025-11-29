@@ -287,13 +287,15 @@ patch_system_config_windows() {
 
 patch_ghc_toolchain_output() {
   # GHC 9.10+ introduces ghc-toolchain which runs during configure
-  # It creates multiple .ghc-toolchain files in hadrian/cfg/
-  # Problem: Converts UNIX paths /c/bld/... to invalid \\c\\bld\... (Haskell escaped)
+  # Problem: Both configure-created and ghc-toolchain-created files may have
+  # invalid UNIX paths /c/bld/... converted to broken \\c\\bld\... (Haskell escaped)
   # Solution: Convert to Windows format C:/bld/...
   #
-  # Files created by ghc-toolchain:
-  # - default.target.ghc-toolchain (always)
-  # - default.host.target.ghc-toolchain (for cross-compilation)
+  # Files that need patching:
+  # - default.target (created by configure) - ALWAYS exists in 9.10+
+  # - default.host.target (created by configure) - exists for cross-compile
+  # - default.target.ghc-toolchain (created by ghc-toolchain.exe) - may fail to create
+  # - default.host.target.ghc-toolchain (created by ghc-toolchain.exe) - may fail to create
   #
   # Format (Haskell syntax):
   # tgtCCompiler = Cc {ccProgram = Program { prgPath = "\\c\\bld\\..." , prgFlags = [...] }}
@@ -301,13 +303,14 @@ patch_ghc_toolchain_output() {
   local toolchain_dir="${_SRC_DIR}/hadrian/cfg"
   local files_found=0
 
-  # Find all .ghc-toolchain files
   if [[ ! -d "${toolchain_dir}" ]]; then
     echo "  hadrian/cfg directory not found (expected for GHC <9.10)"
     return 0
   fi
 
-  for toolchain_file in "${toolchain_dir}"/*.ghc-toolchain; do
+  # Patch ALL toolchain files (both configure-created and ghc-toolchain-created)
+  # Pattern matches: default.target, default.host.target, *.ghc-toolchain
+  for toolchain_file in "${toolchain_dir}"/default.target "${toolchain_dir}"/default.host.target "${toolchain_dir}"/*.ghc-toolchain; do
     if [[ -f "${toolchain_file}" ]]; then
       files_found=$((files_found + 1))
       local filename=$(basename "${toolchain_file}")
@@ -326,9 +329,9 @@ patch_ghc_toolchain_output() {
   done
 
   if [[ ${files_found} -eq 0 ]]; then
-    echo "  No ghc-toolchain files found (expected for GHC <9.10)"
+    echo "  No toolchain files found (expected for GHC <9.10)"
   else
-    echo "  ✓ Patched ${files_found} ghc-toolchain file(s)"
+    echo "  ✓ Patched ${files_found} toolchain file(s)"
   fi
 }
 
