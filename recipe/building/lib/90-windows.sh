@@ -287,28 +287,49 @@ patch_system_config_windows() {
 
 patch_ghc_toolchain_output() {
   # GHC 9.10+ introduces ghc-toolchain which runs during configure
-  # It creates hadrian/cfg/default.target.ghc-toolchain with toolchain paths
-  # Problem: It converts UNIX paths like /c/bld/... to invalid \c\bld\...
-  # Solution: Convert these to Windows format C:/bld/...
+  # It creates multiple .ghc-toolchain files in hadrian/cfg/
+  # Problem: Converts UNIX paths /c/bld/... to invalid \\c\\bld\... (Haskell escaped)
+  # Solution: Convert to Windows format C:/bld/...
+  #
+  # Files created by ghc-toolchain:
+  # - default.target.ghc-toolchain (always)
+  # - default.host.target.ghc-toolchain (for cross-compilation)
+  #
+  # Format (Haskell syntax):
+  # tgtCCompiler = Cc {ccProgram = Program { prgPath = "\\c\\bld\\..." , prgFlags = [...] }}
 
-  local toolchain_file="${_SRC_DIR}/hadrian/cfg/default.target.ghc-toolchain"
+  local toolchain_dir="${_SRC_DIR}/hadrian/cfg"
+  local files_found=0
 
-  if [[ ! -f "${toolchain_file}" ]]; then
-    echo "  ghc-toolchain output not found (expected for GHC <9.10)"
+  # Find all .ghc-toolchain files
+  if [[ ! -d "${toolchain_dir}" ]]; then
+    echo "  hadrian/cfg directory not found (expected for GHC <9.10)"
     return 0
   fi
 
-  echo "  Found ghc-toolchain output, patching paths..."
+  for toolchain_file in "${toolchain_dir}"/*.ghc-toolchain; do
+    if [[ -f "${toolchain_file}" ]]; then
+      files_found=$((files_found + 1))
+      local filename=$(basename "${toolchain_file}")
+      echo "  Patching ${filename}..."
 
-  # Convert invalid \\c\\bld\\... paths to valid C:/bld/... paths
-  # File contains: prgPath = "\\c\\bld\\..."
-  # Step 1: Fix drive letter "\\c\\ -> "C:/
-  perl -pi -e 's#"\\\\([a-z])\\\\#"\U$1:/#g' "${toolchain_file}"
+      # Convert invalid \\c\\bld\\... paths to valid C:/bld/... paths
+      # Haskell string format: prgPath = "\\c\\bld\\..."
+      # Step 1: Fix drive letter "\\c\\ -> "C:/
+      perl -pi -e 's#"\\\\([a-z])\\\\#"\U$1:/#g' "${toolchain_file}"
 
-  # Step 2: Fix remaining directory separators \\ -> /
-  perl -pi -e 's#\\\\#/#g' "${toolchain_file}"
+      # Step 2: Fix remaining directory separators \\ -> /
+      perl -pi -e 's#\\\\#/#g' "${toolchain_file}"
 
-  echo "  ghc-toolchain paths patched"
+      echo "    ✓ ${filename} patched"
+    fi
+  done
+
+  if [[ ${files_found} -eq 0 ]]; then
+    echo "  No ghc-toolchain files found (expected for GHC <9.10)"
+  else
+    echo "  ✓ Patched ${files_found} ghc-toolchain file(s)"
+  fi
 }
 
 # ============================================================================
