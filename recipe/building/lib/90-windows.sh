@@ -329,7 +329,8 @@ patch_ghc_toolchain_output() {
       # Pattern 1: Full path "C:/path/to/tool" -> "C:/path/to/tool.exe"
       perl -pi -e 's#(prgPath\s*=\s*"[^"]*/(x86_64-w64-mingw32-[^"/\.]+))"#$1.exe"#g' "${toolchain_file}"
       # Pattern 2: Relative path "x86_64-w64-mingw32-tool" -> "x86_64-w64-mingw32-tool.exe"
-      perl -pi -e 's#(prgPath\s*=\s*")(x86_64-w64-mingw32-[a-z\-]+)"#$1$2.exe"#g' "${toolchain_file}"
+      # Must include + for g++, and - for tools like ar-lib
+      perl -pi -e 's#(prgPath\s*=\s*")(x86_64-w64-mingw32-[a-z+\-0-9]+)"#$1$2.exe"#g' "${toolchain_file}"
 
       echo "    ✓ ${filename} patched"
 
