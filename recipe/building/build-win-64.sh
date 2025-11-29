@@ -431,11 +431,18 @@ mkdir -p ${_SRC_DIR}/_build
   # Must include both main lib directory AND gcc runtime directory
   export LDFLAGS="-L${_BUILD_PREFIX}/Library/lib -L${_BUILD_PREFIX}/Library/lib/gcc/x86_64-w64-mingw32/15.2.0"
 
-  # CRITICAL: Force autoconf to use compiler name without short paths
-  # Autoconf's AC_PROG_CC will search for and use full paths, which get converted to short names (RATTLE~1)
-  # This breaks MinGW builds. Force it to use our compiler via cache variable.
-  export ac_cv_prog_CC="x86_64-w64-mingw32-gcc"
-  export ac_cv_prog_CXX="x86_64-w64-mingw32-g++"
+  # CRITICAL: Prevent autoconf from finding gcc in PATH
+  # Autoconf's AC_PROG_CC searches PATH for gcc and resolves it to full path
+  # Windows converts long paths to short names (RATTLE~1) which breaks MinGW
+  # Solution: Temporarily remove the compiler directory from PATH during Hadrian build
+  # Cabal's --with-gcc will still work because it uses the command name directly
+
+  # Save original PATH
+  _ORIGINAL_PATH="${PATH}"
+
+  # Remove BUILD_PREFIX/Library/bin from PATH to prevent gcc discovery
+  PATH=$(echo "${PATH}" | tr ':' '\n' | grep -v "${_BUILD_PREFIX}/Library/bin" | tr '\n' ':' | sed 's/:$//')
+  export PATH
 
   pushd "${_SRC_DIR}"/hadrian
 
