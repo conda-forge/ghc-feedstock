@@ -209,7 +209,7 @@ setup_windows_mingw() {
 
 patch_bootstrap_settings_windows() {
   # Patch Stage0 (bootstrap) GHC settings file
-  # Critical: Fix merge-objects to use GNU ld instead of lld
+  # Critical: Fix paths to use conda-provided tools instead of removed bundled mingw
   #
   # TIMING: Must run AFTER create_chkstk_stub() and BEFORE configure
 
@@ -222,7 +222,12 @@ patch_bootstrap_settings_windows() {
     return 1
   fi
 
+  # Fix merge-objects to use conda's GNU ld (not removed bundled ld.lld)
   perl -pi -e "s#(Merge objects command\", \")[^\"]*#\$1${LD}#" "${settings_file}"
+
+  # Fix all references to removed ghc-bootstrap/mingw to use conda's Library/bin
+  # The bootstrap originally had bundled mingw, but we removed it
+  perl -pi -e 's#ghc-bootstrap/mingw/bin/#Library/bin/#g' "${settings_file}"
 }
 
 # ============================================================================
