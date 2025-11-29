@@ -458,7 +458,11 @@ mkdir -p ${_SRC_DIR}/_build
     # time-1.12.2 built from source includes proper UCRT library linking during C compilation
     echo "constraints: time >= 1.12" >> cabal.project
 
+    # CRITICAL: Use --with-gcc to force Cabal to use compiler NAME without path
+    # This prevents Windows from converting the path to short names (RATTLE~1)
+    # which breaks MinGW GCC's ability to find its own spec files and libraries
     "${CABAL}" v2-build -j1 \
+      --with-gcc=x86_64-w64-mingw32-gcc \
       hadrian 2>&1 | tee "${_SRC_DIR}"/cabal-build.log
     _cabal_exit_code=${PIPESTATUS[0]}
 
