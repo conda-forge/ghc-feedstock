@@ -420,7 +420,7 @@ mkdir -p ${_SRC_DIR}/_build
 (
   # CRITICAL: Clean environment to prevent contaminating time package's configure script
   # The time package runs autoconf which tests C compiler
-  # Clear FLAGS but KEEP CC/CXX set to compiler names (not full paths)
+  # Clear most FLAGS but provide minimal linking support
   export CFLAGS=""
   export CXXFLAGS=""
   export CPPFLAGS=""
@@ -428,12 +428,14 @@ mkdir -p ${_SRC_DIR}/_build
 
   # CRITICAL: Set minimal LDFLAGS for Hadrian dependency builds
   # time-1.14 configure checks "C compiler can create executables" which requires library paths
-  # Without these, the linker can't find libgcc, libmingw32, etc.
-  export LDFLAGS="-L${_BUILD_PREFIX}/Library/lib"
+  # Must include both main lib directory AND gcc runtime directory
+  export LDFLAGS="-L${_BUILD_PREFIX}/Library/lib -L${_BUILD_PREFIX}/Library/lib/gcc/x86_64-w64-mingw32/15.2.0"
 
-  # CC and CXX are already set by outer script - DON'T clear them!
-  # They're set to "x86_64-w64-mingw32-gcc" which is correct
-  # If we clear them, Cabal finds the full path and converts to short names (RATTLE~1)
+  # CRITICAL: Force autoconf to use compiler name without short paths
+  # Autoconf's AC_PROG_CC will search for and use full paths, which get converted to short names (RATTLE~1)
+  # This breaks MinGW builds. Force it to use our compiler via cache variable.
+  export ac_cv_prog_CC="x86_64-w64-mingw32-gcc"
+  export ac_cv_prog_CXX="x86_64-w64-mingw32-g++"
 
   pushd "${_SRC_DIR}"/hadrian
 
