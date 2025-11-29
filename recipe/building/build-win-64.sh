@@ -953,10 +953,9 @@ if [[ -f "${settings_file}" ]]; then
   echo ""
   echo "Updating settings file: ${settings_file}"
 
-  # These settings were already applied during Stage0/Stage1 settings patches
-  # But verify they're correct in the final installation
-  echo "Settings file contents:"
-  cat "${settings_file}" | grep -E "(C compiler command|C compiler link flags|ar command|ld command)" || true
+  perl -pi -e 's#(ld flags",\s*"[^"]*)#$1 -L$topdir/../../lib#' "${settings_file}"
+  perl -pi -e 's#(compiler link flags",\s*"[^"]*)#$1 -Wl,-L$topdir/../../lib#' "${settings_file}"
+  cat "${settings_file}"
 else
   echo "WARNING: Could not find settings file"
 fi
