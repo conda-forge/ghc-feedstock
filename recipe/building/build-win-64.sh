@@ -218,7 +218,11 @@ if [[ -f "${settings_file}" ]]; then
   # Add MinGW runtime libraries to "C compiler link flags"
   perl -pi -e "s#(C compiler link flags\", \")#\$1${LINK_FLAGS} #" "${settings_file}"
 
-  cat "${settings_file}" | grep -E "(C compiler command|C compiler link flags|ar command|ld command)" || true
+  # Also add to "ld flags" for direct ld invocations (use bare library names, no -Xlinker)
+  # CRITICAL: This is used when GHC invokes ld directly to link Haskell executables
+  perl -pi -e "s#(ld flags\", \")#\$1--subsystem,console --enable-auto-import --image-base=0x140000000 --dynamicbase --high-entropy-va -L${CHKSTK_DIR} -L${MINGW_SYSROOT} -lmoldname -lmingwex -lmingw32 -lchkstk_ms -lgcc -lucrt -lkernel32 -ladvapi32 #" "${settings_file}"
+
+  cat "${settings_file}" | grep -E "(C compiler command|C compiler link flags|ld command|ld flags)" || true
 else
   echo "WARNING: Stage0 settings file not found at ${settings_file}"
 fi
@@ -425,21 +429,9 @@ mkdir -p ${_SRC_DIR}/_build
     echo "Bootstrap GHC is functional"
 
     echo "=== Building Hadrian ==="
-    # Using standard MinGW linking with UCRT/MinGW libraries
-    # These libraries are needed because bootstrap GHC's time library uses _timezone and _tzname from UCRT
-    # CRITICAL: Set ghc-options AND ld-options via cabal.project.local so ALL packages get these link flags
-    cat > cabal.project.local <<EOF
-package *
-  ghc-options: -optl-lmoldname -optl-lmingwex -optl-lmingw32 -optl-lchkstk_ms -optl-lgcc -optl-lucrt -optl-lkernel32 -optl-ladvapi32
-
-package hadrian
-  ghc-options: -optl-lmoldname -optl-lmingwex -optl-lmingw32 -optl-lchkstk_ms -optl-lgcc -optl-lucrt -optl-lkernel32 -optl-ladvapi32
-  ld-options: -lmoldname -lmingwex -lmingw32 -lchkstk_ms -lgcc -lucrt -lkernel32 -ladvapi32
-EOF
-
+    # Using standard MinGW linking - link flags already set in settings file's "ld flags"
     "${CABAL}" v2-build -j1 \
       --with-ld="${LD}" \
-      --ghc-options="-optl-lmoldname -optl-lmingwex -optl-lmingw32 -optl-lchkstk_ms -optl-lgcc -optl-lucrt -optl-lkernel32 -optl-ladvapi32" \
       hadrian 2>&1 | tee "${_SRC_DIR}"/cabal-build.log
     _cabal_exit_code=${PIPESTATUS[0]}
 
