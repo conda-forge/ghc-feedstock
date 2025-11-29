@@ -253,10 +253,13 @@ patch_system_config_windows() {
   perl -pi -e "s#\$ENV{BUILD_PREFIX}#${_BUILD_PREFIX}#g" "${config_file}"
   perl -pi -e "s#\$ENV{SRC_DIR}#${_SRC_DIR}#g" "${config_file}"
 
-  # Convert FFI paths to Windows format
-  perl -pi -e 's#^ffi-include-dir\s*=\s*/c/#ffi-include-dir   = C:/#' "${config_file}"
-  perl -pi -e 's#^ffi-lib-dir\s*=\s*/c/#ffi-lib-dir       = C:/#' "${config_file}"
-  perl -pi -e 's#^([a-z-]+dir)\s*=\s*/c/#$1 = C:/#g' "${config_file}"
+  # CRITICAL: Convert ALL UNIX paths to Windows format
+  # After variable expansion, paths look like /c/bld/...
+  # These must be converted to C:/bld/... (Windows format with forward slashes)
+  # ghc-toolchain and cabal both need Windows-style paths
+  #
+  # Convert /c/ -> C:/ (and same for other drives)
+  perl -pi -e 's#/([a-z])/#\U$1:/#g' "${config_file}"
 
   # Force GMP setting
   perl -pi -e "s#^(intree-gmp\s*=\s*).*#\$1NO#" "${config_file}"
@@ -270,19 +273,6 @@ patch_system_config_windows() {
 
   # Fix system-merge-objects to use GNU ld (Windows format)
   perl -pi -e 's#^system-merge-objects\s*=\s*.*$#system-merge-objects = '"${LD}"'#' "${config_file}"
-
-  # CRITICAL: Replace bare compiler names with full paths
-  # Hadrian reads these settings and passes them to cabal for package configuration
-  # Cabal needs full paths to find the executables
-  #
-  # IMPORTANT: Must use Windows-style paths (C:/...), not UNIX paths (/c/...)
-  # UNIX paths get converted to invalid \c\... format by ghc-toolchain
-  local toolchain_dir_unix="${_BUILD_PREFIX}/Library/bin"
-  local toolchain_dir_win
-  toolchain_dir_win=$(echo "${toolchain_dir_unix}" | sed 's#^/\([a-z]\)/#\U\1:/#')
-
-  perl -pi -e "s#^(cc-program\\s*=\\s*)x86_64-w64-mingw32-gcc\\.exe#\$1${toolchain_dir_win}/x86_64-w64-mingw32-gcc.exe#" "${config_file}"
-  perl -pi -e "s#^(cxx-program\\s*=\\s*)x86_64-w64-mingw32-g\\+\\+\\.exe#\$1${toolchain_dir_win}/x86_64-w64-mingw32-g++.exe#" "${config_file}"
 }
 
 # ============================================================================
