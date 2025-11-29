@@ -418,6 +418,14 @@ mkdir -p ${_SRC_DIR}/_build
 
 # Build Hadrian
 (
+  # CRITICAL: Clean environment to prevent contaminating time package's configure script
+  # The time package runs autoconf which tests C compiler, and outer CFLAGS/LDFLAGS can break this
+  # Similar to Linux ppc64le issue where CONDA_BUILD_SYSROOT contaminated configure
+  export CFLAGS=""
+  export CXXFLAGS=""
+  export LDFLAGS=""
+  export CPPFLAGS=""
+
   pushd "${_SRC_DIR}"/hadrian
 
     # CRITICAL: Test GHC before cabal build to ensure it's functional
