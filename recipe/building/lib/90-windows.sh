@@ -270,6 +270,13 @@ patch_system_config_windows() {
 
   # Fix system-merge-objects to use GNU ld (Windows format)
   perl -pi -e 's#^system-merge-objects\s*=\s*.*$#system-merge-objects = '"${LD}"'#' "${config_file}"
+
+  # CRITICAL: Replace bare compiler names with full paths
+  # Hadrian reads these settings and passes them to cabal for package configuration
+  # Cabal needs full paths to find the executables
+  local toolchain_dir="${_BUILD_PREFIX}/Library/bin"
+  perl -pi -e "s#^(cc-program\\s*=\\s*)x86_64-w64-mingw32-gcc\\.exe#\$1${toolchain_dir}/x86_64-w64-mingw32-gcc.exe#" "${config_file}"
+  perl -pi -e "s#^(cxx-program\\s*=\\s*)x86_64-w64-mingw32-g\\+\\+\\.exe#\$1${toolchain_dir}/x86_64-w64-mingw32-g++.exe#" "${config_file}"
 }
 
 # ============================================================================
