@@ -278,6 +278,34 @@ patch_system_config_windows() {
   perl -pi -e 's#^system-merge-objects\s*=\s*.*$#system-merge-objects = '"${LD}"'#' "${config_file}"
 
   cat "${config_file}" | grep "include-dir\|lib-dir\|windres\|dllwrap\|system-mingw\|system-ffi\|merge-objects"
+
+  # GHC 9.10+ uses ghc-toolchain which creates its own config files
+  # These must also be patched to fix invalid Windows paths
+  echo "=== Patching ghc-toolchain output files (GHC 9.10+) ==="
+  patch_ghc_toolchain_output
+}
+
+patch_ghc_toolchain_output() {
+  # GHC 9.10+ introduces ghc-toolchain which runs during configure
+  # It creates hadrian/cfg/default.target.ghc-toolchain with toolchain paths
+  # Problem: It converts UNIX paths like /c/bld/... to invalid \c\bld\...
+  # Solution: Convert these to Windows format C:/bld/...
+
+  local toolchain_file="${_SRC_DIR}/hadrian/cfg/default.target.ghc-toolchain"
+
+  if [[ ! -f "${toolchain_file}" ]]; then
+    echo "  ghc-toolchain output not found (expected for GHC <9.10)"
+    return 0
+  fi
+
+  echo "  Found ghc-toolchain output, patching paths..."
+
+  # Convert invalid \c\bld\... paths to valid C:/bld/... paths
+  # Pattern: "\\c\\ -> "C:/
+  # Must escape backslashes in both pattern and replacement
+  perl -pi -e 's#"\\\\([a-z])\\\\#"\U$1:/#g' "${toolchain_file}"
+
+  echo "  ghc-toolchain paths patched"
 }
 
 # ============================================================================
@@ -291,3 +319,4 @@ export -f create_chkstk_stub
 export -f setup_windows_mingw
 export -f patch_bootstrap_settings_windows
 export -f patch_system_config_windows
+export -f patch_ghc_toolchain_output
