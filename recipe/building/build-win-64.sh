@@ -491,6 +491,22 @@ mkdir -p ${_SRC_DIR}/_build
         echo "=== End of ${log} ==="
       done
 
+      # Retry building JUST the time package with verbose output to see what's happening
+      echo ""
+      echo "=== RETRY: Building time package with verbose output ==="
+      echo "Environment during time build:"
+      echo "  CC='${CC}'"
+      echo "  CFLAGS='${CFLAGS}'"
+      echo "  LDFLAGS='${LDFLAGS}'"
+      echo "  ac_cv_prog_CC='${ac_cv_prog_CC}'"
+
+      "${CABAL}" v2-build -v3 \
+        --with-gcc=x86_64-w64-mingw32-gcc \
+        time 2>&1 | tee "${_SRC_DIR}"/time-verbose.log || true
+
+      echo "=== Time package verbose build completed (may have failed) ==="
+      echo "Check time-verbose.log for details"
+
       exit 1
     fi
 
