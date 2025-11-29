@@ -326,8 +326,10 @@ patch_ghc_toolchain_output() {
 
       # Step 3: Add .exe extension to Windows executables (gcc, g++, ar, ld, etc.)
       # ghc-toolchain.exe on Windows strips the .exe extension
-      # Pattern: prgPath = "C:/path/to/tool" -> prgPath = "C:/path/to/tool.exe"
-      perl -pi -e 's#(prgPath\s*=\s*"[^"]*/(x86_64-w64-mingw32-[^"/]+))"#$1.exe"#g' "${toolchain_file}"
+      # Pattern 1: Full path "C:/path/to/tool" -> "C:/path/to/tool.exe"
+      perl -pi -e 's#(prgPath\s*=\s*"[^"]*/(x86_64-w64-mingw32-[^"/\.]+))"#$1.exe"#g' "${toolchain_file}"
+      # Pattern 2: Relative path "x86_64-w64-mingw32-tool" -> "x86_64-w64-mingw32-tool.exe"
+      perl -pi -e 's#(prgPath\s*=\s*")(x86_64-w64-mingw32-[a-z\-]+)"#$1$2.exe"#g' "${toolchain_file}"
 
       echo "    ✓ ${filename} patched"
 
