@@ -95,10 +95,13 @@ update_settings_link_flags() {
 update_installed_settings() {
   local toolchain="${1:-$CONDA_TOOLCHAIN_HOST}"
 
+  # Extract architecture from toolchain (e.g., "aarch64" from "aarch64-conda-linux-gnu")
+  local arch="${toolchain%%-*}"
+
   local settings_file=$(find "${PREFIX}/lib" -name settings | head -n 1)
   if [[ "${target_platform}" == "linux-"* ]]; then
-    perl -pi -e "s#(C compiler link flags\", \"[^\"]*)#\$1 -Wl,-L\\\$topdir/x86_64-linux-ghc-${PKG_VERSION} -Wl,-rpath,\\\$topdir/x86_64-linux-ghc-${PKG_VERSION} -Wl,-L\\\$topdir/../../../lib -Wl,-rpath,\\\$topdir/../../../lib#" "${settings_file}"
-    perl -pi -e "s#(ld flags\", \")#\$1-L\\\$topdir/x86_64-linux-ghc-${PKG_VERSION} -rpath \\\$topdir/x86_64-linux-ghc-${PKG_VERSION} -L\\\$topdir/../../../lib -rpath \\\$topdir/../../../lib#" "${settings_file}"
+    perl -pi -e "s#(C compiler link flags\", \"[^\"]*)#\$1 -Wl,-L\\\$topdir/${arch}-linux-ghc-${PKG_VERSION} -Wl,-rpath,\\\$topdir/${arch}-linux-ghc-${PKG_VERSION} -Wl,-L\\\$topdir/../../../lib -Wl,-rpath,\\\$topdir/../../../lib#" "${settings_file}"
+    perl -pi -e "s#(ld flags\", \")#\$1-L\\\$topdir/${arch}-linux-ghc-${PKG_VERSION} -rpath \\\$topdir/${arch}-linux-ghc-${PKG_VERSION} -L\\\$topdir/../../../lib -rpath \\\$topdir/../../../lib#" "${settings_file}"
 
   elif [[ "${target_platform}" == "osx-"* ]]; then
     perl -i -pe "s#(C compiler flags\", \")([^\"]*)#\1\2 -fno-lto#" "${settings_file}"
