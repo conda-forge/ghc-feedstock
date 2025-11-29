@@ -434,6 +434,11 @@ mkdir -p ${_SRC_DIR}/_build
     # time-1.12.2 is built from source and links correctly, unlike time-1.11.1.1 from ghc-bootstrap
     perl -pi -e 's/^index-state:.*$/index-state: 2025-11-28T00:00:00Z/' cabal.project
 
+    # CRITICAL: Force Cabal to use time >= 1.12 instead of time-1.11.1.1 from ghc-bootstrap
+    # time-1.11.1.1 has pre-compiled C code with unresolved UCRT symbols (__imp__timezone, __imp__tzname)
+    # time-1.12.2 built from source includes proper UCRT library linking during C compilation
+    echo "constraints: time >= 1.12" >> cabal.project
+
     "${CABAL}" v2-build -j1 \
       hadrian 2>&1 | tee "${_SRC_DIR}"/cabal-build.log
     _cabal_exit_code=${PIPESTATUS[0]}
