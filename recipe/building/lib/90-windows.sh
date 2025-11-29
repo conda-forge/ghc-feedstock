@@ -329,8 +329,8 @@ patch_ghc_toolchain_output() {
       # Pattern 1: "x86_64-w64-mingw32-tool.exe" -> "/c/bld/.../x86_64-w64-mingw32-tool.exe"
       # Pattern 2: "x86_64-w64-mingw32-tool" -> "/c/bld/.../x86_64-w64-mingw32-tool"
       local build_prefix_unix="${_BUILD_PREFIX}"
-      perl -pi -e "s#(prgPath\s*=\s*\")(x86_64-w64-mingw32-[a-z+\\-0-9]+\\.exe)\"#\$1${build_prefix_unix}/Library/bin/\$2\"#g" "${toolchain_file}"
-      perl -pi -e "s#(prgPath\s*=\s*\")(x86_64-w64-mingw32-[a-z+\\-0-9]+)\"#\$1${build_prefix_unix}/Library/bin/\$2\"#g" "${toolchain_file}"
+      # Use simpler pattern: match anything after x86_64-w64-mingw32- that's not a quote
+      perl -pi -e "s#(prgPath\s*=\s*\")(x86_64-w64-mingw32-[^\"]+)\"#\$1${build_prefix_unix}/Library/bin/\$2\"#g" "${toolchain_file}"
 
       # Step 4: Add .exe extension to Windows executables (gcc, g++, ar, ld, etc.)
       # Only for paths that don't already have it
