@@ -243,27 +243,27 @@ patch_system_config_windows() {
   fi
 
   # Fix Python path (configure sets Linux path, we need Windows)
+  # Use forward slashes to avoid escape sequence issues (\n, \t, \b, etc.)
   perl -pi -e "s#(^python\\s*=).*#\$1 ${_PYTHON}#" "${config_file}"
 
-  # Expand conda variables to Unix paths (prevent backslash escapes)
+  echo "=== Expanding conda variables in system.config ==="
+  # Replace %PREFIX%, %BUILD_PREFIX%, %SRC_DIR% with their Unix path equivalents
+  # This prevents backslash escape sequences when Windows expands these variables
   perl -pi -e "s#%PREFIX%#${_PREFIX}#g" "${config_file}"
   perl -pi -e "s#%BUILD_PREFIX%#${_BUILD_PREFIX}#g" "${config_file}"
   perl -pi -e "s#%SRC_DIR%#${_SRC_DIR}#g" "${config_file}"
+
   perl -pi -e "s#\$ENV{PREFIX}#${_PREFIX}#g" "${config_file}"
   perl -pi -e "s#\$ENV{BUILD_PREFIX}#${_BUILD_PREFIX}#g" "${config_file}"
   perl -pi -e "s#\$ENV{SRC_DIR}#${_SRC_DIR}#g" "${config_file}"
 
-  # CRITICAL: Convert ALL UNIX paths to Windows format
-  # After variable expansion, paths look like /c/bld/...
-  # These must be converted to C:/bld/... (Windows format with forward slashes)
-  # ghc-toolchain and cabal both need Windows-style paths
-  #
-  # Convert /c/ -> C:/ (and same for other drives)
-  perl -pi -e 's#/([a-z])/#\U$1:/#g' "${config_file}"
-
-  # Force GMP setting
+  echo "=== Converting FFI paths to Windows format in system.config ==="
+  perl -pi -e 's#^ffi-include-dir\s*=\s*/c/#ffi-include-dir   = C:/#' "${config_file}"
+  perl -pi -e 's#^ffi-lib-dir\s*=\s*/c/#ffi-lib-dir       = C:/#' "${config_file}"
+  perl -pi -e 's#^([a-z-]+dir)\s*=\s*/c/#$1 = C:/#g' "${config_file}"
   perl -pi -e "s#^(intree-gmp\s*=\s*).*#\$1NO#" "${config_file}"
 
+  echo "=== Forcing system toolchain and libffi settings ==="
   # Force use of conda toolchain (not inplace MinGW)
   perl -pi -e 's#^use-system-mingw\s*=\s*.*$#use-system-mingw = YES#' "${config_file}"
   perl -pi -e 's#^windows-toolchain-autoconf\s*=\s*.*$#windows-toolchain-autoconf = NO#' "${config_file}"
@@ -271,8 +271,13 @@ patch_system_config_windows() {
   # Force use of conda libffi
   perl -pi -e 's#^use-system-ffi\s*=\s*.*$#use-system-ffi = YES#' "${config_file}"
 
-  # Fix system-merge-objects to use GNU ld (Windows format)
+  # CRITICAL: Fix system-merge-objects to use GNU ld
+  # The bootstrap's system-merge-objects may point to wrong ld (ld.lld, or nonexistent mingw/bin/ld.exe)
+  # We need GNU ld which works with MinGW .a files
+  # Match ANY line with system-merge-objects, not just those containing ld.lld
   perl -pi -e 's#^system-merge-objects\s*=\s*.*$#system-merge-objects = '"${LD}"'#' "${config_file}"
+
+  cat "${config_file}" | grep "include-dir\|lib-dir\|windres\|dllwrap\|system-mingw\|system-ffi\|merge-objects"
 }
 
 # ============================================================================
