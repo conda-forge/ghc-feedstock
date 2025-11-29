@@ -289,5 +289,13 @@ platform_post_install() {
     echo "  ${ghc_target}-ghc-${PKG_VERSION} → ghc-${PKG_VERSION}"
   fi
 
+  # Update settings file to use TARGET toolchain (not BUILD toolchain)
+  # CRITICAL: Cross-compiled GHC must use target platform tools for compilation
+  # e.g., aarch64-conda-linux-gnu-clang (not x86_64-conda-linux-gnu-clang)
+  echo "=== Updating settings file for target toolchain ==="
+  local target_toolchain="${conda_target}"
+  echo "  Target toolchain: ${target_toolchain}"
+  update_installed_settings "${target_toolchain}"
+
   echo "=== Cross-compilation post-install complete ==="
 }
