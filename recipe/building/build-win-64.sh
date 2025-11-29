@@ -419,12 +419,13 @@ mkdir -p ${_SRC_DIR}/_build
 # Build Hadrian
 (
   # CRITICAL: Clean environment to prevent contaminating time package's configure script
-  # The time package runs autoconf which tests C compiler, and outer CFLAGS/LDFLAGS can break this
-  # Similar to Linux ppc64le issue where CONDA_BUILD_SYSROOT contaminated configure
+  # The time package runs autoconf which tests C compiler, and config.site sets broken paths
+  # config.site sets CC to short name paths like C:\bld\bld\RATTLE~1\... which fail
   export CFLAGS=""
   export CXXFLAGS=""
   export LDFLAGS=""
   export CPPFLAGS=""
+  export CONFIG_SITE=""  # Prevent config.site from setting broken short-name paths
 
   pushd "${_SRC_DIR}"/hadrian
 
