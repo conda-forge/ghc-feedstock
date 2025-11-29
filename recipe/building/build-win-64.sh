@@ -419,13 +419,21 @@ mkdir -p ${_SRC_DIR}/_build
 # Build Hadrian
 (
   # CRITICAL: Clean environment to prevent contaminating time package's configure script
-  # The time package runs autoconf which tests C compiler, and config.site sets broken paths
-  # config.site sets CC to short name paths like C:\bld\bld\RATTLE~1\... which fail
+  # The time package runs autoconf which tests C compiler
+  # Clear FLAGS but KEEP CC/CXX set to compiler names (not full paths)
   export CFLAGS=""
   export CXXFLAGS=""
-  export LDFLAGS=""
   export CPPFLAGS=""
-  export CONFIG_SITE=""  # Prevent config.site from setting broken short-name paths
+  export CONFIG_SITE=""
+
+  # CRITICAL: Set minimal LDFLAGS for Hadrian dependency builds
+  # time-1.14 configure checks "C compiler can create executables" which requires library paths
+  # Without these, the linker can't find libgcc, libmingw32, etc.
+  export LDFLAGS="-L${_BUILD_PREFIX}/Library/lib"
+
+  # CC and CXX are already set by outer script - DON'T clear them!
+  # They're set to "x86_64-w64-mingw32-gcc" which is correct
+  # If we clear them, Cabal finds the full path and converts to short names (RATTLE~1)
 
   pushd "${_SRC_DIR}"/hadrian
 
