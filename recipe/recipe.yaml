@@ -109,20 +109,29 @@ tests:
       files:
         - etc/bash_completion.d/ghc
         - etc/conda/activate.d/ghc_activate.sh
-        - lib/ghc-${{ version }}/lib/llvm-passes
-        - lib/ghc-${{ version }}/lib/llvm-targets
-        - lib/ghc-${{ version }}/lib/package.conf.d/**
-        - lib/ghc-${{ version }}/lib/ghc-usage.txt
-        - lib/ghc-${{ version }}/lib/ghci-usage.txt
-        - lib/ghc-${{ version }}/lib/settings
-        - lib/ghc-${{ version }}/lib/template-hsc.h
-        - if: version != "9.6.7"
+        - if: unix
           then:
-            - lib/ghc-${{ version }}/lib/ghc-interp.js
-            - lib/ghc-${{ version }}/lib/post-link.mjs
-            - lib/ghc-${{ version }}/lib/*-ghc-${{ version }}/*-inplace/*-inplace.a
-          else:
+            - lib/ghc-${{ version }}/lib/llvm-passes
+            - lib/ghc-${{ version }}/lib/llvm-targets
+            - lib/ghc-${{ version }}/lib/package.conf.d/**
+            - lib/ghc-${{ version }}/lib/ghc-usage.txt
+            - lib/ghc-${{ version }}/lib/ghci-usage.txt
+            - lib/ghc-${{ version }}/lib/settings
+            - lib/ghc-${{ version }}/lib/template-hsc.h
             - lib/ghc-${{ version }}/lib/*-ghc-${{ version }}/**
+          else:
+            - include/**
+            - lib/bin/ghc-iserv.exe
+            - lib/bin/touchy.exe
+            - lib/bin/unlit.exe
+            - lib/ghc-usage.txt
+            - lib/ghci-usage.txt
+            - lib/llvm-passes
+            - lib/llvm-targets
+            - lib/package.conf.d/**
+            - lib/settings
+            - lib/template-hsc.h
+            - lib/x86_64-windows-ghc-${{ version }}/**
 
   - script: |
       ghc --version
