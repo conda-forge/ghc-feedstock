@@ -324,13 +324,16 @@ patch_ghc_toolchain_output() {
       # Step 2: Fix remaining directory separators \\ -> /
       perl -pi -e 's#\\\\#/#g' "${toolchain_file}"
 
-      # Step 3: Add .exe extension to Windows executables (gcc, g++, ar, ld, etc.)
+      # Step 3: Convert relative paths to full paths (default.host.target uses relative paths)
+      # Must do this BEFORE adding .exe extension
+      # Pattern: "x86_64-w64-mingw32-tool" -> "/c/bld/.../x86_64-w64-mingw32-tool"
+      local build_prefix_unix="${_BUILD_PREFIX}"
+      perl -pi -e "s#(prgPath\s*=\s*\")(x86_64-w64-mingw32-[a-z+\\-0-9]+)\"#\$1${build_prefix_unix}/Library/bin/\$2\"#g" "${toolchain_file}"
+
+      # Step 4: Add .exe extension to Windows executables (gcc, g++, ar, ld, etc.)
       # ghc-toolchain.exe on Windows strips the .exe extension
-      # Pattern 1: Full path "C:/path/to/tool" -> "C:/path/to/tool.exe"
-      perl -pi -e 's#(prgPath\s*=\s*"[^"]*/(x86_64-w64-mingw32-[^"/\.]+))"#$1.exe"#g' "${toolchain_file}"
-      # Pattern 2: Relative path "x86_64-w64-mingw32-tool" -> "x86_64-w64-mingw32-tool.exe"
       # Must include + for g++, and - for tools like ar-lib
-      perl -pi -e 's#(prgPath\s*=\s*")(x86_64-w64-mingw32-[a-z+\-0-9]+)"#$1$2.exe"#g' "${toolchain_file}"
+      perl -pi -e 's#(prgPath\s*=\s*"[^"]*/(x86_64-w64-mingw32-[^"/\.]+))"#$1.exe"#g' "${toolchain_file}"
 
       echo "    ✓ ${filename} patched"
 
