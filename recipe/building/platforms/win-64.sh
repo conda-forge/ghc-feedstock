@@ -122,8 +122,8 @@ platform_setup_cabal() {
 
   # Clean any stale .cabal directory that might have permission issues
   echo "  Cleaning stale .cabal directory to prevent permission issues..."
-  rm -rf "${_SRC_DIR}/.cabal" || true
-  rm -rf "${HOME}/.cabal" || true
+  rm -rf "${_SRC_DIR}/.cabal"
+  rm -rf "${HOME}/.cabal"
 
   mkdir -p "${_SRC_DIR}/.cabal"
   "${CABAL}" user-config init
