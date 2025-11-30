@@ -430,12 +430,56 @@ mkdir -p ${_SRC_DIR}/_build
   # Must include both main lib directory AND gcc runtime directory
   export LDFLAGS="-L${_BUILD_PREFIX}/Library/lib -L${_BUILD_PREFIX}/Library/lib/gcc/x86_64-w64-mingw32/15.2.0"
 
-  # CRITICAL: Prevent autoconf short-path resolution with CONFIG_SITE
-  # Autoconf's AC_PROG_CC searches PATH for gcc and resolves it to FULL Windows path
-  # Windows converts long paths to short names (C:\bld\bld\RATTLE~1\...) which breaks MinGW
-  # Solution: Use CONFIG_SITE to set cache variables (Windows-safe way)
-  # Create a temporary config.site file with lowercase cache variables
-  # Include all compiler test cache variables to skip the test entirely
+  # CRITICAL: Prevent autoconf short-path resolution with GCC wrapper scripts
+  # Problem: Autoconf's AC_PROG_CC searches PATH and resolves gcc to FULL Windows path
+  # Windows converts long build paths to short names (C:\bld\bld\RATTLE~1\...) which breaks MinGW
+  # Solution: Create wrapper scripts in a simple path that won't be converted to short names
+
+  # Create wrapper directory in a simple path (no long directory names)
+  WRAPPER_DIR="/c/tmp/gcc-wrappers"
+  mkdir -p "${WRAPPER_DIR}"
+
+  # Get full paths to real compilers (using forward slashes to avoid path issues)
+  REAL_GCC="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-gcc"
+  REAL_GXX="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-g++"
+  REAL_LD="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-ld"
+
+  # Create wrapper for gcc
+  cat > "${WRAPPER_DIR}/x86_64-w64-mingw32-gcc" << 'EOF'
+#!/bin/bash
+# Forward all arguments to real gcc using full Unix-style path
+exec "REAL_GCC_PLACEHOLDER" "$@"
+EOF
+  sed -i "s|REAL_GCC_PLACEHOLDER|${REAL_GCC}|" "${WRAPPER_DIR}/x86_64-w64-mingw32-gcc"
+  chmod +x "${WRAPPER_DIR}/x86_64-w64-mingw32-gcc"
+
+  # Create wrapper for g++
+  cat > "${WRAPPER_DIR}/x86_64-w64-mingw32-g++" << 'EOF'
+#!/bin/bash
+exec "REAL_GXX_PLACEHOLDER" "$@"
+EOF
+  sed -i "s|REAL_GXX_PLACEHOLDER|${REAL_GXX}|" "${WRAPPER_DIR}/x86_64-w64-mingw32-g++"
+  chmod +x "${WRAPPER_DIR}/x86_64-w64-mingw32-g++"
+
+  # Create wrapper for ld
+  cat > "${WRAPPER_DIR}/x86_64-w64-mingw32-ld" << 'EOF'
+#!/bin/bash
+exec "REAL_LD_PLACEHOLDER" "$@"
+EOF
+  sed -i "s|REAL_LD_PLACEHOLDER|${REAL_LD}|" "${WRAPPER_DIR}/x86_64-w64-mingw32-ld"
+  chmod +x "${WRAPPER_DIR}/x86_64-w64-mingw32-ld"
+
+  # Add wrapper directory to FRONT of PATH
+  # This ensures autoconf finds wrappers (simple path) instead of real binaries (long path)
+  export PATH="${WRAPPER_DIR}:${PATH}"
+
+  # Verify wrapper is being used
+  echo "=== Verifying GCC wrapper setup ==="
+  echo "which x86_64-w64-mingw32-gcc: $(which x86_64-w64-mingw32-gcc)"
+  echo "gcc wrapper content:"
+  cat "${WRAPPER_DIR}/x86_64-w64-mingw32-gcc"
+
+  # Also set CONFIG_SITE to cache compiler name (prevents PATH search, uses cached name)
   cat > "${_SRC_DIR}"/config.site << 'EOF'
 ac_cv_prog_CC=x86_64-w64-mingw32-gcc
 ac_cv_prog_CXX=x86_64-w64-mingw32-g++
@@ -443,9 +487,6 @@ ac_cv_prog_LD=x86_64-w64-mingw32-ld
 ac_cv_prog_cc_c89=
 ac_cv_prog_cc_c99=
 ac_cv_prog_cc_c11=
-ac_cv_prog_cc_works=yes
-ac_cv_prog_cc_cross=no
-ac_cv_prog_cc_g=yes
 ac_cv_exeext=.exe
 ac_cv_objext=o
 EOF
