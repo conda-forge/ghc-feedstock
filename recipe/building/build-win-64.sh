@@ -448,35 +448,35 @@ mkdir -p ${_SRC_DIR}/_build
   # MinGW GCC follows standard GCC layout: $BUILD_PREFIX/Library/libexec/gcc/x86_64-w64-mingw32/15.2.0/
   # cc1, cc1plus, collect2, etc. are in libexec/gcc/ (same as Linux GCC)
   # Use GCC_EXEC_PREFIX environment variable instead of -B flag for better compatibility
-  # CRITICAL: GCC on Windows accepts BOTH forward slashes and backslashes
-  # Using forward slashes avoids bash escape sequence issues (e.g., \b → backspace)
-  GCC_EXEC_DIR="${_BUILD_PREFIX}/Library/libexec/gcc/"
+  # CRITICAL: Convert Unix path to Windows path at BUILD TIME (not runtime)
+  # This avoids runtime dependency on cygpath and eliminates any path format ambiguity
+  GCC_EXEC_DIR_UNIX="${_BUILD_PREFIX}/Library/libexec/gcc"
+  GCC_EXEC_DIR_WIN=$(cygpath -w "${GCC_EXEC_DIR_UNIX}")
 
-  # Create wrapper for gcc with GCC_EXEC_PREFIX
-  cat > "${WRAPPER_DIR}/x86_64-w64-mingw32-gcc" << 'EOF'
+  # Also convert the real gcc path to Windows format (no trailing slash for GCC_EXEC_PREFIX)
+  REAL_GCC_WIN=$(cygpath -w "${REAL_GCC}")
+  REAL_GXX_WIN=$(cygpath -w "${REAL_GXX}")
+
+  # Create wrapper for gcc with pre-converted Windows paths
+  cat > "${WRAPPER_DIR}/x86_64-w64-mingw32-gcc" << EOF
 #!/bin/bash
-# Forward all arguments to real gcc using full Unix-style path
+# Forward all arguments to real gcc using Windows-style path
 # GCC_EXEC_PREFIX tells gcc where to find its internal binaries (cc1, cc1plus, collect2, etc.)
 # MinGW uses standard GCC layout: libexec/gcc/ (same as Linux GCC)
-# Convert Unix path to Windows path at runtime using cygpath
-# This avoids bash escape sequence issues while giving GCC a Windows path
-export GCC_EXEC_PREFIX="$(cygpath -w 'GCC_EXEC_DIR_PLACEHOLDER')"
-exec "REAL_GCC_PLACEHOLDER" "$@"
+# Path is converted at BUILD TIME to avoid runtime cygpath dependency
+export GCC_EXEC_PREFIX="${GCC_EXEC_DIR_WIN}\\\\"
+exec "${REAL_GCC_WIN}" "\$@"
 EOF
-  perl -pi -e "s|REAL_GCC_PLACEHOLDER|${REAL_GCC}|" "${WRAPPER_DIR}/x86_64-w64-mingw32-gcc"
-  perl -pi -e "s|GCC_EXEC_DIR_PLACEHOLDER|${GCC_EXEC_DIR}|" "${WRAPPER_DIR}/x86_64-w64-mingw32-gcc"
   chmod +x "${WRAPPER_DIR}/x86_64-w64-mingw32-gcc"
 
-  # Create wrapper for g++ with GCC_EXEC_PREFIX
-  cat > "${WRAPPER_DIR}/x86_64-w64-mingw32-g++" << 'EOF'
+  # Create wrapper for g++ with pre-converted Windows paths
+  cat > "${WRAPPER_DIR}/x86_64-w64-mingw32-g++" << EOF
 #!/bin/bash
 # GCC_EXEC_PREFIX tells g++ where to find its internal binaries
-# Convert Unix path to Windows path at runtime using cygpath
-export GCC_EXEC_PREFIX="$(cygpath -w 'GCC_EXEC_DIR_PLACEHOLDER')"
-exec "REAL_GXX_PLACEHOLDER" "$@"
+# Path is converted at BUILD TIME to avoid runtime cygpath dependency
+export GCC_EXEC_PREFIX="${GCC_EXEC_DIR_WIN}\\\\"
+exec "${REAL_GXX_WIN}" "\$@"
 EOF
-  perl -pi -e "s|REAL_GXX_PLACEHOLDER|${REAL_GXX}|" "${WRAPPER_DIR}/x86_64-w64-mingw32-g++"
-  perl -pi -e "s|GCC_EXEC_DIR_PLACEHOLDER|${GCC_EXEC_DIR}|" "${WRAPPER_DIR}/x86_64-w64-mingw32-g++"
   chmod +x "${WRAPPER_DIR}/x86_64-w64-mingw32-g++"
 
   # Create wrapper for ld
@@ -491,22 +491,31 @@ EOF
   # This ensures autoconf finds wrappers (simple path) instead of real binaries (long path)
   export PATH="${WRAPPER_DIR}:${PATH}"
 
-  # Verify wrapper is being used
+  # Verify wrapper is being used and paths are correct
   echo "=== Verifying GCC wrapper setup ==="
   echo "which x86_64-w64-mingw32-gcc: $(which x86_64-w64-mingw32-gcc)"
   echo "gcc wrapper content:"
   cat "${WRAPPER_DIR}/x86_64-w64-mingw32-gcc"
+  echo ""
+  echo "=== Pre-converted paths (build time) ==="
+  echo "GCC_EXEC_DIR (Unix): ${GCC_EXEC_DIR_UNIX}"
+  echo "GCC_EXEC_DIR (Windows): ${GCC_EXEC_DIR_WIN}"
+  echo "Real GCC (Unix): ${REAL_GCC}"
+  echo "Real GCC (Windows): ${REAL_GCC_WIN}"
 
-  # DEBUG: Check where cc1 actually is and verify GCC_EXEC_PREFIX
+  # DEBUG: Check where cc1 actually is
   echo "=== DEBUG: Checking for cc1 location ==="
-  echo "GCC_EXEC_DIR (Unix format, will be converted via cygpath): ${GCC_EXEC_DIR}"
-  echo "GCC_EXEC_DIR (Windows format after cygpath): $(cygpath -w "${GCC_EXEC_DIR}")"
   echo "Checking libexec/gcc:"
   ls -la "${_BUILD_PREFIX}"/Library/libexec/gcc/ 2>&1 || echo "libexec/gcc does not exist"
   echo "Checking lib/gcc:"
   ls -la "${_BUILD_PREFIX}"/Library/lib/gcc/ 2>&1 || echo "lib/gcc does not exist"
   echo "Finding cc1 in Library:"
   find "${_BUILD_PREFIX}"/Library -name "cc1*" -type f 2>/dev/null | head -10 || echo "cc1 not found"
+
+  # Test the wrapper directly to verify it works
+  echo "=== Testing GCC wrapper directly ==="
+  echo "Testing: ${WRAPPER_DIR}/x86_64-w64-mingw32-gcc --version"
+  "${WRAPPER_DIR}/x86_64-w64-mingw32-gcc" --version || echo "ERROR: Wrapper failed to execute"
 
   # Also set CONFIG_SITE to cache compiler name (prevents PATH search, uses cached name)
   cat > "${_SRC_DIR}"/config.site << 'EOF'
