@@ -448,7 +448,10 @@ mkdir -p ${_SRC_DIR}/_build
   # MinGW GCC follows standard GCC layout: $BUILD_PREFIX/Library/libexec/gcc/x86_64-w64-mingw32/15.2.0/
   # cc1, cc1plus, collect2, etc. are in libexec/gcc/ (same as Linux GCC)
   # Use GCC_EXEC_PREFIX environment variable instead of -B flag for better compatibility
-  GCC_EXEC_DIR="${_BUILD_PREFIX}/Library/libexec/gcc/"
+  # CRITICAL: GCC is a Windows native binary and needs Windows-style path (C:\...) not Unix-style (/c/...)
+  GCC_EXEC_DIR_UNIX="${_BUILD_PREFIX}/Library/libexec/gcc/"
+  # Convert Unix path to Windows path: /c/path → C:\path
+  GCC_EXEC_DIR=$(echo "${GCC_EXEC_DIR_UNIX}" | sed 's|^/\([a-z]\)/|\U\1:/|' | sed 's|/|\\|g')
 
   # Create wrapper for gcc with GCC_EXEC_PREFIX
   cat > "${WRAPPER_DIR}/x86_64-w64-mingw32-gcc" << 'EOF'
@@ -492,8 +495,10 @@ EOF
   echo "gcc wrapper content:"
   cat "${WRAPPER_DIR}/x86_64-w64-mingw32-gcc"
 
-  # DEBUG: Check where cc1 actually is
+  # DEBUG: Check where cc1 actually is and verify path conversion
   echo "=== DEBUG: Checking for cc1 location ==="
+  echo "GCC_EXEC_DIR (Windows format): ${GCC_EXEC_DIR}"
+  echo "GCC_EXEC_DIR_UNIX (Unix format): ${GCC_EXEC_DIR_UNIX}"
   echo "Checking libexec/gcc:"
   ls -la "${_BUILD_PREFIX}"/Library/libexec/gcc/ 2>&1 || echo "libexec/gcc does not exist"
   echo "Checking lib/gcc:"
