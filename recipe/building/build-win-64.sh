@@ -444,30 +444,34 @@ mkdir -p ${_SRC_DIR}/_build
   REAL_GXX="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-g++"
   REAL_LD="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-ld"
 
-  # Calculate GCC prefix directory for -B flag (gcc needs to find cc1, cc1plus, etc.)
-  # GCC internal binaries are in: $BUILD_PREFIX/Library/libexec/gcc/x86_64-w64-mingw32/15.2.0/
-  # The -B flag needs the prefix directory (containing libexec/)
-  GCC_PREFIX="${_BUILD_PREFIX}/Library"
+  # Calculate GCC installation directory
+  # MinGW GCC stores internal binaries in: $BUILD_PREFIX/Library/lib/gcc/x86_64-w64-mingw32/15.2.0/
+  # NOT in libexec/ like standard GCC
+  # Use GCC_EXEC_PREFIX environment variable instead of -B flag for better compatibility
+  GCC_EXEC_DIR="${_BUILD_PREFIX}/Library/lib/gcc/"
 
-  # Create wrapper for gcc with -B flag
+  # Create wrapper for gcc with GCC_EXEC_PREFIX
   cat > "${WRAPPER_DIR}/x86_64-w64-mingw32-gcc" << 'EOF'
 #!/bin/bash
 # Forward all arguments to real gcc using full Unix-style path
-# -B flag tells gcc where to find its internal binaries (cc1, cc1plus, collect2, etc.)
-exec "REAL_GCC_PLACEHOLDER" -B"GCC_PREFIX_PLACEHOLDER" "$@"
+# GCC_EXEC_PREFIX tells gcc where to find its internal binaries (cc1, cc1plus, collect2, etc.)
+# MinGW stores these in lib/gcc/ not libexec/gcc/
+export GCC_EXEC_PREFIX="GCC_EXEC_DIR_PLACEHOLDER"
+exec "REAL_GCC_PLACEHOLDER" "$@"
 EOF
   sed -i "s|REAL_GCC_PLACEHOLDER|${REAL_GCC}|" "${WRAPPER_DIR}/x86_64-w64-mingw32-gcc"
-  sed -i "s|GCC_PREFIX_PLACEHOLDER|${GCC_PREFIX}|" "${WRAPPER_DIR}/x86_64-w64-mingw32-gcc"
+  sed -i "s|GCC_EXEC_DIR_PLACEHOLDER|${GCC_EXEC_DIR}|" "${WRAPPER_DIR}/x86_64-w64-mingw32-gcc"
   chmod +x "${WRAPPER_DIR}/x86_64-w64-mingw32-gcc"
 
-  # Create wrapper for g++ with -B flag
+  # Create wrapper for g++ with GCC_EXEC_PREFIX
   cat > "${WRAPPER_DIR}/x86_64-w64-mingw32-g++" << 'EOF'
 #!/bin/bash
-# -B flag tells g++ where to find its internal binaries
-exec "REAL_GXX_PLACEHOLDER" -B"GCC_PREFIX_PLACEHOLDER" "$@"
+# GCC_EXEC_PREFIX tells g++ where to find its internal binaries
+export GCC_EXEC_PREFIX="GCC_EXEC_DIR_PLACEHOLDER"
+exec "REAL_GXX_PLACEHOLDER" "$@"
 EOF
   sed -i "s|REAL_GXX_PLACEHOLDER|${REAL_GXX}|" "${WRAPPER_DIR}/x86_64-w64-mingw32-g++"
-  sed -i "s|GCC_PREFIX_PLACEHOLDER|${GCC_PREFIX}|" "${WRAPPER_DIR}/x86_64-w64-mingw32-g++"
+  sed -i "s|GCC_EXEC_DIR_PLACEHOLDER|${GCC_EXEC_DIR}|" "${WRAPPER_DIR}/x86_64-w64-mingw32-g++"
   chmod +x "${WRAPPER_DIR}/x86_64-w64-mingw32-g++"
 
   # Create wrapper for ld
