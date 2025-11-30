@@ -492,6 +492,15 @@ EOF
   echo "gcc wrapper content:"
   cat "${WRAPPER_DIR}/x86_64-w64-mingw32-gcc"
 
+  # DEBUG: Check where cc1 actually is
+  echo "=== DEBUG: Checking for cc1 location ==="
+  echo "Checking libexec/gcc:"
+  ls -la "${_BUILD_PREFIX}"/Library/libexec/gcc/ 2>&1 || echo "libexec/gcc does not exist"
+  echo "Checking lib/gcc:"
+  ls -la "${_BUILD_PREFIX}"/Library/lib/gcc/ 2>&1 || echo "lib/gcc does not exist"
+  echo "Finding cc1 in Library:"
+  find "${_BUILD_PREFIX}"/Library -name "cc1*" -type f 2>/dev/null | head -10 || echo "cc1 not found"
+
   # Also set CONFIG_SITE to cache compiler name (prevents PATH search, uses cached name)
   cat > "${_SRC_DIR}"/config.site << 'EOF'
 ac_cv_prog_CC=x86_64-w64-mingw32-gcc
