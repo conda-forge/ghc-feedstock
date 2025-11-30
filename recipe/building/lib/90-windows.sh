@@ -227,7 +227,12 @@ patch_bootstrap_settings_windows() {
 
   # Fix all references to removed ghc-bootstrap/mingw to use conda's Library/bin
   # The bootstrap originally had bundled mingw, but we removed it
-  perl -pi -e 's#ghc-bootstrap/mingw/bin/#Library/bin/#g' "${settings_file}"
+  # Match with optional prefix to preserve format:
+  #   %BUILD_PREFIX%/ghc-bootstrap/mingw/bin/ -> %BUILD_PREFIX%/Library/bin/
+  #   ghc-bootstrap/mingw/bin/ -> Library/bin/
+  perl -pi -e 's#(%BUILD_PREFIX%/)?ghc-bootstrap/mingw/bin/#$1Library/bin/#g' "${settings_file}"
+
+  echo "  ✓ Bootstrap settings patched (redirected mingw → Library/bin)"
 }
 
 # ============================================================================
@@ -339,8 +344,11 @@ patch_ghc_toolchain_output() {
 
       # Step 4: Redirect removed bootstrap mingw to conda tools
       # Bootstrap GHC originally had bundled mingw but we removed it
-      # Redirect: %BUILD_PREFIX%/ghc-bootstrap/mingw/bin/ -> %BUILD_PREFIX%/Library/bin/
-      # Redirect: /c/.../ghc-bootstrap/mingw/bin/ -> /c/.../Library/bin/
+      # Pattern matches:
+      #   %BUILD_PREFIX%/ghc-bootstrap/mingw/bin/ -> %BUILD_PREFIX%/Library/bin/
+      #   /c/.../ghc-bootstrap/mingw/bin/ -> /c/.../Library/bin/
+      #   ghc-bootstrap/mingw/bin/ -> Library/bin/
+      # Use looser pattern to catch all cases
       perl -pi -e 's#ghc-bootstrap/mingw/bin/#Library/bin/#g' "${toolchain_file}"
 
       # Step 5: Add .exe extension to Windows executables (gcc, g++, ar, ld, etc.)
