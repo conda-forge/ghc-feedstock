@@ -35,7 +35,8 @@ platform_setup_environment() {
   export CABAL="${_BUILD_PREFIX}/bin/cabal"
   export CABAL_DIR="${SRC_DIR}\\.cabal"
   export _PYTHON="${_BUILD_PREFIX}/python.exe"
-  export GHC="${BUILD_PREFIX}\\ghc-bootstrap\\bin\\ghc.exe"
+  # CRITICAL: Use _BUILD_PREFIX (Unix path) not BUILD_PREFIX (has %BUILD_PREFIX% placeholder)
+  export GHC="${_BUILD_PREFIX}/ghc-bootstrap/bin/ghc.exe"
   export LIBRARY_PATH="${_BUILD_PREFIX}/Library/lib${LIBRARY_PATH:+:}${LIBRARY_PATH:-}"
 
   # Use GCC toolchain to match bootstrap GHC compiler
@@ -172,6 +173,10 @@ platform_pre_configure_ghc() {
   export ac_cv_use_system_libffi=yes
 
   export CXX_STD_LIB_LIBS="stdc++"
+
+  # CRITICAL: Tell configure to use conda's ld.exe, not non-existent ghc-bootstrap/mingw/bin/ld.exe
+  export MergeObjsCmd="${LD}"
+  export MergeObjsArgs=""
 
   # Set up Windows SDK paths
   setup_windows_sdk
