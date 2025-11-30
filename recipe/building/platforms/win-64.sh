@@ -447,6 +447,8 @@ patch_bootstrap_settings() {
   perl -pi -e "s#(C compiler command\", \")[^\"]*#\$1${CC}#" "${settings_file}"
   perl -pi -e "s#(Haskell CPP command\", \")[^\"]*#\$1${CC}#" "${settings_file}"
   perl -pi -e "s#(C\+\+ compiler command\", \")[^\"]*#\$1${CXX}#" "${settings_file}"
+  # CRITICAL: Fix "ld command" field that points to non-existent $tooldir/mingw/bin/ld.exe
+  perl -pi -e "s#(ld command\", \")[^\"]*#\$1${LD_WIN}#" "${settings_file}"
   perl -pi -e "s#(Merge objects command\", \")[^\"]*#\$1${LD_WIN}#" "${settings_file}"
   perl -pi -e "s#(ar command\", \")[^\"]*#\$1${AR_WIN}#" "${settings_file}"
   perl -pi -e "s#(ranlib command\", \")[^\"]*#\$1${RANLIB_WIN}#" "${settings_file}"
