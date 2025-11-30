@@ -351,15 +351,22 @@ patch_ghc_toolchain_output() {
       local filename=$(basename "${toolchain_file}")
       echo "  Patching ${filename}..."
 
-      # Convert invalid \\c\\bld\\... paths to valid C:/bld/... paths
-      # Haskell string format: prgPath = "\\c\\bld\\..."
-      # Step 1: Fix drive letter "\\c\\ -> "C:/
+      # Step 1: Convert UNIX drive letter format to Windows format (configure-created files)
+      # UNIX format: prgPath = "/c/bld/..." (used in default.target, default.host.target)
+      # Windows format: prgPath = "C:/bld/..."
+      # Pattern: "/c/" -> "C:/", "/d/" -> "D:/", etc.
+      perl -pi -e 's#"/([a-z])/#"\U$1:/#g' "${toolchain_file}"
+
+      # Step 2: Convert Haskell escaped paths to Windows format (ghc-toolchain-created files)
+      # Haskell escaped format: prgPath = "\\c\\bld\\..." (used in *.ghc-toolchain files)
+      # Windows format: prgPath = "C:/bld/..."
+      # Pattern: "\\c\\ -> "C:/
       perl -pi -e 's#"\\\\([a-z])\\\\#"\U$1:/#g' "${toolchain_file}"
 
-      # Step 2: Fix remaining directory separators \\ -> /
+      # Step 3: Fix remaining directory separators \\ -> / (for Haskell escaped paths)
       perl -pi -e 's#\\\\#/#g' "${toolchain_file}"
 
-      # Step 3: Convert relative paths to full paths (default.host.target uses relative paths)
+      # Step 4: Convert relative paths to full paths (default.host.target uses relative paths)
       # CRITICAL: Only match paths that start with the tool name (no directory component)
       # This prevents double-prefixing paths that already have directory components
       # Pattern: prgPath = "x86_64-w64-mingw32-tool[.exe]" (no leading / or C:)
@@ -372,7 +379,7 @@ patch_ghc_toolchain_output() {
       # Skip: prgPath = "C:/.../x86_64-w64-mingw32-gcc.exe"
       perl -pi -e "s#(prgPath\s*=\s*\")(?<![:/])(x86_64-w64-mingw32-[^/\"]+)\"#\$1${build_prefix_unix}/Library/bin/\$2\"#g" "${toolchain_file}"
 
-      # Step 4: Redirect removed bootstrap mingw to conda tools
+      # Step 5: Redirect removed bootstrap mingw to conda tools
       # Bootstrap GHC originally had bundled mingw but we removed it
       # Pattern matches:
       #   %BUILD_PREFIX%/ghc-bootstrap/mingw/bin/ -> %BUILD_PREFIX%/Library/bin/
@@ -381,7 +388,7 @@ patch_ghc_toolchain_output() {
       # Use looser pattern to catch all cases
       perl -pi -e 's#ghc-bootstrap/mingw/bin/#Library/bin/#g' "${toolchain_file}"
 
-      # Step 5: Add .exe extension to Windows executables (gcc, g++, ar, ld, etc.)
+      # Step 6: Add .exe extension to Windows executables (gcc, g++, ar, ld, etc.)
       # Only for paths that don't already have it
       # Must include + for g++, and - for tools like ar-lib
       perl -pi -e 's#(prgPath\s*=\s*"[^"]*/(x86_64-w64-mingw32-[^"/]+))(?<!\.exe)"#$1.exe"#g' "${toolchain_file}"
