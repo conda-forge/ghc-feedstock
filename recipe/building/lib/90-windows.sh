@@ -240,6 +240,10 @@ patch_bootstrap_settings_windows() {
   perl -pi -e 's#\$tooldir/mingw/bin/#\$tooldir/../Library/bin/#g' "${settings_file}"
   perl -pi -e 's#\$tooldir/mingw/include#\$tooldir/../Library/include#g' "${settings_file}"
 
+  # CRITICAL: Replace ld.lld.exe with ld.exe (we use GNU ld, not LLVM lld)
+  # The bundled mingw had ld.lld, but conda uses GNU ld
+  perl -pi -e 's#ld\.lld\.exe#ld.exe#g' "${settings_file}"
+
   echo "  ✓ Bootstrap settings patched (redirected mingw → Library/bin)"
 
   # DEBUG: Show merge-objects command after patching
