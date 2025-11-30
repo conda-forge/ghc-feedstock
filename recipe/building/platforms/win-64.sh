@@ -477,7 +477,7 @@ patch_bootstrap_settings() {
 patch_stage1_settings_for_relocation_fix() {
   echo "  Patching Stage1 settings with relocation fix flags..."
 
-  local settings_file="${_SRC_DIR}/_build/stage1/lib/settings"
+  local settings_file="${_SRC_DIR}/_build/stage0/lib/settings"
 
   if [[ ! -f "${settings_file}" ]]; then
     echo "WARNING: Stage1 settings file not found at ${settings_file}"
