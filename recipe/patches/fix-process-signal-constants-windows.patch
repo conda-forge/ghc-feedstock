@@ -1,5 +1,5 @@
---- /home/memento/PycharmProjects/Conda-Feedstocks/ghc-feedstock-9.10.2/build_artifacts/src_cache/ghc-9_10_3-src_d266864b/libraries/process/configure	2025-09-10 11:06:02.000000000 -0500
-+++ ghc-9.10.3-pristine/libraries/process/configure	2025-11-30 09:54:16.667691608 -0600
+--- ghc-pristine/libraries/process/configure	2025-11-30 10:25:51.898353314 -0600
++++ ghc-modified/libraries/process/configure	2025-11-30 10:25:55.458344223 -0600
 @@ -3981,7 +3981,11 @@
  if eval \${$as_fp_Cache+:} false; then :
    $as_echo_n "(cached) " >&6
