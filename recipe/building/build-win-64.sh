@@ -424,21 +424,23 @@ mkdir -p ${_SRC_DIR}/_build
   export CFLAGS=""
   export CXXFLAGS=""
   export CPPFLAGS=""
-  export CONFIG_SITE=""
 
   # CRITICAL: Set minimal LDFLAGS for Hadrian dependency builds
   # time-1.14 configure checks "C compiler can create executables" which requires library paths
   # Must include both main lib directory AND gcc runtime directory
   export LDFLAGS="-L${_BUILD_PREFIX}/Library/lib -L${_BUILD_PREFIX}/Library/lib/gcc/x86_64-w64-mingw32/15.2.0"
 
-  # CRITICAL: Prevent autoconf short-path resolution with cache variables
+  # CRITICAL: Prevent autoconf short-path resolution with CONFIG_SITE
   # Autoconf's AC_PROG_CC searches PATH for gcc and resolves it to FULL Windows path
   # Windows converts long paths to short names (C:\bld\bld\RATTLE~1\...) which breaks MinGW
-  # Solution: Set autoconf cache variables GLOBALLY so AC_PROG_CC skips PATH search
-  # These must be exported (not in CONFIGURE_ARGS) because time package configure runs DURING cabal build
-  export ac_cv_prog_CC=x86_64-w64-mingw32-gcc
-  export ac_cv_prog_CXX=x86_64-w64-mingw32-g++
-  export ac_cv_prog_LD=x86_64-w64-mingw32-ld
+  # Solution: Use CONFIG_SITE to set cache variables (Windows-safe way)
+  # Create a temporary config.site file with lowercase cache variables
+  cat > "${_SRC_DIR}"/config.site << 'EOF'
+ac_cv_prog_CC=x86_64-w64-mingw32-gcc
+ac_cv_prog_CXX=x86_64-w64-mingw32-g++
+ac_cv_prog_LD=x86_64-w64-mingw32-ld
+EOF
+  export CONFIG_SITE="${_SRC_DIR}/config.site"
 
   pushd "${_SRC_DIR}"/hadrian
 
