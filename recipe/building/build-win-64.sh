@@ -503,7 +503,13 @@ EOF
       echo "  CC='${CC}'"
       echo "  CFLAGS='${CFLAGS}'"
       echo "  LDFLAGS='${LDFLAGS}'"
-      echo "  ac_cv_prog_CC='${ac_cv_prog_CC}'"
+      echo "  CONFIG_SITE='${CONFIG_SITE}'"
+
+      # Show config.site contents
+      if [[ -f "${CONFIG_SITE}" ]]; then
+        echo "Contents of config.site:"
+        cat "${CONFIG_SITE}"
+      fi
 
       "${CABAL}" v2-build -v3 \
         --with-gcc=x86_64-w64-mingw32-gcc \
