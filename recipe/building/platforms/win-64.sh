@@ -174,9 +174,25 @@ platform_pre_configure_ghc() {
 
   export CXX_STD_LIB_LIBS="stdc++"
 
-  # CRITICAL: Tell configure to use conda's ld.exe, not non-existent ghc-bootstrap/mingw/bin/ld.exe
-  export MergeObjsCmd="${LD}"
-  export MergeObjsArgs=""
+  # CRITICAL: Override ALL conda toolchain variables that have %BUILD_PREFIX% placeholders
+  # Configure reads these from environment, NOT from bootstrap GHC settings
+  export ADDR2LINE="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-addr2line.exe"
+  export AR="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-ar.exe"
+  export AS="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-as.exe"
+  export CXXFILT="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-c++filt.exe"
+  export ELFEDIT="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-elfedit.exe"
+  export GPROF="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-gprof.exe"
+  export LD="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-ld.exe"
+  export NM="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-nm.exe"
+  export OBJCOPY="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-objcopy.exe"
+  export OBJDUMP="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-objdump.exe"
+  export RANLIB="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-ranlib.exe"
+  export READELF="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-readelf.exe"
+  export SIZE="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-size.exe"
+  export STRINGS="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-strings.exe"
+  export STRIP="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-strip.exe"
+
+  echo "  Toolchain environment variables overridden with actual paths"
 
   # Set up Windows SDK paths
   setup_windows_sdk
@@ -421,6 +437,9 @@ patch_bootstrap_settings() {
   local AR_WIN=$(echo "${AR}" | sed 's#^/c/#C:/#')
   local RANLIB_WIN=$(echo "${RANLIB}" | sed 's#^/c/#C:/#')
 
+  # Debug: Show what we're patching with
+  echo "  DEBUG: LD_WIN=${LD_WIN}"
+
   # Update environment variables to Windows format
   export LD="${LD_WIN}"
   export AR="${AR_WIN}"
@@ -446,6 +465,11 @@ patch_bootstrap_settings() {
   perl -pi -e "s#(C compiler flags\", \")([^\"]*)#\$1\$2 ${CFLAGS} -I${_PREFIX}/Library/include#" "${settings_file}"
   perl -pi -e "s#(C\+\+ compiler flags\", \")([^\"]*)#\$1\$2 ${CXXFLAGS} -I${_PREFIX}/Library/include#" "${settings_file}"
   perl -pi -e "s#(Haskell CPP flags\", \")[^\"]*#\$1-E -undef -traditional-cpp -I${_BUILD_PREFIX}/Library/include -I${_PREFIX}/Library/include#" "${settings_file}"
+
+  # Show complete bootstrap settings file for debugging
+  echo "  ===== BOOTSTRAP SETTINGS FILE (after patching) ====="
+  cat "${settings_file}"
+  echo "  ===== END BOOTSTRAP SETTINGS ====="
 
   echo "  ✓ Bootstrap settings patched"
 }
