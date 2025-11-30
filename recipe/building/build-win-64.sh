@@ -448,13 +448,9 @@ mkdir -p ${_SRC_DIR}/_build
   # MinGW GCC follows standard GCC layout: $BUILD_PREFIX/Library/libexec/gcc/x86_64-w64-mingw32/15.2.0/
   # cc1, cc1plus, collect2, etc. are in libexec/gcc/ (same as Linux GCC)
   # Use GCC_EXEC_PREFIX environment variable instead of -B flag for better compatibility
-  # CRITICAL: GCC is a Windows native binary and needs Windows-style path (C:\...) not Unix-style (/c/...)
-  GCC_EXEC_DIR_UNIX="${_BUILD_PREFIX}/Library/libexec/gcc/"
-  # Convert Unix path to Windows path: /c/path → C:\path
-  # Step 1: /c/ → C:/
-  GCC_EXEC_DIR_TEMP=$(echo "${GCC_EXEC_DIR_UNIX}" | sed 's|^/\([a-z]\)/|\U\1:/|')
-  # Step 2: / → \ (using tr for safety)
-  GCC_EXEC_DIR=$(echo "${GCC_EXEC_DIR_TEMP}" | tr '/' '\\')
+  # CRITICAL: GCC on Windows accepts BOTH forward slashes and backslashes
+  # Using forward slashes avoids bash escape sequence issues (e.g., \b → backspace)
+  GCC_EXEC_DIR="${_BUILD_PREFIX}/Library/libexec/gcc/"
 
   # Create wrapper for gcc with GCC_EXEC_PREFIX
   cat > "${WRAPPER_DIR}/x86_64-w64-mingw32-gcc" << 'EOF'
@@ -465,8 +461,8 @@ mkdir -p ${_SRC_DIR}/_build
 export GCC_EXEC_PREFIX="GCC_EXEC_DIR_PLACEHOLDER"
 exec "REAL_GCC_PLACEHOLDER" "$@"
 EOF
-  perl -pi -e "s|REAL_GCC_PLACEHOLDER|\Q${REAL_GCC}\E|" "${WRAPPER_DIR}/x86_64-w64-mingw32-gcc"
-  perl -pi -e "s|GCC_EXEC_DIR_PLACEHOLDER|\Q${GCC_EXEC_DIR}\E|" "${WRAPPER_DIR}/x86_64-w64-mingw32-gcc"
+  perl -pi -e "s|REAL_GCC_PLACEHOLDER|${REAL_GCC}|" "${WRAPPER_DIR}/x86_64-w64-mingw32-gcc"
+  perl -pi -e "s|GCC_EXEC_DIR_PLACEHOLDER|${GCC_EXEC_DIR}|" "${WRAPPER_DIR}/x86_64-w64-mingw32-gcc"
   chmod +x "${WRAPPER_DIR}/x86_64-w64-mingw32-gcc"
 
   # Create wrapper for g++ with GCC_EXEC_PREFIX
@@ -476,8 +472,8 @@ EOF
 export GCC_EXEC_PREFIX="GCC_EXEC_DIR_PLACEHOLDER"
 exec "REAL_GXX_PLACEHOLDER" "$@"
 EOF
-  perl -pi -e "s|REAL_GXX_PLACEHOLDER|\Q${REAL_GXX}\E|" "${WRAPPER_DIR}/x86_64-w64-mingw32-g++"
-  perl -pi -e "s|GCC_EXEC_DIR_PLACEHOLDER|\Q${GCC_EXEC_DIR}\E|" "${WRAPPER_DIR}/x86_64-w64-mingw32-g++"
+  perl -pi -e "s|REAL_GXX_PLACEHOLDER|${REAL_GXX}|" "${WRAPPER_DIR}/x86_64-w64-mingw32-g++"
+  perl -pi -e "s|GCC_EXEC_DIR_PLACEHOLDER|${GCC_EXEC_DIR}|" "${WRAPPER_DIR}/x86_64-w64-mingw32-g++"
   chmod +x "${WRAPPER_DIR}/x86_64-w64-mingw32-g++"
 
   # Create wrapper for ld
@@ -485,7 +481,7 @@ EOF
 #!/bin/bash
 exec "REAL_LD_PLACEHOLDER" "$@"
 EOF
-  perl -pi -e "s|REAL_LD_PLACEHOLDER|\Q${REAL_LD}\E|" "${WRAPPER_DIR}/x86_64-w64-mingw32-ld"
+  perl -pi -e "s|REAL_LD_PLACEHOLDER|${REAL_LD}|" "${WRAPPER_DIR}/x86_64-w64-mingw32-ld"
   chmod +x "${WRAPPER_DIR}/x86_64-w64-mingw32-ld"
 
   # Add wrapper directory to FRONT of PATH
@@ -498,10 +494,9 @@ EOF
   echo "gcc wrapper content:"
   cat "${WRAPPER_DIR}/x86_64-w64-mingw32-gcc"
 
-  # DEBUG: Check where cc1 actually is and verify path conversion
+  # DEBUG: Check where cc1 actually is and verify GCC_EXEC_PREFIX
   echo "=== DEBUG: Checking for cc1 location ==="
-  echo "GCC_EXEC_DIR (Windows format): ${GCC_EXEC_DIR}"
-  echo "GCC_EXEC_DIR_UNIX (Unix format): ${GCC_EXEC_DIR_UNIX}"
+  echo "GCC_EXEC_DIR (Unix format with forward slashes): ${GCC_EXEC_DIR}"
   echo "Checking libexec/gcc:"
   ls -la "${_BUILD_PREFIX}"/Library/libexec/gcc/ 2>&1 || echo "libexec/gcc does not exist"
   echo "Checking lib/gcc:"
