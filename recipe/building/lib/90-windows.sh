@@ -233,6 +233,19 @@ patch_bootstrap_settings_windows() {
   perl -pi -e 's#(%BUILD_PREFIX%/)?ghc-bootstrap/mingw/bin/#$1Library/bin/#g' "${settings_file}"
 
   echo "  ✓ Bootstrap settings patched (redirected mingw → Library/bin)"
+
+  # DEBUG: Show merge-objects command after patching
+  echo "  DEBUG: Merge objects command in bootstrap settings:"
+  grep "Merge objects command" "${settings_file}" || echo "  (not found)"
+
+  # DEBUG: Show if any mingw paths remain
+  echo "  DEBUG: Checking for remaining mingw paths in bootstrap settings:"
+  if grep -i "mingw" "${settings_file}"; then
+    echo "  WARNING: Found mingw references in settings file!"
+    grep "mingw" "${settings_file}" | head -5
+  else
+    echo "  ✓ No mingw paths found in settings (patching succeeded)"
+  fi
 }
 
 # ============================================================================
