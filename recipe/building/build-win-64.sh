@@ -435,10 +435,19 @@ mkdir -p ${_SRC_DIR}/_build
   # Windows converts long paths to short names (C:\bld\bld\RATTLE~1\...) which breaks MinGW
   # Solution: Use CONFIG_SITE to set cache variables (Windows-safe way)
   # Create a temporary config.site file with lowercase cache variables
+  # Include all compiler test cache variables to skip the test entirely
   cat > "${_SRC_DIR}"/config.site << 'EOF'
 ac_cv_prog_CC=x86_64-w64-mingw32-gcc
 ac_cv_prog_CXX=x86_64-w64-mingw32-g++
 ac_cv_prog_LD=x86_64-w64-mingw32-ld
+ac_cv_prog_cc_c89=
+ac_cv_prog_cc_c99=
+ac_cv_prog_cc_c11=
+ac_cv_prog_cc_works=yes
+ac_cv_prog_cc_cross=no
+ac_cv_prog_cc_g=yes
+ac_cv_exeext=.exe
+ac_cv_objext=o
 EOF
   export CONFIG_SITE="${_SRC_DIR}/config.site"
 
