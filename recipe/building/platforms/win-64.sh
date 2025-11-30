@@ -197,7 +197,7 @@ platform_build_hadrian() {
 
   # Build Hadrian with single-threaded build to avoid race conditions
   # Parallel ghc-pkg updates can conflict on package.cache
-  run_and_log "build-hadrian" "${CABAL}" v2-build -j1 hadrian
+  run_and_log "build-hadrian" "${CABAL}" v2-build -j${CPU_COUNT} hadrian || { cat "${SRC_DIR}"/_logs/*build-hadrian.log; return 1; }
 
   popd >/dev/null
 
