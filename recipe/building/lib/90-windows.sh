@@ -306,6 +306,11 @@ patch_system_config_windows() {
   # Force use of conda libffi
   perl -pi -e 's#^use-system-ffi\s*=\s*.*$#use-system-ffi = YES#' "${config_file}"
 
+  # CRITICAL: Explicitly set FFI paths (configure may use default %PREFIX% which isn't expanded)
+  # These MUST be actual paths, not placeholders, for Hadrian to pass to RTS configure
+  perl -pi -e "s#^ffi-include-dir\s*=\s*.*\$#ffi-include-dir   = ${_PREFIX}/include#" "${config_file}"
+  perl -pi -e "s#^ffi-lib-dir\s*=\s*.*\$#ffi-lib-dir       = ${_PREFIX}/lib#" "${config_file}"
+
   # CRITICAL: Fix system-merge-objects to use GNU ld
   # The bootstrap's system-merge-objects may point to wrong ld (ld.lld, or nonexistent mingw/bin/ld.exe)
   # We need GNU ld which works with MinGW .a files
