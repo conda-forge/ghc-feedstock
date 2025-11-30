@@ -132,7 +132,7 @@ platform_setup_cabal() {
   echo "  Adding chkstk_ms library to LDFLAGS..."
   export LDFLAGS="${LDFLAGS} -lchkstk_ms"
 
-  run_and_log "cabal-update" "${CABAL}" v2-update || { cat "${_SRC_DIR}"/_logs/cabal-update.log; return 1 }
+  run_and_log "cabal-update" "${CABAL}" v2-update || { cat "${_SRC_DIR}"/_logs/cabal-update.log; return 1; }
 
   echo "  ✓ Cabal configured"
 }
