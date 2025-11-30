@@ -459,28 +459,34 @@ mkdir -p ${_SRC_DIR}/_build
   REAL_GXX_WIN=$(cygpath -w "${REAL_GXX}")
 
   # Create wrapper for gcc with pre-converted Windows paths
-  # CRITICAL: Use single backslash for trailing separator (\\ in heredoc → \ in file)
-  cat > "${WRAPPER_DIR}/x86_64-w64-mingw32-gcc" << EOF
+  # CRITICAL: Use SINGLE-QUOTED heredoc to prevent backslash interpretation
+  # Manually substitute paths with Perl quotemeta for safe backslash handling
+  cat > "${WRAPPER_DIR}/x86_64-w64-mingw32-gcc" << 'EOF'
 #!/bin/bash
 # Forward all arguments to real gcc using Windows-style path
 # GCC_EXEC_PREFIX tells gcc where to find its internal binaries (cc1, cc1plus, collect2, etc.)
 # MinGW uses standard GCC layout: libexec/gcc/ (same as Linux GCC)
 # Path is converted at BUILD TIME to avoid runtime cygpath dependency
 # Trailing backslash required by GCC_EXEC_PREFIX
-export GCC_EXEC_PREFIX="${GCC_EXEC_DIR_WIN}\\"
-exec "${REAL_GCC_WIN}" "\$@"
+export GCC_EXEC_PREFIX="GCC_EXEC_PREFIX_PLACEHOLDER"
+exec "REAL_GCC_PLACEHOLDER" "$@"
 EOF
+  # Perl quotemeta (\Q...\E) safely escapes backslashes in replacement text
+  perl -pi -e "s|GCC_EXEC_PREFIX_PLACEHOLDER|\Q${GCC_EXEC_DIR_WIN}\E\\\\|" "${WRAPPER_DIR}/x86_64-w64-mingw32-gcc"
+  perl -pi -e "s|REAL_GCC_PLACEHOLDER|\Q${REAL_GCC_WIN}\E|" "${WRAPPER_DIR}/x86_64-w64-mingw32-gcc"
   chmod +x "${WRAPPER_DIR}/x86_64-w64-mingw32-gcc"
 
   # Create wrapper for g++ with pre-converted Windows paths
-  cat > "${WRAPPER_DIR}/x86_64-w64-mingw32-g++" << EOF
+  cat > "${WRAPPER_DIR}/x86_64-w64-mingw32-g++" << 'EOF'
 #!/bin/bash
 # GCC_EXEC_PREFIX tells g++ where to find its internal binaries
 # Path is converted at BUILD TIME to avoid runtime cygpath dependency
 # Trailing backslash required by GCC_EXEC_PREFIX
-export GCC_EXEC_PREFIX="${GCC_EXEC_DIR_WIN}\\"
-exec "${REAL_GXX_WIN}" "\$@"
+export GCC_EXEC_PREFIX="GCC_EXEC_PREFIX_PLACEHOLDER"
+exec "REAL_GXX_PLACEHOLDER" "$@"
 EOF
+  perl -pi -e "s|GCC_EXEC_PREFIX_PLACEHOLDER|\Q${GCC_EXEC_DIR_WIN}\E\\\\|" "${WRAPPER_DIR}/x86_64-w64-mingw32-g++"
+  perl -pi -e "s|REAL_GXX_PLACEHOLDER|\Q${REAL_GXX_WIN}\E|" "${WRAPPER_DIR}/x86_64-w64-mingw32-g++"
   chmod +x "${WRAPPER_DIR}/x86_64-w64-mingw32-g++"
 
   # Create wrapper for ld
