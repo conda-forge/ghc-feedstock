@@ -458,13 +458,15 @@ mkdir -p ${_SRC_DIR}/_build
   REAL_GXX_WIN=$(cygpath -w "${REAL_GXX}")
 
   # Create wrapper for gcc with pre-converted Windows paths
+  # CRITICAL: Use single backslash for trailing separator (\\ in heredoc → \ in file)
   cat > "${WRAPPER_DIR}/x86_64-w64-mingw32-gcc" << EOF
 #!/bin/bash
 # Forward all arguments to real gcc using Windows-style path
 # GCC_EXEC_PREFIX tells gcc where to find its internal binaries (cc1, cc1plus, collect2, etc.)
 # MinGW uses standard GCC layout: libexec/gcc/ (same as Linux GCC)
 # Path is converted at BUILD TIME to avoid runtime cygpath dependency
-export GCC_EXEC_PREFIX="${GCC_EXEC_DIR_WIN}\\\\"
+# Trailing backslash required by GCC_EXEC_PREFIX
+export GCC_EXEC_PREFIX="${GCC_EXEC_DIR_WIN}\\"
 exec "${REAL_GCC_WIN}" "\$@"
 EOF
   chmod +x "${WRAPPER_DIR}/x86_64-w64-mingw32-gcc"
@@ -474,7 +476,8 @@ EOF
 #!/bin/bash
 # GCC_EXEC_PREFIX tells g++ where to find its internal binaries
 # Path is converted at BUILD TIME to avoid runtime cygpath dependency
-export GCC_EXEC_PREFIX="${GCC_EXEC_DIR_WIN}\\\\"
+# Trailing backslash required by GCC_EXEC_PREFIX
+export GCC_EXEC_PREFIX="${GCC_EXEC_DIR_WIN}\\"
 exec "${REAL_GXX_WIN}" "\$@"
 EOF
   chmod +x "${WRAPPER_DIR}/x86_64-w64-mingw32-g++"
@@ -515,7 +518,15 @@ EOF
   # Test the wrapper directly to verify it works
   echo "=== Testing GCC wrapper directly ==="
   echo "Testing: ${WRAPPER_DIR}/x86_64-w64-mingw32-gcc --version"
-  "${WRAPPER_DIR}/x86_64-w64-mingw32-gcc" --version || echo "ERROR: Wrapper failed to execute"
+  "${WRAPPER_DIR}/x86_64-w64-mingw32-gcc" --version || echo "ERROR: Wrapper --version failed"
+
+  # CRITICAL: Test actual compilation to verify cc1 can be found
+  echo "Testing: Compile simple C program to verify cc1 lookup"
+  echo 'int main(void) { return 0; }' > /tmp/test-gcc-wrapper.c
+  "${WRAPPER_DIR}/x86_64-w64-mingw32-gcc" -c /tmp/test-gcc-wrapper.c -o /tmp/test-gcc-wrapper.o && \
+    echo "SUCCESS: GCC wrapper can compile C code (cc1 found)" || \
+    echo "ERROR: GCC wrapper compilation failed (cc1 not found)"
+  rm -f /tmp/test-gcc-wrapper.c /tmp/test-gcc-wrapper.o
 
   # Also set CONFIG_SITE to cache compiler name (prevents PATH search, uses cached name)
   cat > "${_SRC_DIR}"/config.site << 'EOF'
