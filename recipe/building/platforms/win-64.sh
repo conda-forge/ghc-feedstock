@@ -432,18 +432,16 @@ patch_bootstrap_settings() {
     return 1
   fi
 
-  # Convert Unix paths to Windows format for GHC settings
-  local LD_WIN=$(echo "${LD}" | sed 's#^/c/#C:/#')
-  local AR_WIN=$(echo "${AR}" | sed 's#^/c/#C:/#')
-  local RANLIB_WIN=$(echo "${RANLIB}" | sed 's#^/c/#C:/#')
+  # CRITICAL: Build paths directly from _BUILD_PREFIX, not from ${LD} variable
+  # Conda sets LD=%BUILD_PREFIX%/... so we can't use it - must use _BUILD_PREFIX
+  local LD_WIN=$(echo "${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-ld.exe" | sed 's#^/c/#C:/#')
+  local AR_WIN=$(echo "${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-ar.exe" | sed 's#^/c/#C:/#')
+  local RANLIB_WIN=$(echo "${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-ranlib.exe" | sed 's#^/c/#C:/#')
 
-  # Debug: Show what we're patching with
-  echo "  DEBUG: LD_WIN=${LD_WIN}"
-
-  # Update environment variables to Windows format
-  export LD="${LD_WIN}"
-  export AR="${AR_WIN}"
-  export RANLIB="${RANLIB_WIN}"
+  echo "  Patching with actual paths (from _BUILD_PREFIX):"
+  echo "    LD_WIN=${LD_WIN}"
+  echo "    AR_WIN=${AR_WIN}"
+  echo "    RANLIB_WIN=${RANLIB_WIN}"
 
   # Patch settings file
   perl -pi -e "s#(C compiler command\", \")[^\"]*#\$1${CC}#" "${settings_file}"
@@ -454,10 +452,10 @@ patch_bootstrap_settings() {
   perl -pi -e "s#(ranlib command\", \")[^\"]*#\$1${RANLIB_WIN}#" "${settings_file}"
   perl -pi -e "s#(dllwrap command\", \")[^\"]*#\$1false#" "${settings_file}"
 
-  # Setup windres wrapper
+  # Setup windres wrapper (using _BUILD_PREFIX, not conda variable)
   if [[ -f "${_BUILD_PREFIX}/Library/bin/windres.bat" ]]; then
-    local WINDRES_WRAPPER_WIN=$(echo "${_BUILD_PREFIX}/Library/bin/windres.bat" | sed 's#^/c/#C:/#')
-    perl -pi -e "s#(windres command\", \")[^\"]*#\$1${WINDRES_WRAPPER_WIN}#" "${settings_file}"
+    local WINDRES_WIN=$(echo "${_BUILD_PREFIX}/Library/bin/windres.bat" | sed 's#^/c/#C:/#')
+    perl -pi -e "s#(windres command\", \")[^\"]*#\$1${WINDRES_WIN}#" "${settings_file}"
   fi
 
   # Update include paths
