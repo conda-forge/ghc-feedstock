@@ -458,7 +458,9 @@ mkdir -p ${_SRC_DIR}/_build
 # Forward all arguments to real gcc using full Unix-style path
 # GCC_EXEC_PREFIX tells gcc where to find its internal binaries (cc1, cc1plus, collect2, etc.)
 # MinGW uses standard GCC layout: libexec/gcc/ (same as Linux GCC)
-export GCC_EXEC_PREFIX="GCC_EXEC_DIR_PLACEHOLDER"
+# Convert Unix path to Windows path at runtime using cygpath
+# This avoids bash escape sequence issues while giving GCC a Windows path
+export GCC_EXEC_PREFIX="$(cygpath -w 'GCC_EXEC_DIR_PLACEHOLDER')"
 exec "REAL_GCC_PLACEHOLDER" "$@"
 EOF
   perl -pi -e "s|REAL_GCC_PLACEHOLDER|${REAL_GCC}|" "${WRAPPER_DIR}/x86_64-w64-mingw32-gcc"
@@ -469,7 +471,8 @@ EOF
   cat > "${WRAPPER_DIR}/x86_64-w64-mingw32-g++" << 'EOF'
 #!/bin/bash
 # GCC_EXEC_PREFIX tells g++ where to find its internal binaries
-export GCC_EXEC_PREFIX="GCC_EXEC_DIR_PLACEHOLDER"
+# Convert Unix path to Windows path at runtime using cygpath
+export GCC_EXEC_PREFIX="$(cygpath -w 'GCC_EXEC_DIR_PLACEHOLDER')"
 exec "REAL_GXX_PLACEHOLDER" "$@"
 EOF
   perl -pi -e "s|REAL_GXX_PLACEHOLDER|${REAL_GXX}|" "${WRAPPER_DIR}/x86_64-w64-mingw32-g++"
@@ -496,7 +499,8 @@ EOF
 
   # DEBUG: Check where cc1 actually is and verify GCC_EXEC_PREFIX
   echo "=== DEBUG: Checking for cc1 location ==="
-  echo "GCC_EXEC_DIR (Unix format with forward slashes): ${GCC_EXEC_DIR}"
+  echo "GCC_EXEC_DIR (Unix format, will be converted via cygpath): ${GCC_EXEC_DIR}"
+  echo "GCC_EXEC_DIR (Windows format after cygpath): $(cygpath -w "${GCC_EXEC_DIR}")"
   echo "Checking libexec/gcc:"
   ls -la "${_BUILD_PREFIX}"/Library/libexec/gcc/ 2>&1 || echo "libexec/gcc does not exist"
   echo "Checking lib/gcc:"
