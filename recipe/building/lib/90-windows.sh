@@ -337,7 +337,13 @@ patch_ghc_toolchain_output() {
       # Use simpler pattern: match anything after x86_64-w64-mingw32- that's not a quote
       perl -pi -e "s#(prgPath\s*=\s*\")(x86_64-w64-mingw32-[^\"]+)\"#\$1${build_prefix_unix}/Library/bin/\$2\"#g" "${toolchain_file}"
 
-      # Step 4: Add .exe extension to Windows executables (gcc, g++, ar, ld, etc.)
+      # Step 4: Redirect removed bootstrap mingw to conda tools
+      # Bootstrap GHC originally had bundled mingw but we removed it
+      # Redirect: %BUILD_PREFIX%/ghc-bootstrap/mingw/bin/ -> %BUILD_PREFIX%/Library/bin/
+      # Redirect: /c/.../ghc-bootstrap/mingw/bin/ -> /c/.../Library/bin/
+      perl -pi -e 's#ghc-bootstrap/mingw/bin/#Library/bin/#g' "${toolchain_file}"
+
+      # Step 5: Add .exe extension to Windows executables (gcc, g++, ar, ld, etc.)
       # Only for paths that don't already have it
       # Must include + for g++, and - for tools like ar-lib
       perl -pi -e 's#(prgPath\s*=\s*"[^"]*/(x86_64-w64-mingw32-[^"/]+))(?<!\.exe)"#$1.exe"#g' "${toolchain_file}"

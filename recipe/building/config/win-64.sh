@@ -185,6 +185,10 @@ platform_post_configure() {
   # Post-configure setup for Windows
   # Patch Hadrian's system.config file
   patch_system_config_windows
+
+  # Patch ghc-toolchain output files (GHC 9.10+)
+  # Fixes path conversion issues in default.target and *.ghc-toolchain files
+  patch_ghc_toolchain_output
 }
 
 # ==============================================================================
