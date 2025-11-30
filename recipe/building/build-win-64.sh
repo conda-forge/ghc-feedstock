@@ -465,8 +465,8 @@ mkdir -p ${_SRC_DIR}/_build
 export GCC_EXEC_PREFIX="GCC_EXEC_DIR_PLACEHOLDER"
 exec "REAL_GCC_PLACEHOLDER" "$@"
 EOF
-  sed -i "s|REAL_GCC_PLACEHOLDER|${REAL_GCC}|" "${WRAPPER_DIR}/x86_64-w64-mingw32-gcc"
-  sed -i "s|GCC_EXEC_DIR_PLACEHOLDER|${GCC_EXEC_DIR}|" "${WRAPPER_DIR}/x86_64-w64-mingw32-gcc"
+  perl -pi -e "s|REAL_GCC_PLACEHOLDER|\Q${REAL_GCC}\E|" "${WRAPPER_DIR}/x86_64-w64-mingw32-gcc"
+  perl -pi -e "s|GCC_EXEC_DIR_PLACEHOLDER|\Q${GCC_EXEC_DIR}\E|" "${WRAPPER_DIR}/x86_64-w64-mingw32-gcc"
   chmod +x "${WRAPPER_DIR}/x86_64-w64-mingw32-gcc"
 
   # Create wrapper for g++ with GCC_EXEC_PREFIX
@@ -476,8 +476,8 @@ EOF
 export GCC_EXEC_PREFIX="GCC_EXEC_DIR_PLACEHOLDER"
 exec "REAL_GXX_PLACEHOLDER" "$@"
 EOF
-  sed -i "s|REAL_GXX_PLACEHOLDER|${REAL_GXX}|" "${WRAPPER_DIR}/x86_64-w64-mingw32-g++"
-  sed -i "s|GCC_EXEC_DIR_PLACEHOLDER|${GCC_EXEC_DIR}|" "${WRAPPER_DIR}/x86_64-w64-mingw32-g++"
+  perl -pi -e "s|REAL_GXX_PLACEHOLDER|\Q${REAL_GXX}\E|" "${WRAPPER_DIR}/x86_64-w64-mingw32-g++"
+  perl -pi -e "s|GCC_EXEC_DIR_PLACEHOLDER|\Q${GCC_EXEC_DIR}\E|" "${WRAPPER_DIR}/x86_64-w64-mingw32-g++"
   chmod +x "${WRAPPER_DIR}/x86_64-w64-mingw32-g++"
 
   # Create wrapper for ld
@@ -485,7 +485,7 @@ EOF
 #!/bin/bash
 exec "REAL_LD_PLACEHOLDER" "$@"
 EOF
-  sed -i "s|REAL_LD_PLACEHOLDER|${REAL_LD}|" "${WRAPPER_DIR}/x86_64-w64-mingw32-ld"
+  perl -pi -e "s|REAL_LD_PLACEHOLDER|\Q${REAL_LD}\E|" "${WRAPPER_DIR}/x86_64-w64-mingw32-ld"
   chmod +x "${WRAPPER_DIR}/x86_64-w64-mingw32-ld"
 
   # Add wrapper directory to FRONT of PATH
