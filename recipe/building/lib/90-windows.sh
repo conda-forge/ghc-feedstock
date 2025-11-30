@@ -232,6 +232,14 @@ patch_bootstrap_settings_windows() {
   #   ghc-bootstrap/mingw/bin/ -> Library/bin/
   perl -pi -e 's#(%BUILD_PREFIX%/)?ghc-bootstrap/mingw/bin/#$1Library/bin/#g' "${settings_file}"
 
+  # CRITICAL: Also fix $tooldir/mingw/ references (GHC runtime variable)
+  # $tooldir expands to GHC installation root at runtime
+  # We need to redirect from removed bundled mingw to conda's Library/
+  #   $tooldir/mingw/bin/ -> $tooldir/../Library/bin/
+  #   $tooldir/mingw/include -> $tooldir/../Library/include
+  perl -pi -e 's#\$tooldir/mingw/bin/#\$tooldir/../Library/bin/#g' "${settings_file}"
+  perl -pi -e 's#\$tooldir/mingw/include#\$tooldir/../Library/include#g' "${settings_file}"
+
   echo "  ✓ Bootstrap settings patched (redirected mingw → Library/bin)"
 
   # DEBUG: Show merge-objects command after patching
