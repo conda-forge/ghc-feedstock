@@ -136,7 +136,7 @@ tests:
   - script: |
       ghc --version
       printf 'main = putStrLn "Hello conda-forge"\n' > hello.hs
-      ghc hello.hs && ./hello
+      ghc -v hello.hs && ./hello
     requirements:
       run:
         - ${{ compiler('c') }}
