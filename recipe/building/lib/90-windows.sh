@@ -360,12 +360,17 @@ patch_ghc_toolchain_output() {
       perl -pi -e 's#\\\\#/#g' "${toolchain_file}"
 
       # Step 3: Convert relative paths to full paths (default.host.target uses relative paths)
-      # Handle both with and without .exe extension
-      # Pattern 1: "x86_64-w64-mingw32-tool.exe" -> "/c/bld/.../x86_64-w64-mingw32-tool.exe"
-      # Pattern 2: "x86_64-w64-mingw32-tool" -> "/c/bld/.../x86_64-w64-mingw32-tool"
+      # CRITICAL: Only match paths that start with the tool name (no directory component)
+      # This prevents double-prefixing paths that already have directory components
+      # Pattern: prgPath = "x86_64-w64-mingw32-tool[.exe]" (no leading / or C:)
+      # Reject: prgPath = "/c/.../x86_64-w64-mingw32-tool" (has directory)
+      # Reject: prgPath = "C:/.../x86_64-w64-mingw32-tool" (has drive letter)
       local build_prefix_unix="${_BUILD_PREFIX}"
-      # Use simpler pattern: match anything after x86_64-w64-mingw32- that's not a quote
-      perl -pi -e "s#(prgPath\s*=\s*\")(x86_64-w64-mingw32-[^\"]+)\"#\$1${build_prefix_unix}/Library/bin/\$2\"#g" "${toolchain_file}"
+      # Use negative lookbehind to ensure no / or : before tool name
+      # Match: prgPath = "x86_64-w64-mingw32-gcc.exe"
+      # Skip: prgPath = "/c/.../x86_64-w64-mingw32-gcc.exe"
+      # Skip: prgPath = "C:/.../x86_64-w64-mingw32-gcc.exe"
+      perl -pi -e "s#(prgPath\s*=\s*\")(?<![:/])(x86_64-w64-mingw32-[^/\"]+)\"#\$1${build_prefix_unix}/Library/bin/\$2\"#g" "${toolchain_file}"
 
       # Step 4: Redirect removed bootstrap mingw to conda tools
       # Bootstrap GHC originally had bundled mingw but we removed it
