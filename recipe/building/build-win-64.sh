@@ -445,17 +445,17 @@ mkdir -p ${_SRC_DIR}/_build
   REAL_LD="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-ld"
 
   # Calculate GCC installation directory
-  # MinGW GCC stores internal binaries in: $BUILD_PREFIX/Library/lib/gcc/x86_64-w64-mingw32/15.2.0/
-  # NOT in libexec/ like standard GCC
+  # MinGW GCC follows standard GCC layout: $BUILD_PREFIX/Library/libexec/gcc/x86_64-w64-mingw32/15.2.0/
+  # cc1, cc1plus, collect2, etc. are in libexec/gcc/ (same as Linux GCC)
   # Use GCC_EXEC_PREFIX environment variable instead of -B flag for better compatibility
-  GCC_EXEC_DIR="${_BUILD_PREFIX}/Library/lib/gcc/"
+  GCC_EXEC_DIR="${_BUILD_PREFIX}/Library/libexec/gcc/"
 
   # Create wrapper for gcc with GCC_EXEC_PREFIX
   cat > "${WRAPPER_DIR}/x86_64-w64-mingw32-gcc" << 'EOF'
 #!/bin/bash
 # Forward all arguments to real gcc using full Unix-style path
 # GCC_EXEC_PREFIX tells gcc where to find its internal binaries (cc1, cc1plus, collect2, etc.)
-# MinGW stores these in lib/gcc/ not libexec/gcc/
+# MinGW uses standard GCC layout: libexec/gcc/ (same as Linux GCC)
 export GCC_EXEC_PREFIX="GCC_EXEC_DIR_PLACEHOLDER"
 exec "REAL_GCC_PLACEHOLDER" "$@"
 EOF
