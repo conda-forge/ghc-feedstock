@@ -355,6 +355,7 @@ which x86_64-w64-mingw32-gcc || echo "ERROR: x86_64-w64-mingw32-gcc NOT FOUND"
 which x86_64-w64-mingw32-g++ || echo "ERROR: x86_64-w64-mingw32-g++ NOT FOUND"
 which gcc || echo "gcc not found"
 which clang || echo "clang not found"
+PATH=${_BUILD_PREFIX}/Library/libexec/gcc/x86_64-w64-mingw32/15.2.0:${PATH}
 echo "PATH=${PATH}"
 echo "CC=${CC}"
 echo "CXX=${CXX}"
