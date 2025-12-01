@@ -133,10 +133,13 @@ tests:
             - lib/template-hsc.h
             - lib/x86_64-windows-ghc-${{ version }}/**
 
-  - script: |
-      ghc --version
-      printf 'main = putStrLn "Hello conda-forge"\n' > hello.hs
-      ghc -v hello.hs && ./hello
+  - script:
+      - ghc --version
+      - printf 'main = putStrLn "Hello conda-forge"\n' > hello.hs
+      - ghc -v hello.hs
+      - if: unix
+        then: ./hello
+        else: hello
     requirements:
       run:
         - ${{ compiler('c') }}
@@ -152,9 +155,15 @@ tests:
       - if: not osx
         then:
           - printf 'main = putStrLn "Hello threaded conda-forge"\n' > hello_t.hs
-          - ghc -threaded hello_t.hs && ./hello_t
+          - ghc -threaded hello_t.hs
+          - if: unix
+            then: ./hello_t
+            else: hello_t
           - printf 'main = putStrLn "Hello profiled conda-forge"\n' > hello_p.hs
-          - ghc -v -prof hello_p.hs && ./hello_p
+          - ghc -v -prof hello_p.hs
+          - if: unix
+            then: ./hello_p
+            else: hello_p
         else: echo "Profiling fails on osx"
     requirements:
       run:
@@ -165,11 +174,17 @@ tests:
         - if: linux
           then: ld_impl_${{ target_platform }} ${{ binutils_version }}
 
-  - script: |
-      printf 'main = putStrLn "Hello conda-forge"\n' > hello.hs
-      ghc -dynamic hello.hs && ./hello
-      printf 'main = putStrLn "Hello threaded conda-forge"\n' > hello_t.hs
-      ghc -dynamic -threaded hello_t.hs && ./hello_t
+  - script:
+      - printf 'main = putStrLn "Hello conda-forge"\n' > hello.hs
+      - ghc -dynamic hello.hs && ./hello
+      - if: unix
+        then: ./hello
+        else: hello
+      - printf 'main = putStrLn "Hello threaded conda-forge"\n' > hello_t.hs
+      - ghc -dynamic -threaded hello_t.hs && ./hello_t
+      - if: unix
+        then: ./hello
+        else: hello
     requirements:
       run:
         - ${{ compiler('c') }}
