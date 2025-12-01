@@ -306,11 +306,16 @@ patch_system_config_windows() {
   # Force use of conda libffi
   perl -pi -e 's#^use-system-ffi\s*=\s*.*$#use-system-ffi = YES#' "${config_file}"
 
-  # CRITICAL: Explicitly set FFI paths (configure may use default %PREFIX% which isn't expanded)
+  # CRITICAL: Explicitly set ALL library paths (not just FFI)
+  # Configure may use default %PREFIX% which isn't expanded, or wrong paths
   # These MUST be actual paths, not placeholders, for Hadrian to pass to RTS configure
-  # IMPORTANT: Use BUILD_PREFIX (where libffi is during build), not PREFIX (install destination)
+  # IMPORTANT: Use BUILD_PREFIX (where libraries are during build), not PREFIX (install destination)
   perl -pi -e "s#^ffi-include-dir\s*=\s*.*\$#ffi-include-dir   = ${_BUILD_PREFIX}/Library/include#" "${config_file}"
   perl -pi -e "s#^ffi-lib-dir\s*=\s*.*\$#ffi-lib-dir       = ${_BUILD_PREFIX}/Library/lib#" "${config_file}"
+  perl -pi -e "s#^gmp-include-dir\s*=\s*.*\$#gmp-include-dir   = ${_BUILD_PREFIX}/Library/include#" "${config_file}"
+  perl -pi -e "s#^gmp-lib-dir\s*=\s*.*\$#gmp-lib-dir       = ${_BUILD_PREFIX}/Library/lib#" "${config_file}"
+  perl -pi -e "s#^iconv-include-dir\s*=\s*.*\$#iconv-include-dir = ${_BUILD_PREFIX}/Library/include#" "${config_file}"
+  perl -pi -e "s#^iconv-lib-dir\s*=\s*.*\$#iconv-lib-dir     = ${_BUILD_PREFIX}/Library/lib#" "${config_file}"
 
   # CRITICAL: Fix system-merge-objects to use GNU ld
   # The bootstrap's system-merge-objects may point to wrong ld (ld.lld, or nonexistent mingw/bin/ld.exe)

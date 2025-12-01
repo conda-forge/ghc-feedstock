@@ -152,6 +152,21 @@ platform_build_configure_args() {
   # Build standard configure args first
   build_configure_args CONFIGURE_ARGS
 
+  # CRITICAL: Override library paths to use BUILD_PREFIX instead of PREFIX
+  # build_configure_args sets paths to ${PREFIX}/include and ${PREFIX}/lib
+  # But during BUILD TIME, libraries are in BUILD_PREFIX, not PREFIX (install destination)
+  # Windows libraries are in Library/ subdirectory
+  #
+  # Override ALL library paths to point to BUILD_PREFIX where they actually are:
+  CONFIGURE_ARGS+=(
+    --with-ffi-includes="${_BUILD_PREFIX}/Library/include"
+    --with-ffi-libraries="${_BUILD_PREFIX}/Library/lib"
+    --with-gmp-includes="${_BUILD_PREFIX}/Library/include"
+    --with-gmp-libraries="${_BUILD_PREFIX}/Library/lib"
+    --with-iconv-includes="${_BUILD_PREFIX}/Library/include"
+    --with-iconv-libraries="${_BUILD_PREFIX}/Library/lib"
+  )
+
   # Add Windows-specific configure arguments
   CONFIGURE_ARGS+=(
     --enable-distro-toolchain
