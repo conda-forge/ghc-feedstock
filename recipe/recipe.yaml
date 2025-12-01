@@ -82,7 +82,7 @@ requirements:
         - m2-tar
         - m2-which
 
-    # Cross-compilation: Build script installs ghc-bootstrap manually
+    # Cross-compilation: Build script installs ghc-bootstrap manually 
     # Native builds: Use ghc-bootstrap from conda
     - if: target_platform != "linux-aarch64" and target_platform != "linux-ppc64le" and target_platform != "osx-arm64"
       then:
