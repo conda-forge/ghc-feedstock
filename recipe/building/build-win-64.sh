@@ -578,6 +578,18 @@ EOF
     # CRITICAL: Use --with-gcc to force Cabal to use compiler NAME without path
     # This prevents Windows from converting the path to short names (RATTLE~1)
     # which breaks MinGW GCC's ability to find its own spec files and libraries
+
+    # CRITICAL: Set CFLAGS/CPPFLAGS with sysroot include paths for Hadrian dependencies
+    # The wrapper sets GCC_EXEC_PREFIX so GCC can find cc1, but we also need include paths
+    # Standard headers (inttypes.h, etc.) are in x86_64-w64-mingw32/sysroot/usr/include
+    export CFLAGS="-I${_BUILD_PREFIX}/Library/x86_64-w64-mingw32/sysroot/usr/include"
+    export CPPFLAGS="-I${_BUILD_PREFIX}/Library/x86_64-w64-mingw32/sysroot/usr/include"
+
+    echo "=== Compiler flags for Hadrian build ==="
+    echo "CFLAGS: ${CFLAGS}"
+    echo "CPPFLAGS: ${CPPFLAGS}"
+    echo "LDFLAGS: ${LDFLAGS}"
+
     "${CABAL}" v2-build -j1 \
       --with-gcc=x86_64-w64-mingw32-gcc \
       hadrian 2>&1 | tee "${_SRC_DIR}"/cabal-build.log
