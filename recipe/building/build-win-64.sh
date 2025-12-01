@@ -359,7 +359,7 @@ echo "LD set to Windows format: ${LD}"
 (
   MergeObjsCmd="${LD}" \
   MergeObjsArgs="" \
-  ./configure "${CONFIGURE_ARGS[@]}" || ( cat config.log ; exit 1 )
+  run_and_log "configure" ./configure "${CONFIGURE_ARGS[@]}" || ( cat config.log ; exit 1 )
 )
 cat "${_SRC_DIR}"/hadrian/cfg/system.config
 
