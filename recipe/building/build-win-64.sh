@@ -468,8 +468,8 @@ mkdir -p ${_SRC_DIR}/_build
 # MinGW uses standard GCC layout: libexec/gcc/ (same as Linux GCC)
 # Path is converted at BUILD TIME to avoid runtime cygpath dependency
 # Trailing backslash required by GCC_EXEC_PREFIX
-export GCC_EXEC_PREFIX="GCC_EXEC_PREFIX_PLACEHOLDER"
-exec "REAL_GCC_PLACEHOLDER" "$@"
+export GCC_EXEC_PREFIX='GCC_EXEC_PREFIX_PLACEHOLDER'
+exec 'REAL_GCC_PLACEHOLDER' "$@"
 EOF
   # Perl quotemeta (\Q...\E) safely escapes backslashes in replacement text
   perl -pi -e "s|GCC_EXEC_PREFIX_PLACEHOLDER|\Q${GCC_EXEC_DIR_WIN}\E\\\\|" "${WRAPPER_DIR}/x86_64-w64-mingw32-gcc"
@@ -482,8 +482,8 @@ EOF
 # GCC_EXEC_PREFIX tells g++ where to find its internal binaries
 # Path is converted at BUILD TIME to avoid runtime cygpath dependency
 # Trailing backslash required by GCC_EXEC_PREFIX
-export GCC_EXEC_PREFIX="GCC_EXEC_PREFIX_PLACEHOLDER"
-exec "REAL_GXX_PLACEHOLDER" "$@"
+export GCC_EXEC_PREFIX='GCC_EXEC_PREFIX_PLACEHOLDER'
+exec 'REAL_GXX_PLACEHOLDER' "$@"
 EOF
   perl -pi -e "s|GCC_EXEC_PREFIX_PLACEHOLDER|\Q${GCC_EXEC_DIR_WIN}\E\\\\|" "${WRAPPER_DIR}/x86_64-w64-mingw32-g++"
   perl -pi -e "s|REAL_GXX_PLACEHOLDER|\Q${REAL_GXX_WIN}\E|" "${WRAPPER_DIR}/x86_64-w64-mingw32-g++"
