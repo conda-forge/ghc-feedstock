@@ -269,6 +269,31 @@ platform_post_build_stage1() {
 # Phase 7: Build Stage 2
 # ==============================================================================
 
+patch_stage2_settings() {
+  echo "  Patching Stage2 settings (_build/stage1/lib/settings)..."
+
+  local settings_file="${_SRC_DIR}/_build/stage1/lib/settings"
+
+  if [[ ! -f "${settings_file}" ]]; then
+    echo "WARNING: Stage2 settings file not found at ${settings_file}"
+    return 1
+  fi
+
+  # Directories for linking
+  local CHKSTK_DIR="${_BUILD_PREFIX}/Library/lib"
+  local MINGW_SYSROOT="${_BUILD_PREFIX}/Library/x86_64-w64-mingw32/sysroot/usr/lib"
+
+  # Build complete link flags string
+  # CRITICAL: Use -Xlinker prefix because flags go through GHC to linker
+  local LINK_FLAGS="-Wl,--subsystem,console -Wl,--enable-auto-import -Wl,--image-base=0x140000000 -Wl,--dynamicbase -Wl,--high-entropy-va -Xlinker -L${CHKSTK_DIR} -Xlinker -L${MINGW_SYSROOT}"
+  LINK_FLAGS="${LINK_FLAGS} -Xlinker -lmoldname -Xlinker -lmingwex -Xlinker -lmingw32 -Xlinker -lchkstk_ms -Xlinker -lgcc -Xlinker -lucrt -Xlinker -lkernel32 -Xlinker -ladvapi32"
+
+  perl -pi -e "s#(C compiler link flags\", \")#\$1${LINK_FLAGS} #" "${settings_file}"
+  perl -pi -e "s#(ld flags\", \")#\$1--subsystem,console --enable-auto-import --image-base=0x140000000 --dynamicbase --high-entropy-va -L${CHKSTK_DIR} -L${MINGW_SYSROOT} -lmoldname -lmingwex -lmingw32 -lchkstk_ms -lgcc -lucrt -lkernel32 -ladvapi32 #" "${settings_file}"
+
+  echo "  ✓ Stage2 settings patched"
+}
+
 platform_pre_build_stage2() {
   echo "  Running Windows-specific Stage2 pre-build..."
 
@@ -280,6 +305,12 @@ platform_pre_build_stage2() {
 
 platform_build_stage2() {
   echo "  Building Stage 2 GHC (Windows)..."
+
+  # CRITICAL: Build stage2:exe:ghc-bin FIRST to generate _build/stage1/lib/settings
+  run_and_log "stage2-exe" "${HADRIAN_CMD[@]}" stage2:exe:ghc-bin --flavour="${HADRIAN_FLAVOUR}" --freeze1 --docs=none --progress-info=none
+
+  # Patch Stage1 settings file (created by stage2:exe:ghc-bin)
+  patch_stage2_settings
 
   # Build Stage 2 GHC libraries with live output
   echo "  Command: ${HADRIAN_CMD[*]} stage2:lib:ghc --flavour=${HADRIAN_FLAVOUR} --freeze1 --docs=none --progress-info=none"
@@ -499,6 +530,11 @@ patch_stage1_settings_for_relocation_fix() {
 
   # Also add to "ld flags" for direct ld invocations
   perl -pi -e "s#(ld flags\", \")#\$1--subsystem,console --enable-auto-import --image-base=0x140000000 --dynamicbase --high-entropy-va -L${CHKSTK_DIR} -L${MINGW_SYSROOT} -lmoldname -lmingwex -lmingw32 -lchkstk_ms -lgcc -lucrt -lkernel32 -ladvapi32 #" "${settings_file}"
+
+  # Debug: Show the patched link flags
+  echo "  ===== Stage1 settings (link flags only) ====="
+  grep -E "(C compiler link flags|ld flags)" "${settings_file}" || echo "  (grep failed)"
+  echo "  ===== End Stage1 settings ====="
 
   echo "  ✓ Stage1 settings patched"
 }
