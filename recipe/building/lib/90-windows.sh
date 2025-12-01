@@ -356,6 +356,14 @@ patch_ghc_toolchain_output() {
       local filename=$(basename "${toolchain_file}")
       echo "  Patching ${filename}..."
 
+      # Step 0: Expand conda variable placeholders (ghc-toolchain creates files with %BUILD_PREFIX% unexpanded!)
+      # CRITICAL: ghc-toolchain files use Haskell syntax, NOT batch syntax - Haskell won't expand %BUILD_PREFIX%
+      # Convert: prgPath = "%BUILD_PREFIX%/Library/bin/..." -> prgPath = "/c/bld/.../Library/bin/..."
+      # Then subsequent steps convert /c/bld/... -> C:/bld/...
+      perl -pi -e "s#%BUILD_PREFIX%#${_BUILD_PREFIX}#g" "${toolchain_file}"
+      perl -pi -e "s#%PREFIX%#${_PREFIX}#g" "${toolchain_file}"
+      perl -pi -e "s#%SRC_DIR%#${_SRC_DIR}#g" "${toolchain_file}"
+
       # Step 1: Convert UNIX drive letter format to Windows format (configure-created files)
       # UNIX format: prgPath = "/c/bld/..." (used in default.target, default.host.target)
       # Windows format: prgPath = "C:/bld/..."
