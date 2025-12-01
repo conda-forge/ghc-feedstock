@@ -247,6 +247,13 @@ platform_build_stage1() {
   # Build Stage 1 GHC compiler
   run_and_log "stage1-ghc" "${HADRIAN_CMD[@]}" --flavour="${HADRIAN_FLAVOUR}" stage1:exe:ghc-bin
 
+  # Build Stage 1 supporting tools
+  run_and_log "stage1-pkg" "${HADRIAN_CMD[@]}" --flavour="${HADRIAN_FLAVOUR}" stage1:exe:ghc-pkg
+  run_and_log "stage1-hsc2hs" "${HADRIAN_CMD[@]}" --flavour="${HADRIAN_FLAVOUR}" stage1:exe:hsc2hs
+
+  # CRITICAL: Build Stage 1 libraries BEFORE Stage 2
+  run_and_log "stage1-lib" "${HADRIAN_CMD[@]}" --flavour="${HADRIAN_FLAVOUR}" stage1:lib:ghc
+
   echo "  ✓ Stage 1 GHC built"
 }
 
