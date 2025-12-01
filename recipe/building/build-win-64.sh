@@ -607,49 +607,93 @@ EOF
     if [[ $_cabal_exit_code -ne 0 ]]; then
       echo "=== Cabal build FAILED with exit code ${_cabal_exit_code} ==="
 
-      # Try to find and print config.log from time package
-      echo "=== Searching for time package config.log ==="
-
-      # List what's in the tmp directory
-      echo "Contents of hadrian/dist-newstyle/tmp:"
-      ls -la "${_SRC_DIR}"/hadrian/dist-newstyle/tmp/ 2>/dev/null || echo "tmp directory not found"
-
-      # Try to find the time package directory
+      # FIRST: Test if GCC actually works with a simple test
       echo ""
-      echo "Looking for time-* directories:"
-      find "${_SRC_DIR}"/hadrian/dist-newstyle/tmp -type d -name "time-*" 2>/dev/null || echo "No time-* directories found"
+      echo "=== TESTING GCC DIRECTLY ==="
+      echo "int main() { return 0; }" > /tmp/test.c
 
-      # Search for any config.log
+      echo "Test 1: Compile without any flags"
+      x86_64-w64-mingw32-gcc /tmp/test.c -o /tmp/test.exe 2>&1 && echo "SUCCESS" || echo "FAILED: $?"
+
       echo ""
-      echo "Searching for any config.log files:"
-      find "${_SRC_DIR}"/hadrian/dist-newstyle -name "config.log" -type f 2>/dev/null | while read -r log; do
-        echo "=== Found: ${log} ==="
-        echo "Last 100 lines:"
-        tail -100 "${log}"
+      echo "Test 2: Compile with current CFLAGS and LDFLAGS"
+      x86_64-w64-mingw32-gcc ${CFLAGS} ${LDFLAGS} /tmp/test.c -o /tmp/test2.exe 2>&1 && echo "SUCCESS" || echo "FAILED: $?"
+
+      echo ""
+      echo "Test 3: Show what gcc is using"
+      x86_64-w64-mingw32-gcc -v /tmp/test.c 2>&1 | tail -20
+
+      rm -f /tmp/test.c /tmp/test.exe /tmp/test2.exe
+
+      # NOW: Find the actual config.log from time-1.14
+      echo ""
+      echo "=== SEARCHING FOR TIME-1.14 CONFIG.LOG ==="
+
+      # Cabal stores logs in specific locations
+      echo "Searching in .cabal/logs directory:"
+      find ~/.cabal/logs -name "*time-1.14*" -type f 2>/dev/null | while read -r log; do
+        echo "=== Found Cabal log: ${log} ==="
+        echo "FULL CONTENTS:"
+        cat "${log}"
         echo "=== End of ${log} ==="
       done
 
-      # Retry building JUST the time package with verbose output to see what's happening
       echo ""
-      echo "=== RETRY: Building time package with verbose output ==="
-      echo "Environment during time build:"
-      echo "  CC='${CC}'"
-      echo "  CFLAGS='${CFLAGS}'"
-      echo "  LDFLAGS='${LDFLAGS}'"
-      echo "  CONFIG_SITE='${CONFIG_SITE}'"
+      echo "Searching in dist-newstyle for config.log:"
+      find "${_SRC_DIR}"/hadrian/dist-newstyle -name "config.log" -type f 2>/dev/null | while read -r log; do
+        echo "=== Found config.log: ${log} ==="
+        echo "FULL CONTENTS:"
+        cat "${log}"
+        echo "=== End of ${log} ==="
+      done
 
-      # Show config.site contents
+      # Look for the actual time build directory
+      echo ""
+      echo "=== SEARCHING FOR TIME BUILD DIRECTORY ==="
+      find "${_SRC_DIR}"/hadrian/dist-newstyle -type d -name "*time*" 2>/dev/null | head -10
+
+      # Try to find any .log files related to time
+      echo ""
+      echo "=== ALL LOG FILES MENTIONING TIME ==="
+      find "${_SRC_DIR}"/hadrian/dist-newstyle -name "*.log" -type f 2>/dev/null | while read -r log; do
+        if grep -q "time-1.14" "${log}" 2>/dev/null; then
+          echo "=== Log file: ${log} ==="
+          cat "${log}"
+          echo "=== End of ${log} ==="
+        fi
+      done
+
+      # Show current environment exactly as cabal will see it
+      echo ""
+      echo "=== FULL ENVIRONMENT FOR CABAL ==="
+      echo "CC='${CC}'"
+      echo "CXX='${CXX}'"
+      echo "CFLAGS='${CFLAGS}'"
+      echo "CPPFLAGS='${CPPFLAGS}'"
+      echo "LDFLAGS='${LDFLAGS}'"
+      echo "CONFIG_SITE='${CONFIG_SITE}'"
+
       if [[ -f "${CONFIG_SITE}" ]]; then
-        echo "Contents of config.site:"
+        echo ""
+        echo "=== CONTENTS OF CONFIG.SITE ==="
         cat "${CONFIG_SITE}"
       fi
 
+      # Retry with maximum verbosity
+      echo ""
+      echo "=== RETRY: Building time package with MAXIMUM verbosity ==="
       "${CABAL}" v2-build -v3 \
         --with-gcc=x86_64-w64-mingw32-gcc \
         time 2>&1 | tee "${_SRC_DIR}"/time-verbose.log || true
 
-      echo "=== Time package verbose build completed (may have failed) ==="
-      echo "Check time-verbose.log for details"
+      echo ""
+      echo "=== SEARCHING AGAIN FOR CONFIG.LOG AFTER RETRY ==="
+      sleep 2  # Give filesystem a moment
+      find ~/.cabal/logs -name "*time*" -type f 2>/dev/null | while read -r log; do
+        echo "=== Cabal log after retry: ${log} ==="
+        cat "${log}"
+        echo "=== End ==="
+      done
 
       exit 1
     fi
