@@ -585,6 +585,11 @@ EOF
     export CFLAGS="-I${_BUILD_PREFIX}/Library/x86_64-w64-mingw32/sysroot/usr/include"
     export CPPFLAGS="-I${_BUILD_PREFIX}/Library/x86_64-w64-mingw32/sysroot/usr/include"
 
+    # CRITICAL: Add sysroot library path to LDFLAGS for linking
+    # The "cannot create executables" error (exit 77) means linking is failing
+    # Need to include sysroot/usr/lib where libc and other system libraries are located
+    export LDFLAGS="${LDFLAGS} -L${_BUILD_PREFIX}/Library/x86_64-w64-mingw32/sysroot/usr/lib"
+
     echo "=== Compiler flags for Hadrian build ==="
     echo "CFLAGS: ${CFLAGS}"
     echo "CPPFLAGS: ${CPPFLAGS}"
