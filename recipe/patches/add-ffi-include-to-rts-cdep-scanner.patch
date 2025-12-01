@@ -1,0 +1,20 @@
+--- a/hadrian/src/Settings/Packages.hs
++++ b/hadrian/src/Settings/Packages.hs
+@@ -304,7 +304,13 @@ rtsPackageArgs = package rts ? do
+           , arg "-fomit-frame-pointer"
+           -- RTS *must* be compiled with optimisations. The INLINE_HEADER macro
+           -- requires that functions are inlined to work as expected. Inlining
+           -- only happens for optimised builds. Otherwise we can assume that
+           -- there is a non-inlined variant to use instead. But RTS does not
+           -- provide non-inlined alternatives and hence needs the function to
+           -- be inlined. See https://github.com/snowleopard/hadrian/issues/90.
+           , arg "-O2"
+
+           , arg "-Irts"
+           , arg $ "-I" ++ path
++
++          -- Add system FFI include directory for dependency scanning
++          -- FindCDependencies needs to find ffi.h to build dependency graph
++          , useSystemFfi ? notNull ffiIncludeDir ? arg ("-I" ++ ffiIncludeDir)
+
+           , notM targetSupportsSMP           ? arg "-DNOSMP"

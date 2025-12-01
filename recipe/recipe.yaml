@@ -39,6 +39,7 @@ source:
           - patches/fix-windows-pei386-format.patch
           - patches/fix-js-cpp-test-windows-line-endings.patch
           - patches/fix-process-signal-constants-windows.patch
+          - patches/add-ffi-include-to-rts-cdep-scanner.patch
 
 build:
   number: 0
