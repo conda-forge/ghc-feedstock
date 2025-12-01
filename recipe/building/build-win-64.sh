@@ -545,7 +545,9 @@ EOF
   rm -f /tmp/test-gcc-wrapper.c /tmp/test-gcc-wrapper.o
 
   # Also set CONFIG_SITE to cache compiler name (prevents PATH search, uses cached name)
-  cat > "${_SRC_DIR}"/config.site << 'EOF'
+  # CRITICAL: Include LDFLAGS so configure scripts can link properly
+  # GCC needs explicit path to lib/gcc/x86_64-w64-mingw32/15.2.0 to find libgcc.a
+  cat > "${_SRC_DIR}"/config.site << EOF
 ac_cv_prog_CC=x86_64-w64-mingw32-gcc
 ac_cv_prog_CXX=x86_64-w64-mingw32-g++
 ac_cv_prog_LD=x86_64-w64-mingw32-ld
@@ -554,6 +556,7 @@ ac_cv_prog_cc_c99=
 ac_cv_prog_cc_c11=
 ac_cv_exeext=.exe
 ac_cv_objext=o
+LDFLAGS='${LDFLAGS}'
 EOF
   export CONFIG_SITE="${_SRC_DIR}/config.site"
 
