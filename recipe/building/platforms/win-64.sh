@@ -491,8 +491,9 @@ patch_stage1_settings_for_relocation_fix() {
   # Build complete link flags string
   # CRITICAL: Use high image base to avoid 32-bit pseudo relocation errors
   # CRITICAL: --enable-auto-import generates proper PE import tables
-  local LINK_FLAGS="-Wl,--subsystem,console -Wl,--enable-auto-import -Wl,--image-base=0x140000000 -Wl,--dynamicbase -Wl,--high-entropy-va -Xlinker -L${CHKSTK_DIR} -Xlinker -L${MINGW_SYSROOT}"
-  LINK_FLAGS="${LINK_FLAGS} -Xlinker -lmoldname -Xlinker -lmingwex -Xlinker -lmingw32 -Xlinker -lchkstk_ms -Xlinker -lgcc -Xlinker -lucrt -Xlinker -lkernel32 -Xlinker -ladvapi32"
+  # CRITICAL: NO -Xlinker prefix - settings flags go directly to gcc, not through GHC
+  local LINK_FLAGS="-Wl,--subsystem,console -Wl,--enable-auto-import -Wl,--image-base=0x140000000 -Wl,--dynamicbase -Wl,--high-entropy-va -L${CHKSTK_DIR} -L${MINGW_SYSROOT}"
+  LINK_FLAGS="${LINK_FLAGS} -lmoldname -lmingwex -lmingw32 -lchkstk_ms -lgcc -lucrt -lkernel32 -ladvapi32"
 
   perl -pi -e "s#(C compiler link flags\", \")#\$1${LINK_FLAGS} #" "${settings_file}"
 
