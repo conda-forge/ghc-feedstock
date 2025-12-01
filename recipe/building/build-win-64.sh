@@ -471,9 +471,13 @@ mkdir -p ${_SRC_DIR}/_build
 export GCC_EXEC_PREFIX='GCC_EXEC_PREFIX_PLACEHOLDER'
 exec 'REAL_GCC_PLACEHOLDER' "$@"
 EOF
-  # Perl quotemeta (\Q...\E) safely escapes backslashes in replacement text
-  perl -pi -e "s|GCC_EXEC_PREFIX_PLACEHOLDER|\Q${GCC_EXEC_DIR_WIN}\E\\\\|" "${WRAPPER_DIR}/x86_64-w64-mingw32-gcc"
-  perl -pi -e "s|REAL_GCC_PLACEHOLDER|\Q${REAL_GCC_WIN}\E|" "${WRAPPER_DIR}/x86_64-w64-mingw32-gcc"
+  # CRITICAL: Escape backslashes in Windows paths BEFORE Perl substitution
+  # Even with \Q...\E, Perl interprets escape sequences like \b (backspace) in replacement text
+  # Solution: Double all backslashes so Perl sees \\ instead of \
+  GCC_EXEC_DIR_WIN_ESCAPED="${GCC_EXEC_DIR_WIN//\\/\\\\}"
+  REAL_GCC_WIN_ESCAPED="${REAL_GCC_WIN//\\/\\\\}"
+  perl -pi -e "s|GCC_EXEC_PREFIX_PLACEHOLDER|${GCC_EXEC_DIR_WIN_ESCAPED}\\\\|" "${WRAPPER_DIR}/x86_64-w64-mingw32-gcc"
+  perl -pi -e "s|REAL_GCC_PLACEHOLDER|${REAL_GCC_WIN_ESCAPED}|" "${WRAPPER_DIR}/x86_64-w64-mingw32-gcc"
   chmod +x "${WRAPPER_DIR}/x86_64-w64-mingw32-gcc"
 
   # Create wrapper for g++ with pre-converted Windows paths
@@ -485,8 +489,10 @@ EOF
 export GCC_EXEC_PREFIX='GCC_EXEC_PREFIX_PLACEHOLDER'
 exec 'REAL_GXX_PLACEHOLDER' "$@"
 EOF
-  perl -pi -e "s|GCC_EXEC_PREFIX_PLACEHOLDER|\Q${GCC_EXEC_DIR_WIN}\E\\\\|" "${WRAPPER_DIR}/x86_64-w64-mingw32-g++"
-  perl -pi -e "s|REAL_GXX_PLACEHOLDER|\Q${REAL_GXX_WIN}\E|" "${WRAPPER_DIR}/x86_64-w64-mingw32-g++"
+  # Escape backslashes before Perl substitution
+  REAL_GXX_WIN_ESCAPED="${REAL_GXX_WIN//\\/\\\\}"
+  perl -pi -e "s|GCC_EXEC_PREFIX_PLACEHOLDER|${GCC_EXEC_DIR_WIN_ESCAPED}\\\\|" "${WRAPPER_DIR}/x86_64-w64-mingw32-g++"
+  perl -pi -e "s|REAL_GXX_PLACEHOLDER|${REAL_GXX_WIN_ESCAPED}|" "${WRAPPER_DIR}/x86_64-w64-mingw32-g++"
   chmod +x "${WRAPPER_DIR}/x86_64-w64-mingw32-g++"
 
   # Create wrapper for ld
