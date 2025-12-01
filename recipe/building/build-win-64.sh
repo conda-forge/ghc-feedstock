@@ -161,10 +161,17 @@ if [[ -f "${settings_file}" ]]; then
   AR_WIN=$(echo "${AR}" | sed 's#^/c/#C:/#')
   RANLIB_WIN=$(echo "${RANLIB}" | sed 's#^/c/#C:/#')
 
+  # CRITICAL: Convert PREFIX paths for include/lib paths in settings file
+  # GCC is a Windows native binary and needs Windows paths (C:/ not /c/)
+  _PREFIX_WIN=$(echo "${_PREFIX}" | sed 's#^/c/#C:/#')
+  _BUILD_PREFIX_WIN=$(echo "${_BUILD_PREFIX}" | sed 's#^/c/#C:/#')
+
   echo "Converted paths for GHC settings:"
   echo "  LD_WIN=${LD_WIN}"
   echo "  AR_WIN=${AR_WIN}"
   echo "  RANLIB_WIN=${RANLIB_WIN}"
+  echo "  _PREFIX_WIN=${_PREFIX_WIN}"
+  echo "  _BUILD_PREFIX_WIN=${_BUILD_PREFIX_WIN}"
 
   # CRITICAL: Update environment variables to Windows format
   # GHC and Cabal read these from the environment when executing tools
@@ -188,28 +195,35 @@ if [[ -f "${settings_file}" ]]; then
   WINDRES_WRAPPER_WIN=$(echo "${WINDRES_WRAPPER_UNIX}" | sed 's#^/c/#C:/#')
   perl -pi -e "s#(windres command\", \")[^\"]*#\$1${WINDRES_WRAPPER_WIN}#" "${settings_file}"
 
-  perl -pi -e "s#-I\\\$tooldir/mingw/include#-I${_BUILD_PREFIX}/Library/include#g" "${settings_file}"
+  perl -pi -e "s#-I\\\$tooldir/mingw/include#-I${_BUILD_PREFIX_WIN}/Library/include#g" "${settings_file}"
 
   # CRITICAL: Add sysroot include paths for standard headers (inttypes.h, etc.)
   # When GHC compiles Haskell FFI code, it invokes gcc with settings from this file
   # The sysroot includes must be in the settings file, not just in environment CFLAGS
-  perl -pi -e "s#(C compiler flags\", \")([^\"]*)#\$1\$2 ${CFLAGS} -I${_PREFIX}/Library/include -I${_BUILD_PREFIX}/Library/x86_64-w64-mingw32/sysroot/usr/include#" "${settings_file}"
-  perl -pi -e "s#(C\+\+ compiler flags\", \")([^\"]*)#\$1\$2 ${CXXFLAGS} -I${_PREFIX}/Library/include -I${_BUILD_PREFIX}/Library/x86_64-w64-mingw32/sysroot/usr/include#" "${settings_file}"
+  # Use Windows format paths (_PREFIX_WIN, _BUILD_PREFIX_WIN) for GCC (Windows native binary)
+  perl -pi -e "s#(C compiler flags\", \")([^\"]*)#\$1\$2 ${CFLAGS} -I${_PREFIX_WIN}/Library/include -I${_BUILD_PREFIX_WIN}/Library/x86_64-w64-mingw32/sysroot/usr/include#" "${settings_file}"
+  perl -pi -e "s#(C\+\+ compiler flags\", \")([^\"]*)#\$1\$2 ${CXXFLAGS} -I${_PREFIX_WIN}/Library/include -I${_BUILD_PREFIX_WIN}/Library/x86_64-w64-mingw32/sysroot/usr/include#" "${settings_file}"
   # Clang preprocessor flags with -traditional-cpp for Haskell compatibility
   # -traditional-cpp: Traditional (pre-standard) preprocessing, handles # in identifiers
-  perl -pi -e "s#(Haskell CPP flags\", \")[^\"]*#\$1-E -undef -traditional-cpp -I${_BUILD_PREFIX}/Library/include -I${_PREFIX}/Library/include#" "${settings_file}"
+  perl -pi -e "s#(Haskell CPP flags\", \")[^\"]*#\$1-E -undef -traditional-cpp -I${_BUILD_PREFIX_WIN}/Library/include -I${_PREFIX_WIN}/Library/include#" "${settings_file}"
 
   # DO NOT patch bootstrap GHC link flags with custom CRT!
   # The custom CRT flags (-nostartfiles, custom crt2.o) break stdio initialization
   # However, we DO need to add MinGW runtime libraries to "C compiler link flags"
 
+  # CRITICAL: Use Windows format paths for library directories in settings file
+  # GCC and ld are Windows native binaries, need C:/ not /c/
   CHKSTK_DIR=$(dirname "${CHKSTK_LIB}")
+  CHKSTK_DIR_WIN=$(echo "${CHKSTK_DIR}" | sed 's#^/c/#C:/#')
   MINGW_SYSROOT="${_BUILD_PREFIX}/Library/x86_64-w64-mingw32/sysroot/usr/lib"
+  MINGW_SYSROOT_WIN=$(echo "${MINGW_SYSROOT}" | sed 's#^/c/#C:/#')
   GCC_LIB_DIR="${_BUILD_PREFIX}/Library/lib/gcc/x86_64-w64-mingw32/15.2.0"
+  GCC_LIB_DIR_WIN=$(echo "${GCC_LIB_DIR}" | sed 's#^/c/#C:/#')
 
   # Build complete link flags string - libraries come AFTER user objects
   # CRITICAL: Add GCC_LIB_DIR so linker can find libgcc.a and libgcc_eh.a
-  LINK_FLAGS="-Wl,--subsystem,console -Wl,--enable-auto-import -Wl,--image-base=0x140000000 -Wl,--dynamicbase -Wl,--high-entropy-va -Xlinker -L${GCC_LIB_DIR} -Xlinker -L${CHKSTK_DIR} -Xlinker -L${MINGW_SYSROOT}"
+  # Use Windows format paths for GCC/ld (Windows native binaries)
+  LINK_FLAGS="-Wl,--subsystem,console -Wl,--enable-auto-import -Wl,--image-base=0x140000000 -Wl,--dynamicbase -Wl,--high-entropy-va -Xlinker -L${GCC_LIB_DIR_WIN} -Xlinker -L${CHKSTK_DIR_WIN} -Xlinker -L${MINGW_SYSROOT_WIN}"
   LINK_FLAGS="${LINK_FLAGS} -Xlinker -lmoldname"
   LINK_FLAGS="${LINK_FLAGS} -Xlinker -lmingwex"
   LINK_FLAGS="${LINK_FLAGS} -Xlinker -lmingw32"
@@ -225,7 +239,8 @@ if [[ -f "${settings_file}" ]]; then
 
   # Also add to "ld flags" for direct ld invocations (use bare library names, no -Xlinker)
   # CRITICAL: This is used when GHC invokes ld directly to link Haskell executables
-  perl -pi -e "s#(ld flags\", \")#\$1--subsystem,console --enable-auto-import --image-base=0x140000000 --dynamicbase --high-entropy-va -L${CHKSTK_DIR} -L${MINGW_SYSROOT} -lmoldname -lmingwex -lmingw32 -lchkstk_ms -lgcc -lucrt -lkernel32 -ladvapi32 #" "${settings_file}"
+  # Use Windows format paths for ld (Windows native binary)
+  perl -pi -e "s#(ld flags\", \")#\$1--subsystem,console --enable-auto-import --image-base=0x140000000 --dynamicbase --high-entropy-va -L${GCC_LIB_DIR_WIN} -L${CHKSTK_DIR_WIN} -L${MINGW_SYSROOT_WIN} -lmoldname -lmingwex -lmingw32 -lchkstk_ms -lgcc -lucrt -lkernel32 -ladvapi32 #" "${settings_file}"
 
   cat "${settings_file}" | grep -E "(C compiler command|C compiler link flags|ld command|ld flags)" || true
 else
