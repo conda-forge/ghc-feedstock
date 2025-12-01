@@ -323,7 +323,20 @@ patch_system_config_windows() {
   # Match ANY line with system-merge-objects, not just those containing ld.lld
   perl -pi -e 's#^system-merge-objects\s*=\s*.*$#system-merge-objects = '"${LD}"'#' "${config_file}"
 
+  echo "=== system.config library paths (after patching) ==="
   cat "${config_file}" | grep "include-dir\|lib-dir\|windres\|dllwrap\|system-mingw\|system-ffi\|merge-objects"
+  echo "====================================================="
+
+  # Verify FFI paths are correct
+  echo "=== Verifying FFI header exists ==="
+  if [[ -f "${_BUILD_PREFIX}/Library/include/ffi.h" ]]; then
+    echo "✓ ffi.h found at ${_BUILD_PREFIX}/Library/include/ffi.h"
+  else
+    echo "✗ WARNING: ffi.h NOT found at ${_BUILD_PREFIX}/Library/include/ffi.h"
+    echo "  Searching for ffi.h:"
+    find "${_BUILD_PREFIX}" -name "ffi.h" 2>/dev/null || echo "  ffi.h not found anywhere in BUILD_PREFIX"
+  fi
+  echo "========================================="
 
   # GHC 9.10+ uses ghc-toolchain which creates its own config files
   # These must also be patched to fix invalid Windows paths

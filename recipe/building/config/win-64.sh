@@ -172,6 +172,19 @@ platform_build_configure_args() {
     --enable-distro-toolchain
     --with-intree-gmp=no
   )
+
+  # Debug: Show library path overrides
+  echo "=== DEBUG: Configure library path overrides ==="
+  echo "  --with-ffi-includes=${_BUILD_PREFIX}/Library/include"
+  echo "  --with-ffi-libraries=${_BUILD_PREFIX}/Library/lib"
+  echo "  Checking if ffi.h exists at that location..."
+  if [[ -f "${_BUILD_PREFIX}/Library/include/ffi.h" ]]; then
+    echo "  ✓ ffi.h FOUND"
+  else
+    echo "  ✗ ffi.h NOT FOUND - BUILD WILL FAIL!"
+    ls -la "${_BUILD_PREFIX}/Library/include" | head -20
+  fi
+  echo "================================================"
 }
 
 # ==============================================================================
@@ -274,16 +287,23 @@ platform_build_stage1() {
   echo "=== DEBUG: Stage1 Build Environment ==="
   echo "  _BUILD_PREFIX: ${_BUILD_PREFIX}"
   echo "  PATH (first 200 chars): ${PATH:0:200}"
+  echo "  CC=${CC}"
+  echo "  CFLAGS=${CFLAGS}"
+  echo "  CPPFLAGS=${CPPFLAGS}"
+  echo "  Looking for ffi.h at: ${_BUILD_PREFIX}/Library/include/ffi.h"
+  if [[ -f "${_BUILD_PREFIX}/Library/include/ffi.h" ]]; then
+    echo "  ✓ ffi.h found"
+  else
+    echo "  ✗ ffi.h NOT FOUND"
+    echo "  Contents of ${_BUILD_PREFIX}/Library/include:"
+    ls -la "${_BUILD_PREFIX}/Library/include" | grep -i ffi || echo "No FFI files found"
+  fi
   echo "  Looking for GCC at: ${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-gcc.exe"
   if [[ -f "${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-gcc.exe" ]]; then
     echo "  ✓ GCC found"
   else
     echo "  ✗ GCC NOT FOUND"
-    echo "  Contents of ${_BUILD_PREFIX}/Library/bin:"
-    ls -la "${_BUILD_PREFIX}/Library/bin" | head -20
   fi
-  echo "  CC=${CC}"
-  echo "  which gcc: $(which x86_64-w64-mingw32-gcc.exe 2>&1 || echo 'not in PATH')"
   echo "=== END DEBUG ==="
 
   # Add toolchain to PATH for configure subprocesses
