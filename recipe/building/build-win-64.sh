@@ -190,8 +190,11 @@ if [[ -f "${settings_file}" ]]; then
 
   perl -pi -e "s#-I\\\$tooldir/mingw/include#-I${_BUILD_PREFIX}/Library/include#g" "${settings_file}"
 
-  perl -pi -e "s#(C compiler flags\", \")([^\"]*)#\$1\$2 ${CFLAGS} -I${_PREFIX}/Library/include#" "${settings_file}"
-  perl -pi -e "s#(C\+\+ compiler flags\", \")([^\"]*)#\$1\$2 ${CXXFLAGS} -I${_PREFIX}/Library/include#" "${settings_file}"
+  # CRITICAL: Add sysroot include paths for standard headers (inttypes.h, etc.)
+  # When GHC compiles Haskell FFI code, it invokes gcc with settings from this file
+  # The sysroot includes must be in the settings file, not just in environment CFLAGS
+  perl -pi -e "s#(C compiler flags\", \")([^\"]*)#\$1\$2 ${CFLAGS} -I${_PREFIX}/Library/include -I${_BUILD_PREFIX}/Library/x86_64-w64-mingw32/sysroot/usr/include#" "${settings_file}"
+  perl -pi -e "s#(C\+\+ compiler flags\", \")([^\"]*)#\$1\$2 ${CXXFLAGS} -I${_PREFIX}/Library/include -I${_BUILD_PREFIX}/Library/x86_64-w64-mingw32/sysroot/usr/include#" "${settings_file}"
   # Clang preprocessor flags with -traditional-cpp for Haskell compatibility
   # -traditional-cpp: Traditional (pre-standard) preprocessing, handles # in identifiers
   perl -pi -e "s#(Haskell CPP flags\", \")[^\"]*#\$1-E -undef -traditional-cpp -I${_BUILD_PREFIX}/Library/include -I${_PREFIX}/Library/include#" "${settings_file}"
