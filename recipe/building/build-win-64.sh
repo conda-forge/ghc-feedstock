@@ -197,12 +197,17 @@ if [[ -f "${settings_file}" ]]; then
 
   perl -pi -e "s#-I\\\$tooldir/mingw/include#-I${_BUILD_PREFIX_WIN}/Library/include#g" "${settings_file}"
 
-  # CRITICAL: Add sysroot include paths for standard headers (inttypes.h, etc.)
+  # CRITICAL: Determine GCC include directory for intrinsic headers (x86intrin.h, etc.)
+  # Must be calculated HERE before using in settings file patches
+  GCC_INCLUDE_DIR="${_BUILD_PREFIX}/Library/lib/gcc/x86_64-w64-mingw32/15.2.0/include"
+  GCC_INCLUDE_DIR_WIN=$(echo "${GCC_INCLUDE_DIR}" | sed 's#^/c/#C:/#')
+
+  # CRITICAL: Add all include paths for standard headers and GCC intrinsics
   # When GHC compiles Haskell FFI code, it invokes gcc with settings from this file
-  # The sysroot includes must be in the settings file, not just in environment CFLAGS
-  # Use Windows format paths (_PREFIX_WIN, _BUILD_PREFIX_WIN) for GCC (Windows native binary)
-  perl -pi -e "s#(C compiler flags\", \")([^\"]*)#\$1\$2 ${CFLAGS} -I${_PREFIX_WIN}/Library/include -I${_BUILD_PREFIX_WIN}/Library/x86_64-w64-mingw32/sysroot/usr/include#" "${settings_file}"
-  perl -pi -e "s#(C\+\+ compiler flags\", \")([^\"]*)#\$1\$2 ${CXXFLAGS} -I${_PREFIX_WIN}/Library/include -I${_BUILD_PREFIX_WIN}/Library/x86_64-w64-mingw32/sysroot/usr/include#" "${settings_file}"
+  # The includes must be in the settings file, not just in environment CFLAGS
+  # Use Windows format paths (_PREFIX_WIN, _BUILD_PREFIX_WIN, GCC_INCLUDE_DIR_WIN) for GCC (Windows native binary)
+  perl -pi -e "s#(C compiler flags\", \")([^\"]*)#\$1\$2 ${CFLAGS} -I${GCC_INCLUDE_DIR_WIN} -I${_PREFIX_WIN}/Library/include -I${_BUILD_PREFIX_WIN}/Library/x86_64-w64-mingw32/sysroot/usr/include#" "${settings_file}"
+  perl -pi -e "s#(C\+\+ compiler flags\", \")([^\"]*)#\$1\$2 ${CXXFLAGS} -I${GCC_INCLUDE_DIR_WIN} -I${_PREFIX_WIN}/Library/include -I${_BUILD_PREFIX_WIN}/Library/x86_64-w64-mingw32/sysroot/usr/include#" "${settings_file}"
   # Clang preprocessor flags with -traditional-cpp for Haskell compatibility
   # -traditional-cpp: Traditional (pre-standard) preprocessing, handles # in identifiers
   perl -pi -e "s#(Haskell CPP flags\", \")[^\"]*#\$1-E -undef -traditional-cpp -I${_BUILD_PREFIX_WIN}/Library/include -I${_PREFIX_WIN}/Library/include#" "${settings_file}"
