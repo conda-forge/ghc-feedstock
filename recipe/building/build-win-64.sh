@@ -205,9 +205,11 @@ if [[ -f "${settings_file}" ]]; then
 
   CHKSTK_DIR=$(dirname "${CHKSTK_LIB}")
   MINGW_SYSROOT="${_BUILD_PREFIX}/Library/x86_64-w64-mingw32/sysroot/usr/lib"
+  GCC_LIB_DIR="${_BUILD_PREFIX}/Library/lib/gcc/x86_64-w64-mingw32/15.2.0"
 
   # Build complete link flags string - libraries come AFTER user objects
-  LINK_FLAGS="-Wl,--subsystem,console -Wl,--enable-auto-import -Wl,--image-base=0x140000000 -Wl,--dynamicbase -Wl,--high-entropy-va -Xlinker -L${CHKSTK_DIR} -Xlinker -L${MINGW_SYSROOT}"
+  # CRITICAL: Add GCC_LIB_DIR so linker can find libgcc.a and libgcc_eh.a
+  LINK_FLAGS="-Wl,--subsystem,console -Wl,--enable-auto-import -Wl,--image-base=0x140000000 -Wl,--dynamicbase -Wl,--high-entropy-va -Xlinker -L${GCC_LIB_DIR} -Xlinker -L${CHKSTK_DIR} -Xlinker -L${MINGW_SYSROOT}"
   LINK_FLAGS="${LINK_FLAGS} -Xlinker -lmoldname"
   LINK_FLAGS="${LINK_FLAGS} -Xlinker -lmingwex"
   LINK_FLAGS="${LINK_FLAGS} -Xlinker -lmingw32"
