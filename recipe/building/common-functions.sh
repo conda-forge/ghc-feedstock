@@ -30,12 +30,12 @@ run_and_log() {
   shift
 
   ((_log_index++))
-  local log_file="_logs/$(printf "%02d" ${_log_index})-${phase}.log"
+  local log_file="${SRC_DIR}/_logs/$(printf "%02d" ${_log_index})-${phase}.log"
 
   echo "  Running: $*"
   echo "  Log: ${log_file}"
 
-  "$@" 2>&1 | tee "${log_file}"
+  "$@" 2>&1 || { echo "***"; echo "***"; tail -50 "${log_file}"; return 1; }
   return ${PIPESTATUS[0]}
 }
 
