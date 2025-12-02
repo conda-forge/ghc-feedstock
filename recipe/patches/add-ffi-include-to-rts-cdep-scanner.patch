@@ -1,10 +1,9 @@
 --- a/hadrian/src/Settings/Packages.hs
 +++ b/hadrian/src/Settings/Packages.hs
-@@ -326,6 +326,10 @@
+@@ -326,6 +326,9 @@
            , arg "-Irts"
            , arg $ "-I" ++ path
 
-+
 +          -- Add system FFI include directory for dependency scanning
 +          -- FindCDependencies needs to find ffi.h to build dependency graph
 +          , useSystemFfi ? arg ("-I" ++ ffiIncludeDir)
