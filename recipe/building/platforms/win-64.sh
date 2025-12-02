@@ -522,6 +522,16 @@ patch_stage1_settings_for_relocation_fix() {
     return 1
   fi
 
+  # CRITICAL: Expand any unexpanded conda variables in settings file
+  # GHC's configure may write %VAR% or $ENV{VAR} patterns that need expansion
+  echo "  Expanding conda variables in Stage1 settings..."
+  perl -pi -e "s#%PREFIX%#${_PREFIX}#g" "${settings_file}"
+  perl -pi -e "s#%BUILD_PREFIX%#${_BUILD_PREFIX}#g" "${settings_file}"
+  perl -pi -e "s#%SRC_DIR%#${_SRC_DIR}#g" "${settings_file}"
+  perl -pi -e "s#\\\$ENV{PREFIX}#${_PREFIX}#g" "${settings_file}"
+  perl -pi -e "s#\\\$ENV{BUILD_PREFIX}#${_BUILD_PREFIX}#g" "${settings_file}"
+  perl -pi -e "s#\\\$ENV{SRC_DIR}#${_SRC_DIR}#g" "${settings_file}"
+
   # Directories for linking
   local CHKSTK_DIR="${_BUILD_PREFIX}/Library/lib"
   local MINGW_SYSROOT="${_BUILD_PREFIX}/Library/x86_64-w64-mingw32/sysroot/usr/lib"
