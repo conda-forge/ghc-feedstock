@@ -1,0 +1,18 @@
+--- a/hadrian/src/Settings/Builders/Hsc2Hs.hs
++++ b/hadrian/src/Settings/Builders/Hsc2Hs.hs
+@@ -11,6 +11,7 @@ hsc2hsBuilderArgs = builder Hsc2Hs ? do
+     stage   <- getStage
+     ccPath  <- getBuilderPath $ Cc CompileC stage
+     gmpDir  <- getSetting GmpIncludeDir
++    ffiDir  <- getSetting FfiIncludeDir
+     top     <- expr topDirectory
+     hArch   <- getSetting HostArch
+     hOs     <- getSetting HostOs
+@@ -23,6 +24,7 @@ hsc2hsBuilderArgs = builder Hsc2Hs ? do
+             , arg $ "--ld=" ++ ccPath
+             , notM isWinTarget ? notM (flag CrossCompiling) ? arg "--cross-safe"
+             , pure $ map ("-I" ++) (words gmpDir)
++            , pure $ map ("-I" ++) (words ffiDir)
+             , map ("--cflag=" ++) <$> getCFlags
+             , map ("--lflag=" ++) <$> getLFlags
+             , notStage0 ? flag CrossCompiling ? arg "--cross-compile"
