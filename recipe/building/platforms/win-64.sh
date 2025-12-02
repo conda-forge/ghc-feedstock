@@ -61,9 +61,11 @@ platform_setup_environment() {
   remove_problematic_flags
 
   # Add Windows-specific include and library paths
-  # Use -isystem for system headers like ffi.h (searched with <> not "")
-  export CFLAGS="-isystem${_BUILD_PREFIX}/Library/include -I${_BUILD_PREFIX}/Library/include ${CFLAGS:-}"
-  export CXXFLAGS="-isystem${_BUILD_PREFIX}/Library/include -I${_BUILD_PREFIX}/Library/include ${CXXFLAGS:-}"
+  # Add include paths for system headers like ffi.h in two stages:
+  # 1. Basic path in patch_bootstrap_settings() before configure
+  # 2. Complete paths in patch_stage0_settings_include_paths() after stage1:exe:ghc-bin
+  export CFLAGS="-I${_BUILD_PREFIX}/Library/include ${CFLAGS:-}"
+  export CXXFLAGS="-I${_BUILD_PREFIX}/Library/include ${CXXFLAGS:-}"
   export LDFLAGS="-L${_BUILD_PREFIX}/Library/lib -L${_BUILD_PREFIX}/Library/lib/gcc/x86_64-w64-mingw32/15.2.0 ${LDFLAGS:-}"
 
   echo "  Flags configured:"
@@ -219,7 +221,7 @@ platform_build_hadrian() {
 
   # Build Hadrian with single-threaded build to avoid race conditions
   # Parallel ghc-pkg updates can conflict on package.cache
-  run_and_log "build-hadrian" "${CABAL}" v2-build -j${CPU_COUNT} hadrian || { cat "${SRC_DIR}"/_logs/*build-hadrian.log; return 1; }
+  run_and_log "build-hadrian" "${CABAL}" v2-build -j${CPU_COUNT} hadrian
 
   popd >/dev/null
 
@@ -231,8 +233,7 @@ platform_build_hadrian() {
     exit 1
   fi
 
-  # Set up Hadrian command array (single-threaded for Windows)
-  HADRIAN_CMD=("${hadrian_bin}" "-j1" "--directory" "${_SRC_DIR}")
+  HADRIAN_CMD=("${hadrian_bin}" "-j${CPU_COUNT}" "--directory" "${_SRC_DIR}")
   HADRIAN_FLAVOUR="quickest"
 
   echo "  Hadrian binary: ${hadrian_bin}"
@@ -242,11 +243,38 @@ platform_build_hadrian() {
 # Phase 6: Build Stage 1
 # ==============================================================================
 
+patch_stage0_settings_include_paths() {
+  echo "  Patching Stage0 settings with include paths for ffi.h, gmp.h, etc..."
+
+  local settings_file="${_SRC_DIR}/_build/stage0/lib/settings"
+
+  if [[ ! -f "${settings_file}" ]]; then
+    echo "WARNING: Stage0 settings file not found at ${settings_file}"
+    return 1
+  fi
+
+  # Add include paths for system headers (ffi.h, gmp.h, etc.)
+  # CRITICAL: Use _PREFIX (Unix paths) NOT PREFIX (Windows paths)
+  # CRITICAL: Include both _PREFIX and _BUILD_PREFIX
+  # Use correct regex with closing quote capture group
+  perl -pi -e "s#(C compiler flags\", \")([^\"]*)(\")#\$1\$2 -I${_PREFIX}/Library/include -I${_BUILD_PREFIX}/Library/include\$3#" "${settings_file}"
+  perl -pi -e "s#(C\+\+ compiler flags\", \")([^\"]*)(\")#\$1\$2 -I${_PREFIX}/Library/include -I${_BUILD_PREFIX}/Library/include\$3#" "${settings_file}"
+
+  echo "  Stage0 settings after adding include paths:"
+  grep "C compiler flags\|C++ compiler flags" "${settings_file}" || echo "  (grep failed)"
+
+  echo "  ✓ Stage0 settings include paths added"
+}
+
 platform_build_stage1() {
   echo "  Building Stage 1 GHC (Windows)..."
 
   # Build Stage 1 GHC compiler
   run_and_log "stage1-ghc" "${HADRIAN_CMD[@]}" --flavour="${HADRIAN_FLAVOUR}" stage1:exe:ghc-bin
+
+  # CRITICAL: After stage1:exe:ghc-bin creates _build/stage0/lib/settings,
+  # patch it with include paths BEFORE building libraries that need ffi.h
+  patch_stage0_settings_include_paths
 
   # Build Stage 1 supporting tools
   run_and_log "stage1-pkg" "${HADRIAN_CMD[@]}" --flavour="${HADRIAN_FLAVOUR}" stage1:exe:ghc-pkg
@@ -320,10 +348,14 @@ platform_build_stage2() {
   # Patch Stage1 settings file (created by stage2:exe:ghc-bin)
   patch_stage2_settings
 
+  # Build Stage 1 supporting tools
+  run_and_log "stage2-pkg" "${HADRIAN_CMD[@]}" --flavour="${HADRIAN_FLAVOUR}" stage2:exe:ghc-pkg --freeze1 --docs=none --progress-info=none
+  run_and_log "stage2-hsc2hs" "${HADRIAN_CMD[@]}" --flavour="${HADRIAN_FLAVOUR}" stage2:exe:hsc2hs --freeze1 --docs=none --progress-info=none
+
   # Build Stage 2 GHC libraries with live output
   echo "  Command: ${HADRIAN_CMD[*]} stage2:lib:ghc --flavour=${HADRIAN_FLAVOUR} --freeze1 --docs=none --progress-info=none"
 
-  "${HADRIAN_CMD[@]}" stage2:lib:ghc --flavour="${HADRIAN_FLAVOUR}" --freeze1 --docs=none --progress-info=none || {
+  run_and_log "stage2-lib" "${HADRIAN_CMD[@]}" stage2:lib:ghc --flavour="${HADRIAN_FLAVOUR}" --freeze1 --docs=none --progress-info=none || {
     stage2_exit=$?
     echo "ERROR: stage2:lib:ghc failed with exit code ${stage2_exit}"
     exit ${stage2_exit}
@@ -500,11 +532,16 @@ patch_bootstrap_settings() {
   fi
 
   # Update include paths
-  # Use -isystem for system headers (ffi.h, gmp.h, etc.) searched with <> not ""
+  # Replace bootstrap's mingw/include with conda include paths
   perl -pi -e "s#-I\\\$tooldir/mingw/include#-I${_BUILD_PREFIX}/Library/include#g" "${settings_file}"
-  perl -pi -e "s#(C compiler flags\", \")([^\"]*)#\$1\$2 ${CFLAGS} -isystem${_PREFIX}/Library/include -I${_PREFIX}/Library/include#" "${settings_file}"
-  perl -pi -e "s#(C\+\+ compiler flags\", \")([^\"]*)#\$1\$2 ${CXXFLAGS} -isystem${_PREFIX}/Library/include -I${_PREFIX}/Library/include#" "${settings_file}"
-  perl -pi -e "s#(Haskell CPP flags\", \")[^\"]*#\$1-E -undef -traditional-cpp -isystem${_BUILD_PREFIX}/Library/include -I${_BUILD_PREFIX}/Library/include -isystem${_PREFIX}/Library/include -I${_PREFIX}/Library/include#" "${settings_file}"
+
+  # Add CFLAGS and basic include path to compiler flags
+  # Note: More include paths will be added later in patch_stage0_settings_include_paths()
+  perl -pi -e "s#(C compiler flags\", \")([^\"]*)#\$1\$2 ${CFLAGS} -I${_PREFIX}/Library/include#" "${settings_file}"
+  perl -pi -e "s#(C\+\+ compiler flags\", \")([^\"]*)#\$1\$2 ${CXXFLAGS} -I${_PREFIX}/Library/include#" "${settings_file}"
+
+  # Haskell CPP needs traditional-cpp for Haskell compatibility
+  perl -pi -e "s#(Haskell CPP flags\", \")[^\"]*#\$1-E -undef -traditional-cpp -I${_BUILD_PREFIX}/Library/include -I${_PREFIX}/Library/include#" "${settings_file}"
 
   # Show complete bootstrap settings file for debugging
   echo "  ===== BOOTSTRAP SETTINGS FILE (after patching) ====="
