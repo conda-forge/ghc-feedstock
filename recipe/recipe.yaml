@@ -32,7 +32,7 @@ source:
 
 build:
   number: 0
-  skip: unix
+  skip: unix and not aarch64
 
 requirements:
   build:

@@ -35,7 +35,11 @@ run_and_log() {
   echo "  Running: $*"
   echo "  Log: ${log_file}"
 
-  "$@" 2>&1 || { echo "***"; echo "***"; tail -50 "${log_file}"; return 1; }
+  "$@" > "${log_file}" 2>&1 || {
+    echo "*** Command failed! Last 50 lines:"
+    tail -50 "${log_file}"
+    return 1
+  }
   return ${PIPESTATUS[0]}
 }
 
