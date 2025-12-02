@@ -12,19 +12,17 @@
      flag = interpolateCabalFlag
 --- a/rts/rts.cabal.in	2025-10-31 21:54:35.502935205 -0500
 +++ b/rts/rts.cabal.in	2025-10-31 21:54:49.602894938 -0500
-@@ -201,9 +201,13 @@
+@@ -201,9 +201,11 @@
        if !flag(smp)
           cpp-options: -DNOSMP
- 
-+      -- Package-relative include dirs (prepended with rts/)
+
++      -- Include dirs: package-relative (include) and absolute system paths
++      -- FFI and libdw from configure --with-ffi-includes
        include-dirs: include
 -                    @FFIIncludeDir@
 -                    @LibdwIncludeDir@
-+
-+      -- Absolute include dirs from system dependencies (not prepended)
-+      -- FFI and libdw from configure --with-ffi-includes
-+      extra-include-dirs: @FFIIncludeDir@
-+                          @LibdwIncludeDir@
- 
- 
++                    @FFIIncludeDir@
++                    @LibdwIncludeDir@
+
+
        includes: Rts.h
