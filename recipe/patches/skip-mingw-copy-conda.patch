@@ -1,0 +1,12 @@
+--- a/hadrian/src/Builder.hs
++++ b/hadrian/src/Builder.hs
+@@ -242,7 +242,8 @@
+             unlitPath  <- builderPath Unlit
+
+             return $ [ unlitPath ]
+-                  ++ [ root -/- mingwStamp | windowsHost ]
++                  -- Skip mingw bundling - conda-forge provides toolchain
++                  -- ++ [ root -/- mingwStamp | windowsHost ]
+                      -- proxy for the entire mingw toolchain that
+                      -- we have in inplace/mingw initially, and then at
+                      -- root -/- mingw.

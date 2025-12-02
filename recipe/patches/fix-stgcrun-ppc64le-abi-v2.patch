@@ -1,0 +1,24 @@
+--- a/rts/StgCRun.c
++++ b/rts/StgCRun.c
+@@ -673,6 +673,11 @@ StgRunIsImplementedInAssembler(void)
+ #endif
+
+ #if defined(powerpc64_HOST_ARCH)
++#if !defined(_CALL_ELF) || _CALL_ELF != 2
++/*
++ * PowerPC64 ABI v1 (big-endian) - uses .opd sections for function descriptors
++ * For ppc64le (ABI v2, _CALL_ELF==2), skip this section and use StgCRunAsm.S
++ */
+ /* 64-bit PowerPC ELF ABI 1.9
+  *
+  * Stack frame organization (see Figure 3-17, ELF ABI 1.9, p 14)
+@@ -736,7 +741,8 @@ StgRunIsImplementedInAssembler(void)
+         : : "i"((RESERVED_C_STACK_BYTES+288+15) & ~15 /*stack frame size*/));
+ }
+
+-#endif
++#endif /* !defined(_CALL_ELF) || _CALL_ELF != 2 */
++#endif /* powerpc64_HOST_ARCH */
+
+ #if defined(powerpc64le_HOST_ARCH)
+ /* -----------------------------------------------------------------------------

@@ -1,0 +1,454 @@
+#!/usr/bin/env bash
+# Windows-specific helper functions for GHC build
+#
+# This module provides Windows/MinGW-specific build support including:
+# - Path conversion (Unix ↔ Windows format)
+# - GCC toolchain setup for MinGW-w64 UCRT
+# - chkstk_ms stub library creation
+# - Bootstrap settings patching
+# - system.config Windows-specific modifications
+
+# ============================================================================
+# Path Conversion Utilities
+# ============================================================================
+
+setup_windows_paths() {
+  # Configure Windows-specific path handling
+  # Critical: Replace %VARS% with Unix paths to prevent backslash escape issues
+  # When %PREFIX% expands to C:\bld\..., the \b becomes backspace character!
+
+  # Expand conda variables in CFLAGS/CXXFLAGS/LDFLAGS
+  # Replace %PREFIX%, %BUILD_PREFIX%, %SRC_DIR% with Unix path equivalents
+  CFLAGS=$(echo "${CFLAGS}" | perl -pe "s|%BUILD_PREFIX%|${_BUILD_PREFIX}|g; s|%PREFIX%|${_PREFIX}|g; s|%SRC_DIR%|${_SRC_DIR}|g")
+  CXXFLAGS=$(echo "${CXXFLAGS}" | perl -pe "s|%BUILD_PREFIX%|${_BUILD_PREFIX}|g; s|%PREFIX%|${_PREFIX}|g; s|%SRC_DIR%|${_SRC_DIR}|g")
+  LDFLAGS=$(echo "${LDFLAGS}" | perl -pe "s|%BUILD_PREFIX%|${_BUILD_PREFIX}|g; s|%PREFIX%|${_PREFIX}|g; s|%SRC_DIR%|${_SRC_DIR}|g")
+
+  # Also handle $ENV{VAR} style references
+  CFLAGS=$(echo "${CFLAGS}" | perl -pe "s|\$ENV{BUILD_PREFIX}|${_BUILD_PREFIX}|g; s|\$ENV{PREFIX}|${_PREFIX}|g; s|\$ENV{SRC_DIR}|${_SRC_DIR}|g")
+  CXXFLAGS=$(echo "${CXXFLAGS}" | perl -pe "s|\$ENV{BUILD_PREFIX}|${_BUILD_PREFIX}|g; s|\$ENV{PREFIX}|${_PREFIX}|g; s|\$ENV{SRC_DIR}|${_SRC_DIR}|g")
+  LDFLAGS=$(echo "${LDFLAGS}" | perl -pe "s|\$ENV{BUILD_PREFIX}|${_BUILD_PREFIX}|g; s|\$ENV{PREFIX}|${_PREFIX}|g; s|\$ENV{SRC_DIR}|${_SRC_DIR}|g")
+
+  # Remove problematic flags from conda environment
+  CFLAGS="${CFLAGS//-nostdlib/}"
+  CXXFLAGS="${CXXFLAGS//-nostdlib/}"
+  LDFLAGS="${LDFLAGS//-nostdlib/}"
+
+  # Remove problematic -Wl,-defaultlib: flags (MSVC-specific)
+  LDFLAGS=$(echo "${LDFLAGS}" | perl -pe 's/-Wl,-defaultlib:[^ ]*//g')
+
+  # Remove -fstack-protector-strong (generates __security_cookie calls incompatible with MinGW)
+  CFLAGS=$(echo "${CFLAGS}" | perl -pe 's/-fstack-protector-strong//g')
+  CXXFLAGS=$(echo "${CXXFLAGS}" | perl -pe 's/-fstack-protector-strong//g')
+
+  # Remove -fms-runtime-lib=dll (forces Microsoft MSVCRT, we want MinGW's msvcrt)
+  CFLAGS=$(echo "${CFLAGS}" | perl -pe 's/-fms-runtime-lib=dll//g')
+  CXXFLAGS=$(echo "${CXXFLAGS}" | perl -pe 's/-fms-runtime-lib=dll//g')
+
+  # Remove flags with Windows paths containing backslashes
+  # -fdebug-prefix-map and -isystem can have corrupted paths (C:\bld → C:␈ld)
+  CFLAGS=$(echo "${CFLAGS}" | perl -pe 's/-fdebug-prefix-map=[^ ]*//g; s/-isystem [^ ]*//g')
+  CXXFLAGS=$(echo "${CXXFLAGS}" | perl -pe 's/-fdebug-prefix-map=[^ ]*//g; s/-isystem [^ ]*//g')
+
+  # Export cleaned flags
+  export CFLAGS
+  export CXXFLAGS
+  export LDFLAGS
+
+  # Set up temp variables with Windows paths
+  export TMP="$(cygpath -w "${TEMP}")"
+  export TMPDIR="$(cygpath -w "${TEMP}")"
+
+  # Override conda's PYTHON (has Windows backslashes) with Unix-format path
+  export PYTHON="${_BUILD_PREFIX}/python.exe"
+}
+
+# ============================================================================
+# GCC Toolchain Setup
+# ============================================================================
+
+setup_windows_gcc_toolchain() {
+  # Configure GCC toolchain for MinGW-w64 UCRT
+  # Uses GCC instead of Clang to match bootstrap GHC's compiler
+  # Bootstrap GHC was built with GCC 15.2.0, not Clang
+
+  local conda_target=x86_64-w64-mingw32
+
+  # Override conda's CC/CXX to use GCC instead of Clang
+  export CC="x86_64-w64-mingw32-gcc.exe"
+  export CXX="x86_64-w64-mingw32-g++.exe"
+  # NOTE: CPP is set by platform config (win-64.sh) to "gcc -E"
+  # Do NOT override here - standalone cpp doesn't handle GHC's configure flags
+
+  # Override conda's toolchain vars with UNIX-style paths
+  # Conda sets these with %BUILD_PREFIX% which may expand to Windows paths with backslashes
+  # BASH/MSYS2 handles UNIX-style paths fine, only specific tools need Windows format
+  export AR="x86_64-w64-mingw32-ar.exe"
+  export AS="x86_64-w64-mingw32-as.exe"
+  export LD="x86_64-w64-mingw32-ld.exe"
+  export NM="x86_64-w64-mingw32-nm.exe"
+  export OBJCOPY="x86_64-w64-mingw32-objcopy.exe"
+  export OBJDUMP="x86_64-w64-mingw32-objdump.exe"
+  export RANLIB="x86_64-w64-mingw32-ranlib.exe"
+  export READELF="x86_64-w64-mingw32-readelf.exe"
+  export STRIP="x86_64-w64-mingw32-strip.exe"
+
+  # Use GNU ld (bfd) for MinGW compatibility (lld defaults to MSVC mode on Windows)
+  CFLAGS=$(echo "${CFLAGS}" | perl -pe 's/-fuse-ld=lld/-fuse-ld=bfd/g')
+  CXXFLAGS=$(echo "${CXXFLAGS}" | perl -pe 's/-fuse-ld=lld/-fuse-ld=bfd/g')
+  LDFLAGS=$(echo "${LDFLAGS}" | perl -pe 's/-fuse-ld=lld/-fuse-ld=bfd/g')
+
+  # Add include and library paths
+  export CFLAGS="-I${_BUILD_PREFIX}/Library/include ${CFLAGS:-}"
+  export CXXFLAGS="-I${_BUILD_PREFIX}/Library/include ${CXXFLAGS:-}"
+  export LDFLAGS="-L${_BUILD_PREFIX}/Library/lib -L${_BUILD_PREFIX}/Library/lib/gcc/x86_64-w64-mingw32/15.2.0 ${LDFLAGS:-}"
+
+  # GCC uses libgcc, not compiler-rt
+  export COMPILER_RT_LIB=""
+
+  # Set library path for runtime linking
+  export LIBRARY_PATH="${_BUILD_PREFIX}/Library/lib${LIBRARY_PATH:+:}${LIBRARY_PATH:-}"
+
+  if [[ -f "${_BUILD_PREFIX}"/ghc-bootstrap/bin/windres.bat ]]; then
+    # Specific to ghc-bootstrap 9.6.7
+    perl -pi -e 's/findstr/C:\\Windows\\System32\\findstr/g' "${_BUILD_PREFIX}"/ghc-bootstrap/bin/windres.bat
+    perl -pi -e 's/Library\\x86_64-w64-mingw32\\bin\\windres.exe/Library\\bin\\x86_64-w64-mingw32-windres/' "${_BUILD_PREFIX}"/ghc-bootstrap/bin/windres.bat
+    perl -pi -e 's/REM Set environment variables for windres/set PATH=%BUILD_PREFIX%\\Library\\bin;%PATH%/' "${_BUILD_PREFIX}"/ghc-bootstrap/bin/windres.bat
+  fi
+  cat "${_BUILD_PREFIX}"/ghc-bootstrap/bin/windres.bat
+}
+
+# ============================================================================
+# chkstk_ms Stub Library
+# ============================================================================
+
+create_chkstk_stub() {
+  # Create ___chkstk_ms stub library
+  # MinGW libraries reference this symbol but don't provide it
+  # GCC generates calls to this symbol for stack checking
+  #
+  # CRITICAL: Must be created BEFORE updating bootstrap settings file
+
+  pushd "${_SRC_DIR}" >/dev/null
+
+  # Create assembly stub
+  cat > chkstk_ms.s <<'EOF'
+  .text
+  .globl ___chkstk_ms
+  .def ___chkstk_ms; .scl 2; .type 32; .endef
+___chkstk_ms:
+  ret
+EOF
+
+  # Compile the stub
+  x86_64-w64-mingw32-gcc -c chkstk_ms.s -o chkstk_ms.o
+
+  # Create static library
+  x86_64-w64-mingw32-ar rcs libchkstk_ms.a chkstk_ms.o
+
+  # Install to library directory
+  cp libchkstk_ms.a "${_BUILD_PREFIX}/Library/lib/"
+
+  # Verify library was created
+  if [[ ! -f "${_BUILD_PREFIX}/Library/lib/libchkstk_ms.a" ]]; then
+    echo "ERROR: Failed to create chkstk_ms library"
+    exit 1
+  fi
+
+  # Add to LDFLAGS so all packages link against it
+  export LDFLAGS="${LDFLAGS} -lchkstk_ms"
+
+  popd >/dev/null
+}
+
+# ============================================================================
+# MinGW/UCRT Setup
+# ============================================================================
+
+setup_windows_mingw() {
+  # Configure MinGW and UCRT (Universal C Runtime) integration
+  # Detects Windows SDK paths and sets up include/library paths
+
+  # Detect Windows SDK paths
+  local SDK_PATH=$(ls -1d /c/Program*Files*x86*/Windows*/10 2>/dev/null | head -1)
+  SDK_PATH=$(cygpath -u "$(cygpath -d "${SDK_PATH}")")
+  local SDK_VER=$(ls -1 "${SDK_PATH}"/Include/ 2>/dev/null | grep "^10\." | sort -V | tail -1)
+
+  # UCRT and Windows SDK include paths
+  export UCRT_INCLUDE="${SDK_PATH}/Include/${SDK_VER}/ucrt"
+  export UM_INCLUDE="${SDK_PATH}/Include/${SDK_VER}/um"
+  export SHARED_INCLUDE="${SDK_PATH}/Include/${SDK_VER}/shared"
+  export CPPWINRT_INCLUDE="${SDK_PATH}/Include/${SDK_VER}/cppwinrt"
+  export WINRT_INCLUDE="${SDK_PATH}/Include/${SDK_VER}/winrt"
+
+  # UCRT and Windows SDK library paths
+  export UCRT_LIB="${SDK_PATH}/Lib/${SDK_VER}/ucrt/x64"
+  export UM_LIB="${SDK_PATH}/Lib/${SDK_VER}/um/x64"
+
+  # Detect MSVC paths (for compatibility, though we use GCC)
+  local MSVC_BASE=$(ls -1d /c/Program*/Microsoft*/*/*/VC/Tools/MSVC 2>/dev/null | sort -V | tail -1)
+  if [[ -n "${MSVC_BASE}" ]]; then
+    MSVC_BASE=$(cygpath -u "$(cygpath -d "${MSVC_BASE}")")
+    local MSVC_VER=$(ls -1 "${MSVC_BASE}" 2>/dev/null | sort -V | tail -1)
+    export MSVC_INCLUDE="${MSVC_BASE}/${MSVC_VER}/include"
+  fi
+
+  # Force use of conda-provided toolchain and libraries
+  export UseSystemMingw=YES
+  export WindowsToolchainAutoconf=NO
+  export WINDOWS_TOOLCHAIN_AUTOCONF=no
+  export UseSystemFfi=YES
+  export ac_cv_use_system_libffi=yes
+  export ac_cv_lib_ffi_ffi_call=yes
+
+  export CXX_STD_LIB_LIBS="stdc++"
+}
+
+# ============================================================================
+# Bootstrap Settings Patching
+# ============================================================================
+
+patch_bootstrap_settings_windows() {
+  # Patch Stage0 (bootstrap) GHC settings file
+  # Critical: Fix paths to use conda-provided tools instead of removed bundled mingw
+  #
+  # TIMING: Must run AFTER create_chkstk_stub() and BEFORE configure
+
+  # Windows ghc-bootstrap package installs to lib/settings (no version subdir)
+  # Unlike Linux/macOS which use lib/ghc-VERSION/lib/settings
+  local settings_file="${_BUILD_PREFIX}/ghc-bootstrap/lib/settings"
+
+  if [[ ! -f "${settings_file}" ]]; then
+    echo "WARNING: Bootstrap settings file not found at ${settings_file}"
+    return 1
+  fi
+
+  # Fix merge-objects to use conda's GNU ld (not removed bundled ld.lld)
+  perl -pi -e "s#(Merge objects command\", \")[^\"]*#\$1${LD}#" "${settings_file}"
+
+  # Fix all references to removed ghc-bootstrap/mingw to use conda's Library/bin
+  # The bootstrap originally had bundled mingw, but we removed it
+  # Match with optional prefix to preserve format:
+  #   %BUILD_PREFIX%/ghc-bootstrap/mingw/bin/ -> %BUILD_PREFIX%/Library/bin/
+  #   ghc-bootstrap/mingw/bin/ -> Library/bin/
+  perl -pi -e 's#(%BUILD_PREFIX%/)?ghc-bootstrap/mingw/bin/#$1Library/bin/#g' "${settings_file}"
+
+  # CRITICAL: Also fix $tooldir/mingw/ references (GHC runtime variable)
+  # $tooldir expands to GHC installation root at runtime
+  # We need to redirect from removed bundled mingw to conda's Library/
+  #   $tooldir/mingw/bin/ -> $tooldir/../Library/bin/
+  #   $tooldir/mingw/include -> $tooldir/../Library/include
+  perl -pi -e 's#\$tooldir/mingw/bin/#\$tooldir/../Library/bin/#g' "${settings_file}"
+  perl -pi -e 's#\$tooldir/mingw/include#\$tooldir/../Library/include#g' "${settings_file}"
+
+  # CRITICAL: Replace ld.lld.exe with ld.exe (we use GNU ld, not LLVM lld)
+  # The bundled mingw had ld.lld, but conda uses GNU ld
+  perl -pi -e 's#ld\.lld\.exe#ld.exe#g' "${settings_file}"
+
+  echo "  ✓ Bootstrap settings patched (redirected mingw → Library/bin)"
+
+  # DEBUG: Show merge-objects command after patching
+  echo "  DEBUG: Merge objects command in bootstrap settings:"
+  grep "Merge objects command" "${settings_file}" || echo "  (not found)"
+
+  # DEBUG: Show if any mingw paths remain
+  echo "  DEBUG: Checking for remaining mingw paths in bootstrap settings:"
+  if grep -i "mingw" "${settings_file}"; then
+    echo "  WARNING: Found mingw references in settings file!"
+    grep "mingw" "${settings_file}" | head -5
+  else
+    echo "  ✓ No mingw paths found in settings (patching succeeded)"
+  fi
+}
+
+# ============================================================================
+# system.config Patching
+# ============================================================================
+
+patch_system_config_windows() {
+  # Patch Hadrian's system.config file for Windows build
+  # Critical: Force use of system toolchain and libraries
+  #
+  # TIMING: Must run AFTER configure
+
+  local config_file="${_SRC_DIR}/hadrian/cfg/system.config"
+
+  if [[ ! -f "${config_file}" ]]; then
+    echo "ERROR: system.config not found at ${config_file}"
+    return 1
+  fi
+
+  # Fix Python path (configure sets Linux path, we need Windows)
+  # Use forward slashes to avoid escape sequence issues (\n, \t, \b, etc.)
+  perl -pi -e "s#(^python\\s*=).*#\$1 ${_PYTHON}#" "${config_file}"
+
+  echo "=== Expanding conda variables in system.config ==="
+  # Replace %PREFIX%, %BUILD_PREFIX%, %SRC_DIR% with their Unix path equivalents
+  # This prevents backslash escape sequences when Windows expands these variables
+  perl -pi -e "s#%PREFIX%#${_PREFIX}#g" "${config_file}"
+  perl -pi -e "s#%BUILD_PREFIX%#${_BUILD_PREFIX}#g" "${config_file}"
+  perl -pi -e "s#%SRC_DIR%#${_SRC_DIR}#g" "${config_file}"
+
+  perl -pi -e "s#\$ENV{PREFIX}#${_PREFIX}#g" "${config_file}"
+  perl -pi -e "s#\$ENV{BUILD_PREFIX}#${_BUILD_PREFIX}#g" "${config_file}"
+  perl -pi -e "s#\$ENV{SRC_DIR}#${_SRC_DIR}#g" "${config_file}"
+
+  echo "=== Converting FFI paths to Windows format in system.config ==="
+  perl -pi -e 's#^ffi-include-dir\s*=\s*/c/#ffi-include-dir   = C:/#' "${config_file}"
+  perl -pi -e 's#^ffi-lib-dir\s*=\s*/c/#ffi-lib-dir       = C:/#' "${config_file}"
+  perl -pi -e 's#^([a-z-]+dir)\s*=\s*/c/#$1 = C:/#g' "${config_file}"
+  perl -pi -e "s#^(intree-gmp\s*=\s*).*#\$1NO#" "${config_file}"
+
+  echo "=== Forcing system toolchain and libffi settings ==="
+  # Force use of conda toolchain (not inplace MinGW)
+  perl -pi -e 's#^use-system-mingw\s*=\s*.*$#use-system-mingw = YES#' "${config_file}"
+  perl -pi -e 's#^windows-toolchain-autoconf\s*=\s*.*$#windows-toolchain-autoconf = NO#' "${config_file}"
+
+  # Force use of conda libffi
+  perl -pi -e 's#^use-system-ffi\s*=\s*.*$#use-system-ffi = YES#' "${config_file}"
+
+  # CRITICAL: Explicitly set ALL library paths (not just FFI)
+  # Configure may use default %PREFIX% which isn't expanded, or wrong paths
+  # These MUST be actual paths, not placeholders, for Hadrian to pass to RTS configure
+  # IMPORTANT: Use BUILD_PREFIX (where libraries are during build), not PREFIX (install destination)
+  perl -pi -e "s#^ffi-include-dir\s*=\s*.*\$#ffi-include-dir   = ${_BUILD_PREFIX}/Library/include#" "${config_file}"
+  perl -pi -e "s#^ffi-lib-dir\s*=\s*.*\$#ffi-lib-dir       = ${_BUILD_PREFIX}/Library/lib#" "${config_file}"
+  perl -pi -e "s#^gmp-include-dir\s*=\s*.*\$#gmp-include-dir   = ${_BUILD_PREFIX}/Library/include#" "${config_file}"
+  perl -pi -e "s#^gmp-lib-dir\s*=\s*.*\$#gmp-lib-dir       = ${_BUILD_PREFIX}/Library/lib#" "${config_file}"
+  perl -pi -e "s#^iconv-include-dir\s*=\s*.*\$#iconv-include-dir = ${_BUILD_PREFIX}/Library/include#" "${config_file}"
+  perl -pi -e "s#^iconv-lib-dir\s*=\s*.*\$#iconv-lib-dir     = ${_BUILD_PREFIX}/Library/lib#" "${config_file}"
+
+  # CRITICAL: Fix system-merge-objects to use GNU ld
+  # The bootstrap's system-merge-objects may point to wrong ld (ld.lld, or nonexistent mingw/bin/ld.exe)
+  # We need GNU ld which works with MinGW .a files
+  # Match ANY line with system-merge-objects, not just those containing ld.lld
+  perl -pi -e 's#^system-merge-objects\s*=\s*.*$#system-merge-objects = '"${LD}"'#' "${config_file}"
+
+  echo "=== system.config library paths (after patching) ==="
+  cat "${config_file}" | grep "include-dir\|lib-dir\|windres\|dllwrap\|system-mingw\|system-ffi\|merge-objects"
+  echo "====================================================="
+
+  # Verify FFI paths are correct
+  echo "=== Verifying FFI header exists ==="
+  if [[ -f "${_BUILD_PREFIX}/Library/include/ffi.h" ]]; then
+    echo "✓ ffi.h found at ${_BUILD_PREFIX}/Library/include/ffi.h"
+  else
+    echo "✗ WARNING: ffi.h NOT found at ${_BUILD_PREFIX}/Library/include/ffi.h"
+    echo "  Searching for ffi.h:"
+    find "${_BUILD_PREFIX}" -name "ffi.h" 2>/dev/null || echo "  ffi.h not found anywhere in BUILD_PREFIX"
+  fi
+  echo "========================================="
+
+  # GHC 9.10+ uses ghc-toolchain which creates its own config files
+  # These must also be patched to fix invalid Windows paths
+  echo "=== Patching ghc-toolchain output files (GHC 9.10+) ==="
+  patch_ghc_toolchain_output
+}
+
+patch_ghc_toolchain_output() {
+  # GHC 9.10+ introduces ghc-toolchain which runs during configure
+  # Problem: Both configure-created and ghc-toolchain-created files may have
+  # invalid UNIX paths /c/bld/... converted to broken \\c\\bld\... (Haskell escaped)
+  # Solution: Convert to Windows format C:/bld/...
+  #
+  # Files that need patching:
+  # - default.target (created by configure) - ALWAYS exists in 9.10+
+  # - default.host.target (created by configure) - exists for cross-compile
+  # - default.target.ghc-toolchain (created by ghc-toolchain.exe) - may fail to create
+  # - default.host.target.ghc-toolchain (created by ghc-toolchain.exe) - may fail to create
+  #
+  # Format (Haskell syntax):
+  # tgtCCompiler = Cc {ccProgram = Program { prgPath = "\\c\\bld\\..." , prgFlags = [...] }}
+
+  local toolchain_dir="${_SRC_DIR}/hadrian/cfg"
+  local files_found=0
+
+  if [[ ! -d "${toolchain_dir}" ]]; then
+    echo "  hadrian/cfg directory not found (expected for GHC <9.10)"
+    return 0
+  fi
+
+  # Patch ALL toolchain files (both configure-created and ghc-toolchain-created)
+  # Pattern matches: default.target, default.host.target, *.ghc-toolchain
+  for toolchain_file in "${toolchain_dir}"/default.target "${toolchain_dir}"/default.host.target "${toolchain_dir}"/*.ghc-toolchain; do
+    if [[ -f "${toolchain_file}" ]]; then
+      files_found=$((files_found + 1))
+      local filename=$(basename "${toolchain_file}")
+      echo "  Patching ${filename}..."
+
+      # Step 0: Expand conda variable placeholders (ghc-toolchain creates files with %BUILD_PREFIX% unexpanded!)
+      # CRITICAL: ghc-toolchain files use Haskell syntax, NOT batch syntax - Haskell won't expand %BUILD_PREFIX%
+      # Convert: prgPath = "%BUILD_PREFIX%/Library/bin/..." -> prgPath = "/c/bld/.../Library/bin/..."
+      # Then subsequent steps convert /c/bld/... -> C:/bld/...
+      perl -pi -e "s#%BUILD_PREFIX%#${_BUILD_PREFIX}#g" "${toolchain_file}"
+      perl -pi -e "s#%PREFIX%#${_PREFIX}#g" "${toolchain_file}"
+      perl -pi -e "s#%SRC_DIR%#${_SRC_DIR}#g" "${toolchain_file}"
+
+      # Step 1: Convert UNIX drive letter format to Windows format (configure-created files)
+      # UNIX format: prgPath = "/c/bld/..." (used in default.target, default.host.target)
+      # Windows format: prgPath = "C:/bld/..."
+      # Pattern: "/c/" -> "C:/", "/d/" -> "D:/", etc.
+      perl -pi -e 's#"/([a-z])/#"\U$1:/#g' "${toolchain_file}"
+
+      # Step 2: Convert Haskell escaped paths to Windows format (ghc-toolchain-created files)
+      # Haskell escaped format: prgPath = "\\c\\bld\\..." (used in *.ghc-toolchain files)
+      # Windows format: prgPath = "C:/bld/..."
+      # Pattern: "\\c\\ -> "C:/
+      perl -pi -e 's#"\\\\([a-z])\\\\#"\U$1:/#g' "${toolchain_file}"
+
+      # Step 3: Fix remaining directory separators \\ -> / (for Haskell escaped paths)
+      perl -pi -e 's#\\\\#/#g' "${toolchain_file}"
+
+      # Step 4: Convert relative paths to full paths (default.host.target uses relative paths)
+      # CRITICAL: Only match paths that start with the tool name (no directory component)
+      # This prevents double-prefixing paths that already have directory components
+      # Pattern: prgPath = "x86_64-w64-mingw32-tool[.exe]" (no leading / or C:)
+      # Reject: prgPath = "/c/.../x86_64-w64-mingw32-tool" (has directory)
+      # Reject: prgPath = "C:/.../x86_64-w64-mingw32-tool" (has drive letter)
+      local build_prefix_unix="${_BUILD_PREFIX}"
+      # Use negative lookbehind to ensure no / or : before tool name
+      # Match: prgPath = "x86_64-w64-mingw32-gcc.exe"
+      # Skip: prgPath = "/c/.../x86_64-w64-mingw32-gcc.exe"
+      # Skip: prgPath = "C:/.../x86_64-w64-mingw32-gcc.exe"
+      perl -pi -e "s#(prgPath\s*=\s*\")(?<![:/])(x86_64-w64-mingw32-[^/\"]+)\"#\$1${build_prefix_unix}/Library/bin/\$2\"#g" "${toolchain_file}"
+
+      # Step 5: Redirect removed bootstrap mingw to conda tools
+      # Bootstrap GHC originally had bundled mingw but we removed it
+      # Pattern matches:
+      #   %BUILD_PREFIX%/ghc-bootstrap/mingw/bin/ -> %BUILD_PREFIX%/Library/bin/
+      #   /c/.../ghc-bootstrap/mingw/bin/ -> /c/.../Library/bin/
+      #   ghc-bootstrap/mingw/bin/ -> Library/bin/
+      # Use looser pattern to catch all cases
+      perl -pi -e 's#ghc-bootstrap/mingw/bin/#Library/bin/#g' "${toolchain_file}"
+
+      # Step 6: Add .exe extension to Windows executables (gcc, g++, ar, ld, etc.)
+      # Only for paths that don't already have it
+      # Must include + for g++, and - for tools like ar-lib
+      perl -pi -e 's#(prgPath\s*=\s*"[^"]*/(x86_64-w64-mingw32-[^"/]+))(?<!\.exe)"#$1.exe"#g' "${toolchain_file}"
+
+      echo "    ✓ ${filename} patched"
+
+      # DEBUG: Show sample of patched compiler paths
+      echo "    DEBUG: Sample compiler paths from ${filename}:"
+      grep -E "prgPath.*gcc|prgPath.*g\+\+" "${toolchain_file}" | head -3 || echo "      (no compiler paths found)"
+    fi
+  done
+
+  if [[ ${files_found} -eq 0 ]]; then
+    echo "  No toolchain files found (expected for GHC <9.10)"
+  else
+    echo "  ✓ Patched ${files_found} toolchain file(s)"
+  fi
+}
+
+# ============================================================================
+# Exported Functions
+# ============================================================================
+
+# Make functions available to build scripts
+export -f setup_windows_paths
+export -f setup_windows_gcc_toolchain
+export -f create_chkstk_stub
+export -f setup_windows_mingw
+export -f patch_bootstrap_settings_windows
+export -f patch_system_config_windows
+export -f patch_ghc_toolchain_output

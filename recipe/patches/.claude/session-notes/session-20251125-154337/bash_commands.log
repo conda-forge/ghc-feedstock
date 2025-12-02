@@ -1,0 +1,64 @@
+=== BASH COMMAND EXECUTED ===
+Timestamp: 2025-11-25 15:43:59
+Working Directory: /home/memento/PycharmProjects/Conda-Feedstocks/ghc-feedstock-9.10.2/recipe/patches
+Description: Check pristine line numbers for .hidden StgRun
+Command: cd /tmp && curl -sL "https://downloads.haskell.org/~ghc/9.10.3/ghc-9.10.3-src.tar.xz" | tar -xJ && cd ghc-9.10.3 && echo "=== Before ABI patch ===" && grep -n "\.hidden StgRun" rts/StgCRun.c
+Permission Request: 
+---
+
+=== BASH COMMAND EXECUTED ===
+Timestamp: 2025-11-25 15:44:43
+Working Directory: /home/memento/PycharmProjects/Conda-Feedstocks/ghc-feedstock-9.10.2/recipe/patches
+Description: Download pristine GHC source to test directory
+Command: cd /home/memento/PycharmProjects/Conda-Feedstocks/ghc-feedstock-9.10.2 && echo "=== Simulating patch application ===" && cd /tmp && rm -rf ghc-test && mkdir ghc-test && cd ghc-test && curl -sL "https://downloads.haskell.org/~ghc/9.10.3/ghc-9.10.3-src.tar.xz" | tar -xJ --strip-components=1
+Permission Request: 
+---
+
+=== BASH COMMAND EXECUTED ===
+Timestamp: 2025-11-25 15:44:53
+Working Directory: /home/memento/PycharmProjects/Conda-Feedstocks/ghc-feedstock-9.10.2/recipe/patches
+Description: Download pristine GHC to test patch application
+Command: cd /tmp && mkdir -p ghc-patch-test-$$ && cd ghc-patch-test-$$ && curl -sL "https://downloads.haskell.org/~ghc/9.10.3/ghc-9.10.3-src.tar.xz" | tar -xJ --strip-components=1
+Permission Request: 
+---
+
+=== BASH COMMAND EXECUTED ===
+Timestamp: 2025-11-25 15:45:19
+Working Directory: /home/memento/PycharmProjects/Conda-Feedstocks/ghc-feedstock-9.10.2/recipe/patches
+Description: Find any built source files in the build tree
+Command: find /home/memento/PycharmProjects/Conda-Feedstocks/ghc-feedstock-9.10.2 -name "StgCRunAsm.S" -o -name "StgCRun.c" 2>/dev/null | head -5
+Permission Request: 
+---
+
+=== BASH COMMAND EXECUTED ===
+Timestamp: 2025-11-25 15:45:26
+Working Directory: /home/memento/PycharmProjects/Conda-Feedstocks/ghc-feedstock-9.10.2/recipe/patches
+Description: Check if .hidden was removed in assembly file
+Command: echo "=== StgCRunAsm.S (assembly) - checking .hidden around line 44 ===" && sed -n '40,50p' /home/memento/PycharmProjects/Conda-Feedstocks/ghc-feedstock-9.10.2/build_artifacts/bld/rattler-build_ghc_1763995654/work/rts/StgCRunAsm.S
+Permission Request: 
+---
+
+=== BASH COMMAND EXECUTED ===
+Timestamp: 2025-11-25 15:45:33
+Working Directory: /home/memento/PycharmProjects/Conda-Feedstocks/ghc-feedstock-9.10.2/recipe/patches
+Description: Check if .hidden was removed in C file
+Command: echo "=== StgCRun.c - checking .hidden around line 603 ===" && sed -n '598,608p' /home/memento/PycharmProjects/Conda-Feedstocks/ghc-feedstock-9.10.2/build_artifacts/bld/rattler-build_ghc_1763995654/work/rts/StgCRun.c && echo "" && echo "=== StgCRun.c - checking .hidden around line 713 ===" && sed -n '708,718p' /home/memento/PycharmProjects/Conda-Feedstocks/ghc-feedstock-9.10.2/build_artifacts/bld/rattler-build_ghc_1763995654/work/rts/StgCRun.c
+Permission Request: 
+---
+
+=== BASH COMMAND EXECUTED ===
+Timestamp: 2025-11-25 15:45:46
+Working Directory: /home/memento/PycharmProjects/Conda-Feedstocks/ghc-feedstock-9.10.2/recipe/patches
+Description: Check what line numbers the patch expects
+Command: echo "=== Current patch expects these line numbers ===" && grep "^@@" recipe/patches/fix-stgrun-visibility-ppc64le.patch
+Permission Request: 
+---
+
+=== BASH COMMAND EXECUTED ===
+Timestamp: 2025-11-25 15:45:51
+Working Directory: /home/memento/PycharmProjects/Conda-Feedstocks/ghc-feedstock-9.10.2/recipe/patches
+Description: Check patch line numbers
+Command: cd /home/memento/PycharmProjects/Conda-Feedstocks/ghc-feedstock-9.10.2 && echo "=== Current patch line numbers ===" && grep "^@@" recipe/patches/fix-stgrun-visibility-ppc64le.patch
+Permission Request: 
+---
+
