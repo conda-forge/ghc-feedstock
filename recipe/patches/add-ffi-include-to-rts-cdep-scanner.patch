@@ -1,13 +1,13 @@
 --- a/hadrian/src/Settings/Packages.hs
 +++ b/hadrian/src/Settings/Packages.hs
-@@ -326,6 +326,10 @@ rtsPackageArgs = package rts ? do
+@@ -326,6 +326,10 @@
            , arg "-Irts"
            , arg $ "-I" ++ path
 
++
 +          -- Add system FFI include directory for dependency scanning
 +          -- FindCDependencies needs to find ffi.h to build dependency graph
-+          , useSystemFfi ? notNull ffiIncludeDir ? arg ("-I" ++ ffiIncludeDir)
-+
++          , useSystemFfi ? arg ("-I" ++ ffiIncludeDir)
            , notM targetSupportsSMP           ? arg "-DNOSMP"
 
            , Debug     `wayUnit` way          ? pure [ "-DDEBUG"
