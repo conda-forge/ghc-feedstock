@@ -61,8 +61,9 @@ platform_setup_environment() {
   remove_problematic_flags
 
   # Add Windows-specific include and library paths
-  export CFLAGS="-I${_BUILD_PREFIX}/Library/include ${CFLAGS:-}"
-  export CXXFLAGS="-I${_BUILD_PREFIX}/Library/include ${CXXFLAGS:-}"
+  # Use -isystem for system headers like ffi.h (searched with <> not "")
+  export CFLAGS="-isystem${_BUILD_PREFIX}/Library/include -I${_BUILD_PREFIX}/Library/include ${CFLAGS:-}"
+  export CXXFLAGS="-isystem${_BUILD_PREFIX}/Library/include -I${_BUILD_PREFIX}/Library/include ${CXXFLAGS:-}"
   export LDFLAGS="-L${_BUILD_PREFIX}/Library/lib -L${_BUILD_PREFIX}/Library/lib/gcc/x86_64-w64-mingw32/15.2.0 ${LDFLAGS:-}"
 
   echo "  Flags configured:"
@@ -499,10 +500,11 @@ patch_bootstrap_settings() {
   fi
 
   # Update include paths
+  # Use -isystem for system headers (ffi.h, gmp.h, etc.) searched with <> not ""
   perl -pi -e "s#-I\\\$tooldir/mingw/include#-I${_BUILD_PREFIX}/Library/include#g" "${settings_file}"
-  perl -pi -e "s#(C compiler flags\", \")([^\"]*)#\$1\$2 ${CFLAGS} -I${_PREFIX}/Library/include#" "${settings_file}"
-  perl -pi -e "s#(C\+\+ compiler flags\", \")([^\"]*)#\$1\$2 ${CXXFLAGS} -I${_PREFIX}/Library/include#" "${settings_file}"
-  perl -pi -e "s#(Haskell CPP flags\", \")[^\"]*#\$1-E -undef -traditional-cpp -I${_BUILD_PREFIX}/Library/include -I${_PREFIX}/Library/include#" "${settings_file}"
+  perl -pi -e "s#(C compiler flags\", \")([^\"]*)#\$1\$2 ${CFLAGS} -isystem${_PREFIX}/Library/include -I${_PREFIX}/Library/include#" "${settings_file}"
+  perl -pi -e "s#(C\+\+ compiler flags\", \")([^\"]*)#\$1\$2 ${CXXFLAGS} -isystem${_PREFIX}/Library/include -I${_PREFIX}/Library/include#" "${settings_file}"
+  perl -pi -e "s#(Haskell CPP flags\", \")[^\"]*#\$1-E -undef -traditional-cpp -isystem${_BUILD_PREFIX}/Library/include -I${_BUILD_PREFIX}/Library/include -isystem${_PREFIX}/Library/include -I${_PREFIX}/Library/include#" "${settings_file}"
 
   # Show complete bootstrap settings file for debugging
   echo "  ===== BOOTSTRAP SETTINGS FILE (after patching) ====="
