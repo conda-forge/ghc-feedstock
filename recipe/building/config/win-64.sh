@@ -231,8 +231,10 @@ platform_post_configure() {
   echo ""
 
   # Check if the critical line exists
-  if grep -q 'useSystemFfi.*ffiIncludeDir.*arg.*"-I"' "${packages_hs}"; then
-    echo "✓ FFI patch APPLIED - ffiIncludeDir line found"
+  # Pattern: useSystemFfi ? arg ("-I" ++ ffiIncludeDir)
+  if grep -q 'useSystemFfi.*arg.*"-I".*ffiIncludeDir' "${packages_hs}"; then
+    echo "✓ FFI patch APPLIED - ffiIncludeDir line found at line 331"
+    echo ""
   else
     echo "✗ FFI patch NOT APPLIED - ffiIncludeDir line missing!"
     echo ""
