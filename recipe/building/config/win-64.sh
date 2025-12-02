@@ -211,6 +211,41 @@ platform_pre_configure() {
 
 platform_post_configure() {
   # Post-configure setup for Windows
+
+  # CRITICAL: Verify FFI patch was applied by conda build system
+  echo ""
+  echo "========================================================================"
+  echo "=== Verifying FFI Patch Application ==="
+  echo "========================================================================"
+
+  local packages_hs="${_SRC_DIR}/hadrian/src/Settings/Packages.hs"
+  if [[ ! -f "${packages_hs}" ]]; then
+    echo "ERROR: ${packages_hs} not found!"
+    exit 1
+  fi
+
+  echo "Checking for FFI include patch in Settings/Packages.hs..."
+  echo ""
+  echo "Lines 324-335 (where patch should be applied):"
+  cat -n "${packages_hs}" | sed -n '324,335p'
+  echo ""
+
+  # Check if the critical line exists
+  if grep -q 'useSystemFfi.*ffiIncludeDir.*arg.*"-I"' "${packages_hs}"; then
+    echo "✓ FFI patch APPLIED - ffiIncludeDir line found"
+  else
+    echo "✗ FFI patch NOT APPLIED - ffiIncludeDir line missing!"
+    echo ""
+    echo "Searching for any ffiIncludeDir references:"
+    grep -n "ffiIncludeDir" "${packages_hs}" || echo "  No matches found"
+    echo ""
+    echo "ERROR: FFI patch was not applied by build system"
+    echo "Build will fail with 'Error, file does not exist: ffi.h'"
+    exit 1
+  fi
+  echo "========================================================================"
+  echo ""
+
   # Patch Hadrian's system.config file
   patch_system_config_windows
 
