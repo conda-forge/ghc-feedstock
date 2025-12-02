@@ -48,13 +48,15 @@ requirements:
     - perl 5.32.*
     - pkg-config
     - python 3.10.*
-    - sphinx
+    # - sphinx
 
     - if: unix
       then:
         - autoconf
         - automake
+        - bash >=5.2
         - file
+        - findutils
         - m4
         - make
         - sed
@@ -62,7 +64,7 @@ requirements:
         - libgcc-devel_win-64
         - m2-autoconf
         - m2-automake-wrapper
-        - m2-bash
+        - m2-bash >=5.2
         - m2-coreutils
         - m2-file
         - m2-findutils
@@ -71,6 +73,7 @@ requirements:
         - m2-make
         - m2-sed
         - m2-tar
+        - m2-which
 
     - if: build_platform != target_platform
       then:
@@ -161,9 +164,11 @@ tests:
         - ${{ compiler('c') }}
         - libiconv
         - if: unix
-          then: ${{ stdlib('c') }}
+          then:
+            - ${{ stdlib('c') }}
         - if: linux
-          then: ld_impl_${{ target_platform }} ${{ binutils_version }}
+          then:
+            - ld_impl_${{ target_platform }} ${{ binutils_version }}
 
   - script: |
       printf 'main = putStrLn "Hello conda-forge"\n' > hello.hs
@@ -175,11 +180,14 @@ tests:
         - ${{ compiler('c') }}
         - libiconv
         - if: unix
-          then: ${{ stdlib('c') }}
+          then:
+            - ${{ stdlib('c') }}
         - if: linux
-          then: ld_impl_${{ target_platform }} ${{ binutils_version }}
+          then:
+            - ld_impl_${{ target_platform }} ${{ binutils_version }}
         - if: osx
-          then: lld or not unix
+          then:
+            - lld ${{ c_compiler_version }}.*
 
   - script:
       - printf 'import System.Posix.Signals\nmain = installHandler sigTERM Default Nothing >> putStrLn "Signal test"\n' > signal_test.hs
@@ -194,11 +202,14 @@ tests:
         - ${{ compiler('c') }}
         - libiconv
         - if: unix
-          then: ${{ stdlib('c') }}
+          then:
+            - ${{ stdlib('c') }}
         - if: linux
-          then: ld_impl_${{ target_platform }} ${{ binutils_version }}
+          then:
+            - ld_impl_${{ target_platform }} ${{ binutils_version }}
         - if: osx
-          then: lld or not unix
+          then:
+            - lld ${{ c_compiler_version }}.*
 
 
 about:
