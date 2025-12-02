@@ -281,6 +281,16 @@ echo "=== Adding chkstk_ms library to LDFLAGS ==="
 export LDFLAGS="${LDFLAGS} -lchkstk_ms"
 echo "LDFLAGS=${LDFLAGS}"
 
+# CRITICAL: Set LIBRARY_PATH for GCC runtime library discovery
+# GCC is a Windows native binary and needs Windows-style paths (C:/ not /c/)
+# Conda sets LIBRARY_PATH with %BUILD_PREFIX% which bash doesn't expand
+# We must override it with actual paths using semicolon separators (Windows style)
+echo "=== Setting LIBRARY_PATH for GCC runtime libraries ==="
+export LIBRARY_PATH="${_BUILD_PREFIX_WIN}/Library/lib/gcc/x86_64-w64-mingw32/15.2.0"
+export LIBRARY_PATH="${LIBRARY_PATH};${_BUILD_PREFIX_WIN}/Library/lib"
+export LIBRARY_PATH="${LIBRARY_PATH};${_BUILD_PREFIX_WIN}/Library/x86_64-w64-mingw32/sysroot/usr/lib"
+echo "LIBRARY_PATH=${LIBRARY_PATH}"
+
 run_and_log "cabal-update" "${CABAL}" v2-update
 
 # Set up temp variables
