@@ -674,10 +674,14 @@ patch_system_config() {
   # Fix Python path
   perl -pi -e "s#(^python\\s*=).*#\$1 ${_PYTHON}#" "${config_file}"
 
-  # Expand conda variables
+  # Expand conda variables - both %VAR% and $ENV{VAR} patterns
   perl -pi -e "s#%PREFIX%#${_PREFIX}#g" "${config_file}"
   perl -pi -e "s#%BUILD_PREFIX%#${_BUILD_PREFIX}#g" "${config_file}"
   perl -pi -e "s#%SRC_DIR%#${_SRC_DIR}#g" "${config_file}"
+
+  perl -pi -e "s#\\\$ENV{PREFIX}#${_PREFIX}#g" "${config_file}"
+  perl -pi -e "s#\\\$ENV{BUILD_PREFIX}#${_BUILD_PREFIX}#g" "${config_file}"
+  perl -pi -e "s#\\\$ENV{SRC_DIR}#${_SRC_DIR}#g" "${config_file}"
 
   # Force use of system toolchain and libraries
   perl -pi -e 's#^use-system-mingw\s*=\s*.*$#use-system-mingw = YES#' "${config_file}"
