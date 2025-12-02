@@ -627,9 +627,10 @@ EOF
     # CRITICAL: GCC's built-in LIBRARY_PATH uses %BUILD_PREFIX% which bash doesn't expand
     # Set LIBRARY_PATH with actual paths so GCC can find libgcc, libgcc_eh, etc.
     # Without this, linker fails with "cannot find -lgcc: No such file or directory"
-    export LIBRARY_PATH="${_BUILD_PREFIX}/Library/lib/gcc/x86_64-w64-mingw32/15.2.0"
-    export LIBRARY_PATH="${LIBRARY_PATH};${_BUILD_PREFIX}/Library/lib"
-    export LIBRARY_PATH="${LIBRARY_PATH};${_BUILD_PREFIX}/Library/x86_64-w64-mingw32/sysroot/usr/lib"
+    # MUST use Windows format paths (_BUILD_PREFIX_WIN) since GCC is a Windows native binary
+    export LIBRARY_PATH="${_BUILD_PREFIX_WIN}/Library/lib/gcc/x86_64-w64-mingw32/15.2.0"
+    export LIBRARY_PATH="${LIBRARY_PATH};${_BUILD_PREFIX_WIN}/Library/lib"
+    export LIBRARY_PATH="${LIBRARY_PATH};${_BUILD_PREFIX_WIN}/Library/x86_64-w64-mingw32/sysroot/usr/lib"
 
     echo "=== LIBRARY_PATH set for GCC ==="
     echo "LIBRARY_PATH: ${LIBRARY_PATH}"
