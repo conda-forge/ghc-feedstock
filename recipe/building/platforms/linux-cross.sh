@@ -58,9 +58,16 @@ platform_setup_environment() {
     ghc-bootstrap=="${PKG_VERSION}" \
     sysroot_linux-64==2.17
 
-  # Get environment path
-  libc2_17_env=$(conda info --envs | grep libc2.17_env | awk '{print $2}')
+  # Get environment path and export for later phases
+  export libc2_17_env=$(conda info --envs | grep libc2.17_env | awk '{print $2}')
   ghc_path="${libc2_17_env}/ghc-bootstrap/bin"
+
+  if [[ -z "${libc2_17_env}" ]]; then
+    echo "ERROR: Failed to find libc2.17_env"
+    conda info --envs
+    exit 1
+  fi
+  echo "  libc2.17 environment: ${libc2_17_env}"
 
   export CABAL="${libc2_17_env}/bin/cabal"
   export CABAL_DIR="${SRC_DIR}/.cabal"
@@ -109,7 +116,25 @@ platform_setup_bootstrap() {
 
 platform_setup_cabal() {
   echo "  Setting up Cabal for cross-compilation..."
-  run_and_log "cabal-update" "${CABAL}" v2-update
+
+  # Debug: verify CABAL is set
+  if [[ -z "${CABAL:-}" ]]; then
+    echo "ERROR: CABAL not set"
+    echo "  libc2_17_env=${libc2_17_env:-NOT SET}"
+    exit 1
+  fi
+  echo "  CABAL: ${CABAL}"
+
+  # Ensure logs directory exists
+  mkdir -p "${SRC_DIR}/_logs"
+
+  # Run cabal update with error details
+  "${CABAL}" v2-update 2>&1 | tee "${SRC_DIR}/_logs/01-cabal-update.log" || {
+    echo "ERROR: Cabal update failed"
+    tail -50 "${SRC_DIR}/_logs/01-cabal-update.log"
+    exit 1
+  }
+
   echo "  ✓ Cabal setup complete"
 }
 
