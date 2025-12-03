@@ -732,6 +732,11 @@ patch_system_config() {
   perl -pi -e "s#\\\$ENV{BUILD_PREFIX}#${_BUILD_PREFIX}#g" "${config_file}"
   perl -pi -e "s#\\\$ENV{SRC_DIR}#${_SRC_DIR}#g" "${config_file}"
 
+  # CRITICAL: Convert all *-dir paths from Unix (/c/...) to Windows (C:/...) format
+  # This prevents Cabal from treating absolute paths as relative and mangling them
+  # e.g., gmp-include-dir = /c/bld/... -> gmp-include-dir = C:/bld/...
+  perl -pi -e 's#^([a-z-]+dir)\s*=\s*/c/#$1 = C:/#g' "${config_file}"
+
   # Force use of system toolchain and libraries
   perl -pi -e 's#^use-system-mingw\s*=\s*.*$#use-system-mingw = YES#' "${config_file}"
   perl -pi -e 's#^windows-toolchain-autoconf\s*=\s*.*$#windows-toolchain-autoconf = NO#' "${config_file}"
