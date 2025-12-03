@@ -294,8 +294,10 @@ platform_build_stage1() {
 platform_post_build_stage1() {
   echo "  Running Windows-specific Stage1 post-build..."
 
-  # Patch Stage1 settings with relocation fix flags
-  patch_stage1_settings_for_relocation_fix
+  # NOTE: Do NOT patch stage0 settings with link flags here!
+  # The bootstrap GHC must use NORMAL MinGW linking for stage2:exe:ghc-bin.
+  # Custom link flags are ONLY applied to stage1/lib/settings AFTER
+  # stage2:exe:ghc-bin completes (see patch_stage2_settings).
 
   # Test Stage1 GHC
   test_stage1_ghc
@@ -559,49 +561,14 @@ patch_bootstrap_settings() {
   echo "  ✓ Bootstrap settings patched"
 }
 
-patch_stage1_settings_for_relocation_fix() {
-  echo "  Patching Stage1 settings with relocation fix flags..."
-
-  local settings_file="${_SRC_DIR}/_build/stage0/lib/settings"
-
-  if [[ ! -f "${settings_file}" ]]; then
-    echo "WARNING: Stage1 settings file not found at ${settings_file}"
-    return 1
-  fi
-
-  # CRITICAL: Expand any unexpanded conda variables in settings file
-  # GHC's configure may write %VAR% or $ENV{VAR} patterns that need expansion
-  echo "  Expanding conda variables in Stage1 settings..."
-  perl -pi -e "s#%PREFIX%#${_PREFIX}#g" "${settings_file}"
-  perl -pi -e "s#%BUILD_PREFIX%#${_BUILD_PREFIX}#g" "${settings_file}"
-  perl -pi -e "s#%SRC_DIR%#${_SRC_DIR}#g" "${settings_file}"
-  perl -pi -e "s#\\\$ENV{PREFIX}#${_PREFIX}#g" "${settings_file}"
-  perl -pi -e "s#\\\$ENV{BUILD_PREFIX}#${_BUILD_PREFIX}#g" "${settings_file}"
-  perl -pi -e "s#\\\$ENV{SRC_DIR}#${_SRC_DIR}#g" "${settings_file}"
-
-  # Directories for linking
-  local CHKSTK_DIR="${_BUILD_PREFIX}/Library/lib"
-  local MINGW_SYSROOT="${_BUILD_PREFIX}/Library/x86_64-w64-mingw32/sysroot/usr/lib"
-
-  # Build complete link flags string
-  # CRITICAL: Use high image base to avoid 32-bit pseudo relocation errors
-  # CRITICAL: --enable-auto-import generates proper PE import tables
-  # CRITICAL: NO -Xlinker prefix - settings flags go directly to gcc, not through GHC
-  local LINK_FLAGS="-Wl,--subsystem,console -Wl,--enable-auto-import -Wl,--image-base=0x140000000 -Wl,--dynamicbase -Wl,--high-entropy-va -L${CHKSTK_DIR} -L${MINGW_SYSROOT}"
-  LINK_FLAGS="${LINK_FLAGS} -lmoldname -lmingwex -lmingw32 -lchkstk_ms -lgcc -lucrt -lkernel32 -ladvapi32"
-
-  perl -pi -e "s#(C compiler link flags\", \")#\$1${LINK_FLAGS} #" "${settings_file}"
-
-  # Also add to "ld flags" for direct ld invocations
-  perl -pi -e "s#(ld flags\", \")#\$1--subsystem,console --enable-auto-import --image-base=0x140000000 --dynamicbase --high-entropy-va -L${CHKSTK_DIR} -L${MINGW_SYSROOT} -lmoldname -lmingwex -lmingw32 -lchkstk_ms -lgcc -lucrt -lkernel32 -ladvapi32 #" "${settings_file}"
-
-  # Debug: Show the patched link flags
-  echo "  ===== Stage1 settings (link flags only) ====="
-  grep -E "(C compiler link flags|ld flags)" "${settings_file}" || echo "  (grep failed)"
-  echo "  ===== End Stage1 settings ====="
-
-  echo "  ✓ Stage1 settings patched"
-}
+# NOTE: patch_stage1_settings_for_relocation_fix was REMOVED.
+# It incorrectly patched stage0/lib/settings with link flags BEFORE stage2:exe:ghc-bin,
+# causing "multiple definition of main" errors with the new m2w64-sysroot CRT.
+#
+# The correct approach (matching working branch):
+# 1. Build stage1:exe:ghc-bin and stage2:exe:ghc-bin with DEFAULT MinGW linking
+# 2. AFTER stage2:exe:ghc-bin, patch stage1/lib/settings via patch_stage2_settings()
+# 3. Build stage2:lib:ghc and remaining targets with patched settings
 
 test_stage1_ghc() {
   echo "  Testing Stage1 GHC..."
