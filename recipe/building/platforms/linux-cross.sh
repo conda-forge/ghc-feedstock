@@ -142,7 +142,7 @@ platform_setup_cabal() {
 # Phase 4: Configure GHC
 # ==============================================================================
 
-platform_configure() {
+platform_configure_ghc() {
   echo "  Configuring GHC for cross-compilation..."
 
   SYSTEM_CONFIG=(
@@ -456,7 +456,7 @@ create_symlinks() {
   echo "  ✓ Symlinks created"
 }
 
-platform_install() {
+platform_install_ghc() {
   echo "  Installing from binary distribution..."
 
   local bindist_dir=$(find "${SRC_DIR}/_build/bindist" -name "ghc-${PKG_VERSION}-${ghc_target}" -type d | head -1)
