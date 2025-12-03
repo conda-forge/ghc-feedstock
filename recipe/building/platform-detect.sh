@@ -20,29 +20,38 @@ detect_platform() {
   echo "  Build platform:  ${build_platform}"
   echo "  Target platform: ${target_platform}"
 
-  # Determine platform configuration file
-  if [[ "${build_platform}" != "${target_platform}" ]]; then
-    # Cross-compilation
-    if [[ "${target_platform}" =~ darwin|osx ]]; then
-      platform_config="osx-arm64"
-      PLATFORM_NAME="macOS arm64 (cross-compiled from x86_64)"
-    else
-      platform_config="linux-cross"
-      PLATFORM_NAME="Linux cross-compile (${build_platform} → ${target_platform})"
-    fi
-  else
-    # Native builds
-    if [[ "${build_platform}" =~ darwin|osx ]]; then
-      platform_config="osx-64"
-      PLATFORM_NAME="macOS x86_64 (native)"
-    elif [[ "${build_platform}" =~ win ]]; then
-      platform_config="win-64"
-      PLATFORM_NAME="Windows x86_64 (MinGW-w64 UCRT)"
-    else
+  # Determine platform configuration file based on target_platform
+  # The platform config is named after the TARGET, not the build machine
+  case "${target_platform}" in
+    linux-64)
       platform_config="linux-64"
       PLATFORM_NAME="Linux x86_64 (native)"
-    fi
-  fi
+      ;;
+    linux-aarch64)
+      platform_config="linux-aarch64"
+      PLATFORM_NAME="Linux aarch64 (cross-compiled from x86_64)"
+      ;;
+    linux-ppc64le)
+      platform_config="linux-ppc64le"
+      PLATFORM_NAME="Linux ppc64le (cross-compiled from x86_64)"
+      ;;
+    osx-64)
+      platform_config="osx-64"
+      PLATFORM_NAME="macOS x86_64 (native)"
+      ;;
+    osx-arm64)
+      platform_config="osx-arm64"
+      PLATFORM_NAME="macOS arm64 (cross-compiled from x86_64)"
+      ;;
+    win-64)
+      platform_config="win-64"
+      PLATFORM_NAME="Windows x86_64 (MinGW-w64 UCRT)"
+      ;;
+    *)
+      echo "ERROR: Unknown target platform: ${target_platform}"
+      exit 1
+      ;;
+  esac
 
   # Load platform configuration
   local config_file="${RECIPE_DIR}/building/platforms/${platform_config}.sh"
