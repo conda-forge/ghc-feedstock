@@ -44,6 +44,62 @@ run_and_log() {
 }
 
 # ==============================================================================
+# Settings Update Helpers
+# ==============================================================================
+
+# Update stage settings file with library paths and rpaths
+# This is commonly needed between build phases to ensure proper linking
+#
+# Usage:
+#   update_stage_settings "stage0"
+#   update_stage_settings "stage1"
+#
+# Parameters:
+#   $1 - stage: Which stage settings to update (stage0, stage1)
+#
+update_stage_settings() {
+  local stage="$1"
+  local settings_file="${SRC_DIR}/_build/${stage}/lib/settings"
+
+  if [[ ! -f "${settings_file}" ]]; then
+    echo "  WARNING: ${stage} settings file not found at ${settings_file}"
+    return 0
+  fi
+
+  echo "  Updating ${stage} settings with library paths..."
+
+  # Add library paths and rpath
+  perl -pi -e "s#(C compiler link flags\", \"[^\"]*)#\$1 -Wl,-L${PREFIX}/lib -Wl,-rpath,${PREFIX}/lib#" "${settings_file}"
+  perl -pi -e "s#(ld flags\", \"[^\"]*)#\$1 -L${PREFIX}/lib -rpath ${PREFIX}/lib#" "${settings_file}"
+
+  echo "  ${stage} settings after update:"
+  grep -E "(C compiler link flags|ld flags)" "${settings_file}" 2>/dev/null || echo "  (no matching lines)"
+
+  echo "  ✓ ${stage} settings updated"
+}
+
+# ==============================================================================
+# Cross-Compilation Helpers
+# ==============================================================================
+
+# Disable Hadrian's copy optimization for cross-compilation
+# By default, Hadrian tries to copy the bootstrap GHC binary instead of building
+# a new one. For cross-compilation, we need to force building the cross binary.
+#
+# Usage:
+#   disable_copy_optimization
+#
+disable_copy_optimization() {
+  echo "  Disabling copy optimization for cross-compilation..."
+
+  # Force building the cross binary instead of copying
+  perl -i -pe 's/\(True, s\) \| s > stage0InTree ->/\(False, s\) | s > stage0InTree \&\& False ->/' \
+    "${SRC_DIR}/hadrian/src/Rules/Program.hs"
+
+  echo "  ✓ Copy optimization disabled"
+}
+
+# ==============================================================================
 # Phase 1: Environment Setup
 # ==============================================================================
 
@@ -273,8 +329,36 @@ phase_build_stage1() {
 }
 
 default_build_stage1() {
-  # Build Stage 1 GHC compiler
-  run_and_log "stage1-ghc" "${HADRIAN_CMD[@]}" --flavour="${HADRIAN_FLAVOUR}" stage1:exe:ghc-bin
+  # Build Stage 1 GHC executables
+  # Order: ghc-bin → ghc-pkg → hsc2hs
+  run_and_log "stage1-ghc" "${HADRIAN_CMD[@]}" --flavour="${HADRIAN_FLAVOUR}" stage1:exe:ghc-bin --docs=none --progress-info=none
+
+  run_and_log "stage1-pkg" "${HADRIAN_CMD[@]}" --flavour="${HADRIAN_FLAVOUR}" stage1:exe:ghc-pkg --docs=none --progress-info=none
+
+  run_and_log "stage1-hsc2hs" "${HADRIAN_CMD[@]}" --flavour="${HADRIAN_FLAVOUR}" stage1:exe:hsc2hs --docs=none --progress-info=none
+
+  # Update stage0 settings before building libraries (if helper available)
+  if type -t update_stage_settings >/dev/null 2>&1; then
+    update_stage_settings "stage0"
+  fi
+
+  # Build Stage 1 libraries in staggered order to avoid race conditions
+  # Order: ghc-prim → integer-gmp → base → template-haskell → ghc
+  # This prevents parallel build races on shared dependencies
+  run_and_log "stage1-lib-prim" "${HADRIAN_CMD[@]}" --flavour="${HADRIAN_FLAVOUR}" stage1:lib:ghc-prim --docs=none --progress-info=none
+
+  run_and_log "stage1-lib-integer" "${HADRIAN_CMD[@]}" --flavour="${HADRIAN_FLAVOUR}" stage1:lib:ghc-bignum --docs=none --progress-info=none
+
+  run_and_log "stage1-lib-base" "${HADRIAN_CMD[@]}" --flavour="${HADRIAN_FLAVOUR}" stage1:lib:base --docs=none --progress-info=none
+
+  run_and_log "stage1-lib-th" "${HADRIAN_CMD[@]}" --flavour="${HADRIAN_FLAVOUR}" stage1:lib:template-haskell --docs=none --progress-info=none
+
+  run_and_log "stage1-lib-ghc" "${HADRIAN_CMD[@]}" --flavour="${HADRIAN_FLAVOUR}" stage1:lib:ghc --docs=none --progress-info=none
+
+  # Update stage0 settings again after library build
+  if type -t update_stage_settings >/dev/null 2>&1; then
+    update_stage_settings "stage0"
+  fi
 }
 
 # ==============================================================================

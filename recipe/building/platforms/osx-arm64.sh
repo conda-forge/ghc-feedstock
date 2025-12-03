@@ -245,12 +245,10 @@ platform_build_hadrian() {
   pushd "${SRC_DIR}/hadrian" >/dev/null
 
   # Build hadrian - let cabal resolve dependencies automatically
-  # Don't hardcode package list as it varies by GHC version
+  # Hadrian is a temporary build tool, no special linking flags needed
   "${CABAL}" v2-build \
     --with-gcc="${CC_FOR_BUILD}" \
     --with-ar="${AR_STAGE0}" \
-    --enable-shared \
-    --enable-executable-dynamic \
     -j${CPU_COUNT} \
     hadrian \
     2>&1 | tee "${SRC_DIR}/cabal-verbose.log"
@@ -274,7 +272,7 @@ platform_build_hadrian() {
   fi
 
   HADRIAN_CMD=("${hadrian_bin}" "-j${CPU_COUNT}" "--directory" "${SRC_DIR}")
-  HADRIAN_FLAVOUR="quickest"
+  HADRIAN_FLAVOUR="release"
 
   echo "  Hadrian binary: ${hadrian_bin}"
   echo "  ✓ Hadrian built"
@@ -283,16 +281,6 @@ platform_build_hadrian() {
 # ==============================================================================
 # Phase 6: Build Stage 1
 # ==============================================================================
-
-disable_copy_optimization() {
-  echo "  Disabling copy optimization for cross-compilation..."
-
-  # Force building the cross binary instead of copying
-  perl -i -pe 's/\(True, s\) \| s > stage0InTree ->/\(False, s\) | s > stage0InTree \&\& False ->/' \
-    "${SRC_DIR}/hadrian/src/Rules/Program.hs"
-
-  echo "  ✓ Copy optimization disabled"
-}
 
 platform_pre_build_stage1() {
   disable_copy_optimization
@@ -334,9 +322,7 @@ platform_build_stage1() {
 platform_post_build_stage1() {
   echo "  Building Stage 1 libraries..."
 
-  # Switch to release flavour for libraries
-  HADRIAN_FLAVOUR="release"
-
+  # Build libraries with release flavour (for full ways: vanilla, profiling, dynamic)
   run_and_log "stage1-lib" "${HADRIAN_CMD[@]}" --flavour="${HADRIAN_FLAVOUR}" \
     stage1:lib:ghc --docs=none --progress-info=none
 

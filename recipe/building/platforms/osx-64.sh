@@ -166,14 +166,30 @@ platform_post_configure_ghc() {
 # ==============================================================================
 
 platform_build_hadrian() {
-  echo "  Building Hadrian for macOS..."
+  echo "  Building Hadrian for macOS (cabal-built)..."
 
-  # macOS uses hadrian/build script directly
-  HADRIAN_CMD=("${SRC_DIR}/hadrian/build" "-j${CPU_COUNT}")
+  pushd "${SRC_DIR}/hadrian" >/dev/null
+
+  # Build Hadrian with cabal (consistent with other platforms)
+  # Hadrian is a temporary build tool, no special linking flags needed
+  run_and_log "build-hadrian" "${CABAL}" v2-build -j${CPU_COUNT} hadrian
+
+  popd >/dev/null
+
+  # Find Hadrian binary
+  local hadrian_bin=$(find "${SRC_DIR}"/hadrian/dist-newstyle -name hadrian -type f | head -1)
+
+  if [[ ! -f "${hadrian_bin}" ]]; then
+    echo "ERROR: Hadrian binary not found after build"
+    exit 1
+  fi
+
+  # Set up Hadrian command array
+  HADRIAN_CMD=("${hadrian_bin}" "-j${CPU_COUNT}" "--directory" "${SRC_DIR}")
   HADRIAN_FLAVOUR="release"
 
-  echo "  Hadrian command: ${HADRIAN_CMD[*]}"
-  echo "  ✓ Hadrian configured (using build script)"
+  echo "  Hadrian binary: ${hadrian_bin}"
+  echo "  ✓ Hadrian built (cabal-built)"
 }
 
 # ==============================================================================
