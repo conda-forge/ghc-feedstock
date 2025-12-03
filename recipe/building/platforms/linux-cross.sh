@@ -13,6 +13,9 @@
 
 set -eu
 
+# Platform metadata
+PLATFORM_NAME="Linux aarch64 (native)"
+
 # ==============================================================================
 # Architecture Configuration
 # ==============================================================================
@@ -59,9 +62,10 @@ platform_setup_environment() {
   libc2_17_env=$(conda info --envs | grep libc2.17_env | awk '{print $2}')
   ghc_path="${libc2_17_env}/ghc-bootstrap/bin"
 
-  export GHC="${ghc_path}/ghc"
   export CABAL="${libc2_17_env}/bin/cabal"
   export CABAL_DIR="${SRC_DIR}/.cabal"
+  export GHC="${ghc_path}/ghc"
+  export PATH="${ghc_path}:${PATH:-}"
 
   echo "  Bootstrap GHC: ${GHC}"
   "${GHC}" --version
@@ -86,17 +90,31 @@ platform_setup_environment() {
 }
 
 # ==============================================================================
-# Phase 2: Update Cabal
+# Phase 2: Bootstrap Setup
 # ==============================================================================
 
-platform_update_cabal() {
-  echo "  Updating Cabal package index..."
-  run_and_log "cabal-update" "${CABAL}" v2-update
-  echo "  ✓ Cabal updated"
+platform_setup_bootstrap() {
+  # Bootstrap GHC already configured in platform_setup_environment
+  # Just verify it's available
+  if [[ -z "${GHC:-}" ]]; then
+    echo "ERROR: GHC not set by platform_setup_environment"
+    exit 1
+  fi
+  echo "  Bootstrap GHC already configured: ${GHC}"
 }
 
 # ==============================================================================
-# Phase 3: Configure GHC
+# Phase 3: Cabal Setup
+# ==============================================================================
+
+platform_setup_cabal() {
+  echo "  Setting up Cabal for cross-compilation..."
+  run_and_log "cabal-update" "${CABAL}" v2-update
+  echo "  ✓ Cabal setup complete"
+}
+
+# ==============================================================================
+# Phase 4: Configure GHC
 # ==============================================================================
 
 platform_configure() {
@@ -142,7 +160,7 @@ platform_configure() {
 }
 
 # ==============================================================================
-# Phase 4: Patch System Config
+# Phase 5: Patch System Config
 # ==============================================================================
 
 patch_system_config() {
@@ -173,7 +191,7 @@ platform_post_configure() {
 }
 
 # ==============================================================================
-# Phase 5: Build Hadrian
+# Phase 6: Build Hadrian
 # ==============================================================================
 
 platform_build_hadrian() {
@@ -244,7 +262,7 @@ platform_build_hadrian() {
 }
 
 # ==============================================================================
-# Phase 6: Build Stage 1
+# Phase 7: Build Stage 1
 # ==============================================================================
 
 disable_copy_optimization() {
@@ -321,7 +339,7 @@ platform_post_build_stage1() {
 }
 
 # ==============================================================================
-# Phase 7: Build Stage 2
+# Phase 8: Build Stage 2
 # ==============================================================================
 
 platform_build_stage2() {
@@ -341,7 +359,7 @@ platform_build_stage2() {
 }
 
 # ==============================================================================
-# Phase 8: Create Binary Distribution
+# Phase 9: Create Binary Distribution
 # ==============================================================================
 
 platform_create_bindist() {
@@ -359,7 +377,7 @@ platform_create_bindist() {
 }
 
 # ==============================================================================
-# Phase 9: Install
+# Phase 10: Install
 # ==============================================================================
 
 patch_final_settings() {
