@@ -260,7 +260,12 @@ patch_stage0_settings_include_paths() {
   perl -pi -e "s#(C compiler flags\", \")([^\"]*)(\")#\$1\$2 -I${_PREFIX}/Library/include -I${_BUILD_PREFIX}/Library/include\$3#" "${settings_file}"
   perl -pi -e "s#(C\+\+ compiler flags\", \")([^\"]*)(\")#\$1\$2 -I${_PREFIX}/Library/include -I${_BUILD_PREFIX}/Library/include\$3#" "${settings_file}"
 
-  echo "  Stage0 settings after adding include paths:"
+  # IMPORTANT: DO NOT patch stage0/bootstrap GHC link flags with custom CRT!
+  # The bootstrap GHC must use NORMAL MinGW linking so that intermediate
+  # Haskell programs (including hadrian) work correctly.
+  # Custom link flags are ONLY needed for the FINAL Stage1 GHC settings.
+
+  echo "  Stage0 settings after patching:"
   grep "C compiler flags\|C++ compiler flags" "${settings_file}" || echo "  (grep failed)"
 
   echo "  ✓ Stage0 settings include paths added"
@@ -341,6 +346,9 @@ platform_pre_build_stage2() {
 
 platform_build_stage2() {
   echo "  Building Stage 2 GHC (Windows)..."
+
+  # NOTE: Do NOT patch stage0 settings here - the bootstrap GHC must use
+  # normal MinGW linking. Custom link flags are only for Stage1 settings.
 
   # CRITICAL: Build stage2:exe:ghc-bin FIRST to generate _build/stage1/lib/settings
   run_and_log "stage2-exe" "${HADRIAN_CMD[@]}" stage2:exe:ghc-bin --flavour="${HADRIAN_FLAVOUR}" --freeze1 --docs=none --progress-info=none
@@ -742,6 +750,10 @@ patch_system_config() {
   perl -pi -e 's#^windows-toolchain-autoconf\s*=\s*.*$#windows-toolchain-autoconf = NO#' "${config_file}"
   perl -pi -e 's#^use-system-ffi\s*=\s*.*$#use-system-ffi = YES#' "${config_file}"
   perl -pi -e "s#^intree-gmp\s*=\s*.*#intree-gmp = NO#" "${config_file}"
+
+  # NOTE: Do NOT add --allow-multiple-definition here!
+  # The proper solution is library ordering in Stage1 settings where -lmingw32
+  # comes AFTER user objects so user's main() is found first.
 
   echo "  ✓ system.config patched"
 }
