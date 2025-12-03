@@ -1,0 +1,9 @@
+--- a/libraries/ghc-bignum/ghc-bignum.buildinfo.in
++++ b/libraries/ghc-bignum/ghc-bignum.buildinfo.in
+@@ -1,4 +1,5 @@
+-include-dirs: @GMP_INCLUDE_DIRS@
++-- Use extra-include-dirs for absolute paths (Windows compatibility)
++extra-include-dirs: @GMP_INCLUDE_DIRS@
+ extra-lib-dirs: @GMP_LIB_DIRS@
+ extra-libraries: @GMP_LIBS@
+ frameworks: @GMP_FRAMEWORK@

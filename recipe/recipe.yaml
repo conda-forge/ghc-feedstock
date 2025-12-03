@@ -27,6 +27,7 @@ source:
           - patches/fix-hp2ps-utilities-stdlib.patch
           - patches/add-ffi-include-to-hsc2hs.patch
           - patches/add-ffi-include-to-rts-cargs.patch
+          - patches/fix-ghc-bignum-gmp-include-dirs.patch
       - if: osx and arm64
         then:
           - patches/patch-rpath-macos.patch
