@@ -1,5 +1,6 @@
 context:
   version: "9.6.7"
+  bootstrap_version: "9.2.8"
 
 package:
   name: ghc
@@ -32,7 +33,10 @@ source:
 
 build:
   number: 0
-  skip: unix and not aarch64
+  skip: unix and not linux
+  script:
+    env:
+      BOOTSTRAP_VERSION: ${{ bootstrap_version }}
 
 requirements:
   build:
@@ -40,15 +44,12 @@ requirements:
     - ${{ compiler('cxx') }}
     - ${{ stdlib('c') }}
     - binutils >=${{ binutils_version }}
-    - if: target_platform != "linux-aarch64" and target_platform != "linux-ppc64le"
-      then:
-        - cabal ==3.10.3.0
-        - ghc-bootstrap ==9.2.8
+    - cabal ==3.10.3.0
+    - ghc-bootstrap ==${{ bootstrap_version }}
     - llvm-tools ${{ c_compiler_version }}.*
     - perl 5.32.*
     - pkg-config
     - python 3.10.*
-    # - sphinx
 
     - if: unix
       then:

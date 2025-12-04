@@ -66,6 +66,13 @@ update_stage_settings() {
     return 0
   fi
 
+  # Check if flags are already present (idempotent operation)
+  if grep -q "Wl,-L\${PREFIX}/lib" "${settings_file}" 2>/dev/null || \
+     grep -q "Wl,-L${PREFIX}/lib" "${settings_file}" 2>/dev/null; then
+    echo "  ${stage} settings already have library paths, skipping update"
+    return 0
+  fi
+
   echo "  Updating ${stage} settings with library paths..."
 
   # Add library paths and rpath
@@ -285,10 +292,7 @@ phase_build_hadrian() {
 
 default_build_hadrian() {
   pushd "${SRC_DIR}/hadrian" >/dev/null
-
-  # Build Hadrian
-  run_and_log "build-hadrian" "${CABAL}" v2-build hadrian
-
+    run_and_log "build-hadrian" "${CABAL}" v2-build hadrian
   popd >/dev/null
 
   # Find Hadrian binary
@@ -330,12 +334,10 @@ phase_build_stage1() {
 
 default_build_stage1() {
   # Build Stage 1 GHC executables
-  # Order: ghc-bin → ghc-pkg → hsc2hs
-  run_and_log "stage1-ghc" "${HADRIAN_CMD[@]}" --flavour="${HADRIAN_FLAVOUR}" stage1:exe:ghc-bin --docs=none --progress-info=none
-
-  run_and_log "stage1-pkg" "${HADRIAN_CMD[@]}" --flavour="${HADRIAN_FLAVOUR}" stage1:exe:ghc-pkg --docs=none --progress-info=none
-
-  run_and_log "stage1-hsc2hs" "${HADRIAN_CMD[@]}" --flavour="${HADRIAN_FLAVOUR}" stage1:exe:hsc2hs --docs=none --progress-info=none
+  options=(--flavour="${HADRIAN_FLAVOUR}" --docs=none --progress-info=none)
+  run_and_log    "stage1-ghc" "${HADRIAN_CMD[@]}" ${options[@]} stage1:exe:ghc-bin
+  run_and_log    "stage1-pkg" "${HADRIAN_CMD[@]}" ${options[@]} stage1:exe:ghc-pkg
+  run_and_log "stage1-hsc2hs" "${HADRIAN_CMD[@]}" ${options[@]} stage1:exe:hsc2hs
 
   # Update stage0 settings before building libraries (if helper available)
   if type -t update_stage_settings >/dev/null 2>&1; then
@@ -343,17 +345,12 @@ default_build_stage1() {
   fi
 
   # Build Stage 1 libraries in staggered order to avoid race conditions
-  # Order: ghc-prim → integer-gmp → base → template-haskell → ghc
-  # This prevents parallel build races on shared dependencies
-  run_and_log "stage1-lib-prim" "${HADRIAN_CMD[@]}" --flavour="${HADRIAN_FLAVOUR}" stage1:lib:ghc-prim --docs=none --progress-info=none
-
-  run_and_log "stage1-lib-integer" "${HADRIAN_CMD[@]}" --flavour="${HADRIAN_FLAVOUR}" stage1:lib:ghc-bignum --docs=none --progress-info=none
-
-  run_and_log "stage1-lib-base" "${HADRIAN_CMD[@]}" --flavour="${HADRIAN_FLAVOUR}" stage1:lib:base --docs=none --progress-info=none
-
-  run_and_log "stage1-lib-th" "${HADRIAN_CMD[@]}" --flavour="${HADRIAN_FLAVOUR}" stage1:lib:template-haskell --docs=none --progress-info=none
-
-  run_and_log "stage1-lib-ghc" "${HADRIAN_CMD[@]}" --flavour="${HADRIAN_FLAVOUR}" stage1:lib:ghc --docs=none --progress-info=none
+  run_and_log   "stage1-lib-prim" "${HADRIAN_CMD[@]}" "${options[@]}" stage1:lib:ghc-prim
+  run_and_log "stage1-lib-bignum" "${HADRIAN_CMD[@]}" "${options[@]}" stage1:lib:ghc-bignum
+  run_and_log   "stage1-lib-base" "${HADRIAN_CMD[@]}" "${options[@]}" stage1:lib:base
+  run_and_log     "stage1-lib-th" "${HADRIAN_CMD[@]}" "${options[@]}" stage1:lib:template-haskell
+  run_and_log   "stage1-lib-ghci" "${HADRIAN_CMD[@]}" "${options[@]}" stage1:lib:ghci
+  run_and_log    "stage1-lib-ghc" "${HADRIAN_CMD[@]}" "${options[@]}" stage1:lib:ghc
 
   # Update stage0 settings again after library build
   if type -t update_stage_settings >/dev/null 2>&1; then
@@ -387,7 +384,18 @@ phase_build_stage2() {
 
 default_build_stage2() {
   # Build Stage 2 GHC libraries
-  run_and_log "stage2-lib" "${HADRIAN_CMD[@]}" --flavour="${HADRIAN_FLAVOUR}" stage2:lib:ghc
+  options=(--flavour="${HADRIAN_FLAVOUR}" --docs=none --progress-info=none)
+  run_and_log    "stage2-ghc" "${HADRIAN_CMD[@]}" "${options[@]}" stage2:exe:ghc-bin
+  run_and_log    "stage2-pkg" "${HADRIAN_CMD[@]}" "${options[@]}" stage2:exe:ghc-pkg
+  run_and_log "stage2-hsc2hs" "${HADRIAN_CMD[@]}" "${options[@]}" stage2:exe:hsc2hs
+
+  # Build Stage 1 libraries in staggered order to avoid race conditions
+  run_and_log   "stage2-lib-prim" "${HADRIAN_CMD[@]}" "${options[@]}" stage2:lib:ghc-prim
+  run_and_log "stage2-lib-bignum" "${HADRIAN_CMD[@]}" "${options[@]}" stage2:lib:ghc-bignum
+  run_and_log   "stage2-lib-base" "${HADRIAN_CMD[@]}" "${options[@]}" stage2:lib:base
+  run_and_log     "stage2-lib-th" "${HADRIAN_CMD[@]}" "${options[@]}" stage2:lib:template-haskell
+  run_and_log   "stage2-lib-ghci" "${HADRIAN_CMD[@]}" "${options[@]}" stage2:lib:ghci
+  run_and_log    "stage2-lib-ghc" "${HADRIAN_CMD[@]}" "${options[@]}" stage2:lib:ghc
 }
 
 # ==============================================================================
@@ -430,8 +438,8 @@ default_install_ghc() {
 
   # Install from bindist
   pushd "${bindist_dir}" >/dev/null
-  ./configure --prefix="${PREFIX}" || { cat config.log; exit 1; }
-  run_and_log "make-install" make install
+    ./configure --prefix="${PREFIX}" || { cat config.log; exit 1; }
+    run_and_log "make-install" make install
   popd >/dev/null
 }
 

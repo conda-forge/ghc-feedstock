@@ -3,7 +3,7 @@
 # Platform Configuration: Linux Cross-Compilation (aarch64, ppc64le)
 # ==============================================================================
 # GHC cross-compilation for Linux targets (build on x86_64)
-# Uses libc 2.17 sysroot for maximum compatibility
+# Uses ghc-bootstrap 9.2.8 from BUILD_PREFIX
 #
 # Build Strategy:
 # - Stage 1: Build cross-compiler using x86_64 bootstrap GHC
@@ -29,8 +29,7 @@ ghc_host="${host_arch}-unknown-linux-gnu"
 ghc_target="${target_arch}-unknown-linux-gnu"
 
 # Override build/host aliases for GHC configure
-_build_alias=${build_alias}
-_host_alias=${host_alias}
+# Autoconf sub-scripts may read these env vars
 export build_alias="${ghc_host}"
 export host_alias="${ghc_host}"
 
@@ -47,32 +46,13 @@ echo "  GHC target: ${ghc_target}"
 platform_setup_environment() {
   echo "  Setting up Linux ${target_arch} cross-compilation environment..."
 
-  # Create libc2.17 environment for cross-compilation
-  echo "  Creating libc2.17 environment for cross-compilation libraries..."
-  conda create -y \
-    -n libc2.17_env \
-    --platform linux-64 \
-    -c conda-forge \
-    cabal==3.10.3.0 \
-    ghc-bootstrap=="${PKG_VERSION}" \
-    sysroot_linux-64==2.17
-
-  # Get environment path and export for later phases
-  export libc2_17_env=$(conda info --envs | grep libc2.17_env | awk '{print $2}')
-  ghc_path="${libc2_17_env}/ghc-bootstrap/bin"
-
-  if [[ -z "${libc2_17_env}" ]]; then
-    echo "ERROR: Failed to find libc2.17_env"
-    conda info --envs
-    exit 1
-  fi
-  echo "  libc2.17 environment: ${libc2_17_env}"
-
-  export CABAL="${libc2_17_env}/bin/cabal"
+  ghc_path="${BUILD_PREFIX}/ghc-bootstrap/bin"
+  export CABAL="${BUILD_PREFIX}/bin/cabal"
   export CABAL_DIR="${SRC_DIR}/.cabal"
   export GHC="${ghc_path}/ghc"
   export PATH="${ghc_path}:${PATH:-}"
-
+  export CONDA_BUILD_SYSROOT=$BUILD_PREFIX/x86_64-conda-linux-gnu/sysroot
+  
   echo "  Bootstrap GHC: ${GHC}"
   "${GHC}" --version
   "${ghc_path}/ghc-pkg" recache
@@ -124,7 +104,6 @@ platform_setup_cabal() {
   # Debug: verify CABAL is set
   if [[ -z "${CABAL:-}" ]]; then
     echo "ERROR: CABAL not set"
-    echo "  libc2_17_env=${libc2_17_env:-NOT SET}"
     exit 1
   fi
   echo "  CABAL: ${CABAL}"
@@ -150,8 +129,9 @@ platform_configure_ghc() {
   echo "  Configuring GHC for ${target_arch} cross-compilation..."
 
   SYSTEM_CONFIG=(
+    --build="${ghc_host}"
+    --host="${ghc_host}"
     --target="${ghc_target}"
-    --prefix="${PREFIX}"
   )
 
   CONFIGURE_ARGS=(
@@ -197,11 +177,15 @@ patch_system_config() {
 
   local settings_file="${SRC_DIR}/hadrian/cfg/system.config"
 
-  # Remove BUILD_PREFIX from tool paths
-  perl -pi -e "s#${BUILD_PREFIX}/bin/##" "${settings_file}"
+  # Remove BUILD_PREFIX from tool paths (but not python - we need full path for build host)
+  perl -pi -e "s#${BUILD_PREFIX}/bin/(?!python)##" "${settings_file}"
 
   # Add target prefix to tools (ar, clang, etc.)
   perl -pi -e "s#(=\s+)(ar|clang|clang\+\+|llc|nm|opt|ranlib)\$#\$1${conda_target}-\$2#" "${settings_file}"
+
+  # Fix Python path - configure sets $PREFIX/bin/python but we need BUILD_PREFIX for cross-compile
+  # Python runs on build host, not target
+  perl -pi -e "s#(^python\\s*=).*#\$1 ${BUILD_PREFIX}/bin/python#" "${settings_file}"
 
   # Add library paths and rpath to linker flags
   perl -pi -e "s#(conf-gcc-linker-args-stage[12].*?= )#\$1-Wl,-L${PREFIX}/lib -Wl,-rpath,${PREFIX}/lib #" "${settings_file}"
@@ -230,18 +214,17 @@ platform_build_hadrian() {
 
   # Set CFLAGS and LDFLAGS for hadrian build
   export CFLAGS="--sysroot=${CONDA_BUILD_SYSROOT} -march=nocona -mtune=haswell -ftree-vectorize -fPIC -fstack-protector-strong -fno-plt -O2 -ffunction-sections -pipe -isystem ${PREFIX}/include -fdebug-prefix-map=${SRC_DIR}=/usr/local/src/conda/ghc-${PKG_VERSION} -fdebug-prefix-map=${PREFIX}=/usr/local/src/conda-prefix"
-  export LDFLAGS="-L${libc2_17_env}/${conda_host}/lib -L${libc2_17_env}/${conda_host}/sysroot/usr/lib ${LDFLAGS:-}"
+  export LDFLAGS="-L${BUILD_PREFIX}/${conda_host}/lib -L${BUILD_PREFIX}/${conda_host}/sysroot/usr/lib ${LDFLAGS:-}"
 
   # Build hadrian - let cabal resolve dependencies automatically
   # Hadrian is a temporary build tool, no special linking flags needed
-  "${CABAL}" v2-build \
+  run_and_log "build-hadrian" "${CABAL}" v2-build \
     --with-ar="${AR_STAGE0}" \
     --with-gcc="${CC_STAGE0}" \
     --with-ghc="${GHC}" \
     --with-ld="${LD_STAGE0}" \
     -j${CPU_COUNT} \
-    hadrian \
-    2>&1 | tee "${SRC_DIR}/cabal-verbose.log"
+    hadrian
 
   local cabal_exit_code=${PIPESTATUS[0]}
 
@@ -272,48 +255,8 @@ platform_build_hadrian() {
 # Phase 7: Build Stage 1
 # ==============================================================================
 
-update_stage0_link_flags() {
-  echo "  Updating Stage0 settings link flags..."
-
-  local settings_file="${SRC_DIR}/_build/stage0/lib/settings"
-
-  if [[ ! -f "${settings_file}" ]]; then
-    echo "WARNING: Stage0 settings file not found at ${settings_file}"
-    return 1
-  fi
-
-  # Add library paths and rpath
-  perl -pi -e "s#(C compiler link flags\", \"[^\"]*)#\$1 -Wl,-L${PREFIX}/lib -Wl,-rpath,${PREFIX}/lib#" "${settings_file}"
-  perl -pi -e "s#(ld flags\", \"[^\"]*)#\$1 -L${PREFIX}/lib -rpath ${PREFIX}/lib#" "${settings_file}"
-
-  echo "  Stage0 settings after updating link flags:"
-  grep -E "(C compiler link flags|ld flags)" "${settings_file}" || echo "  (grep failed)"
-
-  echo "  ✓ Stage0 link flags updated"
-}
-
 platform_pre_build_stage1() {
   disable_copy_optimization
-}
-
-platform_build_stage1() {
-  echo "  Building Stage 1 cross-compiler..."
-
-  # Build Stage 1 executables
-  run_and_log "stage1-ghc" "${HADRIAN_CMD[@]}" --flavour="${HADRIAN_FLAVOUR}" stage1:exe:ghc-bin --docs=none --progress-info=none
-  run_and_log "stage1-pkg" "${HADRIAN_CMD[@]}" --flavour="${HADRIAN_FLAVOUR}" stage1:exe:ghc-pkg --docs=none --progress-info=none
-  run_and_log "stage1-hsc2hs" "${HADRIAN_CMD[@]}" --flavour="${HADRIAN_FLAVOUR}" stage1:exe:hsc2hs --docs=none --progress-info=none
-
-  # Update link flags before building libraries
-  update_stage0_link_flags
-
-  # Build Stage 1 libraries (uses release flavour for full ways: vanilla, profiling, dynamic)
-  run_and_log "stage1-lib" "${HADRIAN_CMD[@]}" -VV --flavour="${HADRIAN_FLAVOUR}" stage1:lib:ghc --docs=none --progress-info=none
-
-  # Update link flags again after library build
-  update_stage0_link_flags
-
-  echo "  ✓ Stage 1 cross-compiler built"
 }
 
 platform_post_build_stage1() {
@@ -332,24 +275,6 @@ platform_post_build_stage1() {
   echo "  GHC for Stage2: ${GHC}"
 
   echo "  ✓ Stage1 post-build complete"
-}
-
-# ==============================================================================
-# Phase 8: Build Stage 2
-# ==============================================================================
-
-platform_build_stage2() {
-  echo "  Building Stage 2 cross-compiled binaries..."
-
-  # Build Stage 2 executables (release flavour already set)
-  run_and_log "stage2-ghc" "${HADRIAN_CMD[@]}" --flavour="${HADRIAN_FLAVOUR}" stage2:exe:ghc-bin --docs=none --progress-info=none
-  run_and_log "stage2-pkg" "${HADRIAN_CMD[@]}" --flavour="${HADRIAN_FLAVOUR}" stage2:exe:ghc-pkg --docs=none --progress-info=none
-  run_and_log "stage2-hsc2hs" "${HADRIAN_CMD[@]}" --flavour="${HADRIAN_FLAVOUR}" stage2:exe:hsc2hs --docs=none --progress-info=none
-
-  # Note: stage2:lib:ghc not needed for cross-compilation
-  # The _build/stage1 libs are already cross-compiled
-
-  echo "  ✓ Stage 2 cross-compiled binaries built"
 }
 
 # ==============================================================================

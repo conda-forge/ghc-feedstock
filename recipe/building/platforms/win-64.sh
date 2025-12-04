@@ -381,8 +381,9 @@ platform_build_stage2() {
 platform_install_ghc() {
   echo "  Installing GHC from binary distribution (Windows method)..."
 
-  # Create binary distribution
-  run_and_log "bindist" "${HADRIAN_CMD[@]}" binary-dist-gzip --prefix="${_PREFIX}" --flavour="${HADRIAN_FLAVOUR}" --freeze1 --freeze2 --docs=none
+  # Create binary distribution directory (no compression - we copy directly)
+  # binary-dist-dir is faster than binary-dist-gzip since we don't need the tarball
+  run_and_log "bindist" "${HADRIAN_CMD[@]}" binary-dist-dir --prefix="${_PREFIX}" --flavour="${HADRIAN_FLAVOUR}" --freeze1 --freeze2 --docs=none
 
   # Find bindist directory
   local ghc_target="x86_64-w64-mingw32"
