@@ -247,6 +247,7 @@ platform_build_hadrian() {
   # Build hadrian - let cabal resolve dependencies automatically
   # Hadrian is a temporary build tool, no special linking flags needed
   "${CABAL}" v2-build \
+    --with-ghc="${GHC}" \
     --with-gcc="${CC_FOR_BUILD}" \
     --with-ar="${AR_STAGE0}" \
     -j${CPU_COUNT} \
