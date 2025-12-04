@@ -23,29 +23,65 @@ _log_index=0
 
 source "${RECIPE_DIR}"/building/common.sh
 
-export PATH="${_BUILD_PREFIX}/ghc-bootstrap/bin${PATH:+:}${PATH:-}:/c/Windows/System32"
+# ==============================================================================
+# CRITICAL: Build CLEAN PATH - don't inherit conda's polluted PATH
+# ==============================================================================
+# Conda's PATH contains unexpanded %BUILD_PREFIX% placeholders that break tools.
+# Build a completely clean PATH with only the directories we need.
+export PATH="${_BUILD_PREFIX}/Library/bin:${_BUILD_PREFIX}/Library/usr/bin:${_BUILD_PREFIX}/ghc-bootstrap/bin:${_BUILD_PREFIX}/bin:/c/Windows/System32:/c/Windows"
+
 export CABAL="${_BUILD_PREFIX}/bin/cabal"
 export CABAL_DIR="${SRC_DIR}\\.cabal"
 export _PYTHON="${_BUILD_PREFIX}/python.exe"
-export GHC="${BUILD_PREFIX}\\ghc-bootstrap\\bin\\ghc.exe"
-export LIBRARY_PATH="${_BUILD_PREFIX}/Library/lib${LIBRARY_PATH:+:}${LIBRARY_PATH:-}"
+# CRITICAL: Use _BUILD_PREFIX (Unix path) not BUILD_PREFIX (has backslashes)
+export GHC="${_BUILD_PREFIX}/ghc-bootstrap/bin/ghc.exe"
 
 conda_target=x86_64-w64-mingw32
 
-# EXPERIMENTAL: Override conda's CC/CXX to use GCC instead of Clang
-# Bootstrap GHC was built with GCC, so we should use GCC for consistency
+# Use GCC toolchain to match bootstrap GHC compiler
 export CC="x86_64-w64-mingw32-gcc"
 export CXX="x86_64-w64-mingw32-g++"
 export CPP="x86_64-w64-mingw32-cpp"
+
+# ==============================================================================
+# CRITICAL: Override ALL conda toolchain variables with actual paths
+# ==============================================================================
+# Conda sets these to %BUILD_PREFIX%/... which bash doesn't expand.
+# We must override every single one to prevent pollution.
+export ADDR2LINE="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-addr2line.exe"
+export AR="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-ar.exe"
+export AS="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-as.exe"
+export CXXFILT="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-c++filt.exe"
+export ELFEDIT="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-elfedit.exe"
+export GPROF="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-gprof.exe"
+export LD="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-ld.exe"
+export NM="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-nm.exe"
+export OBJCOPY="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-objcopy.exe"
+export OBJDUMP="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-objdump.exe"
+export RANLIB="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-ranlib.exe"
+export READELF="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-readelf.exe"
+export SIZE="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-size.exe"
+export STRINGS="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-strings.exe"
+export STRIP="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-strip.exe"
+
+# ==============================================================================
+# CRITICAL: Set LIBRARY_PATH for GCC runtime library discovery
+# ==============================================================================
+# GCC is a Windows native binary and needs Windows-style paths (C:/ not /c/).
+# Use semicolon separators (Windows style) not colons (Unix style).
+_BUILD_PREFIX_WIN=$(echo "${_BUILD_PREFIX}" | sed 's#^/c/#C:/#')
+export LIBRARY_PATH="${_BUILD_PREFIX_WIN}/Library/lib/gcc/x86_64-w64-mingw32/15.2.0"
+export LIBRARY_PATH="${LIBRARY_PATH};${_BUILD_PREFIX_WIN}/Library/lib"
+export LIBRARY_PATH="${LIBRARY_PATH};${_BUILD_PREFIX_WIN}/Library/x86_64-w64-mingw32/sysroot/usr/lib"
+
+echo "=== Clean environment configured ==="
+echo "PATH=${PATH}"
+echo "GHC=${GHC}"
+echo "LIBRARY_PATH=${LIBRARY_PATH}"
 echo "=== Using GCC toolchain instead of Clang ==="
 echo "CC=${CC}"
 echo "CXX=${CXX}"
 echo "CPP=${CPP}"
-
-# Define toolchain variables early for bootstrap settings patching
-export LD="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-ld.exe"
-export AR="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-ar.exe"
-export RANLIB="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-ranlib.exe"
 
 # Configure CFLAGS/CXXFLAGS/LDFLAGS early so bootstrap settings get correct values
 # CRITICAL: This MUST happen before patching bootstrap settings file
@@ -281,15 +317,7 @@ echo "=== Adding chkstk_ms library to LDFLAGS ==="
 export LDFLAGS="${LDFLAGS} -lchkstk_ms"
 echo "LDFLAGS=${LDFLAGS}"
 
-# CRITICAL: Set LIBRARY_PATH for GCC runtime library discovery
-# GCC is a Windows native binary and needs Windows-style paths (C:/ not /c/)
-# Conda sets LIBRARY_PATH with %BUILD_PREFIX% which bash doesn't expand
-# We must override it with actual paths using semicolon separators (Windows style)
-echo "=== Setting LIBRARY_PATH for GCC runtime libraries ==="
-export LIBRARY_PATH="${_BUILD_PREFIX_WIN}/Library/lib/gcc/x86_64-w64-mingw32/15.2.0"
-export LIBRARY_PATH="${LIBRARY_PATH};${_BUILD_PREFIX_WIN}/Library/lib"
-export LIBRARY_PATH="${LIBRARY_PATH};${_BUILD_PREFIX_WIN}/Library/x86_64-w64-mingw32/sysroot/usr/lib"
-echo "LIBRARY_PATH=${LIBRARY_PATH}"
+# LIBRARY_PATH already set at script start with Windows-style paths
 
 run_and_log "cabal-update" "${CABAL}" v2-update
 
