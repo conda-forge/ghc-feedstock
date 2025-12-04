@@ -86,6 +86,48 @@ update_stage_settings() {
   echo "  ✓ ${stage} settings updated"
 }
 
+# Update settings file with platform-specific link flags
+# Used by platform scripts to patch GHC settings during build
+#
+# Usage:
+#   update_settings_link_flags "${settings_file}"
+#
+# Parameters:
+#   $1 - settings_file: Path to GHC settings file
+#   $2 - toolchain: Toolchain prefix (optional, defaults to $CONDA_TOOLCHAIN_HOST)
+#   $3 - prefix: Install prefix (optional, defaults to $PREFIX)
+#
+update_settings_link_flags() {
+  local settings_file="$1"
+  local toolchain="${2:-$CONDA_TOOLCHAIN_HOST}"
+  local prefix="${3:-$PREFIX}"
+
+  if [[ "${target_platform}" == "linux-"* ]]; then
+    perl -pi -e 's#(C compiler flags", "[^"]*)#$1 -Wno-strict-prototypes#' "${settings_file}"
+    perl -pi -e 's#(C\+\+ compiler flags", "[^"]*)#$1 -Wno-strict-prototypes#' "${settings_file}"
+
+    perl -pi -e "s#(C compiler link flags\", \"[^\"]*)#\$1 -Wl,-L${BUILD_PREFIX}/lib -Wl,-L${prefix}/lib -Wl,-rpath,${BUILD_PREFIX}/lib -Wl,-rpath,${prefix}/lib#" "${settings_file}"
+    perl -pi -e "s#(ld flags\", \"[^\"]*)#\$1 -L${BUILD_PREFIX}/lib -L${prefix}/lib -rpath ${BUILD_PREFIX}/lib -rpath ${prefix}/lib#" "${settings_file}"
+
+  elif [[ "${target_platform}" == "osx-64" ]]; then
+    # Add -fno-lto DURING build to prevent ABI mismatches and runtime crashes
+    perl -pi -e 's#(C compiler flags", "[^"]*)#$1 -fno-lto#' "${settings_file}"
+    perl -pi -e 's#(C\+\+ compiler flags", "[^"]*)#$1 -fno-lto#' "${settings_file}"
+    perl -pi -e "s#(C compiler link flags\", \"[^\"]*)#\$1 -fno-lto -Wl,-L${prefix}/lib -Wl,-liconv -Wl,-L${prefix}/lib/ghc-${PKG_VERSION}/lib -Wl,-liconv_compat#" "${settings_file}"
+    perl -pi -e "s#(ld flags\", \"[^\"]*)#\$1 -L${prefix}/lib -liconv -L${prefix}/lib/ghc-${PKG_VERSION}/lib -liconv_compat#" "${settings_file}"
+
+  elif [[ "${target_platform}" == "osx-arm64" ]]; then
+    # Add -fno-lto DURING build to prevent ABI mismatches and runtime crashes
+    perl -pi -e 's#(C compiler flags", "[^"]*)#$1 -fno-lto#' "${settings_file}"
+    perl -pi -e 's#(C\+\+ compiler flags", "[^"]*)#$1 -fno-lto#' "${settings_file}"
+    perl -pi -e "s#(C compiler link flags\", \"[^\"]*)#\$1 -fuse-ld=lld -fno-lto -Wl,-L${prefix}/lib -Wl,-liconv -Wl,-L${prefix}/lib/ghc-${PKG_VERSION}/lib -Wl,-liconv_compat#" "${settings_file}"
+    perl -pi -e "s#(ld flags\", \"[^\"]*)#\$1 -L${prefix}/lib -liconv -L${prefix}/lib/ghc-${PKG_VERSION}/lib -liconv_compat#" "${settings_file}"
+  fi
+
+  # Update toolchain paths
+  perl -pi -e "s#\"[/\w]*?(ar|clang|clang\+\+|ld|ranlib|llc|objdump|opt)\"#\"${toolchain}-\$1\"#" "${settings_file}"
+}
+
 # ==============================================================================
 # Cross-Compilation Helpers
 # ==============================================================================
