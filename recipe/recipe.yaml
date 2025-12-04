@@ -33,7 +33,6 @@ source:
 
 build:
   number: 0
-  skip: unix and not linux
   script:
     env:
       BOOTSTRAP_VERSION: ${{ bootstrap_version }}
@@ -45,6 +44,7 @@ requirements:
     - ${{ stdlib('c') }}
     - binutils >=${{ binutils_version }}
     - cabal ==3.10.3.0
+    - curl
     - ghc-bootstrap ==${{ bootstrap_version }}
     - llvm-tools ${{ c_compiler_version }}.*
     - perl 5.32.*
@@ -111,10 +111,10 @@ tests:
             - runghc
             - runhaskell
       files:
-        - etc/bash_completion.d/ghc
-        - etc/conda/activate.d/ghc_activate.sh
+        - etc/conda/activate.d/ghc_activate.${{ "sh" if unix else "bat" }}
         - if: unix
           then:
+            - etc/bash_completion.d/ghc
             - lib/ghc-${{ version }}/lib/llvm-passes
             - lib/ghc-${{ version }}/lib/llvm-targets
             - lib/ghc-${{ version }}/lib/package.conf.d/**
@@ -149,11 +149,14 @@ tests:
         - ${{ compiler('c') }}
         - libiconv
         - if: unix
-          then: ${{ stdlib('c') }}
+          then:
+            - ${{ stdlib('c') }}
         - if: linux
-          then: ld_impl_${{ target_platform }} ${{ binutils_version }}
+          then:
+            - ld_impl_${{ target_platform }} ${{ binutils_version }}
         - if: osx or not unix
-          then: lld
+          then:
+            - lld ${{ c_compiler_version }}.*
 
   - script:
       - if: not osx

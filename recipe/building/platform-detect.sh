@@ -27,13 +27,10 @@ detect_platform() {
       platform_config="linux-64"
       PLATFORM_NAME="Linux x86_64 (native)"
       ;;
-    linux-aarch64)
-      platform_config="linux-aarch64"
-      PLATFORM_NAME="Linux aarch64 (cross-compiled from x86_64)"
-      ;;
-    linux-ppc64le)
-      platform_config="linux-ppc64le"
-      PLATFORM_NAME="Linux ppc64le (cross-compiled from x86_64)"
+    linux-aarch64|linux-ppc64le)
+      # Cross-compilation targets share linux-cross.sh
+      platform_config="linux-cross"
+      PLATFORM_NAME="Linux ${target_platform#linux-} (cross-compiled from ${build_platform})"
       ;;
     osx-64)
       platform_config="osx-64"

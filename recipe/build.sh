@@ -65,105 +65,35 @@ echo "  Platform: ${PLATFORM_NAME}"
 echo "===================================================================="
 echo ""
 
-# ----------------------------------------------------------------------------
 # Phase 1: Environment Setup
-# ----------------------------------------------------------------------------
-# Configure build environment: paths, compilers, flags
-# Platform hooks:
-#   - platform_pre_setup_environment()
-#   - platform_setup_environment()        [or default_setup_environment()]
-#   - platform_post_setup_environment()
-
 phase_setup_environment
 
-# ----------------------------------------------------------------------------
 # Phase 2: Bootstrap Setup
-# ----------------------------------------------------------------------------
-# Configure bootstrap GHC compiler
-# Platform hooks:
-#   - platform_pre_setup_bootstrap()
-#   - platform_setup_bootstrap()          [or default_setup_bootstrap()]
-#   - platform_post_setup_bootstrap()
-
 phase_setup_bootstrap
 
-# ----------------------------------------------------------------------------
 # Phase 3: Cabal Setup
-# ----------------------------------------------------------------------------
-# Configure Cabal package manager
-# Platform hooks:
-#   - platform_pre_setup_cabal()
-#   - platform_setup_cabal()              [or default_setup_cabal()]
-#   - platform_post_setup_cabal()
-
 phase_setup_cabal
 
-# ----------------------------------------------------------------------------
 # Phase 4: Configure GHC
-# ----------------------------------------------------------------------------
-# Run GHC's configure script
-# Platform hooks:
-#   - platform_pre_configure_ghc()
-#   - platform_configure_ghc()            [or default_configure_ghc()]
-#   - platform_add_configure_args()       (modifies configure args)
-#   - platform_post_configure_ghc()
-
 phase_configure_ghc
 
-# ----------------------------------------------------------------------------
 # Phase 5: Build Hadrian
-# ----------------------------------------------------------------------------
-# Build the Hadrian build tool
-# Platform hooks:
-#   - platform_pre_build_hadrian()
-#   - platform_build_hadrian()            [or default_build_hadrian()]
-#   - platform_post_build_hadrian()
-
 phase_build_hadrian
 
-# ----------------------------------------------------------------------------
 # Phase 6: Build Stage 1
-# ----------------------------------------------------------------------------
-# Build Stage 1 GHC compiler
-# Platform hooks:
-#   - platform_pre_build_stage1()
-#   - platform_build_stage1()             [or default_build_stage1()]
-#   - platform_post_build_stage1()        ⭐ Windows: touchy rebuild here
-
 phase_build_stage1
 
-# ----------------------------------------------------------------------------
 # Phase 7: Build Stage 2
-# ----------------------------------------------------------------------------
-# Build Stage 2 GHC libraries
-# Platform hooks:
-#   - platform_pre_build_stage2()         ⭐ Windows: fake mingw here
-#   - platform_build_stage2()             [or default_build_stage2()]
-#   - platform_post_build_stage2()
-
 phase_build_stage2
 
-# ----------------------------------------------------------------------------
 # Phase 8: Install GHC
-# ----------------------------------------------------------------------------
-# Install GHC to PREFIX
-# Platform hooks:
-#   - platform_pre_install_ghc()
-#   - platform_install_ghc()              [or default_install_ghc()]
-#   - platform_post_install_ghc()
-
 phase_install_ghc
 
-# ----------------------------------------------------------------------------
 # Phase 9: Post-Install
-# ----------------------------------------------------------------------------
-# Verification and cleanup
-# Platform hooks:
-#   - platform_pre_post_install()
-#   - platform_post_install()             [or default_post_install()]
-#   - platform_post_post_install()
-
 phase_post_install
+
+# Phase 10: Activation
+phase_activation
 
 # ==============================================================================
 # BUILD COMPLETE

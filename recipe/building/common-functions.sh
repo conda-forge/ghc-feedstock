@@ -29,7 +29,8 @@ run_and_log() {
   local phase="$1"
   shift
 
-  ((_log_index++))
+  ((_log_index++)) || true
+  mkdir -p "${SRC_DIR}/_logs"
   local log_file="${SRC_DIR}/_logs/$(printf "%02d" ${_log_index})-${phase}.log"
 
   echo "  Running: $*"
@@ -252,6 +253,14 @@ default_configure_ghc() {
     --prefix="${PREFIX}"
     --enable-distro-toolchain
     --with-intree-gmp=no
+    --with-gmp-includes="${PREFIX}/include"
+    --with-gmp-libraries="${PREFIX}/lib"
+    --with-ffi-includes="${PREFIX}/include"
+    --with-ffi-libraries="${PREFIX}/lib"
+    --with-iconv-includes="${PREFIX}/include"
+    --with-iconv-libraries="${PREFIX}/lib"
+    --with-curses-includes="${PREFIX}/include"
+    --with-curses-libraries="${PREFIX}/lib"
   )
 
   # Add platform-specific args if provided
@@ -475,6 +484,53 @@ default_post_install() {
     exit 1
   }
 
+  case "${target_platform}" in
+    linux-64|linux-aarch64|linux-ppc64le|osx-64|osx-arm64)
+      sh_ext="sh"
+      ;;
+    *)
+      sh_ext="bat"
+      ;;
+  esac
+  
+  cp ${RECIPE_DIR}/activate.${sh_ext} ${PREFIX}/etc/conda/activate.d/ghc_activate.${sh_ext}
+  echo "  GHC installed successfully"
+}
+
+# ==============================================================================
+# Phase 10: Activation
+# ==============================================================================
+
+phase_activation() {
+  echo ""
+  echo "===================================================================="
+  echo "  Phase 10: Activation"
+  echo "===================================================================="
+
+  if type -t platform_activation >/dev/null 2>&1; then
+    platform_activation
+  else
+    default_activation
+  fi
+
+  echo "  ✓ Post-install complete"
+  echo ""
+}
+
+default_activation() {
+  # Verify installation
+  echo "  Activation GHC installation..."
+
+  case "${target_platform}" in
+    linux-64|linux-aarch64|linux-ppc64le|osx-64|osx-arm64)
+      sh_ext="sh"
+      ;;
+    *)
+      sh_ext="bat"
+      ;;
+  esac
+  
+  cp ${RECIPE_DIR}/activate.${sh_ext} ${PREFIX}/etc/conda/activate.d/ghc_activate.${sh_ext}
   echo "  GHC installed successfully"
 }
 

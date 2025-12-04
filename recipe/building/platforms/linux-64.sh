@@ -12,15 +12,18 @@ set -eu
 PLATFORM_NAME="Linux x86_64 (native)"
 
 # ==============================================================================
-# Linux uses mostly default implementations
+# Platform Triple Configuration
 # ==============================================================================
+# Bootstrap GHC 9.2.8 uses 'x86_64-unknown-linux-gnu' but conda toolchain
+# uses 'x86_64-conda-linux-gnu'. Override to match bootstrap GHC.
 
-# Linux typically doesn't need many overrides
-# The defaults in common-functions.sh work well
+ghc_triple="x86_64-unknown-linux-gnu"
 
-# Example override if needed:
-# platform_setup_environment() {
-#   echo "  Configuring Linux-specific environment..."
-#   # Custom Linux environment setup
-#   echo "  ✓ Linux environment configured"
-# }
+# Override build/host aliases for GHC configure
+export build_alias="${ghc_triple}"
+export host_alias="${ghc_triple}"
+
+echo "Platform triple configuration:"
+echo "  GHC triple: ${ghc_triple}"
+echo "  build_alias: ${build_alias}"
+echo "  host_alias: ${host_alias}"
