@@ -128,6 +128,71 @@ update_settings_link_flags() {
   perl -pi -e "s#\"[/\w]*?(ar|clang|clang\+\+|ld|ranlib|llc|objdump|opt)\"#\"${toolchain}-\$1\"#" "${settings_file}"
 }
 
+# Set macOS-specific ar and ranlib settings for LLVM toolchain
+# Apple ld64 requires LLVM ar instead of GNU ar
+#
+# Usage:
+#   set_macos_conda_ar_ranlib "${settings_file}"
+#
+# Parameters:
+#   $1 - settings_file: Path to GHC settings file
+#   $2 - toolchain: Toolchain prefix (optional, defaults to x86_64-apple-darwin13.4.0)
+#
+set_macos_conda_ar_ranlib() {
+  local settings_file="$1"
+  local toolchain="${2:-x86_64-apple-darwin13.4.0}"
+
+  if [[ -f "$settings_file" ]]; then
+    if [[ "$(basename "${settings_file}")" == "default."* ]]; then
+      # Use LLVM ar instead of GNU ar for compatibility with Apple ld64
+      perl -i -pe 's#(arMkArchive\s*=\s*).*#$1Program {prgPath = "llvm-ar", prgFlags = ["qcs"]}#g' "${settings_file}"
+      perl -i -pe 's#((arIsGnu|arSupportsAtFile)\s*=\s*).*#$1False#g' "${settings_file}"
+      perl -i -pe 's#(arNeedsRanlib\s*=\s*).*#$1False#g' "${settings_file}"
+      perl -i -pe 's#(tgtRanlib\s*=\s*).*#$1Nothing#g' "${settings_file}"
+    else
+      # Use LLVM ar instead of GNU ar for compatibility with Apple ld64
+      perl -i -pe 's#("ar command", ")[^"]*#$1llvm-ar#g' "${settings_file}"
+      perl -i -pe 's#("ar flags", ")[^"]*#$1qcs#g' "${settings_file}"
+      perl -i -pe "s#(\"(clang|llc|opt|ranlib) command\", \")[^\"]*#\$1${toolchain}-\$2#g" "${settings_file}"
+    fi
+  else
+    echo "Error: $settings_file not found!"
+    exit 1
+  fi
+}
+
+# Update installed GHC settings with final link flags and toolchain paths
+# Called after GHC is installed to PREFIX
+#
+# Usage:
+#   update_installed_settings
+#   update_installed_settings "x86_64-apple-darwin13.4.0"
+#
+# Parameters:
+#   $1 - toolchain: Toolchain prefix (optional, defaults to $CONDA_TOOLCHAIN_HOST)
+#
+update_installed_settings() {
+  local toolchain="${1:-$CONDA_TOOLCHAIN_HOST}"
+
+  local settings_file=$(find "${PREFIX}/lib" -name settings | head -n 1)
+  if [[ "${target_platform}" == "linux-"* ]]; then
+    perl -pi -e "s#(C compiler link flags\", \"[^\"]*)#\$1 -Wl,-L\\\$topdir/x86_64-linux-ghc-${PKG_VERSION} -Wl,-rpath,\\\$topdir/x86_64-linux-ghc-${PKG_VERSION} -Wl,-L\\\$topdir/../../../lib -Wl,-rpath,\\\$topdir/../../../lib#" "${settings_file}"
+    perl -pi -e "s#(ld flags\", \")#\$1-L\\\$topdir/x86_64-linux-ghc-${PKG_VERSION} -rpath \\\$topdir/x86_64-linux-ghc-${PKG_VERSION} -L\\\$topdir/../../../lib -rpath \\\$topdir/../../../lib#" "${settings_file}"
+
+  elif [[ "${target_platform}" == "osx-"* ]]; then
+    perl -i -pe "s#(C compiler flags\", \")([^\"]*)#\1\2 -fno-lto#" "${settings_file}"
+    perl -i -pe "s#(C\\+\\+ compiler flags\", \")([^\"]*)#\1\2 -fno-lto#" "${settings_file}"
+    perl -i -pe "s#(C compiler link flags\", \")([^\"]*)#\1\2 -v -fuse-ld=lld -fno-lto -fno-use-linker-plugin -Wl,-L\\\$topdir/../../../lib -Wl,-rpath,\\\$topdir/../../../lib -liconv -Wl,-L\\\$topdir/../lib -Wl,-rpath,\\\$topdir/../lib -liconv_compat#" "${settings_file}"
+  fi
+
+  # Remove build-time paths
+  perl -pi -e "s#(-Wl,-L${BUILD_PREFIX}/lib|-Wl,-L${PREFIX}/lib|-Wl,-rpath,${BUILD_PREFIX}/lib|-Wl,-rpath,${PREFIX}/lib)##g" "${settings_file}"
+  perl -pi -e "s#(-L${BUILD_PREFIX}/lib|-L${PREFIX}/lib|-rpath ${PREFIX}/lib|-rpath ${BUILD_PREFIX}/lib)##g" "${settings_file}"
+
+  # Update toolchain paths
+  perl -pi -e "s#\"[/\w]*?(ar|clang|clang\+\+|ld|ranlib|llc|objdump|opt)\"#\"${toolchain}-\$1\"#" "${settings_file}"
+}
+
 # ==============================================================================
 # Cross-Compilation Helpers
 # ==============================================================================
