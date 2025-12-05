@@ -187,8 +187,11 @@ platform_post_configure_ghc() {
     # Add -fPIC to C compiler flags for PIE compatibility
     # Modern Linux toolchains default to PIE, so C code needs -fPIC
     echo "  Adding -fPIC to C compiler flags for PIE compatibility..."
-    perl -pi -e 's#^(conf-cc-args-stage[012]\s*=\s*)(.*)$#$1-fPIC $2#' "${config_file}"
-    perl -pi -e 's#^(settings-c-compiler-flags\s*=\s*)(.*)$#$1-fPIC $2#' "${config_file}"
+    # Process each stage separately to avoid regex issues
+    for stage in 0 1 2 3; do
+      perl -pi -e "s#^(conf-cc-args-stage${stage}\\s*=\\s*)#\$1-fPIC #" "${config_file}"
+    done
+    perl -pi -e 's#^(settings-c-compiler-flags\s*=\s*)#$1-fPIC #' "${config_file}"
     echo "  ✓ -fPIC added to C compiler flags"
   fi
 

@@ -13,11 +13,12 @@ set _BUILD_PREFIX=%BUILD_PREFIX:\=/%
 set _SRC_DIR=%SRC_DIR:\=/%
 set _RECIPE_DIR=%RECIPE_DIR:\=/%
 
-:: Store mixed C: with unix /
+:: Store mixed C: with unix / (Windows-compatible format for GHC settings)
+:: These are exported to bash for use in patching GHC settings files
 set _PREFIX_=%_PREFIX%
 set _BUILD_PREFIX_=%_BUILD_PREFIX%
 
-:: Convert C: and D: /c, /d
+:: Convert C: and D: /c, /d (Unix-style for bash/configure)
 set _PREFIX=%_PREFIX:C:=/c/%
 set _BUILD_PREFIX=%_BUILD_PREFIX:C:=/c/%
 set _SRC_DIR=%_SRC_DIR:C:=/c/%
@@ -37,5 +38,6 @@ set MSYSTEM=MINGW64
 set MSYS2_PATH_TYPE=inherit
 set MSYS2_ARG_CONV_EXCL="*"
 set CHERE_INVOKING=1
+
 bash -lce "./conda_build.sh"
 if errorlevel 1 exit 1
