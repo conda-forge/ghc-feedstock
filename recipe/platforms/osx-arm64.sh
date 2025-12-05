@@ -152,6 +152,16 @@ platform_post_configure_ghc() {
     echo "  Fixing touch command (touchy.exe -> touch)..."
     perl -pi -e 's#\$\$topdir/bin/touchy\.exe#touch#' "${settings_file}"
     echo "  ✓ settings-touch-command = touch"
+
+    # CRITICAL: For cross-compilation, library dirs in system.config are used by ALL stages
+    # including stage0 which runs on x86_64. Point to BUILD_PREFIX for build-time libs.
+    # Stage1/2 get the correct PREFIX paths via linker flags added to conf-gcc-linker-args-stage[12]
+    echo "  Fixing lib-dirs to use BUILD_PREFIX (for stage0 compatibility)..."
+    perl -pi -e "s#^(ffi-lib-dir\\s*=\\s*).*#\$1${BUILD_PREFIX}/lib#" "${settings_file}"
+    perl -pi -e "s#^(iconv-lib-dir\\s*=\\s*).*#\$1${BUILD_PREFIX}/lib#" "${settings_file}"
+    perl -pi -e "s#^(gmp-lib-dir\\s*=\\s*).*#\$1${BUILD_PREFIX}/lib#" "${settings_file}"
+    perl -pi -e "s#^(curses-lib-dir\\s*=\\s*).*#\$1${BUILD_PREFIX}/lib#" "${settings_file}"
+    echo "  ✓ lib-dirs set to BUILD_PREFIX"
   fi
 
   # macOS-specific: Set system-ar to llvm-ar for stage0

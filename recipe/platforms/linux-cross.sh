@@ -174,11 +174,21 @@ platform_post_configure_ghc() {
     perl -pi -e "s#(conf-ld-linker-args-stage0\\s*=\\s*).*#\$1-L${BUILD_PREFIX}/lib -rpath ${BUILD_PREFIX}/lib#" "${config_file}"
     echo "  ✓ stage0 linker flags set to BUILD_PREFIX"
 
+    # CRITICAL: For cross-compilation, library dirs in system.config are used by ALL stages
+    # including stage0 which runs on build arch. Point to BUILD_PREFIX for build-time libs.
+    # Stage1/2 get the correct PREFIX paths via linker flags added to conf-gcc-linker-args-stage[12]
+    echo "  Fixing lib-dirs to use BUILD_PREFIX (for stage0 compatibility)..."
+    perl -pi -e "s#^(ffi-lib-dir\\s*=\\s*).*#\$1${BUILD_PREFIX}/lib#" "${config_file}"
+    perl -pi -e "s#^(iconv-lib-dir\\s*=\\s*).*#\$1${BUILD_PREFIX}/lib#" "${config_file}"
+    perl -pi -e "s#^(gmp-lib-dir\\s*=\\s*).*#\$1${BUILD_PREFIX}/lib#" "${config_file}"
+    perl -pi -e "s#^(curses-lib-dir\\s*=\\s*).*#\$1${BUILD_PREFIX}/lib#" "${config_file}"
+    echo "  ✓ lib-dirs set to BUILD_PREFIX"
+
     # Add -fPIC to C compiler flags for PIE compatibility
     # Modern Linux toolchains default to PIE, so C code needs -fPIC
     echo "  Adding -fPIC to C compiler flags for PIE compatibility..."
-    perl -pi -e 's#(conf-cc-args-stage[012]\s*=\s*)#$1-fPIC #g' "${config_file}"
-    perl -pi -e 's#(settings-c-compiler-flags\s*=\s*)#$1-fPIC #' "${config_file}"
+    perl -pi -e 's#^(conf-cc-args-stage[012]\s*=\s*)(.*)$#$1-fPIC $2#' "${config_file}"
+    perl -pi -e 's#^(settings-c-compiler-flags\s*=\s*)(.*)$#$1-fPIC $2#' "${config_file}"
     echo "  ✓ -fPIC added to C compiler flags"
   fi
 
