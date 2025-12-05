@@ -1,30 +1,18 @@
---- a/hadrian/src/Rules/Generate.hs	2025-10-31 21:54:35.494935229 -0500
-+++ b/hadrian/src/Rules/Generate.hs	2025-10-31 21:54:49.594894962 -0500
-@@ -296,6 +296,9 @@
-             settingWord s = read <$> setting s
-         ws <- settingWord TargetWordSize
-         return $ toCabalBool (ws == 8)
-+    -- Add FFI and Libdw include directories from configure
-+    , interpolateSetting "FFIIncludeDir" FfiIncludeDir
-+    , interpolateSetting "LibdwIncludeDir" LibdwIncludeDir
-     ]
-   where
-     flag = interpolateCabalFlag
---- a/rts/rts.cabal.in	2025-10-31 21:54:35.502935205 -0500
-+++ b/rts/rts.cabal.in	2025-10-31 21:54:49.602894938 -0500
-@@ -201,9 +201,13 @@
-       if !flag(smp)
-          cpp-options: -DNOSMP
+--- a/rts/rts.cabal.in
++++ b/rts/rts.cabal.in
+@@ -148,8 +148,13 @@ library
+        cpp-options: -DNOSMP
  
-+      -- Package-relative include dirs (prepended with rts/)
-       include-dirs: include
--                    @FFIIncludeDir@
--                    @LibdwIncludeDir@
+     include-dirs: build ../includes includes
+-                  includes/dist-derivedconstants/header @FFIIncludeDir@
+-                  @LibdwIncludeDir@
++                  includes/dist-derivedconstants/header
 +
-+      -- Absolute include dirs from system dependencies (not prepended)
-+      -- FFI and libdw from configure --with-ffi-includes
-+      extra-include-dirs: @FFIIncludeDir@
-+                          @LibdwIncludeDir@
- 
- 
-       includes: Rts.h
++    -- Absolute include dirs from system dependencies (not prepended with rts/)
++    -- FFI and libdw from configure --with-ffi-includes and --with-libdw-includes
++    extra-include-dirs: @FFIIncludeDir@
++                        @LibdwIncludeDir@
++
+     includes: Stg.h
+     install-includes: Cmm.h HsFFI.h MachDeps.h Rts.h RtsAPI.h Stg.h
+                       ghcautoconf.h ghcconfig.h ghcplatform.h ghcversion.h

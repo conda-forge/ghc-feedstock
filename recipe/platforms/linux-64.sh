@@ -29,6 +29,20 @@ configure_native_triple
 # ==============================================================================
 
 platform_post_configure_ghc() {
+  local config_file="${SRC_DIR}/hadrian/cfg/system.config"
+
   # Use standardized system.config patching
   patch_system_config_linker_flags
+
+  if [[ -f "${config_file}" ]]; then
+    # Force system GMP (in case configure still defaults to intree)
+    echo "  Ensuring system GMP is used (not intree)..."
+    perl -pi -e "s#^intree-gmp\s*=\s*.*#intree-gmp = NO#" "${config_file}"
+    echo "  ✓ intree-gmp = NO set in system.config"
+
+    # Fix touch command (GHC 9.2.8 bug: --enable-distro-toolchain sets touchy.exe even on Linux)
+    echo "  Fixing touch command (touchy.exe -> touch)..."
+    perl -pi -e 's#\$\$topdir/bin/touchy\.exe#touch#' "${config_file}"
+    echo "  ✓ settings-touch-command = touch"
+  fi
 }

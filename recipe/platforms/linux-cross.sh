@@ -145,14 +145,28 @@ platform_configure_ghc() {
 platform_post_configure_ghc() {
   echo "  Patching hadrian system.config for cross-compilation..."
 
+  local config_file="${SRC_DIR}/hadrian/cfg/system.config"
+
   # Use standardized helpers for cross-compilation
   strip_build_prefix_from_tools "python"  # Exclude python from stripping
   add_toolchain_prefix_to_tools "${conda_target}"
   fix_python_path_for_cross
   patch_system_config_linker_flags
 
+  # Force system GMP (in case configure still defaults to intree)
+  if [[ -f "${config_file}" ]]; then
+    echo "  Ensuring system GMP is used (not intree)..."
+    perl -pi -e "s#^intree-gmp\s*=\s*.*#intree-gmp = NO#" "${config_file}"
+    echo "  ✓ intree-gmp = NO set in system.config"
+
+    # Fix touch command (GHC 9.2.8 bug: --enable-distro-toolchain sets touchy.exe even on Linux)
+    echo "  Fixing touch command (touchy.exe -> touch)..."
+    perl -pi -e 's#\$\$topdir/bin/touchy\.exe#touch#' "${config_file}"
+    echo "  ✓ settings-touch-command = touch"
+  fi
+
   echo "  Patched system.config:"
-  cat "${SRC_DIR}/hadrian/cfg/system.config"
+  cat "${config_file}"
 
   echo "  ✓ System config patched"
 }
@@ -199,7 +213,7 @@ platform_build_hadrian() {
   fi
 
   HADRIAN_CMD=("${hadrian_bin}" "-j${CPU_COUNT}" "--directory" "${SRC_DIR}")
-  HADRIAN_FLAVOUR="release"
+  HADRIAN_FLAVOUR="quick"
 
   echo "  Hadrian binary: ${hadrian_bin}"
   echo "  ✓ Hadrian built"
@@ -292,7 +306,7 @@ platform_install_ghc() {
   # Create binary distribution first
   run_and_log "bindist" "${HADRIAN_CMD[@]}" binary-dist \
     --prefix="${PREFIX}" \
-    --flavour=release \
+    --flavour=quick \
     --freeze1 \
     --freeze2 \
     --docs=none \

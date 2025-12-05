@@ -204,9 +204,12 @@ default_configure_ghc() {
   echo "  DEBUG: system_config: ${system_config[*]:-EMPTY}"
 
   # Build configure arguments using nameref helper
+  # NOTE: Do NOT pass --with-intree-gmp=no! GHC 9.2.8's configure has a bug
+  # where ANY value passed to --with-intree-gmp triggers GMP_FORCE_INTREE=YES.
+  # Without this option, configure defaults to GMP_FORCE_INTREE=NO and uses
+  # system GMP from --with-gmp-includes and --with-gmp-libraries.
   local -a configure_args=(
     --enable-distro-toolchain
-    --with-intree-gmp=no
   )
 
   # Add standard library paths (--with-gmp, --with-ffi, etc.)
@@ -277,7 +280,7 @@ default_build_hadrian() {
   # HADRIAN_CMD is global so it can be used by subsequent phases
   declare -ga HADRIAN_CMD  # Global array
   build_hadrian_cmd HADRIAN_CMD "${hadrian_bin}"
-  HADRIAN_FLAVOUR="${HADRIAN_FLAVOUR:-release}"
+  HADRIAN_FLAVOUR="${HADRIAN_FLAVOUR:-quick}"
 }
 
 # ==============================================================================

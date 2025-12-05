@@ -1,16 +1,17 @@
 --- a/compiler/GHC/SysTools/BaseDir.hs
 +++ b/compiler/GHC/SysTools/BaseDir.hs
-@@ -127,7 +127,8 @@ expandToolDir
-   -> String -> String
- #if defined(mingw32_HOST_OS)
- expandToolDir False (Just tool_dir) s = expandPathVar "tooldir" tool_dir s
--expandToolDir False Nothing         _ = panic "Could not determine $tooldir"
-+expandToolDir False Nothing         s = s
+@@ -144,7 +144,8 @@
+ expandToolDir :: Maybe FilePath -> String -> String
+ #if defined(mingw32_HOST_OS) && !defined(USE_INPLACE_MINGW_TOOLCHAIN)
+ expandToolDir (Just tool_dir) s = expandPathVar "tooldir" tool_dir s
+-expandToolDir Nothing         _ = panic "Could not determine $tooldir"
++expandToolDir Nothing         s = s
 +  -- When mingw not found, settings should already have tool names without $tooldir
- expandToolDir True  _               s = s
  #else
- expandToolDir _ _ s = s
-@@ -176,8 +177,9 @@ findToolDir False top_dir = go 0 (top_dir </> "..") []
+ expandToolDir _ s = s
+ #endif
+@@ -189,8 +190,9 @@
+   where maxDepth = 3
          go :: Int -> FilePath -> [FilePath] -> IO (Maybe FilePath)
          go k path tried
 -          | k == maxDepth = throwGhcExceptionIO $
@@ -20,4 +21,4 @@
 +              -- Original: throwGhcExceptionIO $ InstallationError $ "could not detect mingw toolchain in the following paths: " ++ show tried
            | otherwise = do
                let try = path </> "mingw"
-               let tried' = tried ++ [try]
+               let tried = tried ++ [try]

@@ -139,6 +139,18 @@ platform_post_configure_ghc() {
   add_toolchain_prefix_to_tools "${conda_target}" "ar clang clang++ llc nm objdump opt ranlib"
   patch_system_config_linker_flags
 
+  # Force system GMP (in case configure still defaults to intree)
+  if [[ -f "${settings_file}" ]]; then
+    echo "  Ensuring system GMP is used (not intree)..."
+    perl -pi -e "s#^intree-gmp\s*=\s*.*#intree-gmp = NO#" "${settings_file}"
+    echo "  ✓ intree-gmp = NO set in system.config"
+
+    # Fix touch command (GHC 9.2.8 bug: --enable-distro-toolchain sets touchy.exe even on macOS)
+    echo "  Fixing touch command (touchy.exe -> touch)..."
+    perl -pi -e 's#\$\$topdir/bin/touchy\.exe#touch#' "${settings_file}"
+    echo "  ✓ settings-touch-command = touch"
+  fi
+
   # macOS-specific: Set system-ar to llvm-ar for stage0
   perl -pi -e "s#(system-ar\\s*?=\\s).*#\$1${AR_STAGE0}#" "${settings_file}"
 
@@ -215,7 +227,7 @@ platform_build_hadrian() {
   fi
 
   HADRIAN_CMD=("${hadrian_bin}" "-j${CPU_COUNT}" "--directory" "${SRC_DIR}")
-  HADRIAN_FLAVOUR="release"
+  HADRIAN_FLAVOUR="quick"
 
   echo "  Hadrian binary: ${hadrian_bin}"
   echo "  ✓ Hadrian built"
@@ -265,7 +277,7 @@ platform_build_stage1() {
 platform_post_build_stage1() {
   echo "  Building Stage 1 libraries..."
 
-  # Build libraries with release flavour (for full ways: vanilla, profiling, dynamic)
+  # Build libraries with quick flavour (for full ways: vanilla, profiling, dynamic)
   run_and_log "stage1-lib" "${HADRIAN_CMD[@]}" --flavour="${HADRIAN_FLAVOUR}" \
     stage1:lib:ghc --docs=none --progress-info=none
 

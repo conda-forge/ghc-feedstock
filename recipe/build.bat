@@ -7,11 +7,17 @@ echo conda activate --stack "${BUILD_PREFIX}"         >> conda_build.sh
 echo CONDA_PREFIX=${CONDA_PREFIX//\\//}               >> conda_build.sh
 type "%RECIPE_DIR%\build.sh"                          >> conda_build.sh
 
+:: Convert backslashes
 set _PREFIX=%PREFIX:\=/%
 set _BUILD_PREFIX=%BUILD_PREFIX:\=/%
 set _SRC_DIR=%SRC_DIR:\=/%
 set _RECIPE_DIR=%RECIPE_DIR:\=/%
 
+:: Store mixed C: with unix /
+set _PREFIX_=%_PREFIX%
+set _BUILD_PREFIX_=%_BUILD_PREFIX%
+
+:: Convert C: and D: /c, /d
 set _PREFIX=%_PREFIX:C:=/c/%
 set _BUILD_PREFIX=%_BUILD_PREFIX:C:=/c/%
 set _SRC_DIR=%_SRC_DIR:C:=/c/%

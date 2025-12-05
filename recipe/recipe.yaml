@@ -1,5 +1,5 @@
 context:
-  version: "9.6.7"
+  version: "9.2.8"
   bootstrap_version: "9.2.8"
 
 package:
@@ -8,8 +8,15 @@ package:
 
 source:
   - url: https://downloads.haskell.org/~ghc/${{ version }}/ghc-${{ version }}-src.tar.xz
-    sha256: d053bf6ce1d588a75cfe8c9316269486e9d8fb89dcdf6fd92836fa2e3df61305
+    sha256: 5f13d1786bf4fd12f4b45faa37abedb5bb3f36d5e58f7da5307e8bfe88a567a1
     patches:
+      # Make alex and happy optional since generated files are already in source tarball
+      - patches/make-alex-happy-optional.patch
+      # Update hadrian cabal.project for newer dependencies and static-only build
+      - patches/update-hadrian-cabal-project.patch
+      # Fix -no-pie detection - allow env var override when test fails with clang
+      - if: linux
+        then: patches/fix-no-pie-detection-configure.patch
       - if: aarch64 or ppc64le or arm64
         then: patches/skip-bindist-recache-crosscompile.patch
       - if: not unix
@@ -26,9 +33,11 @@ source:
           - patches/fix-windows-pei386-format.patch
           - patches/fix-windows-mmap-format.patch
           - patches/fix-hp2ps-utilities-stdlib.patch
+      - if: osx
+        then:
+          - patches/remove-dangerous-macos-linker-flags.patch
       - if: osx and arm64
         then:
-          - patches/patch-rpath-macos.patch
           - patches/patch-osname-macos.patch
 
 build:
@@ -137,6 +146,18 @@ tests:
             - lib/settings
             - lib/template-hsc.h
             - lib/x86_64-windows-ghc-${{ version }}/**
+
+  - script:
+      - ghc --version
+      - ghc-pkg --version
+      - ghci --version
+      - hsc2hs --version
+      - if: build_platform == target_platform
+        then:
+          - haddock --version
+          - hpc help
+          - runghc --version
+          - runhaskell --version
 
   - script:
       - ghc --version
