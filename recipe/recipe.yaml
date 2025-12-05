@@ -185,16 +185,14 @@ tests:
             - ld_impl_${{ target_platform }} ${{ binutils_version }}
 
   - script:
-      - printf 'main = putStrLn "Hello conda-forge"\n' > hello.hs
-      - ghc -dynamic hello.hs && ./hello
       - if: unix
-        then: ./hello
-        else: hello
-      - printf 'main = putStrLn "Hello threaded conda-forge"\n' > hello_t.hs
-      - ghc -dynamic -threaded hello_t.hs && ./hello_t
-      - if: unix
-        then: ./hello
-        else: hello
+        then:
+          - printf 'main = putStrLn "Hello conda-forge"\n' > hello.hs
+          - ghc -dynamic hello.hs && ./hello
+          - printf 'main = putStrLn "Hello threaded conda-forge"\n' > hello_t.hs
+          - ghc -dynamic -threaded hello_t.hs && ./hello_t
+        else:
+          - echo "No profiling on non-unix"
     requirements:
       run:
         - ${{ compiler('c') }}
