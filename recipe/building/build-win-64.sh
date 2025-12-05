@@ -69,7 +69,9 @@ export STRIP="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-strip.exe"
 # ==============================================================================
 # GCC is a Windows native binary and needs Windows-style paths (C:/ not /c/).
 # Use semicolon separators (Windows style) not colons (Unix style).
-_BUILD_PREFIX_WIN=$(echo "${_BUILD_PREFIX}" | sed 's#^/c/#C:/#')
+# CRITICAL: Export _BUILD_PREFIX_WIN so subshells can use it!
+export _BUILD_PREFIX_WIN=$(echo "${_BUILD_PREFIX}" | sed 's#^/c/#C:/#')
+export _PREFIX_WIN=$(echo "${_PREFIX}" | sed 's#^/c/#C:/#')
 export LIBRARY_PATH="${_BUILD_PREFIX_WIN}/Library/lib/gcc/x86_64-w64-mingw32/15.2.0"
 export LIBRARY_PATH="${LIBRARY_PATH};${_BUILD_PREFIX_WIN}/Library/lib"
 export LIBRARY_PATH="${LIBRARY_PATH};${_BUILD_PREFIX_WIN}/Library/x86_64-w64-mingw32/sysroot/usr/lib"
