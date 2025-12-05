@@ -1,0 +1,25 @@
+--- a/hadrian/src/Oracles/Flag.hs
++++ b/hadrian/src/Oracles/Flag.hs
+@@ -8,6 +8,7 @@ import Hadrian.Oracles.TextFile
+ import Hadrian.Expression
+
+ import Base
++import Oracles.Setting (anyTargetOs)
+ import Oracles.Setting
+
+ data Flag = ArSupportsAtFile
+@@ -64,8 +65,13 @@ flag f = do
+             NeedLibatomic        -> "need-libatomic"
+     value <- lookupSystemConfig key
+     when (value `notElem` ["YES", "NO", ""]) . error $ "Configuration flag "
+         ++ quote (key ++ " = " ++ value) ++ " cannot be parsed."
+-    return $ value == "YES"
++    -- Force system GMP on Windows (conda-forge provides it)
++    case f of
++        GmpInTree -> do
++            windows <- anyTargetOs ["mingw32"]
++            return $ if windows then False else value == "YES"
++        _ -> return $ value == "YES"
+
+ -- | Get a configuration setting.
+ getFlag :: Flag -> Expr c b Bool
