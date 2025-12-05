@@ -92,8 +92,26 @@ export STRIP="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-strip.exe"
 # CRITICAL: Export _BUILD_PREFIX_WIN so subshells can use it!
 echo "=== DEBUG: Before _BUILD_PREFIX_WIN computation ==="
 echo "_BUILD_PREFIX value is: [${_BUILD_PREFIX}]"
-export _BUILD_PREFIX_WIN=$(echo "${_BUILD_PREFIX}" | sed 's#^/c/#C:/#')
-export _PREFIX_WIN=$(echo "${_PREFIX}" | sed 's#^/c/#C:/#')
+echo "_PREFIX value is: [${_PREFIX}]"
+
+# Use bash-native string replacement instead of sed to avoid MSYS2 interference
+# ${var/#pattern/replacement} replaces pattern at start of string
+if [[ "${_BUILD_PREFIX}" == /c/* ]]; then
+  export _BUILD_PREFIX_WIN="C:/${_BUILD_PREFIX:3}"
+elif [[ "${_BUILD_PREFIX}" == /d/* ]]; then
+  export _BUILD_PREFIX_WIN="D:/${_BUILD_PREFIX:3}"
+else
+  export _BUILD_PREFIX_WIN="${_BUILD_PREFIX}"
+fi
+
+if [[ "${_PREFIX}" == /c/* ]]; then
+  export _PREFIX_WIN="C:/${_PREFIX:3}"
+elif [[ "${_PREFIX}" == /d/* ]]; then
+  export _PREFIX_WIN="D:/${_PREFIX:3}"
+else
+  export _PREFIX_WIN="${_PREFIX}"
+fi
+
 echo "=== DEBUG: After _BUILD_PREFIX_WIN computation ==="
 echo "_BUILD_PREFIX_WIN value is: [${_BUILD_PREFIX_WIN}]"
 echo "_PREFIX_WIN value is: [${_PREFIX_WIN}]"
