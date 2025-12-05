@@ -359,8 +359,12 @@ platform_install_ghc() {
   pushd "${bindist_dir}" >/dev/null
 
   # Configure the binary distribution
-  ac_cv_path_CC="${BUILD_PREFIX}/bin/${conda_host}-clang" \
-  ac_cv_path_CXX="${BUILD_PREFIX}/bin/${conda_host}-clang++" \
+  # Must use BUILD machine compiler (x86_64) with clean flags - not target compiler
+  CC="${BUILD_PREFIX}/bin/${conda_host}-clang" \
+  CXX="${BUILD_PREFIX}/bin/${conda_host}-clang++" \
+  CFLAGS="" \
+  CXXFLAGS="" \
+  LDFLAGS="" \
   ./configure --prefix="${PREFIX}" --target="${ghc_target}" || {
     cat config.log
     popd >/dev/null

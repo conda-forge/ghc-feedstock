@@ -188,8 +188,11 @@ platform_post_configure_ghc() {
 
   local settings_file="${SRC_DIR}/hadrian/cfg/system.config"
 
-  # Remove BUILD_PREFIX from tool paths
-  perl -pi -e "s#${BUILD_PREFIX}/bin/##" "${settings_file}"
+  # Remove BUILD_PREFIX from tool paths (but not python - we need full path for build host)
+  perl -pi -e "s#${BUILD_PREFIX}/bin/(?!python)##" "${settings_file}"
+
+  # Fix Python path - configure sets $PREFIX/bin/python but we need BUILD_PREFIX for cross-compile
+  perl -pi -e "s#(^python\\s*=).*#\$1 ${BUILD_PREFIX}/bin/python#" "${settings_file}"
 
   # Add target prefix to tools
   perl -pi -e "s#(=\s+)(ar|clang|clang\+\+|llc|nm|objdump|opt|ranlib)\$#\$1${conda_target}-\$2#" "${settings_file}"

@@ -27,3 +27,26 @@ echo "Platform triple configuration:"
 echo "  GHC triple: ${ghc_triple}"
 echo "  build_alias: ${build_alias}"
 echo "  host_alias: ${host_alias}"
+
+# ==============================================================================
+# Phase 4b: Post-Configure (patch Hadrian system.config)
+# ==============================================================================
+
+platform_post_configure_ghc() {
+  echo "  Patching Hadrian system.config for Linux..."
+
+  local settings_file="${SRC_DIR}/hadrian/cfg/system.config"
+
+  if [[ ! -f "${settings_file}" ]]; then
+    echo "  WARNING: system.config not found, skipping patch"
+    return 0
+  fi
+
+  # Add library paths for linking
+  perl -pi -e "s#(conf-gcc-linker-args-stage[12].*?= )#\$1-Wl,-L${PREFIX}/lib -Wl,-rpath,${PREFIX}/lib #" "${settings_file}"
+  perl -pi -e "s#(conf-ld-linker-args-stage[12].*?= )#\$1-L${PREFIX}/lib -rpath ${PREFIX}/lib #" "${settings_file}"
+  perl -pi -e "s#(settings-c-compiler-link-flags.*?= )#\$1-Wl,-L${PREFIX}/lib -Wl,-rpath,${PREFIX}/lib #" "${settings_file}"
+  perl -pi -e "s#(settings-ld-flags.*?= )#\$1-L${PREFIX}/lib -rpath ${PREFIX}/lib #" "${settings_file}"
+
+  echo "  ✓ Hadrian system.config patched"
+}
