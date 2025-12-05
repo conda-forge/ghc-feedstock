@@ -81,8 +81,11 @@ platform_configure_ghc() {
   build_system_config system_config "" "" "${target_alias}"
 
   # Build standard configure args using nameref helper (--with-gmp, --with-ffi, etc.)
+  # NOTE: Do NOT pass -L${PREFIX}/lib in LDFLAGS for cross-compilation!
+  # PREFIX contains arm64 libraries, but configure runs on x86_64 build machine.
+  # Library paths for target are added later in system.config for stage1/2 only.
   local -a configure_args
-  build_configure_args configure_args "-L${PREFIX}/lib ${LDFLAGS:-}"
+  build_configure_args configure_args ""
 
   # Add cross-compilation specific toolchain overrides
   configure_args+=(
@@ -155,8 +158,10 @@ platform_post_configure_ghc() {
   perl -pi -e "s#(system-ar\\s*?=\\s).*#\$1${AR_STAGE0}#" "${settings_file}"
 
   # macOS-specific: Set stage0 compiler flags for host targeting
+  # CRITICAL: Stage0 runs on build machine (x86_64), so it needs BUILD_PREFIX libraries, NOT PREFIX (arm64)
   perl -pi -e "s#(conf-cc-args-stage0\\s*?=\\s).*#\$1--target=${conda_host}#" "${settings_file}"
-  perl -pi -e "s#(conf-gcc-linker-args-stage0\\s*?=\\s).*#\$1--target=${conda_host}#" "${settings_file}"
+  perl -pi -e "s#(conf-gcc-linker-args-stage0\\s*?=\\s).*#\$1--target=${conda_host} -Wl,-L${BUILD_PREFIX}/lib -Wl,-rpath,${BUILD_PREFIX}/lib#" "${settings_file}"
+  perl -pi -e "s#(conf-ld-linker-args-stage0\\s*?=\\s).*#\$1-L${BUILD_PREFIX}/lib -rpath ${BUILD_PREFIX}/lib#" "${settings_file}"
 
   # macOS-specific: Override ar command in settings
   perl -pi -e "s#(settings-ar-command\\s*?=\\s).*#\$1${conda_target}-ar#" "${settings_file}"
@@ -182,6 +187,15 @@ platform_post_configure_ghc() {
     perl -pi -e "s#(ranlib command\", \")[^\"]*#\$1llvm-ranlib#" "${bootstrap_settings}"
     # Fix tool commands with host prefix
     perl -pi -e "s#((llc|opt|clang) command\", \")[^\"]*#\$1${conda_host}-\$2#" "${bootstrap_settings}"
+
+    # CRITICAL: Replace any $PREFIX paths with $BUILD_PREFIX in linker flags
+    # Stage0 (bootstrap) runs on build machine (x86_64), needs x86_64 libs from BUILD_PREFIX
+    # NOT arm64 libs from PREFIX
+    echo "  Fixing library paths in bootstrap settings (PREFIX -> BUILD_PREFIX)..."
+    perl -pi -e "s#-L${PREFIX}/lib#-L${BUILD_PREFIX}/lib#g" "${bootstrap_settings}"
+    perl -pi -e "s#-rpath,${PREFIX}/lib#-rpath,${BUILD_PREFIX}/lib#g" "${bootstrap_settings}"
+    perl -pi -e "s#-rpath ${PREFIX}/lib#-rpath ${BUILD_PREFIX}/lib#g" "${bootstrap_settings}"
+
     echo "  Patched bootstrap settings"
     cat "${bootstrap_settings}"
   fi

@@ -423,9 +423,11 @@ default_install_ghc() {
   echo "  Installing from: ${bindist_dir}"
 
   # Install from bindist
+  # Available targets: install_bin install_lib install_includes install_docs update_package_db
+  # (no install_man in GHC 9.2.8)
   pushd "${bindist_dir}" >/dev/null
     ./configure --prefix="${PREFIX}" || { cat config.log; exit 1; }
-    run_and_log "make-install" make install_bin install_lib install_man
+    run_and_log "make-install" make install_bin install_lib install_includes
   popd >/dev/null
 }
 

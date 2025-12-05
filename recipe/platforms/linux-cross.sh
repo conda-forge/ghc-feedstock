@@ -113,8 +113,11 @@ platform_configure_ghc() {
   build_system_config system_config "${ghc_host}" "${ghc_host}" "${ghc_target}"
 
   # Build standard configure args using nameref helper (--with-gmp, --with-ffi, etc.)
+  # NOTE: Do NOT pass -L${PREFIX}/lib in LDFLAGS for cross-compilation!
+  # PREFIX contains target arch libraries, but configure tests run on build machine.
+  # Library paths for target are added later in system.config for stage1/2 only.
   local -a configure_args
-  build_configure_args configure_args "-L${PREFIX}/lib ${LDFLAGS:-}"
+  build_configure_args configure_args ""
 
   # Add cross-compilation specific toolchain paths
   configure_args+=(
@@ -163,6 +166,20 @@ platform_post_configure_ghc() {
     echo "  Fixing touch command (touchy.exe -> touch)..."
     perl -pi -e 's#\$\$topdir/bin/touchy\.exe#touch#' "${config_file}"
     echo "  ✓ settings-touch-command = touch"
+
+    # CRITICAL: Set stage0 linker flags to use BUILD_PREFIX (build machine libs)
+    # Stage0 runs on build machine, needs build arch libraries, NOT target arch from PREFIX
+    echo "  Setting stage0 linker flags for build machine..."
+    perl -pi -e "s#(conf-gcc-linker-args-stage0\\s*=\\s*).*#\$1-Wl,-L${BUILD_PREFIX}/lib -Wl,-rpath,${BUILD_PREFIX}/lib#" "${config_file}"
+    perl -pi -e "s#(conf-ld-linker-args-stage0\\s*=\\s*).*#\$1-L${BUILD_PREFIX}/lib -rpath ${BUILD_PREFIX}/lib#" "${config_file}"
+    echo "  ✓ stage0 linker flags set to BUILD_PREFIX"
+
+    # Add -fPIC to C compiler flags for PIE compatibility
+    # Modern Linux toolchains default to PIE, so C code needs -fPIC
+    echo "  Adding -fPIC to C compiler flags for PIE compatibility..."
+    perl -pi -e 's#(conf-cc-args-stage[012]\s*=\s*)#$1-fPIC #g' "${config_file}"
+    perl -pi -e 's#(settings-c-compiler-flags\s*=\s*)#$1-fPIC #' "${config_file}"
+    echo "  ✓ -fPIC added to C compiler flags"
   fi
 
   echo "  Patched system.config:"

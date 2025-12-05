@@ -44,14 +44,22 @@ platform_setup_environment() {
   export LIBRARY_PATH="${_BUILD_PREFIX}/Library/lib${LIBRARY_PATH:+:}${LIBRARY_PATH:-}"
 
   # Use GCC toolchain to match bootstrap GHC compiler
-  export CC="x86_64-w64-mingw32-gcc"
-  export CXX="x86_64-w64-mingw32-g++"
-  export CPP="x86_64-w64-mingw32-cpp"
+  # CRITICAL: Use full paths to prevent configure from finding clang instead
+  export CC="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-gcc.exe"
+  export CXX="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-g++.exe"
+  export CPP="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-cpp.exe"
 
   echo "  GCC toolchain:"
   echo "    CC=${CC}"
   echo "    CXX=${CXX}"
   echo "    CPP=${CPP}"
+
+  # Verify GCC exists
+  if [[ ! -f "${CC}" ]]; then
+    echo "ERROR: GCC not found at ${CC}"
+    ls -la "${_BUILD_PREFIX}/Library/bin/" | grep -i gcc || echo "  No gcc found"
+    exit 1
+  fi
 
   # Define toolchain variables early for bootstrap settings patching
   export LD="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-ld.exe"
@@ -183,6 +191,10 @@ platform_pre_configure_ghc() {
 
   # CRITICAL: Override ALL conda toolchain variables that have %BUILD_PREFIX% placeholders
   # Configure reads these from environment, NOT from bootstrap GHC settings
+  # Use full paths to prevent configure from finding wrong compilers (like clang)
+  export CC="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-gcc.exe"
+  export CXX="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-g++.exe"
+  export CPP="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-cpp.exe"
   export ADDR2LINE="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-addr2line.exe"
   export AR="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-ar.exe"
   export AS="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-as.exe"
@@ -200,6 +212,8 @@ platform_pre_configure_ghc() {
   export STRIP="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-strip.exe"
 
   echo "  Toolchain environment variables overridden with actual paths"
+  echo "    CC=${CC}"
+  echo "    CXX=${CXX}"
 
   # Set up Windows SDK paths
   setup_windows_sdk
