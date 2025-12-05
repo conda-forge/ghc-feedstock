@@ -32,11 +32,21 @@ run_and_log() {
   echo "  Log: ${log_file}"
 
   "$@" > "${log_file}" 2>&1 || {
-    echo "*** Command failed! Last 50 lines:"
-    tail -50 "${log_file}"
-    return 1
+    local exit_code=$?
+    echo ""
+    echo "========================================"
+    echo "*** COMMAND FAILED (exit code: ${exit_code}) ***"
+    echo "*** Phase: ${phase}"
+    echo "*** Log file: ${log_file}"
+    echo "========================================"
+    echo ""
+    echo "=== FULL LOG OUTPUT ==="
+    cat "${log_file}"
+    echo ""
+    echo "=== END LOG OUTPUT ==="
+    return ${exit_code}
   }
-  return ${PIPESTATUS[0]}
+  return 0
 }
 
 # ==============================================================================
@@ -96,7 +106,9 @@ build_system_config() {
   local host_triple="${3:-}"
   local target_triple="${4:-}"
 
-  _result+=("--prefix=${PREFIX}")
+  # Use _PREFIX on Windows (Unix-converted path), PREFIX otherwise
+  local prefix_path="${_PREFIX:-${PREFIX}}"
+  _result+=("--prefix=${prefix_path}")
   [[ -n "$build_triple" ]] && _result+=("--build=$build_triple")
   [[ -n "$host_triple" ]] && _result+=("--host=$host_triple")
   [[ -n "$target_triple" ]] && _result+=("--target=$target_triple")

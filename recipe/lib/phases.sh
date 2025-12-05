@@ -195,9 +195,13 @@ phase_configure_ghc() {
 }
 
 default_configure_ghc() {
+  echo "  DEBUG: Entering default_configure_ghc"
+
   # Build system config using nameref helper (native build: no target triple)
+  echo "  DEBUG: Building system_config..."
   local -a system_config
   build_system_config system_config "" "" ""
+  echo "  DEBUG: system_config: ${system_config[*]:-EMPTY}"
 
   # Build configure arguments using nameref helper
   local -a configure_args=(
@@ -206,12 +210,23 @@ default_configure_ghc() {
   )
 
   # Add standard library paths (--with-gmp, --with-ffi, etc.)
-  build_configure_args configure_args
+  # Skip for Windows - it uses platform_add_configure_args with different paths
+  echo "  DEBUG: target_platform=${target_platform:-UNSET}"
+  if [[ "${target_platform:-}" != "win-64" ]]; then
+    echo "  DEBUG: Calling build_configure_args..."
+    build_configure_args configure_args
+  else
+    echo "  DEBUG: Skipping build_configure_args for Windows"
+  fi
 
   # Add platform-specific args if provided (legacy callback pattern)
   if type -t platform_add_configure_args >/dev/null 2>&1; then
+    echo "  DEBUG: Calling platform_add_configure_args..."
     platform_add_configure_args configure_args
   fi
+
+  echo "  DEBUG: configure_args count: ${#configure_args[@]}"
+  echo "  DEBUG: Calling run_and_log configure..."
 
   # Run configure
   pushd "${SRC_DIR}" >/dev/null
