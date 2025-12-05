@@ -44,6 +44,19 @@ run_and_log() {
   return ${PIPESTATUS[0]}
 }
 
+# Install bash completion script
+# Should be called from platform_post_install or default_post_install
+install_bash_completion() {
+  echo "  Installing bash completion..."
+  mkdir -p "${PREFIX}/etc/bash_completion.d"
+  if [[ -f "${SRC_DIR}/utils/completion/ghc.bash" ]]; then
+    cp "${SRC_DIR}/utils/completion/ghc.bash" "${PREFIX}/etc/bash_completion.d/ghc"
+    echo "  ✓ Bash completion installed"
+  else
+    echo "  WARNING: ghc.bash completion file not found at ${SRC_DIR}/utils/completion/ghc.bash"
+  fi
+}
+
 # ==============================================================================
 # Settings Update Helpers
 # ==============================================================================
@@ -590,6 +603,8 @@ default_post_install() {
     echo "ERROR: Installed GHC failed to run"
     exit 1
   }
+
+  install_bash_completion
 
   echo "  GHC installed successfully"
 }

@@ -214,6 +214,14 @@ platform_post_configure_ghc() {
   # Fix objdump (doesn't need prefix)
   perl -pi -e "s#${conda_target}-(objdump)#\$1#" "${settings_file}"
 
+  # Add doc builder placeholders - Hadrian validates these even with --docs=none
+  if ! grep -q "^xelatex" "${settings_file}"; then
+    echo "xelatex = /bin/true" >> "${settings_file}"
+  fi
+  if ! grep -q "^sphinx-build" "${settings_file}"; then
+    echo "sphinx-build = /bin/true" >> "${settings_file}"
+  fi
+
   echo "  Patched system.config:"
   cat "${settings_file}"
 
@@ -276,7 +284,9 @@ platform_build_hadrian() {
   fi
 
   HADRIAN_CMD=("${hadrian_bin}" "-j${CPU_COUNT}" "--directory" "${SRC_DIR}")
-  HADRIAN_FLAVOUR="release"
+  # Use +no_dynamic_ghc for cross-compilation - dynamic libraries can't be built
+  # when cross-compiling (target can't run during build)
+  HADRIAN_FLAVOUR="release+no_dynamic_ghc"
 
   echo "  Hadrian binary: ${hadrian_bin}"
   echo "  ✓ Hadrian built"
@@ -397,6 +407,7 @@ create_symlinks() {
 
 platform_post_install() {
   create_symlinks
+  install_bash_completion
 
   # Verify installation
   echo "  Verifying GHC installation..."

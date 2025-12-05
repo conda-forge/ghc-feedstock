@@ -28,7 +28,6 @@ source:
           - patches/fix-hp2ps-utilities-stdlib.patch
       - if: osx and arm64
         then:
-          - patches/patch-rpath-macos.patch
           - patches/patch-osname-macos.patch
 
 build:
@@ -192,7 +191,7 @@ tests:
           - printf 'main = putStrLn "Hello threaded conda-forge"\n' > hello_t.hs
           - ghc -dynamic -threaded hello_t.hs && ./hello_t
         else:
-          - echo "No profiling on non-unix"
+          - echo "No dynamic on non-unix"
     requirements:
       run:
         - ${{ compiler('c') }}

@@ -158,6 +158,14 @@ platform_post_configure_ghc() {
   perl -pi -e "s#(settings-c-compiler-link-flags.*?= )#\$1-Wl,-L${PREFIX}/lib -Wl,-rpath,${PREFIX}/lib#" "${settings_file}"
   perl -pi -e "s#(settings-ld-flags.*?= )#\$1-L${PREFIX}/lib -rpath ${PREFIX}/lib#" "${settings_file}"
 
+  # Add doc builder placeholders - Hadrian validates these even with --docs=none
+  if ! grep -q "^xelatex" "${settings_file}"; then
+    echo "xelatex = /bin/true" >> "${settings_file}"
+  fi
+  if ! grep -q "^sphinx-build" "${settings_file}"; then
+    echo "sphinx-build = /bin/true" >> "${settings_file}"
+  fi
+
   echo "  ✓ system.config patched"
 }
 
@@ -277,6 +285,8 @@ platform_post_install() {
     echo "  Final settings:"
     cat "${settings_file}"
   fi
+
+  install_bash_completion
 
   # Verify installation
   echo "  Verifying GHC installation..."
