@@ -24,6 +24,26 @@ _log_index=0
 source "${RECIPE_DIR}"/building/common.sh
 
 # ==============================================================================
+# CRITICAL: Compute _BUILD_PREFIX, _PREFIX, _SRC_DIR from Windows paths
+# ==============================================================================
+# The CMD build.bat sets these but conda activation may overwrite them.
+# We must compute them fresh from BUILD_PREFIX, PREFIX, SRC_DIR.
+# Convert Windows paths (C:\...) to Unix paths (/c/...) for bash.
+echo "=== Computing Unix paths from Windows variables ==="
+echo "BUILD_PREFIX=${BUILD_PREFIX}"
+echo "PREFIX=${PREFIX}"
+echo "SRC_DIR=${SRC_DIR}"
+
+# Convert backslashes to forward slashes, then C: to /c/, D: to /d/
+export _BUILD_PREFIX=$(echo "${BUILD_PREFIX}" | sed 's#\\#/#g; s#^C:#/c#; s#^D:#/d#')
+export _PREFIX=$(echo "${PREFIX}" | sed 's#\\#/#g; s#^C:#/c#; s#^D:#/d#')
+export _SRC_DIR=$(echo "${SRC_DIR}" | sed 's#\\#/#g; s#^C:#/c#; s#^D:#/d#')
+
+echo "_BUILD_PREFIX=${_BUILD_PREFIX}"
+echo "_PREFIX=${_PREFIX}"
+echo "_SRC_DIR=${_SRC_DIR}"
+
+# ==============================================================================
 # CRITICAL: Build CLEAN PATH - don't inherit conda's polluted PATH
 # ==============================================================================
 # Conda's PATH contains unexpanded %BUILD_PREFIX% placeholders that break tools.
