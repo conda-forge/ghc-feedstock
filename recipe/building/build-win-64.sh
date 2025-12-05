@@ -90,11 +90,21 @@ export STRIP="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-strip.exe"
 # GCC is a Windows native binary and needs Windows-style paths (C:/ not /c/).
 # Use semicolon separators (Windows style) not colons (Unix style).
 # CRITICAL: Export _BUILD_PREFIX_WIN so subshells can use it!
+echo "=== DEBUG: Before _BUILD_PREFIX_WIN computation ==="
+echo "_BUILD_PREFIX value is: [${_BUILD_PREFIX}]"
 export _BUILD_PREFIX_WIN=$(echo "${_BUILD_PREFIX}" | sed 's#^/c/#C:/#')
 export _PREFIX_WIN=$(echo "${_PREFIX}" | sed 's#^/c/#C:/#')
+echo "=== DEBUG: After _BUILD_PREFIX_WIN computation ==="
+echo "_BUILD_PREFIX_WIN value is: [${_BUILD_PREFIX_WIN}]"
+echo "_PREFIX_WIN value is: [${_PREFIX_WIN}]"
+
+# CRITICAL: Clear any inherited LIBRARY_PATH before setting our own
+unset LIBRARY_PATH
 export LIBRARY_PATH="${_BUILD_PREFIX_WIN}/Library/lib/gcc/x86_64-w64-mingw32/15.2.0"
 export LIBRARY_PATH="${LIBRARY_PATH};${_BUILD_PREFIX_WIN}/Library/lib"
 export LIBRARY_PATH="${LIBRARY_PATH};${_BUILD_PREFIX_WIN}/Library/x86_64-w64-mingw32/sysroot/usr/lib"
+echo "=== DEBUG: After LIBRARY_PATH set ==="
+echo "LIBRARY_PATH value is: [${LIBRARY_PATH}]"
 
 echo "=== Clean environment configured ==="
 echo "PATH=${PATH}"
