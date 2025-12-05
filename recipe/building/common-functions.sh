@@ -591,16 +591,6 @@ default_post_install() {
     exit 1
   }
 
-  case "${target_platform}" in
-    linux-64|linux-aarch64|linux-ppc64le|osx-64|osx-arm64)
-      sh_ext="sh"
-      ;;
-    *)
-      sh_ext="bat"
-      ;;
-  esac
-  
-  cp ${RECIPE_DIR}/activate.${sh_ext} ${PREFIX}/etc/conda/activate.d/ghc_activate.${sh_ext}
   echo "  GHC installed successfully"
 }
 
@@ -637,6 +627,7 @@ default_activation() {
       ;;
   esac
   
+  mkdir -p "${PREFIX}"/etc/conda/activate.d/
   cp ${RECIPE_DIR}/activate.${sh_ext} ${PREFIX}/etc/conda/activate.d/ghc_activate.${sh_ext}
   echo "  GHC installed successfully"
 }
