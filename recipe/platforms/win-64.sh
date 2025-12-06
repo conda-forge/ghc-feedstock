@@ -116,6 +116,11 @@ platform_setup_environment() {
   # Patch bootstrap settings
   patch_bootstrap_settings
 
+  # CRITICAL: Patch bootstrap's time package to link against mingw32_stubs
+  # The time library references __imp__timezone and __imp__tzname which are
+  # MSVCRT symbols not available in UCRT. Our stubs provide these.
+  patch_bootstrap_time_package
+
   # Set up temp variables
   export TMP="$(cygpath -w "${TEMP}")"
   export TMPDIR="$(cygpath -w "${TEMP}")"
@@ -571,6 +576,49 @@ create_mingw32_stubs() {
   fi
 
   echo "  ✓ Created ${STUBS_LIB}"
+}
+
+patch_bootstrap_time_package() {
+  echo "  Patching bootstrap GHC's time package to use mingw32_stubs..."
+
+  local pkg_db="${_BUILD_PREFIX}/ghc-bootstrap/lib/package.conf.d"
+  local time_conf
+  time_conf=$(find "${pkg_db}" -name "time-*.conf" 2>/dev/null | head -1)
+
+  if [[ -z "${time_conf}" || ! -f "${time_conf}" ]]; then
+    echo "WARNING: Bootstrap time package conf not found in ${pkg_db}"
+    return 1
+  fi
+
+  echo "  Found time package: ${time_conf}"
+
+  # Use Windows-format path for the stubs library directory
+  local STUBS_LIB_DIR="${_BUILD_PREFIX_}/Library/lib"
+
+  # Add extra-lib-dirs if not present
+  if ! grep -q "extra-lib-dirs:" "${time_conf}"; then
+    echo "extra-lib-dirs: ${STUBS_LIB_DIR}" >> "${time_conf}"
+  else
+    # Append to existing extra-lib-dirs
+    perl -pi -e "s#(extra-lib-dirs:.*)#\$1 ${STUBS_LIB_DIR}#" "${time_conf}"
+  fi
+
+  # Add extra-libraries if not present
+  if ! grep -q "extra-libraries:" "${time_conf}"; then
+    echo "extra-libraries: mingw32_stubs" >> "${time_conf}"
+  else
+    # Append to existing extra-libraries
+    perl -pi -e "s#(extra-libraries:.*)#\$1 mingw32_stubs#" "${time_conf}"
+  fi
+
+  echo "  Recaching bootstrap package database..."
+  "${_BUILD_PREFIX}/ghc-bootstrap/bin/ghc-pkg" recache
+
+  echo "  ===== PATCHED TIME PACKAGE CONF ====="
+  cat "${time_conf}"
+  echo "  ===== END TIME PACKAGE CONF ====="
+
+  echo "  ✓ Bootstrap time package patched"
 }
 
 patch_bootstrap_settings() {
