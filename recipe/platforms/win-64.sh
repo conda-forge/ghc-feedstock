@@ -254,14 +254,19 @@ platform_build_hadrian() {
 
   pushd "${_SRC_DIR}/hadrian" >/dev/null
 
-  # Add mingw32_stubs to LDFLAGS for Hadrian build only
+  # Add mingw32_stubs to link line for Hadrian build only
   # This provides __imp__timezone and __imp__tzname symbols needed by bootstrap GHC's time library
   # We don't add this globally because it breaks configure's test programs
-  local HADRIAN_LDFLAGS="${LDFLAGS} -lmingw32_stubs"
+  #
+  # IMPORTANT: LDFLAGS environment variable is not automatically used by Cabal/GHC
+  # We must pass linker flags via --ghc-options=-optl-lmingw32_stubs
+  local STUBS_LIB="${_BUILD_PREFIX}/Library/lib"
 
   # Build Hadrian with single-threaded build to avoid race conditions
   # Parallel ghc-pkg updates can conflict on package.cache
-  LDFLAGS="${HADRIAN_LDFLAGS}" run_and_log "build-hadrian" "${CABAL}" v2-build -j${CPU_COUNT} hadrian
+  run_and_log "build-hadrian" "${CABAL}" v2-build -j${CPU_COUNT} \
+    --ghc-options="-optl-L${STUBS_LIB} -optl-lmingw32_stubs" \
+    hadrian
 
   popd >/dev/null
 

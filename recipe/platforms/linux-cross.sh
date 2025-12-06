@@ -170,8 +170,9 @@ platform_post_configure_ghc() {
     # CRITICAL: Set stage0 linker flags to use BUILD_PREFIX (build machine libs)
     # Stage0 runs on build machine, needs build arch libraries, NOT target arch from PREFIX
     echo "  Setting stage0 linker flags for build machine..."
-    perl -pi -e "s#(conf-gcc-linker-args-stage0\\s*=\\s*).*#\$1-Wl,-L${BUILD_PREFIX}/lib -Wl,-rpath,${BUILD_PREFIX}/lib#" "${config_file}"
-    perl -pi -e "s#(conf-ld-linker-args-stage0\\s*=\\s*).*#\$1-L${BUILD_PREFIX}/lib -rpath ${BUILD_PREFIX}/lib#" "${config_file}"
+    # Use [ \t]* instead of \s* to avoid matching newlines, and anchor with $ for end of line
+    perl -pi -e 's#^(conf-gcc-linker-args-stage0[ \t]*=[ \t]*).*$#$1-Wl,-L'"${BUILD_PREFIX}"'/lib -Wl,-rpath,'"${BUILD_PREFIX}"'/lib#' "${config_file}"
+    perl -pi -e 's#^(conf-ld-linker-args-stage0[ \t]*=[ \t]*).*$#$1-L'"${BUILD_PREFIX}"'/lib -rpath '"${BUILD_PREFIX}"'/lib#' "${config_file}"
     echo "  ✓ stage0 linker flags set to BUILD_PREFIX"
 
     # CRITICAL: For cross-compilation, lib-dirs in system.config are used by Cabal configure

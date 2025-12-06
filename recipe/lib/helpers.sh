@@ -207,14 +207,15 @@ patch_system_config_linker_flags() {
   echo "  Patching system.config with library paths..."
 
   # Add library paths and rpath to GCC linker flags (stage 1 and 2)
-  perl -pi -e "s#(conf-gcc-linker-args-stage[12].*?= )#\$1-Wl,-L${prefix}/lib -Wl,-rpath,${prefix}/lib #" "${settings_file}"
+  # Use [ \t]* instead of \s* or .*? to avoid matching newlines
+  perl -pi -e 's#^(conf-gcc-linker-args-stage[12][ \t]*=[ \t]*)#$1-Wl,-L'"${prefix}"'/lib -Wl,-rpath,'"${prefix}"'/lib #' "${settings_file}"
 
   # Add library paths and rpath to LD linker flags (stage 1 and 2)
-  perl -pi -e "s#(conf-ld-linker-args-stage[12].*?= )#\$1-L${prefix}/lib -rpath ${prefix}/lib #" "${settings_file}"
+  perl -pi -e 's#^(conf-ld-linker-args-stage[12][ \t]*=[ \t]*)#$1-L'"${prefix}"'/lib -rpath '"${prefix}"'/lib #' "${settings_file}"
 
   # Add library paths to settings (for installed GHC)
-  perl -pi -e "s#(settings-c-compiler-link-flags.*?= )#\$1-Wl,-L${prefix}/lib -Wl,-rpath,${prefix}/lib #" "${settings_file}"
-  perl -pi -e "s#(settings-ld-flags.*?= )#\$1-L${prefix}/lib -rpath ${prefix}/lib #" "${settings_file}"
+  perl -pi -e 's#^(settings-c-compiler-link-flags[ \t]*=[ \t]*)#$1-Wl,-L'"${prefix}"'/lib -Wl,-rpath,'"${prefix}"'/lib #' "${settings_file}"
+  perl -pi -e 's#^(settings-ld-flags[ \t]*=[ \t]*)#$1-L'"${prefix}"'/lib -rpath '"${prefix}"'/lib #' "${settings_file}"
 
   echo "  ✓ system.config linker flags patched"
 }

@@ -168,16 +168,18 @@ platform_post_configure_ghc() {
   fi
 
   # macOS-specific: Set system-ar to llvm-ar for stage0
-  perl -pi -e "s#(system-ar\\s*?=\\s).*#\$1${AR_STAGE0}#" "${settings_file}"
+  # Use [ \t]* instead of \s* to avoid matching newlines
+  perl -pi -e 's#^(system-ar[ \t]*=[ \t]*).*$#$1'"${AR_STAGE0}"'#' "${settings_file}"
 
   # macOS-specific: Set stage0 compiler flags for host targeting
   # CRITICAL: Stage0 runs on build machine (x86_64), so it needs BUILD_PREFIX libraries, NOT PREFIX (arm64)
-  perl -pi -e "s#(conf-cc-args-stage0\\s*?=\\s).*#\$1--target=${conda_host}#" "${settings_file}"
-  perl -pi -e "s#(conf-gcc-linker-args-stage0\\s*?=\\s).*#\$1--target=${conda_host} -Wl,-L${BUILD_PREFIX}/lib -Wl,-rpath,${BUILD_PREFIX}/lib#" "${settings_file}"
-  perl -pi -e "s#(conf-ld-linker-args-stage0\\s*?=\\s).*#\$1-L${BUILD_PREFIX}/lib -rpath ${BUILD_PREFIX}/lib#" "${settings_file}"
+  # Use [ \t]* instead of \s* to avoid matching newlines, and anchor with $ for end of line
+  perl -pi -e 's#^(conf-cc-args-stage0[ \t]*=[ \t]*).*$#$1--target='"${conda_host}"'#' "${settings_file}"
+  perl -pi -e 's#^(conf-gcc-linker-args-stage0[ \t]*=[ \t]*).*$#$1--target='"${conda_host}"' -Wl,-L'"${BUILD_PREFIX}"'/lib -Wl,-rpath,'"${BUILD_PREFIX}"'/lib#' "${settings_file}"
+  perl -pi -e 's#^(conf-ld-linker-args-stage0[ \t]*=[ \t]*).*$#$1-L'"${BUILD_PREFIX}"'/lib -rpath '"${BUILD_PREFIX}"'/lib#' "${settings_file}"
 
   # macOS-specific: Override ar command in settings
-  perl -pi -e "s#(settings-ar-command\\s*?=\\s).*#\$1${conda_target}-ar#" "${settings_file}"
+  perl -pi -e 's#^(settings-ar-command[ \t]*=[ \t]*).*$#$1'"${conda_target}"'-ar#' "${settings_file}"
 
   # macOS-specific: objdump doesn't need prefix (undo the prefix we just added)
   perl -pi -e "s#${conda_target}-(objdump)#\$1#" "${settings_file}"
