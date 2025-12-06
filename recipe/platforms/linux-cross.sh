@@ -174,24 +174,27 @@ platform_post_configure_ghc() {
     perl -pi -e "s#(conf-ld-linker-args-stage0\\s*=\\s*).*#\$1-L${BUILD_PREFIX}/lib -rpath ${BUILD_PREFIX}/lib#" "${config_file}"
     echo "  ✓ stage0 linker flags set to BUILD_PREFIX"
 
-    # CRITICAL: For cross-compilation, library dirs in system.config are used by ALL stages
-    # including stage0 which runs on build arch. Point to BUILD_PREFIX for build-time libs.
-    # Stage1/2 get the correct PREFIX paths via linker flags added to conf-gcc-linker-args-stage[12]
-    echo "  Fixing lib-dirs to use BUILD_PREFIX (for stage0 compatibility)..."
-    perl -pi -e "s#^(ffi-lib-dir\\s*=\\s*).*#\$1${BUILD_PREFIX}/lib#" "${config_file}"
-    perl -pi -e "s#^(iconv-lib-dir\\s*=\\s*).*#\$1${BUILD_PREFIX}/lib#" "${config_file}"
-    perl -pi -e "s#^(gmp-lib-dir\\s*=\\s*).*#\$1${BUILD_PREFIX}/lib#" "${config_file}"
-    perl -pi -e "s#^(curses-lib-dir\\s*=\\s*).*#\$1${BUILD_PREFIX}/lib#" "${config_file}"
-    echo "  ✓ lib-dirs set to BUILD_PREFIX"
+    # CRITICAL: For cross-compilation, lib-dirs in system.config are used by Cabal configure
+    # for STAGE1 packages (which target the cross-compile arch). So they MUST point to PREFIX
+    # (target arch libs), NOT BUILD_PREFIX (build machine arch libs).
+    #
+    # Stage0 uses bootstrap GHC which has its own lib paths configured.
+    # Stage1/2 packages run configure checks that compile+link against these dirs.
+    # If we point to build arch libs, the configure checks fail with arch mismatch.
+    #
+    # Keep lib-dirs pointing to PREFIX (target arch libs).
+    # The stage0 linker gets BUILD_PREFIX libs via conf-gcc-linker-args-stage0.
+    echo "  Keeping lib-dirs at PREFIX (target arch libs for stage1 configure checks)..."
+    echo "  ✓ lib-dirs unchanged (using PREFIX from configure)"
 
     # Add -fPIC to C compiler flags for PIE compatibility
     # Modern Linux toolchains default to PIE, so C code needs -fPIC
     echo "  Adding -fPIC to C compiler flags for PIE compatibility..."
-    # Process each stage separately to avoid regex issues
+    # Use [ \t]* instead of \s* to avoid matching newlines
     for stage in 0 1 2 3; do
-      perl -pi -e "s#^(conf-cc-args-stage${stage}\\s*=\\s*)#\$1-fPIC #" "${config_file}"
+      perl -pi -e 's#^(conf-cc-args-stage'"${stage}"'[ \t]*=[ \t]*)#$1-fPIC #' "${config_file}"
     done
-    perl -pi -e 's#^(settings-c-compiler-flags\s*=\s*)#$1-fPIC #' "${config_file}"
+    perl -pi -e 's#^(settings-c-compiler-flags[ \t]*=[ \t]*)#$1-fPIC #' "${config_file}"
     echo "  ✓ -fPIC added to C compiler flags"
   fi
 

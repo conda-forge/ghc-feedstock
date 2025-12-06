@@ -153,15 +153,18 @@ platform_post_configure_ghc() {
     perl -pi -e 's#\$\$topdir/bin/touchy\.exe#touch#' "${settings_file}"
     echo "  ✓ settings-touch-command = touch"
 
-    # CRITICAL: For cross-compilation, library dirs in system.config are used by ALL stages
-    # including stage0 which runs on x86_64. Point to BUILD_PREFIX for build-time libs.
-    # Stage1/2 get the correct PREFIX paths via linker flags added to conf-gcc-linker-args-stage[12]
-    echo "  Fixing lib-dirs to use BUILD_PREFIX (for stage0 compatibility)..."
-    perl -pi -e "s#^(ffi-lib-dir\\s*=\\s*).*#\$1${BUILD_PREFIX}/lib#" "${settings_file}"
-    perl -pi -e "s#^(iconv-lib-dir\\s*=\\s*).*#\$1${BUILD_PREFIX}/lib#" "${settings_file}"
-    perl -pi -e "s#^(gmp-lib-dir\\s*=\\s*).*#\$1${BUILD_PREFIX}/lib#" "${settings_file}"
-    perl -pi -e "s#^(curses-lib-dir\\s*=\\s*).*#\$1${BUILD_PREFIX}/lib#" "${settings_file}"
-    echo "  ✓ lib-dirs set to BUILD_PREFIX"
+    # CRITICAL: For cross-compilation, lib-dirs in system.config are used by Cabal configure
+    # for STAGE1 packages (which target arm64). So they MUST point to PREFIX (arm64 libs),
+    # NOT BUILD_PREFIX (x86_64 libs).
+    #
+    # Stage0 uses bootstrap GHC which has its own lib paths configured.
+    # Stage1/2 packages run configure checks that compile+link against these dirs.
+    # If we point to x86_64 libs, the configure checks fail with arch mismatch.
+    #
+    # Keep lib-dirs pointing to PREFIX (arm64 target libs).
+    # The stage0 linker gets BUILD_PREFIX libs via conf-gcc-linker-args-stage0.
+    echo "  Keeping lib-dirs at PREFIX (arm64 target libs for stage1 configure checks)..."
+    echo "  ✓ lib-dirs unchanged (using PREFIX from configure)"
   fi
 
   # macOS-specific: Set system-ar to llvm-ar for stage0

@@ -104,6 +104,9 @@ platform_setup_environment() {
   # Create chkstk_ms stub library
   create_chkstk_stub
 
+  # Create mingw32 compatibility stubs (timezone symbols, etc.)
+  create_mingw32_stubs
+
   # Install windres wrapper
   if [[ -f "${_RECIPE_DIR}/support/windres.bat" ]]; then
     cp "${_RECIPE_DIR}/support/windres.bat" "${_BUILD_PREFIX}/Library/bin/"
@@ -156,9 +159,9 @@ platform_setup_cabal() {
   mkdir -p "${_SRC_DIR}/.cabal"
   "${CABAL}" user-config init
 
-  # CRITICAL: Pass chkstk_ms library through LDFLAGS for linking
-  echo "  Adding chkstk_ms library to LDFLAGS..."
-  export LDFLAGS="${LDFLAGS} -lchkstk_ms"
+  # CRITICAL: Pass stub libraries through LDFLAGS for linking
+  echo "  Adding stub libraries (chkstk_ms, mingw32_stubs) to LDFLAGS..."
+  export LDFLAGS="${LDFLAGS} -lchkstk_ms -lmingw32_stubs"
 
   run_and_log "cabal-update" "${CABAL}" v2-update || { cat "${_SRC_DIR}"/_logs/cabal-update.log; return 1; }
 
@@ -532,6 +535,30 @@ EOF
   fi
 
   echo "  ✓ Created ${CHKSTK_LIB}"
+}
+
+create_mingw32_stubs() {
+  echo "  Creating MinGW32 compatibility stub library..."
+
+  local STUBS_OBJ="${_SRC_DIR}/mingw32_stubs.o"
+  local STUBS_LIB="${_BUILD_PREFIX}/Library/lib/libmingw32_stubs.a"
+
+  # Compile stubs from recipe support directory
+  if [[ -f "${_RECIPE_DIR}/support/mingw32_stubs.c" ]]; then
+    ${CC} -c "${_RECIPE_DIR}/support/mingw32_stubs.c" -o "${STUBS_OBJ}"
+  else
+    echo "ERROR: mingw32_stubs.c not found at ${_RECIPE_DIR}/support/mingw32_stubs.c"
+    exit 1
+  fi
+
+  ${AR} rcs "${STUBS_LIB}" "${STUBS_OBJ}"
+
+  if [[ ! -f "${STUBS_LIB}" ]]; then
+    echo "ERROR: Failed to create mingw32_stubs library"
+    exit 1
+  fi
+
+  echo "  ✓ Created ${STUBS_LIB}"
 }
 
 patch_bootstrap_settings() {
