@@ -159,9 +159,11 @@ platform_setup_cabal() {
   mkdir -p "${_SRC_DIR}/.cabal"
   "${CABAL}" user-config init
 
-  # CRITICAL: Pass stub libraries through LDFLAGS for linking
-  echo "  Adding stub libraries (chkstk_ms, mingw32_stubs) to LDFLAGS..."
-  export LDFLAGS="${LDFLAGS} -lchkstk_ms -lmingw32_stubs"
+  # CRITICAL: Pass chkstk_ms library through LDFLAGS for linking
+  # NOTE: mingw32_stubs is NOT added here - it's only needed for Hadrian build
+  # Adding it globally breaks configure's ability to run test programs
+  echo "  Adding chkstk_ms library to LDFLAGS..."
+  export LDFLAGS="${LDFLAGS} -lchkstk_ms"
 
   run_and_log "cabal-update" "${CABAL}" v2-update || { cat "${_SRC_DIR}"/_logs/cabal-update.log; return 1; }
 
@@ -252,9 +254,14 @@ platform_build_hadrian() {
 
   pushd "${_SRC_DIR}/hadrian" >/dev/null
 
+  # Add mingw32_stubs to LDFLAGS for Hadrian build only
+  # This provides __imp__timezone and __imp__tzname symbols needed by bootstrap GHC's time library
+  # We don't add this globally because it breaks configure's test programs
+  local HADRIAN_LDFLAGS="${LDFLAGS} -lmingw32_stubs"
+
   # Build Hadrian with single-threaded build to avoid race conditions
   # Parallel ghc-pkg updates can conflict on package.cache
-  run_and_log "build-hadrian" "${CABAL}" v2-build -j${CPU_COUNT} hadrian
+  LDFLAGS="${HADRIAN_LDFLAGS}" run_and_log "build-hadrian" "${CABAL}" v2-build -j${CPU_COUNT} hadrian
 
   popd >/dev/null
 
