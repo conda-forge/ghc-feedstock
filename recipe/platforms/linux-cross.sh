@@ -197,6 +197,19 @@ platform_post_configure_ghc() {
     done
     perl -pi -e 's#^(settings-c-compiler-flags[ \t]*=[ \t]*)#$1-fPIC #' "${config_file}"
     echo "  ✓ -fPIC added to C compiler flags"
+
+    # Add -no-pie to linker flags for static RTS linking
+    # The GHC RTS static libraries are not compiled with -fPIC, so when linking
+    # executables statically against the RTS, we need to disable PIE.
+    # Otherwise we get: "relocation R_X86_64_32S against symbol `stg_bh_upd_frame_info'
+    # can not be used when making a PIE object"
+    echo "  Adding -no-pie to linker flags for static RTS compatibility..."
+    for stage in 0 1 2 3; do
+      perl -pi -e 's#^(conf-gcc-linker-args-stage'"${stage}"'[ \t]*=[ \t]*)#$1-no-pie #' "${config_file}"
+    done
+    perl -pi -e 's#^(settings-c-compiler-link-flags[ \t]*=[ \t]*)#$1-no-pie #' "${config_file}"
+    perl -pi -e 's#^(settings-ld-flags[ \t]*=[ \t]*)#$1-no-pie #' "${config_file}"
+    echo "  ✓ -no-pie added to linker flags"
   fi
 
   echo "  Patched system.config:"
