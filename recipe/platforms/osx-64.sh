@@ -146,16 +146,9 @@ platform_post_configure_ghc() {
   # Add library paths and rpath
   patch_system_config_linker_flags
 
-  # Force system GMP (in case configure still defaults to intree)
+  # Apply version-specific fixes (intree-gmp bug, touchy.exe bug, etc.)
   if [[ -f "${settings_file}" ]]; then
-    echo "  Ensuring system GMP is used (not intree)..."
-    perl -pi -e "s#^intree-gmp\s*=\s*.*#intree-gmp = NO#" "${settings_file}"
-    echo "  ✓ intree-gmp = NO set in system.config"
-
-    # Fix touch command (GHC 9.2.8 bug: --enable-distro-toolchain sets touchy.exe even on macOS)
-    echo "  Fixing touch command (touchy.exe -> touch)..."
-    perl -pi -e 's#\$\$topdir/bin/touchy\.exe#touch#' "${settings_file}"
-    echo "  ✓ settings-touch-command = touch"
+    apply_version_specific_fixes "${settings_file}" "osx-64"
   fi
 
   echo "  ✓ system.config patched"
@@ -186,7 +179,8 @@ platform_build_hadrian() {
 
   # Set up Hadrian command array
   HADRIAN_CMD=("${hadrian_bin}" "-j${CPU_COUNT}" "--directory" "${SRC_DIR}")
-  HADRIAN_FLAVOUR="quick"
+  # Use version-specific Hadrian flavour (9.2.x uses "quick", 9.6+ uses "release")
+  HADRIAN_FLAVOUR=$(get_hadrian_flavour "osx-64")
 
   echo "  Hadrian binary: ${hadrian_bin}"
   echo "  ✓ Hadrian built (cabal-built)"
