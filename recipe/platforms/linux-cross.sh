@@ -387,7 +387,8 @@ platform_install_ghc() {
   }
 
   # Install (update_package_db fails due to cross ghc-pkg)
-  run_and_log "make-install" make install_bin install_lib install_man
+  # Note: GHC 9.2.8 doesn't have install_man target (only 9.6+)
+  run_and_log "make-install" make install_bin install_lib install_includes
 
   popd >/dev/null
 
