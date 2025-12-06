@@ -80,12 +80,26 @@ platform_configure_ghc() {
   local -a system_config
   build_system_config system_config "" "" "${target_alias}"
 
-  # Build standard configure args using nameref helper (--with-gmp, --with-ffi, etc.)
-  # NOTE: Do NOT pass -L${PREFIX}/lib in LDFLAGS for cross-compilation!
-  # PREFIX contains arm64 libraries, but configure runs on x86_64 build machine.
-  # Library paths for target are added later in system.config for stage1/2 only.
+  # For cross-compilation, we manually build configure args instead of using
+  # build_configure_args. This is because:
+  # - Stage0 runs on build machine (x86_64) and needs libs from BUILD_PREFIX
+  # - Stage1/2 target arm64 and need libs from PREFIX
+  # - But system.config lib-dirs are shared across all stages
+  #
+  # Solution: Don't pass --with-ffi-libraries or --with-iconv-libraries to configure.
+  # This prevents them from being set in system.config's ffi-lib-dir/iconv-lib-dir.
+  # Instead, we'll add -L flags to stage-specific linker args later.
   local -a configure_args
-  build_configure_args configure_args ""
+  configure_args+=(--with-system-libffi=yes)
+  configure_args+=("--with-curses-includes=${PREFIX}/include")
+  # NOTE: Skip --with-curses-libraries, --with-ffi-libraries, --with-iconv-libraries
+  # These would set lib-dirs in system.config used by ALL stages, causing
+  # stage0 (x86_64) to try linking arm64 libs from PREFIX.
+  configure_args+=("--with-ffi-includes=${PREFIX}/include")
+  configure_args+=("--with-gmp-includes=${PREFIX}/include")
+  configure_args+=("--with-gmp-libraries=${PREFIX}/lib")
+  configure_args+=("--with-iconv-includes=${PREFIX}/include")
+  # GMP is statically linked, so it's OK to point to PREFIX
 
   # Add cross-compilation specific toolchain overrides
   configure_args+=(
@@ -153,18 +167,22 @@ platform_post_configure_ghc() {
     perl -pi -e 's#\$\$topdir/bin/touchy\.exe#touch#' "${settings_file}"
     echo "  ✓ settings-touch-command = touch"
 
-    # CRITICAL: For cross-compilation, lib-dirs in system.config are used by Cabal configure
-    # for STAGE1 packages (which target arm64). So they MUST point to PREFIX (arm64 libs),
-    # NOT BUILD_PREFIX (x86_64 libs).
+    # CROSS-COMPILATION LIB-DIRS STRATEGY:
+    # We did NOT pass --with-ffi-libraries or --with-iconv-libraries to configure.
+    # This means ffi-lib-dir and iconv-lib-dir are NOT set in system.config.
+    # This is intentional because:
+    # - Stage0 runs on build machine (x86_64), needs libs from BUILD_PREFIX
+    # - Stage1/2 target arm64, need libs from PREFIX
+    # - But system.config lib-dirs are shared across ALL stages
     #
-    # Stage0 uses bootstrap GHC which has its own lib paths configured.
-    # Stage1/2 packages run configure checks that compile+link against these dirs.
-    # If we point to x86_64 libs, the configure checks fail with arch mismatch.
+    # Solution: Keep ffi-lib-dir/iconv-lib-dir empty (not set by configure).
+    # Stage0 gets -L flags via conf-gcc-linker-args-stage0 (set below).
+    # Stage1/2 get -L flags via conf-gcc-linker-args-stage1/2 (from patch_system_config_linker_flags).
     #
-    # Keep lib-dirs pointing to PREFIX (arm64 target libs).
-    # The stage0 linker gets BUILD_PREFIX libs via conf-gcc-linker-args-stage0.
-    echo "  Keeping lib-dirs at PREFIX (arm64 target libs for stage1 configure checks)..."
-    echo "  ✓ lib-dirs unchanged (using PREFIX from configure)"
+    # We also need to set curses-lib-dir for stage1/2 packages that need ncurses.
+    echo "  Setting curses-lib-dir for stage1/2 (haskeline)..."
+    echo "curses-lib-dir = ${PREFIX}/lib" >> "${settings_file}"
+    echo "  ✓ lib-dirs strategy applied (ffi/iconv via linker args, curses via lib-dir)"
   fi
 
   # macOS-specific: Set system-ar to llvm-ar for stage0
