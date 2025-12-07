@@ -314,8 +314,19 @@ patch_final_settings() {
   perl -pi -e "s#(C compiler link flags\", \"[^\"]*)#\$1 -Wl,-L\\\$topdir/../../../lib -Wl,-rpath,\\\$topdir/../../../lib#" "${settings_file}"
   perl -pi -e "s#(ld flags\", \"[^\"]*)#\$1 -L\\\$topdir/../../../lib -rpath \\\$topdir/../../../lib#" "${settings_file}"
 
-  # Fix tool paths to use target prefix
-  perl -pi -e "s#\"[/\w]*?(ar|clang|clang\+\+|ld|ranlib|llc|opt)\"#\"${conda_target}-\$1\"#" "${settings_file}"
+  # Remove literal $BUILD_PREFIX/bin/ paths that got baked into settings
+  # These are unexpanded variable references that won't work at runtime
+  perl -pi -e 's#\$BUILD_PREFIX/bin/##g' "${settings_file}"
+  perl -pi -e 's#\$PREFIX/bin/##g' "${settings_file}"
+  perl -pi -e 's#%BUILD_PREFIX%/bin/##g' "${settings_file}"
+  perl -pi -e 's#%PREFIX%/bin/##g' "${settings_file}"
+
+  # Also remove any expanded absolute paths (e.g., /home/conda/.../bin/)
+  perl -pi -e "s#${BUILD_PREFIX}/bin/##g" "${settings_file}"
+  perl -pi -e "s#${PREFIX}/bin/##g" "${settings_file}"
+
+  # Fix tool paths to use target prefix (handles remaining path prefixes)
+  perl -pi -e "s#\"[/\w\$%]*?(ar|clang|clang\+\+|ld|ranlib|llc|opt)\"#\"${conda_target}-\$1\"#" "${settings_file}"
 
   echo "  Final settings file:"
   cat "${settings_file}"
