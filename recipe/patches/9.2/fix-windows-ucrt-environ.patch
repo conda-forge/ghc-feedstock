@@ -1,0 +1,39 @@
+From: Conda-forge <conda-forge@users.noreply.github.com>
+Subject: [PATCH] Fix RtsSymbols.c for UCRT compatibility
+
+UCRT (Universal C Runtime) doesn't provide __imp__environ like MSVCRT did.
+Instead, it provides __p__environ() function. This patch removes the MSVCRT-
+specific symbol references that cause compilation errors with modern MinGW-w64
+that uses UCRT.
+
+The environ declaration also conflicts with UCRT's __p__environ macro/function.
+
+diff --git a/rts/RtsSymbols.c b/rts/RtsSymbols.c
+--- a/rts/RtsSymbols.c
++++ b/rts/RtsSymbols.c
+@@ -37,7 +37,11 @@
+ #include <unistd.h> /* environ */
+ #endif
+
+-#if !HAVE_DECL_ENVIRON
++/* Note: On Windows with UCRT, environ is accessed via __p__environ() function
++ * rather than as a direct symbol. The extern declaration conflicts with UCRT.
++ * We only declare environ on non-Windows or when using MSVCRT.
++ */
++#if !HAVE_DECL_ENVIRON && !defined(mingw32_HOST_OS)
+ /* We must provide a prototype for environ since depending upon the libc
+  * version it may or may not be provided by unistd.h. See #20577 and #20861.
+  */
+@@ -167,7 +171,11 @@
+       RTS_WIN32_ONLY(SymI_NeedsProto(___chkstk_ms))      \
+       RTS_WIN64_ONLY(SymI_NeedsProto(___chkstk_ms))      \
+       RTS_WIN32_ONLY(SymI_HasProto(_imp___environ))      \
+-      RTS_WIN64_ONLY(SymI_HasProto(__imp__environ))      \
++      /* Note: __imp__environ is an MSVCRT symbol not available in UCRT.
++       * UCRT uses __p__environ() function instead. We remove this symbol
++       * export since it's not available with modern MinGW-w64/UCRT.
++       * RTS_WIN64_ONLY(SymI_HasProto(__imp__environ))
++       */                                                \
+       RTS_WIN32_ONLY(SymI_HasProto(_imp___iob))          \
+       RTS_WIN64_ONLY(SymI_HasProto(__iob_func))          \
+       /* see Note [Symbols for MinGW's printf] */        \

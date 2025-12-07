@@ -42,6 +42,8 @@ source:
           - patches/${{ ghc_major }}/skip-mingw-detection-error.patch
           - patches/${{ ghc_major }}/fix-windows-pei386-format.patch
           - patches/${{ ghc_major }}/fix-hp2ps-utilities-stdlib.patch
+          # Fix UCRT compatibility - remove MSVCRT __imp__environ symbol
+          - patches/${{ ghc_major }}/fix-windows-ucrt-environ.patch
 
       # macOS-specific patches
       - if: osx
