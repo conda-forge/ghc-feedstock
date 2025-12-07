@@ -267,9 +267,10 @@ platform_build_hadrian() {
   # We must pass linker flags via --ghc-options=-optl-lmingw32_stubs
   local STUBS_LIB="${_BUILD_PREFIX}/Library/lib"
 
-  # Build Hadrian with single-threaded build to avoid race conditions
+  # CRITICAL: Build Hadrian with single-threaded Cabal (-j1) to avoid race conditions
   # Parallel ghc-pkg updates can conflict on package.cache
-  run_and_log "build-hadrian" "${CABAL}" v2-build -j${CPU_COUNT} \
+  # NOTE: This is different from Hadrian's -j flag which controls GHC compilation parallelism
+  run_and_log "build-hadrian" "${CABAL}" v2-build -j1 \
     --ghc-options="-optl-L${STUBS_LIB} -optl-lmingw32_stubs" \
     hadrian
 
@@ -283,11 +284,10 @@ platform_build_hadrian() {
     exit 1
   fi
 
-  # CRITICAL: Use single-threaded build (-j1) on Windows to avoid:
-  # 1. Race conditions in ghc-pkg cache updates
-  # 2. "builderMainLoop: invalid argument" errors from parallel process spawning
-  # 3. File handle exhaustion on Azure CI
-  HADRIAN_CMD=("${hadrian_bin}" "-j1" "--directory" "${_SRC_DIR}")
+  # Use multi-threaded Hadrian build - the -j flag here controls GHC compilation parallelism
+  # NOTE: The "builderMainLoop: invalid argument" error is caused by Cabal parallelism (-j for cabal v2-build)
+  # NOT by Hadrian's -j flag. The working 9.6.7 build uses -j${CPU_COUNT} for Hadrian.
+  HADRIAN_CMD=("${hadrian_bin}" "-j${CPU_COUNT}" "--directory" "${_SRC_DIR}")
   # Use version-specific Hadrian flavour (9.2.x uses "quickest" on Windows, 9.6+ uses "release")
   HADRIAN_FLAVOUR=$(get_hadrian_flavour "win-64")
 

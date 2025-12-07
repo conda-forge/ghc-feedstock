@@ -470,11 +470,21 @@ update_installed_settings() {
     perl -i -pe "s#(C compiler link flags\", \")([^\"]*)#\1\2 -v -fuse-ld=lld -fno-lto -fno-use-linker-plugin -Wl,-L\\\$topdir/../../../lib -Wl,-rpath,\\\$topdir/../../../lib -liconv -Wl,-L\\\$topdir/../lib -Wl,-rpath,\\\$topdir/../lib -liconv_compat#" "${settings_file}"
   fi
 
-  # Remove build-time paths
+  # Remove build-time paths (expanded paths like /home/conda/.../build_env/...)
   perl -pi -e "s#(-Wl,-L${BUILD_PREFIX}/lib|-Wl,-L${PREFIX}/lib|-Wl,-rpath,${BUILD_PREFIX}/lib|-Wl,-rpath,${PREFIX}/lib)##g" "${settings_file}"
   perl -pi -e "s#(-L${BUILD_PREFIX}/lib|-L${PREFIX}/lib|-rpath ${PREFIX}/lib|-rpath ${BUILD_PREFIX}/lib)##g" "${settings_file}"
 
-  # Update toolchain paths
+  # Remove literal $BUILD_PREFIX and $PREFIX from tool paths
+  # These are unexpanded variable references that won't work at runtime
+  # Pattern: "$BUILD_PREFIX/bin/tool" -> "tool" (just the tool name)
+  perl -pi -e 's#\$BUILD_PREFIX/bin/##g' "${settings_file}"
+  perl -pi -e 's#\$PREFIX/bin/##g' "${settings_file}"
+
+  # Also handle %BUILD_PREFIX% style (Windows batch variable syntax that may leak through)
+  perl -pi -e 's#%BUILD_PREFIX%/bin/##g' "${settings_file}"
+  perl -pi -e 's#%PREFIX%/bin/##g' "${settings_file}"
+
+  # Update toolchain paths - strip any remaining absolute paths and keep just toolchain-prefixed names
   perl -pi -e "s#\"[/\w]*?(ar|clang|clang\+\+|ld|ranlib|llc|objdump|opt)\"#\"${toolchain}-\$1\"#" "${settings_file}"
 }
 

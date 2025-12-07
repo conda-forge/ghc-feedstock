@@ -305,7 +305,7 @@ is_windows_supported() {
       return 1
       ;;
     *)
-      # Other versions support Windows
+      # GHC 9.2.x, 9.6.x, 9.10.x support Windows
       return 0
       ;;
   esac
@@ -324,6 +324,23 @@ needs_separate_prim_builds() {
   case "${major_version}" in
     9.8|9.10)
       # GHC 9.8+ requires building ghc-prim and ghc-bignum separately
+      return 0
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
+# Check if version uses ghc-toolchain for toolchain detection
+# GHC 9.10+ introduced ghc-toolchain which runs during configure
+# and creates config files that may need path patching on Windows
+uses_ghc_toolchain() {
+  local major_version=$(get_ghc_major_version)
+
+  case "${major_version}" in
+    9.10)
+      # GHC 9.10+ uses ghc-toolchain
       return 0
       ;;
     *)
