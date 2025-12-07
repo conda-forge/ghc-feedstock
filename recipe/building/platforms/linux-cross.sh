@@ -194,11 +194,13 @@ patch_system_config() {
   perl -pi -e "s#(settings-ld-flags.*?= )#\$1-L${PREFIX}/lib -rpath ${PREFIX}/lib #" "${settings_file}"
 
   # Add doc builder placeholders - Hadrian validates these even with --docs=none
-  if ! grep -q "^xelatex" "${settings_file}"; then
-    echo "xelatex = /bin/true" >> "${settings_file}"
+  # Note: Configure generates "sphinx-build = " (empty value) if not found,
+  # so we check for non-empty value, not just key existence
+  if ! grep -qE "^xelatex\s*=\s*\S" "${settings_file}"; then
+    sed -i 's/^xelatex[[:space:]]*=.*/xelatex = \/bin\/true/' "${settings_file}"
   fi
-  if ! grep -q "^sphinx-build" "${settings_file}"; then
-    echo "sphinx-build = /bin/true" >> "${settings_file}"
+  if ! grep -qE "^sphinx-build\s*=\s*\S" "${settings_file}"; then
+    sed -i 's/^sphinx-build[[:space:]]*=.*/sphinx-build = \/bin\/true/' "${settings_file}"
   fi
 
   echo "  Patched system.config:"
@@ -306,8 +308,10 @@ patch_final_settings() {
   perl -pi -e "s#(C compiler link flags\", \"[^\"]*)#\$1 -Wl,-L\\\$topdir/../../../lib -Wl,-rpath,\\\$topdir/../../../lib#" "${settings_file}"
   perl -pi -e "s#(ld flags\", \"[^\"]*)#\$1 -L\\\$topdir/../../../lib -rpath \\\$topdir/../../../lib#" "${settings_file}"
 
-  # Fix tool paths to use target prefix
-  perl -pi -e "s#\"[/\w]*?(ar|clang|clang\+\+|ld|ranlib|llc|opt)\"#\"${conda_target}-\$1\"#" "${settings_file}"
+  # Fix tool paths to use target prefix (strip absolute paths)
+  # Note: \w doesn't match hyphen, need [/\w-] to match paths like .../aarch64-conda-linux-gnu-clang
+  # Also need .* to match arbitrary path components
+  perl -pi -e "s#\"[^\"]*/([^/]*-)(ar|as|clang|clang\+\+|ld|nm|objdump|ranlib|llc|opt)\"#\"\$1\$2\"#g" "${settings_file}"
 
   echo "  Final settings file:"
   cat "${settings_file}"

@@ -137,8 +137,9 @@ update_settings_link_flags() {
     perl -pi -e "s#(ld flags\", \"[^\"]*)#\$1 -L${prefix}/lib -liconv -L${prefix}/lib/ghc-${PKG_VERSION}/lib -liconv_compat#" "${settings_file}"
   fi
 
-  # Update toolchain paths
-  perl -pi -e "s#\"[/\w]*?(ar|clang|clang\+\+|ld|ranlib|llc|objdump|opt)\"#\"${toolchain}-\$1\"#" "${settings_file}"
+  # Update toolchain paths (strip absolute paths, keep tool name with prefix)
+  # Note: [/\w] doesn't match hyphen, use [^"]* then capture prefix-tool pattern
+  perl -pi -e "s#\"[^\"]*/([^/]*-)(ar|as|clang|clang\+\+|ld|nm|objdump|ranlib|llc|opt)\"#\"\$1\$2\"#g" "${settings_file}"
 }
 
 # Set macOS-specific ar and ranlib settings for LLVM toolchain
@@ -202,8 +203,9 @@ update_installed_settings() {
   perl -pi -e "s#(-Wl,-L${BUILD_PREFIX}/lib|-Wl,-L${PREFIX}/lib|-Wl,-rpath,${BUILD_PREFIX}/lib|-Wl,-rpath,${PREFIX}/lib)##g" "${settings_file}"
   perl -pi -e "s#(-L${BUILD_PREFIX}/lib|-L${PREFIX}/lib|-rpath ${PREFIX}/lib|-rpath ${BUILD_PREFIX}/lib)##g" "${settings_file}"
 
-  # Update toolchain paths
-  perl -pi -e "s#\"[/\w]*?(ar|clang|clang\+\+|ld|ranlib|llc|objdump|opt)\"#\"${toolchain}-\$1\"#" "${settings_file}"
+  # Update toolchain paths (strip absolute paths, keep tool name with prefix)
+  # Note: [/\w] doesn't match hyphen, use [^"]* then capture prefix-tool pattern
+  perl -pi -e "s#\"[^\"]*/([^/]*-)(ar|as|clang|clang\+\+|ld|nm|objdump|ranlib|llc|opt)\"#\"\$1\$2\"#g" "${settings_file}"
 }
 
 # ==============================================================================
