@@ -260,7 +260,8 @@ platform_build_hadrian() {
   fi
 
   HADRIAN_CMD=("${hadrian_bin}" "-j${CPU_COUNT}" "--directory" "${SRC_DIR}")
-  HADRIAN_FLAVOUR="quick"
+  # Use version-specific Hadrian flavour (9.2.x uses "quick", 9.6+ uses "release")
+  HADRIAN_FLAVOUR=$(get_hadrian_flavour "linux-cross")
 
   echo "  Hadrian binary: ${hadrian_bin}"
   echo "  ✓ Hadrian built"
@@ -322,16 +323,62 @@ patch_final_settings() {
   echo "  ✓ Final settings patched"
 }
 
+fix_wrapper_scripts() {
+  echo "  Fixing wrapper scripts..."
+
+  # GHC bindist Makefile uses 'find . ! -type d' to list wrapper files,
+  # which outputs './ghci' instead of 'ghci'. This "./" gets embedded in:
+  #   exeprog="./ghci"
+  #   executablename="/path/to/lib/bin/./ghci"
+  # causing paths like: $libdir/bin/./target-ghci-9.2.8
+  #
+  # GHC installs TWO sets of wrapper scripts:
+  # 1. Target-prefixed: $PREFIX/bin/${ghc_target}-ghci
+  # 2. Short-name: $PREFIX/bin/ghci
+  # Both may have the bug and both need fixing
+  pushd "${PREFIX}/bin" >/dev/null
+
+  for wrapper in ghc ghci ghc-pkg runghc runhaskell haddock hp2ps hsc2hs hpc; do
+    # Fix target-prefixed wrapper
+    local target_wrapper="${ghc_target}-${wrapper}"
+    if [[ -f "${target_wrapper}" ]]; then
+      # Fix both exeprog and executablename - both can have "./" prefix from find
+      perl -pi -e 's#^(exeprog=")\./#$1#' "${target_wrapper}"
+      perl -pi -e 's#(/bin/)\./#$1#' "${target_wrapper}"  # Fix executablename path
+    fi
+    # Fix short-name wrapper (may be script or symlink - only fix if script)
+    if [[ -f "${wrapper}" ]] && [[ ! -L "${wrapper}" ]]; then
+      perl -pi -e 's#^(exeprog=")\./#$1#' "${wrapper}"
+      perl -pi -e 's#(/bin/)\./#$1#' "${wrapper}"  # Fix executablename path
+    fi
+  done
+
+  popd >/dev/null
+  echo "  ✓ Wrapper scripts fixed"
+}
+
 create_symlinks() {
   echo "  Creating symlinks for cross-compiled tools..."
 
-  # Create links: ${ghc_target}-ghc -> ghc, etc.
   pushd "${PREFIX}/bin" >/dev/null
 
-  for bin in ghc ghci ghc-pkg hp2ps hsc2hs; do
-    if [[ -f "${ghc_target}-${bin}" ]] && [[ ! -f "${bin}" ]]; then
-      ln -sf "${ghc_target}-${bin}" "${bin}"
-      echo "    ${ghc_target}-${bin} -> ${bin}"
+  # GHC bindist installs versioned wrappers like:
+  #   powerpc64le-unknown-linux-gnu-ghci-9.2.8
+  # But the ghci symlink points to:
+  #   powerpc64le-unknown-linux-gnu-ghci (without version)
+  # Create the missing intermediate symlinks:
+  for bin in ghc ghci ghc-pkg hp2ps hsc2hs haddock hpc runghc; do
+    local versioned="${ghc_target}-${bin}-${PKG_VERSION}"
+    local unversioned="${ghc_target}-${bin}"
+    # Create unversioned -> versioned symlink if needed
+    if [[ -f "${versioned}" ]] && [[ ! -e "${unversioned}" ]]; then
+      ln -sf "${versioned}" "${unversioned}"
+      echo "    ${versioned} -> ${unversioned}"
+    fi
+    # Create short name -> unversioned symlink if needed
+    if [[ -e "${unversioned}" ]] && [[ ! -e "${bin}" ]]; then
+      ln -sf "${unversioned}" "${bin}"
+      echo "    ${unversioned} -> ${bin}"
     fi
   done
 
@@ -353,7 +400,7 @@ platform_install_ghc() {
   # Create binary distribution first
   run_and_log "bindist" "${HADRIAN_CMD[@]}" binary-dist \
     --prefix="${PREFIX}" \
-    --flavour=quick \
+    --flavour="${HADRIAN_FLAVOUR}" \
     --freeze1 \
     --freeze2 \
     --docs=none \
@@ -375,8 +422,9 @@ platform_install_ghc() {
 
   # Configure the binary distribution
   # Must use BUILD machine compiler (x86_64) with clean flags - not target compiler
-  CC="${BUILD_PREFIX}/bin/${conda_host}-clang" \
-  CXX="${BUILD_PREFIX}/bin/${conda_host}-clang++" \
+  # Use ac_cv_path_* to properly cache paths for wrapper script generation
+  ac_cv_path_CC="${BUILD_PREFIX}/bin/${conda_host}-clang" \
+  ac_cv_path_CXX="${BUILD_PREFIX}/bin/${conda_host}-clang++" \
   CFLAGS="" \
   CXXFLAGS="" \
   LDFLAGS="" \
@@ -397,5 +445,7 @@ platform_install_ghc() {
 
 platform_post_install() {
   patch_final_settings
+  fix_wrapper_scripts
   create_symlinks
+  install_bash_completion
 }

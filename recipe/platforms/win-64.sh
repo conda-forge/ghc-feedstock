@@ -284,7 +284,8 @@ platform_build_hadrian() {
   fi
 
   HADRIAN_CMD=("${hadrian_bin}" "-j${CPU_COUNT}" "--directory" "${_SRC_DIR}")
-  HADRIAN_FLAVOUR="quickest"
+  # Use version-specific Hadrian flavour (9.2.x uses "quickest" on Windows, 9.6+ uses "release")
+  HADRIAN_FLAVOUR=$(get_hadrian_flavour "win-64")
 
   echo "  Hadrian binary: ${hadrian_bin}"
 }

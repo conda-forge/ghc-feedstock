@@ -206,6 +206,10 @@ patch_system_config_linker_flags() {
 
   echo "  Patching system.config with library paths..."
 
+  # Add -Wno-deprecated-non-prototype to suppress old-style C prototype warnings
+  # Required for hp2ps utility which has: extern void* malloc();
+  perl -pi -e "s#(conf-cc-args-stage[012].*?= )#\$1-Wno-deprecated-non-prototype #" "${settings_file}"
+
   # Add library paths and rpath to GCC linker flags (stage 1 and 2)
   # Use [ \t]* instead of \s* or .*? to avoid matching newlines
   perl -pi -e 's#^(conf-gcc-linker-args-stage[12][ \t]*=[ \t]*)#$1-Wl,-L'"${prefix}"'/lib -Wl,-rpath,'"${prefix}"'/lib #' "${settings_file}"
@@ -216,6 +220,33 @@ patch_system_config_linker_flags() {
   # Add library paths to settings (for installed GHC)
   perl -pi -e 's#^(settings-c-compiler-link-flags[ \t]*=[ \t]*)#$1-Wl,-L'"${prefix}"'/lib -Wl,-rpath,'"${prefix}"'/lib #' "${settings_file}"
   perl -pi -e 's#^(settings-ld-flags[ \t]*=[ \t]*)#$1-L'"${prefix}"'/lib -rpath '"${prefix}"'/lib #' "${settings_file}"
+
+  # Add xelatex placeholder - Hadrian validates this even with --docs=none
+  # Without this, build fails with: "Non optional builder 'xelatex' is not specified"
+  # Note: system.config.in has "xelatex = @XELATEX@" which becomes "xelatex = " if not found
+  # We need to detect and replace empty values or add the line if missing
+  #
+  # IMPORTANT: The line might be "xelatex = " (with trailing space) or "xelatex =" or similar
+  # Check if value is empty/whitespace by looking for a non-whitespace char after =
+  # NOTE: Using sed instead of perl because perl's $ anchor can miss \r in CRLF files
+  if ! grep -qE "^xelatex\s*=\s*\S" "${settings_file}"; then
+    # Replace the line completely (sed handles line endings correctly)
+    sed -i 's/^xelatex[[:space:]]*=.*/xelatex = \/bin\/true/' "${settings_file}"
+    # If line still doesn't exist with a value, add it
+    if ! grep -qE "^xelatex\s*=\s*\S" "${settings_file}"; then
+      echo "xelatex = /bin/true" >> "${settings_file}"
+    fi
+    echo "  Added xelatex placeholder to system.config"
+  fi
+
+  # Add sphinx-build placeholder - same issue as xelatex
+  if ! grep -qE "^sphinx-build\s*=\s*\S" "${settings_file}"; then
+    sed -i 's/^sphinx-build[[:space:]]*=.*/sphinx-build = \/bin\/true/' "${settings_file}"
+    if ! grep -qE "^sphinx-build\s*=\s*\S" "${settings_file}"; then
+      echo "sphinx-build = /bin/true" >> "${settings_file}"
+    fi
+    echo "  Added sphinx-build placeholder to system.config"
+  fi
 
   echo "  ✓ system.config linker flags patched"
 }
@@ -583,6 +614,27 @@ call_hook() {
   local hook_name="platform_$1"
   if type -t "${hook_name}" >/dev/null 2>&1; then
     "${hook_name}"
+  fi
+}
+
+# ==============================================================================
+# Post-Install Helpers
+# ==============================================================================
+
+# Install bash completion script
+# Should be called from platform_post_install or default_post_install
+#
+# Usage:
+#   install_bash_completion
+#
+install_bash_completion() {
+  echo "  Installing bash completion..."
+  mkdir -p "${PREFIX}/etc/bash_completion.d"
+  if [[ -f "${SRC_DIR}/utils/completion/ghc.bash" ]]; then
+    cp "${SRC_DIR}/utils/completion/ghc.bash" "${PREFIX}/etc/bash_completion.d/ghc"
+    echo "  ✓ Bash completion installed"
+  else
+    echo "  WARNING: ghc.bash completion file not found at ${SRC_DIR}/utils/completion/ghc.bash"
   fi
 }
 

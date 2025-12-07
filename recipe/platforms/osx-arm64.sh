@@ -167,34 +167,35 @@ platform_post_configure_ghc() {
     perl -pi -e 's#\$\$topdir/bin/touchy\.exe#touch#' "${settings_file}"
     echo "  ✓ settings-touch-command = touch"
 
-    # CROSS-COMPILATION LIB-DIRS STRATEGY:
-    # We did NOT pass --with-ffi-libraries or --with-iconv-libraries to configure.
-    # This means ffi-lib-dir and iconv-lib-dir are NOT set in system.config.
-    # This is intentional because:
-    # - Stage0 runs on build machine (x86_64), needs libs from BUILD_PREFIX
-    # - Stage1/2 target arm64, need libs from PREFIX
-    # - But system.config lib-dirs are shared across ALL stages
+    # CRITICAL FIX: Clear ffi-lib-dir and iconv-lib-dir for cross-compilation
+    # Problem: Hadrian's Settings/Packages.hs adds cabalExtraDirs for ghci and rts
+    # packages using ffi-lib-dir. This adds -L$PREFIX/lib to ALL stages including
+    # Stage0. For cross-compilation, $PREFIX/lib contains arm64 libraries, but
+    # Stage0 needs x86_64 libraries. The linker finds arm64 libs first and fails:
+    #   ld: warning: ignoring file $PREFIX/lib/libffi.dylib, building for macOS-x86_64
+    #   but attempting to link with file built for macOS-arm64
+    #   Undefined symbols: _ffi_call, _locale_charset
     #
-    # Solution: Keep ffi-lib-dir/iconv-lib-dir empty (not set by configure).
-    # Stage0 gets -L flags via conf-gcc-linker-args-stage0 (set below).
-    # Stage1/2 get -L flags via conf-gcc-linker-args-stage1/2 (from patch_system_config_linker_flags).
-    #
-    # We also need to set curses-lib-dir for stage1/2 packages that need ncurses.
+    # Solution: Clear these settings so Hadrian doesn't add -L$PREFIX/lib.
+    # Stage0 will use system/SDK libraries (/Library/Developer/.../usr/lib).
+    # Stage1+ gets library paths from conf-gcc-linker-args-stage1/2.
+    echo "  Clearing ffi/iconv lib dirs to prevent arm64 libs in Stage0..."
+    perl -pi -e 's#^(ffi-lib-dir\s*=).*#$1#' "${settings_file}"
+    perl -pi -e 's#^(iconv-lib-dir\s*=).*#$1#' "${settings_file}"
+
+    # Set curses-lib-dir for stage1/2 packages that need ncurses.
     echo "  Setting curses-lib-dir for stage1/2 (haskeline)..."
     echo "curses-lib-dir = ${PREFIX}/lib" >> "${settings_file}"
-    echo "  ✓ lib-dirs strategy applied (ffi/iconv via linker args, curses via lib-dir)"
+    echo "  ✓ lib-dirs strategy applied"
   fi
 
   # macOS-specific: Set system-ar to llvm-ar for stage0
-  # Use [ \t]* instead of \s* to avoid matching newlines
-  perl -pi -e 's#^(system-ar[ \t]*=[ \t]*).*$#$1'"${AR_STAGE0}"'#' "${settings_file}"
+  perl -pi -e "s#(system-ar\\s*?=\\s).*#\$1${AR_STAGE0}#" "${settings_file}"
 
-  # macOS-specific: Set stage0 compiler flags for host targeting
-  # CRITICAL: Stage0 runs on build machine (x86_64), so it needs BUILD_PREFIX libraries, NOT PREFIX (arm64)
-  # Use [ \t]* instead of \s* to avoid matching newlines, and anchor with $ for end of line
-  perl -pi -e 's#^(conf-cc-args-stage0[ \t]*=[ \t]*).*$#$1--target='"${conda_host}"'#' "${settings_file}"
-  perl -pi -e 's#^(conf-gcc-linker-args-stage0[ \t]*=[ \t]*).*$#$1--target='"${conda_host}"' -Wl,-L'"${BUILD_PREFIX}"'/lib -Wl,-rpath,'"${BUILD_PREFIX}"'/lib#' "${settings_file}"
-  perl -pi -e 's#^(conf-ld-linker-args-stage0[ \t]*=[ \t]*).*$#$1-L'"${BUILD_PREFIX}"'/lib -rpath '"${BUILD_PREFIX}"'/lib#' "${settings_file}"
+  # macOS-specific: Set stage0 compiler/linker flags for BUILD machine (x86_64)
+  perl -pi -e "s#(conf-cc-args-stage0\\s*?=\\s).*#\$1--target=${conda_host}#" "${settings_file}"
+  perl -pi -e "s#(conf-gcc-linker-args-stage0\\s*?=\\s).*#\$1--target=${conda_host} -Wl,-L${BUILD_PREFIX}/lib -Wl,-rpath,${BUILD_PREFIX}/lib#" "${settings_file}"
+  perl -pi -e "s#(conf-ld-linker-args-stage0\\s*?=\\s).*#\$1-L${BUILD_PREFIX}/lib -rpath ${BUILD_PREFIX}/lib#" "${settings_file}"
 
   # macOS-specific: Override ar command in settings
   perl -pi -e 's#^(settings-ar-command[ \t]*=[ \t]*).*$#$1'"${conda_target}"'-ar#' "${settings_file}"
@@ -207,28 +208,25 @@ platform_post_configure_ghc() {
 
   # macOS-specific: Patch bootstrap settings
   echo "  Patching bootstrap settings..."
-  local bootstrap_settings="${BUILD_PREFIX}/ghc-bootstrap/lib/ghc-${PKG_VERSION}/lib/settings"
-  if [[ -f "${bootstrap_settings}" ]]; then
+  # Find bootstrap settings dynamically - PKG_VERSION may differ from bootstrap version
+  local bootstrap_settings
+  bootstrap_settings=$(find "${BUILD_PREFIX}/ghc-bootstrap/lib" -name settings -type f 2>/dev/null | head -1)
+  if [[ -n "${bootstrap_settings}" ]] && [[ -f "${bootstrap_settings}" ]]; then
+    echo "  Found bootstrap settings: ${bootstrap_settings}"
     # Remove problematic libiconv2 reference
     perl -pi -e "s#[^ ]+/usr/lib/libiconv2.tbd##" "${bootstrap_settings}"
     # Add -fno-lto to compiler flags
     perl -pi -e "s#(C compiler flags\", \")#\$1-v -fno-lto #" "${bootstrap_settings}"
     perl -pi -e 's#(C\+\+ compiler flags", "[^"]*)#$1 -fno-lto#' "${bootstrap_settings}"
-    perl -pi -e "s#(C compiler link flags\", \"[^\"]*)#\$1 -fno-lto#" "${bootstrap_settings}"
+    # CRITICAL: Add BUILD_PREFIX library paths for stage0 linking (x86_64 libs)
+    # Stage0 runs on x86_64, so it needs x86_64 libffi/libiconv from BUILD_PREFIX
+    perl -pi -e "s#(C compiler link flags\", \"[^\"]*)#\$1 -fno-lto -Wl,-L${BUILD_PREFIX}/lib -Wl,-rpath,${BUILD_PREFIX}/lib#" "${bootstrap_settings}"
+    perl -pi -e "s#(ld flags\", \"[^\"]*)#\$1 -L${BUILD_PREFIX}/lib -rpath ${BUILD_PREFIX}/lib#" "${bootstrap_settings}"
     # Fix ar and ranlib commands
     perl -pi -e "s#(ar command\", \")[^\"]*#\$1${AR_STAGE0}#" "${bootstrap_settings}"
     perl -pi -e "s#(ranlib command\", \")[^\"]*#\$1llvm-ranlib#" "${bootstrap_settings}"
     # Fix tool commands with host prefix
     perl -pi -e "s#((llc|opt|clang) command\", \")[^\"]*#\$1${conda_host}-\$2#" "${bootstrap_settings}"
-
-    # CRITICAL: Replace any $PREFIX paths with $BUILD_PREFIX in linker flags
-    # Stage0 (bootstrap) runs on build machine (x86_64), needs x86_64 libs from BUILD_PREFIX
-    # NOT arm64 libs from PREFIX
-    echo "  Fixing library paths in bootstrap settings (PREFIX -> BUILD_PREFIX)..."
-    perl -pi -e "s#-L${PREFIX}/lib#-L${BUILD_PREFIX}/lib#g" "${bootstrap_settings}"
-    perl -pi -e "s#-rpath,${PREFIX}/lib#-rpath,${BUILD_PREFIX}/lib#g" "${bootstrap_settings}"
-    perl -pi -e "s#-rpath ${PREFIX}/lib#-rpath ${BUILD_PREFIX}/lib#g" "${bootstrap_settings}"
-
     echo "  Patched bootstrap settings"
     cat "${bootstrap_settings}"
   fi
@@ -274,7 +272,8 @@ platform_build_hadrian() {
   fi
 
   HADRIAN_CMD=("${hadrian_bin}" "-j${CPU_COUNT}" "--directory" "${SRC_DIR}")
-  HADRIAN_FLAVOUR="quick"
+  # Use version-specific Hadrian flavour (9.2.x uses "quick", 9.6+ uses "release")
+  HADRIAN_FLAVOUR=$(get_hadrian_flavour "osx-arm64")
 
   echo "  Hadrian binary: ${hadrian_bin}"
   echo "  ✓ Hadrian built"
@@ -395,6 +394,7 @@ create_symlinks() {
 
 platform_post_install() {
   create_symlinks
+  install_bash_completion
 
   # Verify installation
   echo "  Verifying GHC installation..."

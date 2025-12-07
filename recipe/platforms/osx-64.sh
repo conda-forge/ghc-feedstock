@@ -272,6 +272,8 @@ platform_post_install() {
     cat "${settings_file}"
   fi
 
+  install_bash_completion
+
   # Verify installation
   echo "  Verifying GHC installation..."
   "${PREFIX}/bin/ghc" --version || {
