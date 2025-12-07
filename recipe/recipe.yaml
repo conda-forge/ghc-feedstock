@@ -15,7 +15,8 @@ source:
       # ==== COMMON PATCHES (identical across GHC versions) ====
       - patches/common/add-threadlabels-include-consolehandler.patch
       - patches/common/fix-windows-reportmemorymap-format.patch
-      - patches/common/fix-windows-utimbuf-type.patch
+      # NOTE: fix-windows-utimbuf-type.patch is NOT applied because UCRT uses
+      # the standard 'struct utimbuf' (POSIX), not MSVCRT's 'struct _utimbuf'
 
       # ==== VERSION-SPECIFIC PATCHES (GHC 9.2.x) ====
       # Make alex and happy optional since generated files are already in source tarball
