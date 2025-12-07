@@ -1,0 +1,61 @@
+--- a/hadrian/src/Hadrian/Haskell/Cabal/Parse.hs
++++ b/hadrian/src/Hadrian/Haskell/Cabal/Parse.hs
+@@ -46,6 +46,9 @@
+ #endif
+ import qualified Distribution.Verbosity                        as C
+ import Hadrian.Expression
++#if MIN_VERSION_Cabal(3,8,0)
++import qualified Data.ByteString as BS
++#endif
+ import Hadrian.Haskell.Cabal
+ import Hadrian.Haskell.Cabal.Type
+ import Hadrian.Oracles.Cabal
+@@ -63,7 +66,17 @@
+ parsePackageData :: Package -> Action PackageData
+ parsePackageData pkg = do
+     gpd <- traced "cabal-read" $
++#if MIN_VERSION_Cabal(3,8,0)
++        do
++            contents <- liftIO $ BS.readFile (pkgCabalFile pkg)
++            case C.parseGenericPackageDescription contents of
++                C.ParseFailed err -> error $ "Failed to parse " ++ pkgCabalFile pkg ++ ": " ++ show err
++                C.ParseOk _ gpd' -> return gpd'
++#else
+         C.readGenericPackageDescription C.verbose (pkgCabalFile pkg)
++#endif
+     let pd      = C.packageDescription gpd
+         pkgId   = C.package pd
+         name    = C.unPackageName (C.pkgName pkgId)
+@@ -88,7 +101,18 @@
+ 
+ -- | Parse the package identifier from a Cabal file.
+ parseCabalPkgId :: FilePath -> IO String
++#if MIN_VERSION_Cabal(3,8,0)
++parseCabalPkgId file = do
++    contents <- BS.readFile file
++    case C.parseGenericPackageDescription contents of
++        C.ParseFailed err -> error $ "Failed to parse " ++ file ++ ": " ++ show err
++        C.ParseOk _ gpd -> return $ C.display . C.package . C.packageDescription $ gpd
++#else
+ parseCabalPkgId file = C.display . C.package . C.packageDescription <$> C.readGenericPackageDescription C.silent file
++#endif
+ 
+ biModules :: C.PackageDescription -> (C.BuildInfo, [C.ModuleName], Maybe (C.ModuleName, String))
+ biModules pd = go [ comp | comp@(bi,_,_) <-
+@@ -314,7 +338,16 @@
+ getHookedBuildInfo (baseDir:baseDirs) = do
+     maybeInfoFile <- C.findHookedPackageDesc C.normal baseDir
+     case maybeInfoFile of
+         Nothing       -> getHookedBuildInfo baseDirs
++#if MIN_VERSION_Cabal(3,8,0)
++        Just infoFile -> do
++            contents <- BS.readFile infoFile
++            case C.parseHookedBuildInfo contents of
++                C.ParseFailed err -> error $ "Failed to parse " ++ infoFile ++ ": " ++ show err
++                C.ParseOk _ hbi -> return hbi
++#else
+         Just infoFile -> C.readHookedBuildInfo C.silent infoFile
++#endif
+ 
+ externalPackageDeps :: C.LocalBuildInfo -> [(C.UnitId, C.MungedPackageId)]
+ externalPackageDeps lbi =

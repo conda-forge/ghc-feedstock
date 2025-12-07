@@ -283,7 +283,11 @@ platform_build_hadrian() {
     exit 1
   fi
 
-  HADRIAN_CMD=("${hadrian_bin}" "-j${CPU_COUNT}" "--directory" "${_SRC_DIR}")
+  # CRITICAL: Use single-threaded build (-j1) on Windows to avoid:
+  # 1. Race conditions in ghc-pkg cache updates
+  # 2. "builderMainLoop: invalid argument" errors from parallel process spawning
+  # 3. File handle exhaustion on Azure CI
+  HADRIAN_CMD=("${hadrian_bin}" "-j1" "--directory" "${_SRC_DIR}")
   # Use version-specific Hadrian flavour (9.2.x uses "quickest" on Windows, 9.6+ uses "release")
   HADRIAN_FLAVOUR=$(get_hadrian_flavour "win-64")
 

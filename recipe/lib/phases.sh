@@ -409,8 +409,8 @@ phase_install_ghc() {
 }
 
 default_install_ghc() {
-  # Create binary distribution
-  run_and_log "binary-dist" "${HADRIAN_CMD[@]}" --flavour="${HADRIAN_FLAVOUR}" binary-dist --prefix="${PREFIX}"
+  # Create binary distribution (without documentation to speed up build)
+  run_and_log "binary-dist" "${HADRIAN_CMD[@]}" --flavour="${HADRIAN_FLAVOUR}" --docs=none binary-dist --prefix="${PREFIX}"
 
   # Find bindist directory
   local bindist_dir=$(find "${SRC_DIR}"/_build/bindist -type d -name "ghc-${PKG_VERSION}-*" | head -1)

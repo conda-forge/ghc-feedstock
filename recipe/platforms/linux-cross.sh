@@ -391,6 +391,32 @@ create_symlinks() {
     echo "    ${ghc_target}-ghc-${PKG_VERSION} -> ghc-${PKG_VERSION}"
   fi
 
+  # CRITICAL: Create symlinks inside lib/ghc-X.Y.Z/bin/ for wrapper scripts
+  # The wrapper scripts in $PREFIX/bin/ghc reference $PREFIX/lib/ghc-9.2.8/bin/ghc-9.2.8
+  # but cross-compiled binaries are named aarch64-unknown-linux-gnu-ghc-9.2.8
+  local lib_bin_dir="${PREFIX}/lib/ghc-${PKG_VERSION}/bin"
+  if [[ -d "${lib_bin_dir}" ]]; then
+    pushd "${lib_bin_dir}" >/dev/null
+    for bin in ghc ghc-pkg hsc2hs hp2ps haddock hpc; do
+      local target_versioned="${ghc_target}-${bin}-${PKG_VERSION}"
+      local target_unversioned="${ghc_target}-${bin}"
+      local short_versioned="${bin}-${PKG_VERSION}"
+      local short_unversioned="${bin}"
+
+      # Create short-versioned -> target-versioned symlink (ghc-9.2.8 -> aarch64-...-ghc-9.2.8)
+      if [[ -f "${target_versioned}" ]] && [[ ! -e "${short_versioned}" ]]; then
+        ln -sf "${target_versioned}" "${short_versioned}"
+        echo "    lib/bin: ${target_versioned} -> ${short_versioned}"
+      fi
+      # Create short-unversioned -> target-unversioned symlink (ghc -> aarch64-...-ghc)
+      if [[ -e "${target_unversioned}" ]] && [[ ! -e "${short_unversioned}" ]]; then
+        ln -sf "${target_unversioned}" "${short_unversioned}"
+        echo "    lib/bin: ${target_unversioned} -> ${short_unversioned}"
+      fi
+    done
+    popd >/dev/null
+  fi
+
   echo "  ✓ Symlinks created"
 }
 

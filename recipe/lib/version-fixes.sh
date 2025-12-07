@@ -101,6 +101,27 @@ apply_mingw32_stubs_to_bootstrap() {
 }
 
 # ==============================================================================
+# GHC 9.4.x Specific Fixes
+# ==============================================================================
+
+# Fix: GHC 9.4.8 has a bug in libraries/ghc-bignum/configure where
+# --with-intree-gmp=no triggers GMP_FORCE_INTREE=YES due to broken parsing.
+# This is similar to 9.2.x but in a different file location.
+# Workaround: Apply fix-ghc-bignum-intree-gmp-check.patch at build time
+apply_ghc_bignum_intree_gmp_fix() {
+  local config_file="$1"
+
+  if [[ ! -f "${config_file}" ]]; then
+    echo "WARNING: Cannot apply ghc-bignum intree-gmp fix - config file not found: ${config_file}"
+    return 1
+  fi
+
+  echo "  Applying GHC 9.4.x ghc-bignum intree-gmp fix..."
+  perl -pi -e 's#^intree-gmp\s*=\s*.*#intree-gmp = NO#' "${config_file}"
+  echo "  ✓ intree-gmp = NO forced in system.config"
+}
+
+# ==============================================================================
 # GHC 9.6.x Specific Fixes
 # ==============================================================================
 
@@ -149,9 +170,22 @@ apply_version_specific_fixes() {
       ;;
 
     9.4)
-      # GHC 9.4.x - may have some of the same bugs as 9.2.x
-      # Add fixes as needed
-      echo "  No runtime fixes needed for GHC 9.4.x"
+      # GHC 9.4.x has the intree-gmp bug (fixed via patch, but may need runtime fix too)
+      # and potentially PIE issues on Linux
+
+      # All platforms: intree-gmp bug (different location than 9.2.x)
+      if [[ -n "${config_file}" && -f "${config_file}" ]]; then
+        apply_ghc_bignum_intree_gmp_fix "${config_file}"
+      fi
+
+      # Linux: PIE relocation errors (same as 9.2.x)
+      case "${platform}" in
+        linux-64|linux-aarch64|linux-ppc64le)
+          if [[ -n "${config_file}" && -f "${config_file}" ]]; then
+            apply_pie_relocation_fix "${config_file}"
+          fi
+          ;;
+      esac
       ;;
 
     9.6|9.8|9.10)
@@ -174,15 +208,19 @@ needs_fix() {
 
   case "${fix_name}" in
     intree_gmp_bug)
-      [[ "${major_version}" == "9.2" ]]
+      # 9.2.x has m4/fp_gmp.m4 bug, 9.4.x has ghc-bignum/configure bug
+      [[ "${major_version}" == "9.2" || "${major_version}" == "9.4" ]]
       ;;
     touchy_exe_bug)
+      # Only 9.2.x has the touchy.exe cross-platform bug
       [[ "${major_version}" == "9.2" ]]
       ;;
     pie_relocation)
-      [[ "${major_version}" == "9.2" ]]
+      # 9.2.x and 9.4.x have PIE relocation issues on Linux
+      [[ "${major_version}" == "9.2" || "${major_version}" == "9.4" ]]
       ;;
     mingw32_stubs)
+      # Only 9.2.x needs mingw32_stubs (9.4.x doesn't support Windows)
       [[ "${major_version}" == "9.2" ]]
       ;;
     *)
@@ -212,8 +250,20 @@ get_hadrian_flavour() {
           ;;
       esac
       ;;
+    9.4)
+      # GHC 9.4.x: Linux uses quick, macOS uses release+no_profiled_libs
+      # The 'quick' flavour has issues with dynamic library builds on macOS
+      case "${platform}" in
+        osx-64|osx-arm64)
+          echo "release+no_profiled_libs"
+          ;;
+        *)
+          echo "quick"
+          ;;
+      esac
+      ;;
     *)
-      # GHC 9.4+ can use release flavour
+      # GHC 9.6+ can use release flavour
       echo "release"
       ;;
   esac
@@ -225,11 +275,15 @@ get_install_targets() {
 
   case "${major_version}" in
     9.2)
-      # GHC 9.2.x doesn't have install_man target
+      # GHC 9.2.x has install_includes target
       echo "install_bin install_lib install_includes"
       ;;
+    9.4)
+      # GHC 9.4.x doesn't have install_man or install_includes
+      echo "install_bin install_lib"
+      ;;
     *)
-      # GHC 9.4+ has install_man
+      # GHC 9.6+ has install_man
       echo "install_bin install_lib install_man"
       ;;
   esac
@@ -239,6 +293,43 @@ get_install_targets() {
 get_patches_dir() {
   local major_version=$(get_ghc_major_version)
   echo "${RECIPE_DIR}/patches/${major_version%%.*}.${major_version#*.}"
+}
+
+# Check if Windows is supported for the current version
+is_windows_supported() {
+  local major_version=$(get_ghc_major_version)
+
+  case "${major_version}" in
+    9.4|9.8)
+      # GHC 9.4.x and 9.8.x do not support Windows in conda-forge
+      return 1
+      ;;
+    *)
+      # Other versions support Windows
+      return 0
+      ;;
+  esac
+}
+
+# Get the required bootstrap GHC version for the current version
+# We standardize on 9.2.8 as it's the most reliable bootstrap version
+get_bootstrap_version() {
+  echo "9.2.8"
+}
+
+# Check if version requires separate ghc-prim/ghc-bignum build steps
+needs_separate_prim_builds() {
+  local major_version=$(get_ghc_major_version)
+
+  case "${major_version}" in
+    9.8|9.10)
+      # GHC 9.8+ requires building ghc-prim and ghc-bignum separately
+      return 0
+      ;;
+    *)
+      return 1
+      ;;
+  esac
 }
 
 echo "  ✓ Version fixes library loaded (GHC $(get_ghc_major_version))"
