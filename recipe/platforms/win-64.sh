@@ -649,6 +649,16 @@ patch_bootstrap_settings() {
   # Haskell CPP needs traditional-cpp for Haskell compatibility
   perl -pi -e "s#(Haskell CPP flags\", \")[^\"]*#\$1-E -undef -traditional-cpp -I${_BUILD_PREFIX}/Library/include -I${_PREFIX}/Library/include#" "${settings_file}"
 
+  # CRITICAL: Add mingw32_stubs library to link flags for bootstrap GHC
+  # The bootstrap GHC's time library references __imp__timezone and __imp__tzname
+  # which are MSVCRT symbols not available in modern UCRT. Our stubs library provides these.
+  # This is needed when bootstrap GHC links Stage0 executables (including Hadrian-built tools)
+  # Without this, executables segfault during RTS initialization when accessing timezone.
+  local STUBS_LIB_DIR="${_BUILD_PREFIX_}/Library/lib"
+  perl -pi -e "s#(C compiler link flags\", \")([^\"]*)#\$1\$2 -L${STUBS_LIB_DIR} -lmingw32_stubs#" "${settings_file}"
+  perl -pi -e "s#(ld flags\", \")([^\"]*)#\$1\$2 -L${STUBS_LIB_DIR} -lmingw32_stubs#" "${settings_file}"
+  echo "  Added mingw32_stubs to bootstrap GHC link flags"
+
   # Show complete bootstrap settings file for debugging
   echo "  ===== BOOTSTRAP SETTINGS FILE (after patching) ====="
   cat "${settings_file}"

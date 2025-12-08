@@ -99,7 +99,12 @@ requirements:
     - libiconv
     - libffi
     - if: unix
-      then: ncurses
+      then:
+        - ncurses
+
+  ignore_run_exports:
+    from_package:
+      - ncurses
     
 tests:
   - package_contents:
