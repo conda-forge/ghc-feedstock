@@ -284,10 +284,11 @@ platform_build_hadrian() {
     exit 1
   fi
 
-  # Use multi-threaded Hadrian build - the -j flag here controls GHC compilation parallelism
-  # NOTE: The "builderMainLoop: invalid argument" error is caused by Cabal parallelism (-j for cabal v2-build)
-  # NOT by Hadrian's -j flag. The working 9.6.7 build uses -j${CPU_COUNT} for Hadrian.
-  HADRIAN_CMD=("${hadrian_bin}" "-j${CPU_COUNT}" "--directory" "${_SRC_DIR}")
+  # CRITICAL: Use -j1 for Hadrian on Windows to avoid "builderMainLoop: invalid argument" errors
+  # This error occurs when GHC spawns multiple processes during linking with -threaded -eventlog
+  # and Azure CI Windows has issues with parallel process spawning.
+  # Previously this only applied to stage2, but stage1:exe:ghc-bin also needs it.
+  HADRIAN_CMD=("${hadrian_bin}" "-j1" "--directory" "${_SRC_DIR}")
   # Use version-specific Hadrian flavour (9.2.x uses "quickest" on Windows, 9.6+ uses "release")
   HADRIAN_FLAVOUR=$(get_hadrian_flavour "win-64")
 
@@ -410,11 +411,8 @@ platform_build_stage2() {
   # normal MinGW linking. Custom link flags are only for Stage1 settings.
 
   # CRITICAL: Build stage2:exe:ghc-bin FIRST to generate _build/stage1/lib/settings
-  # Use -j1 for this specific step to avoid "builderMainLoop: invalid argument" error
-  # This error occurs when Stage 0 GHC spawns too many processes during linking
-  local hadrian_bin="${HADRIAN_CMD[0]}"
-  local hadrian_dir="${HADRIAN_CMD[3]}"  # --directory value (index 3, after the flag at index 2)
-  run_and_log "stage2-exe" "${hadrian_bin}" -j1 --directory "${hadrian_dir}" stage2:exe:ghc-bin --flavour="${HADRIAN_FLAVOUR}" --freeze1 --docs=none --progress-info=none
+  # Note: HADRIAN_CMD already uses -j1 globally to avoid "builderMainLoop: invalid argument" errors
+  run_and_log "stage2-exe" "${HADRIAN_CMD[@]}" --flavour="${HADRIAN_FLAVOUR}" stage2:exe:ghc-bin --freeze1 --docs=none --progress-info=none
 
   # Patch Stage1 settings file (created by stage2:exe:ghc-bin)
   patch_stage2_settings

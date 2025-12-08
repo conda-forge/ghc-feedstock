@@ -1,9 +1,15 @@
 @echo off
 setlocal enabledelayedexpansion
 
-echo source D:/Miniforge/etc/profile.d/conda.sh       > conda_build.sh
-echo conda activate "${PREFIX}"                       >> conda_build.sh
-echo conda activate --stack "${BUILD_PREFIX}"         >> conda_build.sh
+:: Create conda_build.sh wrapper
+:: With pixi, environment is already activated - no need to source conda.sh
+:: With Miniforge/conda, we need to source conda.sh and activate
+echo # Conda/pixi activation wrapper                   > conda_build.sh
+echo if [ -f "D:/Miniforge/etc/profile.d/conda.sh" ]; then  >> conda_build.sh
+echo   source D:/Miniforge/etc/profile.d/conda.sh     >> conda_build.sh
+echo   conda activate "${PREFIX}"                     >> conda_build.sh
+echo   conda activate --stack "${BUILD_PREFIX}"       >> conda_build.sh
+echo fi                                               >> conda_build.sh
 echo CONDA_PREFIX=${CONDA_PREFIX//\\//}               >> conda_build.sh
 type "%RECIPE_DIR%\build.sh"                          >> conda_build.sh
 
