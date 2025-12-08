@@ -36,12 +36,20 @@ run_and_log() {
   echo "  Running: $*"
   echo "  Log: ${log_file}"
 
+  local start_time=$(date +%s)
   "$@" > "${log_file}" 2>&1 || {
-    echo "*** Command failed! Last 50 lines:"
+    local end_time=$(date +%s)
+    local duration=$((end_time - start_time))
+    echo "*** Command failed after ${duration}s! Last 50 lines:"
     tail -50 "${log_file}"
     return 1
   }
-  return ${PIPESTATUS[0]}
+  local end_time=$(date +%s)
+  local duration=$((end_time - start_time))
+  local minutes=$((duration / 60))
+  local seconds=$((duration % 60))
+  echo "  ✓ ${phase} completed in ${minutes}m ${seconds}s"
+  return 0
 }
 
 # Install bash completion script

@@ -58,10 +58,14 @@ detect_platform
 # BUILD EXECUTION
 # ==============================================================================
 
+BUILD_START_TIME=$(date +%s)
+
 echo ""
 echo "===================================================================="
 echo "  GHC ${PKG_VERSION} Build"
 echo "  Platform: ${PLATFORM_NAME}"
+echo "  CPU_COUNT: ${CPU_COUNT:-unknown}"
+echo "  Started: $(date '+%Y-%m-%d %H:%M:%S')"
 echo "===================================================================="
 echo ""
 
@@ -99,10 +103,20 @@ phase_activation
 # BUILD COMPLETE
 # ==============================================================================
 
+BUILD_END_TIME=$(date +%s)
+BUILD_DURATION=$((BUILD_END_TIME - BUILD_START_TIME))
+BUILD_HOURS=$((BUILD_DURATION / 3600))
+BUILD_MINUTES=$(((BUILD_DURATION % 3600) / 60))
+BUILD_SECONDS=$((BUILD_DURATION % 60))
+
 echo ""
 echo "===================================================================="
 echo "  ✓ GHC ${PKG_VERSION} Build Complete"
-echo "  Platform: ${PLATFORM_NAME}"
-echo "  Installed to: ${PREFIX}"
 echo "===================================================================="
+echo "  Platform:   ${PLATFORM_NAME}"
+echo "  CPU_COUNT:  ${CPU_COUNT:-unknown}"
+echo "  Installed:  ${PREFIX}"
+echo "  Total time: ${BUILD_HOURS}h ${BUILD_MINUTES}m ${BUILD_SECONDS}s"
+echo "===================================================================="
+echo "(Per-phase timings shown above after each '✓ ... completed in')"
 echo ""
