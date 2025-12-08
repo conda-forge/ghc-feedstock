@@ -456,6 +456,11 @@ phase_post_install() {
 }
 
 default_post_install() {
+  # CRITICAL: Clean up installed settings file
+  # Remove $BUILD_PREFIX/bin/ and other build-time paths that got baked in
+  echo "  Cleaning up installed settings file..."
+  update_installed_settings "${CONDA_TOOLCHAIN_HOST:-}"
+
   # Verify installation
   echo "  Verifying GHC installation..."
   "${PREFIX}/bin/ghc" --version || {
