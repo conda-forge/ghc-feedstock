@@ -484,8 +484,13 @@ update_installed_settings() {
   perl -pi -e 's#%BUILD_PREFIX%/bin/##g' "${settings_file}"
   perl -pi -e 's#%PREFIX%/bin/##g' "${settings_file}"
 
+  # Remove expanded BUILD_PREFIX paths (e.g., /home/conda/.../build_env/bin/)
+  # These paths contain hyphens which aren't matched by \w
+  perl -pi -e "s#${BUILD_PREFIX}/bin/##g" "${settings_file}"
+
   # Update toolchain paths - strip any remaining absolute paths and keep just toolchain-prefixed names
-  perl -pi -e "s#\"[/\w]*?(ar|clang|clang\+\+|ld|ranlib|llc|objdump|opt)\"#\"${toolchain}-\$1\"#" "${settings_file}"
+  # Use [/\w\-]* to match paths with hyphens (like rattler-build_ghc_xxx)
+  perl -pi -e "s#\"[/\w\-]*?(ar|clang|clang\+\+|ld|ranlib|llc|objdump|opt)\"#\"${toolchain}-\$1\"#" "${settings_file}"
 }
 
 # ==============================================================================
