@@ -6,9 +6,8 @@
 #
 # Key implementation details:
 # - Creates libiconv_compat.dylib for conda libiconv compatibility
-# - Uses DYLD_INSERT_LIBRARIES for library preloading
 # - Uses llvm-ar for Apple ld64 compatibility
-# - Applies -fno-lto to prevent ABI mismatches
+# - Library paths handled via -rpath linker flags (not DYLD_* env vars)
 # ==============================================================================
 
 set -eu
@@ -39,10 +38,6 @@ platform_setup_environment() {
     -install_name "${PREFIX}/lib/ghc-${PKG_VERSION}/lib/libiconv_compat.dylib"
   echo "  Created: ${PREFIX}/lib/ghc-${PKG_VERSION}/lib/libiconv_compat.dylib"
 
-  # Preload CONDA libraries to override system libraries
-  export DYLD_INSERT_LIBRARIES="${PREFIX}/lib/libiconv.dylib:${PREFIX}/lib/ghc-${PKG_VERSION}/lib/libiconv_compat.dylib"
-  export DYLD_LIBRARY_PATH="${BUILD_PREFIX}/lib:${PREFIX}/lib:${DYLD_LIBRARY_PATH:-}"
-
   # Use LLVM ar - only archiver that resolves odd mismatched arch when linking
   export AR=llvm-ar
 
@@ -53,7 +48,6 @@ platform_setup_environment() {
 
   echo "  Environment variables:"
   echo "    AR=${AR}"
-  echo "    DYLD_INSERT_LIBRARIES=${DYLD_INSERT_LIBRARIES}"
 
   echo "  Patching bootstrap settings..."
   local settings_file=$(find "${BUILD_PREFIX}/ghc-bootstrap" -name settings | head -n 1)
