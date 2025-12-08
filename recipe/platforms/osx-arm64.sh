@@ -24,6 +24,7 @@ source "${RECIPE_DIR}/lib/common-hooks.sh"
 PLATFORM_NAME="macOS arm64 (cross-compiled from x86_64)"
 PLATFORM_TYPE="cross"
 INSTALL_METHOD="bindist"
+FLAVOUR="release"
 
 # ==============================================================================
 # Architecture Configuration
@@ -238,7 +239,6 @@ platform_build_hadrian() {
   fi
 
   HADRIAN_CMD=("${hadrian_bin}" "-j${CPU_COUNT}" "--directory" "${SRC_DIR}")
-  HADRIAN_FLAVOUR="release"
 
   echo "  Hadrian binary: ${hadrian_bin}"
   echo "  ✓ Hadrian built"
@@ -268,13 +268,13 @@ platform_build_stage1() {
   echo "  Building Stage 1 cross-compiler..."
 
   # Build Stage 1 GHC compiler
-  run_and_log "stage1-ghc" "${HADRIAN_CMD[@]}" --flavour="${HADRIAN_FLAVOUR}" \
+  run_and_log "stage1-ghc" "${HADRIAN_CMD[@]}" --flavour="${FLAVOUR}" \
     stage1:exe:ghc-bin --docs=none --progress-info=none
 
   # Build Stage 1 supporting tools
-  run_and_log "stage1-pkg" "${HADRIAN_CMD[@]}" --flavour="${HADRIAN_FLAVOUR}" \
+  run_and_log "stage1-pkg" "${HADRIAN_CMD[@]}" --flavour="${FLAVOUR}" \
     stage1:exe:ghc-pkg --docs=none --progress-info=none
-  run_and_log "stage1-hsc2hs" "${HADRIAN_CMD[@]}" --flavour="${HADRIAN_FLAVOUR}" \
+  run_and_log "stage1-hsc2hs" "${HADRIAN_CMD[@]}" --flavour="${FLAVOUR}" \
     stage1:exe:hsc2hs --docs=none --progress-info=none
 
   # Verify Stage0 GHC works
@@ -289,7 +289,7 @@ platform_post_build_stage1() {
   echo "  Building Stage 1 libraries..."
 
   # Build libraries with release flavour (for full ways: vanilla, profiling, dynamic)
-  run_and_log "stage1-lib" "${HADRIAN_CMD[@]}" --flavour="${HADRIAN_FLAVOUR}" \
+  run_and_log "stage1-lib" "${HADRIAN_CMD[@]}" --flavour="${FLAVOUR}" \
     stage1:lib:ghc --docs=none --progress-info=none
 
   echo "  ✓ Stage 1 libraries built"
@@ -302,10 +302,10 @@ platform_post_build_stage1() {
 platform_build_stage2() {
   echo "  Building Stage 2 cross-compiled binaries..."
 
-  run_and_log "stage2-exe" "${HADRIAN_CMD[@]}" --flavour="${HADRIAN_FLAVOUR}" \
+  run_and_log "stage2-exe" "${HADRIAN_CMD[@]}" --flavour="${FLAVOUR}" \
     stage2:exe:ghc-bin --freeze1 --docs=none --progress-info=none
 
-  run_and_log "build-all" "${HADRIAN_CMD[@]}" --flavour="${HADRIAN_FLAVOUR}" \
+  run_and_log "build-all" "${HADRIAN_CMD[@]}" --flavour="${FLAVOUR}" \
     --freeze1 --freeze2 --docs=no-sphinx-pdfs --progress-info=none
 
   echo "  ✓ Stage 2 cross-compiled binaries built"
@@ -320,7 +320,7 @@ platform_install_ghc() {
 
   run_and_log "install" "${HADRIAN_CMD[@]}" install \
     --prefix="${PREFIX}" \
-    --flavour="${HADRIAN_FLAVOUR}" \
+    --flavour="${FLAVOUR}" \
     --freeze1 --freeze2 \
     --docs=none --progress-info=none || true
 

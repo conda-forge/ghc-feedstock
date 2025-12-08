@@ -20,6 +20,7 @@ source "${RECIPE_DIR}/lib/common-hooks.sh"
 PLATFORM_NAME="macOS x86_64 (native)"
 PLATFORM_TYPE="native"
 INSTALL_METHOD="bindist"
+FLAVOUR="release"
 
 # ==============================================================================
 # Phase 1: Environment Setup
@@ -174,7 +175,6 @@ platform_build_hadrian() {
 
   # Set up Hadrian command array
   HADRIAN_CMD=("${hadrian_bin}" "-j${CPU_COUNT}" "--directory" "${SRC_DIR}")
-  HADRIAN_FLAVOUR="release"
 
   echo "  Hadrian binary: ${hadrian_bin}"
   echo "  ✓ Hadrian built (cabal-built)"
@@ -188,7 +188,7 @@ platform_build_stage1() {
   echo "  Building Stage 1 GHC for macOS..."
 
   run_and_log "stage1-exe" "${HADRIAN_CMD[@]}" stage1:exe:ghc-bin \
-    --flavour="${HADRIAN_FLAVOUR}" --docs=none --progress-info=none
+    --flavour="${FLAVOUR}" --docs=none --progress-info=none
 
   # Update stage0 settings with link flags
   local settings_file="${SRC_DIR}/_build/stage0/lib/settings"
@@ -200,7 +200,7 @@ platform_build_stage1() {
 
   # Build Stage 1 libraries
   run_and_log "stage1-lib" "${HADRIAN_CMD[@]}" stage1:lib:ghc \
-    --flavour="${HADRIAN_FLAVOUR}" --docs=none --progress-info=none
+    --flavour="${FLAVOUR}" --docs=none --progress-info=none
 
   # Update settings again after lib build
   if [[ -f "${settings_file}" ]]; then
@@ -219,7 +219,7 @@ platform_build_stage2() {
   echo "  Building Stage 2 GHC for macOS..."
 
   run_and_log "stage2-exe" "${HADRIAN_CMD[@]}" stage2:exe:ghc-bin \
-    --flavour="${HADRIAN_FLAVOUR}" --freeze1 --docs=none --progress-info=none
+    --flavour="${FLAVOUR}" --freeze1 --docs=none --progress-info=none
 
   # Update stage1 settings
   local settings_file="${SRC_DIR}/_build/stage1/lib/settings"
@@ -228,7 +228,7 @@ platform_build_stage2() {
   fi
 
   run_and_log "stage2-lib" "${HADRIAN_CMD[@]}" stage2:lib:ghc \
-    --flavour="${HADRIAN_FLAVOUR}" --freeze1 --docs=none --progress-info=none
+    --flavour="${FLAVOUR}" --freeze1 --docs=none --progress-info=none
 
   echo "  ✓ Stage 2 GHC built"
 }
@@ -242,7 +242,7 @@ platform_install_ghc() {
 
   run_and_log "install" "${HADRIAN_CMD[@]}" install \
     --prefix="${PREFIX}" \
-    --flavour="${HADRIAN_FLAVOUR}" \
+    --flavour="${FLAVOUR}" \
     --freeze1 --freeze2 \
     --docs=none --progress-info=none
 

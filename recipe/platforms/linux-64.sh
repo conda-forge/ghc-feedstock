@@ -15,6 +15,7 @@ source "${RECIPE_DIR}/lib/common-hooks.sh"
 PLATFORM_NAME="Linux x86_64 (native)"
 PLATFORM_TYPE="native"
 INSTALL_METHOD="bindist"
+FLAVOUR="release"
 
 # ==============================================================================
 # Platform Triple Configuration

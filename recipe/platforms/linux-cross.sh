@@ -22,6 +22,7 @@ source "${RECIPE_DIR}/lib/common-hooks.sh"
 PLATFORM_NAME="Linux cross-compilation"
 PLATFORM_TYPE="cross"
 INSTALL_METHOD="bindist"
+FLAVOUR="release"
 
 # ==============================================================================
 # Architecture Configuration
@@ -199,7 +200,6 @@ platform_build_hadrian() {
   fi
 
   HADRIAN_CMD=("${hadrian_bin}" "-j${CPU_COUNT}" "--directory" "${SRC_DIR}")
-  HADRIAN_FLAVOUR="release"
 
   echo "  Hadrian binary: ${hadrian_bin}"
   echo "  ✓ Hadrian built"
@@ -358,7 +358,7 @@ platform_install_ghc() {
   # Create binary distribution first
   run_and_log "bindist" "${HADRIAN_CMD[@]}" binary-dist \
     --prefix="${PREFIX}" \
-    --flavour=release \
+    --flavour="${FLAVOUR}" \
     --freeze1 \
     --freeze2 \
     --docs=none \

@@ -129,7 +129,7 @@ platform_pre_build_hadrian() {
 
 # Override to customize Hadrian build
 # If defined, replaces default_build_hadrian()
-# Must set HADRIAN_CMD array and HADRIAN_FLAVOUR
+# Must set HADRIAN_CMD array and FLAVOUR
 # platform_build_hadrian() {
 #   "${CABAL}" v2-build hadrian
 #   build_hadrian_cmd HADRIAN_CMD "${hadrian_bin}"
@@ -152,7 +152,7 @@ platform_pre_build_stage1() {
 # Override to customize Stage 1 build
 # If defined, replaces default_build_stage1()
 # platform_build_stage1() {
-#   "${HADRIAN_CMD[@]}" stage1:exe:ghc-bin --flavour="${HADRIAN_FLAVOUR}"
+#   "${HADRIAN_CMD[@]}" stage1:exe:ghc-bin --flavour="${FLAVOUR}"
 # }
 
 # Called after Stage 1 build
@@ -172,7 +172,7 @@ platform_pre_build_stage2() {
 # Override to customize Stage 2 build
 # If defined, replaces default_build_stage2()
 # platform_build_stage2() {
-#   "${HADRIAN_CMD[@]}" stage2:exe:ghc-bin --flavour="${HADRIAN_FLAVOUR}"
+#   "${HADRIAN_CMD[@]}" stage2:exe:ghc-bin --flavour="${FLAVOUR}"
 # }
 
 # Called after Stage 2 build

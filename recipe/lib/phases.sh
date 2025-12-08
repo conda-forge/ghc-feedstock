@@ -277,7 +277,7 @@ default_build_hadrian() {
   # HADRIAN_CMD is global so it can be used by subsequent phases
   declare -ga HADRIAN_CMD  # Global array
   build_hadrian_cmd HADRIAN_CMD "${hadrian_bin}"
-  HADRIAN_FLAVOUR="${HADRIAN_FLAVOUR:-release}"
+  FLAVOUR="${FLAVOUR:-release}"
 }
 
 # ==============================================================================
@@ -306,7 +306,7 @@ phase_build_stage1() {
 
 default_build_stage1() {
   # Build Stage 1 GHC executables
-  local -a options=(--flavour="${HADRIAN_FLAVOUR}" --docs=none --progress-info=none)
+  local -a options=(--flavour="${FLAVOUR}" --docs=none --progress-info=none)
   run_and_log    "stage1-ghc" "${HADRIAN_CMD[@]}" "${options[@]}" stage1:exe:ghc-bin
   run_and_log    "stage1-pkg" "${HADRIAN_CMD[@]}" "${options[@]}" stage1:exe:ghc-pkg
   run_and_log "stage1-hsc2hs" "${HADRIAN_CMD[@]}" "${options[@]}" stage1:exe:hsc2hs
@@ -357,7 +357,7 @@ phase_build_stage2() {
 default_build_stage2() {
   # Build Stage 2 GHC executables and libraries
   # --freeze1 ensures Stage 1 compiler is not rebuilt
-  local -a options=(--flavour="${HADRIAN_FLAVOUR}" --freeze1 --docs=none --progress-info=none)
+  local -a options=(--flavour="${FLAVOUR}" --freeze1 --docs=none --progress-info=none)
   run_and_log    "stage2-ghc" "${HADRIAN_CMD[@]}" "${options[@]}" stage2:exe:ghc-bin
   run_and_log    "stage2-pkg" "${HADRIAN_CMD[@]}" "${options[@]}" stage2:exe:ghc-pkg
   run_and_log "stage2-hsc2hs" "${HADRIAN_CMD[@]}" "${options[@]}" stage2:exe:hsc2hs
@@ -407,7 +407,7 @@ phase_install_ghc() {
 
 default_install_ghc() {
   # Create binary distribution (--docs=none to skip documentation build)
-  run_and_log "binary-dist" "${HADRIAN_CMD[@]}" --flavour="${HADRIAN_FLAVOUR}" binary-dist --prefix="${PREFIX}" --docs=none
+  run_and_log "binary-dist" "${HADRIAN_CMD[@]}" --flavour="${FLAVOUR}" binary-dist --prefix="${PREFIX}" --docs=none
 
   # Find bindist directory
   local bindist_dir=$(find "${SRC_DIR}"/_build/bindist -type d -name "ghc-${PKG_VERSION}-*" | head -1)

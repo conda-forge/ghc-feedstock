@@ -24,6 +24,11 @@ source "${RECIPE_DIR}/lib/common-hooks.sh"
 PLATFORM_NAME="Windows x86_64 (MinGW-w64 UCRT + GCC)"
 PLATFORM_TYPE="native"
 INSTALL_METHOD="bindist"
+#  # CRITICAL: Use quickest flavour on Windows to avoid "32 bit pseudo relocation"
+#  # errors in the Stage1 ghc.exe. Release flavour produces optimized binaries
+#  # that can exceed relocation limits and crash when Cabal tries to detect version.
+#  FLAVOUR="quickest"
+FLAVOUR="default"
 
 # ==============================================================================
 # Phase 1: Environment Setup
@@ -31,18 +36,6 @@ INSTALL_METHOD="bindist"
 
 platform_setup_environment() {
   echo "  Configuring Windows-specific environment..."
-
-  # CRITICAL: Ensure _PREFIX_ and _BUILD_PREFIX_ are set to Windows-format paths (C:/...)
-  # The build.bat should set these, but if they contain unexpanded %PREFIX% placeholders,
-  # recreate them from the Unix-style paths (_PREFIX, _BUILD_PREFIX)
-  if [[ -z "${_PREFIX_:-}" || "${_PREFIX_}" == *"%"* ]]; then
-    export _PREFIX_=$(echo "${_PREFIX}" | sed 's#^/c/#C:/#; s#^/d/#D:/#')
-  fi
-  if [[ -z "${_BUILD_PREFIX_:-}" || "${_BUILD_PREFIX_}" == *"%"* ]]; then
-    export _BUILD_PREFIX_=$(echo "${_BUILD_PREFIX}" | sed 's#^/c/#C:/#; s#^/d/#D:/#')
-  fi
-  echo "    _PREFIX_=${_PREFIX_}"
-  echo "    _BUILD_PREFIX_=${_BUILD_PREFIX_}"
 
   # Build clean PATH - don't append conda's bad PATH with unexpanded %BUILD_PREFIX% placeholders
   # Include MSYS2 tools (m2-coreutils, m2-bash, etc.) from Library/usr/bin
@@ -219,6 +212,18 @@ platform_pre_configure_ghc() {
   export STRINGS="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-strings.exe"
   export STRIP="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-strip.exe"
 
+  # CRITICAL: Tell autoconf which compiler to use (prevents "checking for gcc... no")
+  export ac_cv_prog_CC="${CC}"
+  export ac_cv_prog_CXX="${CXX}"
+  export ac_cv_prog_CPP="${CPP}"
+  export ac_cv_prog_AR="${AR}"
+  export ac_cv_prog_LD="${LD}"
+  export ac_cv_prog_NM="${NM}"
+  export ac_cv_prog_RANLIB="${RANLIB}"
+  export ac_cv_prog_STRIP="${STRIP}"
+  export ac_cv_prog_OBJDUMP="${OBJDUMP}"
+  
+  # Force use of conda-provided toolchain and libraries (not inplace MinGW)
   echo "  Toolchain environment variables overridden with actual paths"
 
   # Set up Windows SDK paths
@@ -266,10 +271,6 @@ platform_build_hadrian() {
   fi
 
   HADRIAN_CMD=("${hadrian_bin}" "-j${CPU_COUNT}" "--directory" "${_SRC_DIR}")
-  # CRITICAL: Use quickest flavour on Windows to avoid "32 bit pseudo relocation"
-  # errors in the Stage1 ghc.exe. Release flavour produces optimized binaries
-  # that can exceed relocation limits and crash when Cabal tries to detect version.
-  HADRIAN_FLAVOUR="quickest"
 
   echo "  Hadrian binary: ${hadrian_bin}"
 }
@@ -310,18 +311,18 @@ platform_build_stage1() {
   echo "  Building Stage 1 GHC (Windows)..."
 
   # Build Stage 1 GHC compiler
-  run_and_log "stage1-ghc" "${HADRIAN_CMD[@]}" --flavour="${HADRIAN_FLAVOUR}" stage1:exe:ghc-bin
+  run_and_log "stage1-ghc" "${HADRIAN_CMD[@]}" --flavour="${FLAVOUR}" stage1:exe:ghc-bin
 
   # CRITICAL: After stage1:exe:ghc-bin creates _build/stage0/lib/settings,
   # patch it with include paths BEFORE building libraries that need ffi.h
   patch_stage0_settings_include_paths
 
   # Build Stage 1 supporting tools
-  run_and_log "stage1-pkg" "${HADRIAN_CMD[@]}" --flavour="${HADRIAN_FLAVOUR}" stage1:exe:ghc-pkg
-  run_and_log "stage1-hsc2hs" "${HADRIAN_CMD[@]}" --flavour="${HADRIAN_FLAVOUR}" stage1:exe:hsc2hs
+  run_and_log "stage1-pkg" "${HADRIAN_CMD[@]}" --flavour="${FLAVOUR}" stage1:exe:ghc-pkg
+  run_and_log "stage1-hsc2hs" "${HADRIAN_CMD[@]}" --flavour="${FLAVOUR}" stage1:exe:hsc2hs
 
   # CRITICAL: Build Stage 1 libraries BEFORE Stage 2
-  run_and_log "stage1-lib" "${HADRIAN_CMD[@]}" --flavour="${HADRIAN_FLAVOUR}" stage1:lib:ghc
+  run_and_log "stage1-lib" "${HADRIAN_CMD[@]}" --flavour="${FLAVOUR}" stage1:lib:ghc
 
   echo "  ✓ Stage 1 GHC built"
 }
@@ -384,14 +385,14 @@ platform_build_stage2() {
 
   # CRITICAL: Build stage2:exe:ghc-bin FIRST to generate _build/stage1/lib/settings
   # This creates _build/stage1/bin/ghc.exe (NOT stage1:exe:ghc-bin which creates stage0!)
-  run_and_log "stage2-exe" "${HADRIAN_CMD[@]}" stage2:exe:ghc-bin --flavour="${HADRIAN_FLAVOUR}" --freeze1 --docs=none --progress-info=none
+  run_and_log "stage2-exe" "${HADRIAN_CMD[@]}" stage2:exe:ghc-bin --flavour="${FLAVOUR}" --freeze1 --docs=none --progress-info=none
 
   # Patch Stage1 settings file (created by stage2:exe:ghc-bin)
   patch_stage2_settings
 
   # Build Stage 1 supporting tools
-  run_and_log "stage2-pkg" "${HADRIAN_CMD[@]}" --flavour="${HADRIAN_FLAVOUR}" stage2:exe:ghc-pkg --freeze1 --docs=none --progress-info=none
-  run_and_log "stage2-hsc2hs" "${HADRIAN_CMD[@]}" --flavour="${HADRIAN_FLAVOUR}" stage2:exe:hsc2hs --freeze1 --docs=none --progress-info=none
+  run_and_log "stage2-pkg" "${HADRIAN_CMD[@]}" --flavour="${FLAVOUR}" stage2:exe:ghc-pkg --freeze1 --docs=none --progress-info=none
+  run_and_log "stage2-hsc2hs" "${HADRIAN_CMD[@]}" --flavour="${FLAVOUR}" stage2:exe:hsc2hs --freeze1 --docs=none --progress-info=none
 
   # CRITICAL: Rebuild touchy.exe with correct linker flags BEFORE stage2:lib:ghc
   # touchy.exe was built during stage1:exe:ghc-bin with Stage0 settings (no --enable-auto-import)
@@ -403,9 +404,9 @@ platform_build_stage2() {
   # NOTE: Do NOT add Stage1 bin to PATH - Hadrian handles this internally.
   # Adding it would cause Cabal to find our Stage1 ghc.exe (which may have
   # relocation issues) and fail when trying to detect its version.
-  echo "  Command: ${HADRIAN_CMD[*]} stage2:lib:ghc --flavour=${HADRIAN_FLAVOUR} --freeze1 --docs=none --progress-info=none"
+  echo "  Command: ${HADRIAN_CMD[*]} stage2:lib:ghc --flavour=${FLAVOUR} --freeze1 --docs=none --progress-info=none"
 
-  run_and_log "stage2-lib" "${HADRIAN_CMD[@]}" stage2:lib:ghc --flavour="${HADRIAN_FLAVOUR}" --freeze1 --docs=none --progress-info=none || {
+  run_and_log "stage2-lib" "${HADRIAN_CMD[@]}" stage2:lib:ghc --flavour="${FLAVOUR}" --freeze1 --docs=none --progress-info=none || {
     stage2_exit=$?
     echo "ERROR: stage2:lib:ghc failed with exit code ${stage2_exit}"
     exit ${stage2_exit}
@@ -423,7 +424,7 @@ platform_install_ghc() {
 
   # Create binary distribution directory (no compression - we copy directly)
   # binary-dist-dir is faster than binary-dist-gzip since we don't need the tarball
-  run_and_log "bindist" "${HADRIAN_CMD[@]}" binary-dist-dir --prefix="${_PREFIX}" --flavour="${HADRIAN_FLAVOUR}" --freeze1 --freeze2 --docs=none
+  run_and_log "bindist" "${HADRIAN_CMD[@]}" binary-dist-dir --prefix="${_PREFIX}" --flavour="${FLAVOUR}" --freeze1 --freeze2 --docs=none
 
   # Find bindist directory
   local ghc_target="x86_64-w64-mingw32"

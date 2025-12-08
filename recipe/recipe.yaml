@@ -12,9 +12,9 @@ source:
     patches:
       # Update hadrian cabal.project for newer dependencies and static-only build
       - patches/update-hadrian-cabal-project.patch
-      # Fix -no-pie detection - allow env var override when test fails with clang
       - if: linux
         then:
+          # Fix -no-pie detection - allow env var override when test fails with clang
           - patches/fix-no-pie-detection-configure.patch
       - if: aarch64 or ppc64le or arm64
         then:
