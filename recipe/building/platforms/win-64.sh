@@ -134,7 +134,7 @@ platform_setup_cabal() {
 
   # CRITICAL: Pass chkstk_ms library through LDFLAGS for linking
   echo "  Adding chkstk_ms library to LDFLAGS..."
-  export LDFLAGS="${LDFLAGS} -lchkstk_ms"
+  export LDFLAGS="${LDFLAGS:-} -lchkstk_ms"
 
   run_and_log "cabal-update" "${CABAL}" v2-update || { cat "${_SRC_DIR}"/_logs/cabal-update.log; return 1; }
 
@@ -165,6 +165,17 @@ platform_add_configure_args() {
 platform_pre_configure_ghc() {
   # Configure environment variables for Windows
   export ac_cv_lib_ffi_ffi_call=yes
+
+  # CRITICAL: Tell autoconf which compiler to use (prevents "checking for gcc... no")
+  export ac_cv_prog_CC="${CC}"
+  export ac_cv_prog_CXX="${CXX}"
+  export ac_cv_prog_CPP="${CPP}"
+  export ac_cv_prog_AR="${AR}"
+  export ac_cv_prog_LD="${LD}"
+  export ac_cv_prog_NM="${NM}"
+  export ac_cv_prog_RANLIB="${RANLIB}"
+  export ac_cv_prog_STRIP="${STRIP}"
+  export ac_cv_prog_OBJDUMP="${OBJDUMP}"
 
   # Force use of conda-provided toolchain and libraries (not inplace MinGW)
   export UseSystemMingw=YES
@@ -435,17 +446,34 @@ expand_conda_variables() {
 
   echo "  Expanding conda variables in CFLAGS/CXXFLAGS/LDFLAGS..."
 
-  CFLAGS=$(echo "${CFLAGS}" | perl -pe "s|%BUILD_PREFIX%|${_BUILD_PREFIX}|g; s|%PREFIX%|${_PREFIX}|g; s|%SRC_DIR%|${_SRC_DIR}|g")
-  CXXFLAGS=$(echo "${CXXFLAGS}" | perl -pe "s|%BUILD_PREFIX%|${_BUILD_PREFIX}|g; s|%PREFIX%|${_PREFIX}|g; s|%SRC_DIR%|${_SRC_DIR}|g")
-  LDFLAGS=$(echo "${LDFLAGS}" | perl -pe "s|%BUILD_PREFIX%|${_BUILD_PREFIX}|g; s|%PREFIX%|${_PREFIX}|g; s|%SRC_DIR%|${_SRC_DIR}|g")
+  # Handle unset variables (e.g., when using pixi instead of conda)
+  CFLAGS="${CFLAGS:-}"
+  CXXFLAGS="${CXXFLAGS:-}"
+  LDFLAGS="${LDFLAGS:-}"
 
-  CFLAGS=$(echo "${CFLAGS}" | perl -pe "s|\$ENV{BUILD_PREFIX}|${_BUILD_PREFIX}|g; s|\$ENV{PREFIX}|${_PREFIX}|g; s|\$ENV{SRC_DIR}|${_SRC_DIR}|g")
-  CXXFLAGS=$(echo "${CXXFLAGS}" | perl -pe "s|\$ENV{BUILD_PREFIX}|${_BUILD_PREFIX}|g; s|\$ENV{PREFIX}|${_PREFIX}|g; s|\$ENV{SRC_DIR}|${_SRC_DIR}|g")
-  LDFLAGS=$(echo "${LDFLAGS}" | perl -pe "s|\$ENV{BUILD_PREFIX}|${_BUILD_PREFIX}|g; s|\$ENV{PREFIX}|${_PREFIX}|g; s|\$ENV{SRC_DIR}|${_SRC_DIR}|g")
+  if [[ -n "${CFLAGS}" ]]; then
+    CFLAGS=$(echo "${CFLAGS}" | perl -pe "s|%BUILD_PREFIX%|${_BUILD_PREFIX}|g; s|%PREFIX%|${_PREFIX}|g; s|%SRC_DIR%|${_SRC_DIR}|g")
+    CFLAGS=$(echo "${CFLAGS}" | perl -pe "s|\$ENV{BUILD_PREFIX}|${_BUILD_PREFIX}|g; s|\$ENV{PREFIX}|${_PREFIX}|g; s|\$ENV{SRC_DIR}|${_SRC_DIR}|g")
+  fi
+
+  if [[ -n "${CXXFLAGS}" ]]; then
+    CXXFLAGS=$(echo "${CXXFLAGS}" | perl -pe "s|%BUILD_PREFIX%|${_BUILD_PREFIX}|g; s|%PREFIX%|${_PREFIX}|g; s|%SRC_DIR%|${_SRC_DIR}|g")
+    CXXFLAGS=$(echo "${CXXFLAGS}" | perl -pe "s|\$ENV{BUILD_PREFIX}|${_BUILD_PREFIX}|g; s|\$ENV{PREFIX}|${_PREFIX}|g; s|\$ENV{SRC_DIR}|${_SRC_DIR}|g")
+  fi
+
+  if [[ -n "${LDFLAGS}" ]]; then
+    LDFLAGS=$(echo "${LDFLAGS}" | perl -pe "s|%BUILD_PREFIX%|${_BUILD_PREFIX}|g; s|%PREFIX%|${_PREFIX}|g; s|%SRC_DIR%|${_SRC_DIR}|g")
+    LDFLAGS=$(echo "${LDFLAGS}" | perl -pe "s|\$ENV{BUILD_PREFIX}|${_BUILD_PREFIX}|g; s|\$ENV{PREFIX}|${_PREFIX}|g; s|\$ENV{SRC_DIR}|${_SRC_DIR}|g")
+  fi
 }
 
 remove_problematic_flags() {
   echo "  Removing problematic flags..."
+
+  # Initialize if unset (e.g., when using pixi)
+  CFLAGS="${CFLAGS:-}"
+  CXXFLAGS="${CXXFLAGS:-}"
+  LDFLAGS="${LDFLAGS:-}"
 
   # Remove problematic flags from conda environment
   CFLAGS="${CFLAGS//-nostdlib/}"
