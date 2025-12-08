@@ -171,7 +171,7 @@ tests:
       - ghc --version
       - printf 'main = putStrLn "Hello conda-forge"\n' > hello.hs
       - ghc -v hello.hs
-      - ${{ ./hello if unix else hello }}
+      - ${{ "./hello" if unix else "hello" }}
     requirements:
       run:
         - ${{ compiler('c') }}
@@ -211,7 +211,7 @@ tests:
   - script:
       - printf 'main = putStrLn "Hello conda-forge"\n' > hello.hs
       - ghc -dynamic hello.hs && ./hello
-      - ${{ ./hello if unix else hello }}
+      - ${{ "./hello" if unix else "hello" }}
       - printf 'main = putStrLn "Hello threaded conda-forge"\n' > hello_t.hs
       - ghc -dynamic -threaded hello_t.hs && ./hello_t
       - ${{ ./hello_t if unix else hello_t }}
