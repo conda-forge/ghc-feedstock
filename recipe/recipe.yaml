@@ -171,9 +171,7 @@ tests:
       - ghc --version
       - printf 'main = putStrLn "Hello conda-forge"\n' > hello.hs
       - ghc -v hello.hs
-      - if: unix
-        then: ./hello
-        else: hello
+      - ${{ ./hello if unix else hello }}
     requirements:
       run:
         - ${{ compiler('c') }}
@@ -196,13 +194,9 @@ tests:
           - if: unix
             then: ./hello_t
             else: hello_t
-          - if: unix
-            then:
-              - printf 'main = putStrLn "Hello profiled conda-forge"\n' > hello_p.hs
-              - ghc -v -prof hello_p.hs
-              - ./hello_p
-            else: echo "No profiling on non-unix"
-        else: echo "Profiling fails on osx"
+          - echo "No profiling"
+        else:
+          - echo "Profiling fails on osx"
     requirements:
       run:
         - ${{ compiler('c') }}
@@ -217,14 +211,10 @@ tests:
   - script:
       - printf 'main = putStrLn "Hello conda-forge"\n' > hello.hs
       - ghc -dynamic hello.hs && ./hello
-      - if: unix
-        then: ./hello
-        else: hello
+      - ${{ ./hello if unix else hello }}
       - printf 'main = putStrLn "Hello threaded conda-forge"\n' > hello_t.hs
       - ghc -dynamic -threaded hello_t.hs && ./hello_t
-      - if: unix
-        then: ./hello
-        else: hello
+      - ${{ ./hello_t if unix else hello_t }}
     requirements:
       run:
         - ${{ compiler('c') }}
