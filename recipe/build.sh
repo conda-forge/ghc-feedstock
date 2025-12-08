@@ -69,6 +69,13 @@ echo "  Started: $(date '+%Y-%m-%d %H:%M:%S')"
 echo "===================================================================="
 echo ""
 
+# ==============================================================================
+# SYSTEM DIAGNOSTICS - Performance Investigation
+# ==============================================================================
+# Run comprehensive diagnostics to understand cross-platform performance
+# differences (macOS 3x slower than Linux despite more CPUs)
+run_system_diagnostics
+
 # Phase 1: Environment Setup
 phase_setup_environment
 

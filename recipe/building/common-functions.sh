@@ -22,6 +22,555 @@ set -eu
 _log_index=0
 
 # ==============================================================================
+# System Diagnostics - Performance Investigation
+# ==============================================================================
+# Collects comprehensive system information to diagnose cross-platform
+# performance differences (e.g., macOS 3x slower than Linux despite more CPUs)
+
+run_system_diagnostics() {
+  echo ""
+  echo "===================================================================="
+  echo "  System Diagnostics - Performance Investigation"
+  echo "===================================================================="
+  echo ""
+
+  local diag_file="${SRC_DIR}/_logs/00-system-diagnostics.log"
+  local diag_start=$(date +%s)
+
+  mkdir -p "${SRC_DIR}/_logs"
+
+  {
+    echo "========================================"
+    echo "SYSTEM DIAGNOSTICS REPORT"
+    echo "Generated: $(date '+%Y-%m-%d %H:%M:%S %Z')"
+    echo "Platform: ${target_platform:-unknown}"
+    echo "========================================"
+    echo ""
+
+    # ----------------------------------------
+    # 1. CPU Information
+    # ----------------------------------------
+    echo "=== CPU INFORMATION ==="
+    echo ""
+
+    if [[ "$(uname)" == "Darwin" ]]; then
+      echo "--- macOS CPU Details ---"
+      sysctl -n machdep.cpu.brand_string 2>/dev/null || echo "CPU brand: unknown"
+      echo "CPU cores (physical): $(sysctl -n hw.physicalcpu 2>/dev/null || echo unknown)"
+      echo "CPU cores (logical): $(sysctl -n hw.logicalcpu 2>/dev/null || echo unknown)"
+      echo "CPU frequency: $(sysctl -n hw.cpufrequency 2>/dev/null | awk '{printf "%.2f GHz", $1/1000000000}' || echo unknown)"
+      echo "L1 icache: $(sysctl -n hw.l1icachesize 2>/dev/null | awk '{printf "%.0f KB", $1/1024}' || echo unknown)"
+      echo "L1 dcache: $(sysctl -n hw.l1dcachesize 2>/dev/null | awk '{printf "%.0f KB", $1/1024}' || echo unknown)"
+      echo "L2 cache: $(sysctl -n hw.l2cachesize 2>/dev/null | awk '{printf "%.0f KB", $1/1024}' || echo unknown)"
+      echo "L3 cache: $(sysctl -n hw.l3cachesize 2>/dev/null | awk '{printf "%.0f MB", $1/1048576}' || echo unknown)"
+      echo "Memory: $(sysctl -n hw.memsize 2>/dev/null | awk '{printf "%.1f GB", $1/1073741824}' || echo unknown)"
+      echo ""
+      echo "--- Full CPU Info ---"
+      sysctl -a 2>/dev/null | grep -E "^(machdep\.cpu\.|hw\.)" | head -50
+    else
+      echo "--- Linux CPU Details ---"
+      grep "model name" /proc/cpuinfo 2>/dev/null | head -1 || echo "CPU model: unknown"
+      echo "CPU cores (online): $(nproc 2>/dev/null || echo unknown)"
+      echo "CPU cores (total): $(grep -c ^processor /proc/cpuinfo 2>/dev/null || echo unknown)"
+      grep "cpu MHz" /proc/cpuinfo 2>/dev/null | head -1 || echo "CPU MHz: unknown"
+      grep "cache size" /proc/cpuinfo 2>/dev/null | head -1 || echo "Cache: unknown"
+      echo "Memory: $(free -h 2>/dev/null | grep Mem | awk '{print $2}' || echo unknown)"
+      echo ""
+      echo "--- /proc/cpuinfo (first CPU) ---"
+      awk '/^$/{exit} {print}' /proc/cpuinfo 2>/dev/null || echo "cpuinfo unavailable"
+      echo ""
+      echo "--- lscpu ---"
+      lscpu 2>/dev/null || echo "lscpu unavailable"
+    fi
+    echo ""
+
+    # ----------------------------------------
+    # 2. Environment Variables
+    # ----------------------------------------
+    echo "=== BUILD ENVIRONMENT ==="
+    echo ""
+    echo "CPU_COUNT: ${CPU_COUNT:-not set}"
+    echo "MAKEFLAGS: ${MAKEFLAGS:-not set}"
+    echo "CC: ${CC:-not set}"
+    echo "CXX: ${CXX:-not set}"
+    echo "AR: ${AR:-not set}"
+    echo "LD: ${LD:-not set}"
+    echo "CFLAGS: ${CFLAGS:-not set}"
+    echo "CXXFLAGS: ${CXXFLAGS:-not set}"
+    echo "LDFLAGS: ${LDFLAGS:-not set}"
+    echo "PREFIX: ${PREFIX:-not set}"
+    echo "BUILD_PREFIX: ${BUILD_PREFIX:-not set}"
+    echo "CONDA_BUILD_SYSROOT: ${CONDA_BUILD_SYSROOT:-not set}"
+    echo ""
+
+    # ----------------------------------------
+    # 3. Compiler Versions
+    # ----------------------------------------
+    echo "=== COMPILER VERSIONS ==="
+    echo ""
+    echo "--- CC version ---"
+    ${CC:-cc} --version 2>&1 | head -3 || echo "CC not available"
+    echo ""
+    echo "--- CXX version ---"
+    ${CXX:-c++} --version 2>&1 | head -3 || echo "CXX not available"
+    echo ""
+    echo "--- Bootstrap GHC ---"
+    which ghc 2>/dev/null && ghc --version 2>/dev/null || echo "GHC not in PATH yet"
+    echo ""
+    echo "--- Cabal ---"
+    which cabal 2>/dev/null && cabal --version 2>/dev/null || echo "Cabal not in PATH yet"
+    echo ""
+
+    # ----------------------------------------
+    # 4. Filesystem Information
+    # ----------------------------------------
+    echo "=== FILESYSTEM ==="
+    echo ""
+    echo "--- Disk space ---"
+    df -h "${SRC_DIR}" 2>/dev/null || df -h . 2>/dev/null || echo "df unavailable"
+    echo ""
+    echo "--- Filesystem type ---"
+    if [[ "$(uname)" == "Darwin" ]]; then
+      mount | grep " / " | head -1
+      diskutil info / 2>/dev/null | grep -E "(File System|Type)" || true
+    else
+      mount | grep " / " | head -1
+      stat -f -c %T "${SRC_DIR}" 2>/dev/null || echo "fs type unknown"
+    fi
+    echo ""
+
+    # ----------------------------------------
+    # 5. System Load
+    # ----------------------------------------
+    echo "=== SYSTEM LOAD ==="
+    echo ""
+    uptime 2>/dev/null || echo "uptime unavailable"
+    echo ""
+
+  } > "${diag_file}" 2>&1
+
+  # Print summary to stdout
+  echo "  CPU Info:"
+  if [[ "$(uname)" == "Darwin" ]]; then
+    echo "    Model: $(sysctl -n machdep.cpu.brand_string 2>/dev/null || echo unknown)"
+    echo "    Cores: $(sysctl -n hw.physicalcpu 2>/dev/null || echo unknown) physical, $(sysctl -n hw.logicalcpu 2>/dev/null || echo unknown) logical"
+    echo "    Memory: $(sysctl -n hw.memsize 2>/dev/null | awk '{printf "%.1f GB", $1/1073741824}' || echo unknown)"
+  else
+    echo "    Model: $(grep "model name" /proc/cpuinfo 2>/dev/null | head -1 | cut -d: -f2 | xargs || echo unknown)"
+    echo "    Cores: $(nproc 2>/dev/null || echo unknown)"
+    echo "    Memory: $(free -h 2>/dev/null | grep Mem | awk '{print $2}' || echo unknown)"
+  fi
+  echo "    CPU_COUNT env: ${CPU_COUNT:-not set}"
+  echo ""
+
+  # ----------------------------------------
+  # 6. BENCHMARK: Single-threaded GHC compile
+  # ----------------------------------------
+  echo "  Running benchmarks..."
+  echo ""
+
+  {
+    echo ""
+    echo "=== BENCHMARK: Single-threaded Compile ==="
+    echo ""
+  } >> "${diag_file}"
+
+  # Create a simple Haskell benchmark file
+  local bench_dir="${SRC_DIR}/_bench"
+  mkdir -p "${bench_dir}"
+
+  cat > "${bench_dir}/bench_simple.hs" << 'HSBENCH'
+-- Simple benchmark: compute sum of list
+main :: IO ()
+main = print (sum [1..1000000 :: Integer])
+HSBENCH
+
+  cat > "${bench_dir}/bench_fib.hs" << 'HSBENCH'
+-- Fibonacci benchmark (more compile-intensive)
+{-# LANGUAGE BangPatterns #-}
+fib :: Int -> Integer
+fib n = go n 0 1
+  where
+    go !n !a !b
+      | n == 0    = a
+      | otherwise = go (n-1) b (a+b)
+
+main :: IO ()
+main = print (fib 100000)
+HSBENCH
+
+  # Find bootstrap GHC
+  local bench_ghc=""
+  if [[ -x "${BUILD_PREFIX}/ghc-bootstrap/bin/ghc" ]]; then
+    bench_ghc="${BUILD_PREFIX}/ghc-bootstrap/bin/ghc"
+  elif which ghc >/dev/null 2>&1; then
+    bench_ghc=$(which ghc)
+  fi
+
+  if [[ -n "${bench_ghc}" ]]; then
+    echo "  Benchmark 1: Single-threaded compile (simple)"
+    {
+      echo "Using GHC: ${bench_ghc}"
+      echo "GHC version: $(${bench_ghc} --version)"
+      echo ""
+      echo "--- Compile bench_simple.hs (no optimization) ---"
+    } >> "${diag_file}"
+
+    local compile_start=$(date +%s%N)
+    { time ${bench_ghc} -O0 -o "${bench_dir}/bench_simple" "${bench_dir}/bench_simple.hs" ; } >> "${diag_file}" 2>&1
+    local compile_end=$(date +%s%N)
+    local compile_ms=$(( (compile_end - compile_start) / 1000000 ))
+    echo "    -O0 compile: ${compile_ms}ms"
+    {
+      echo "Compile time: ${compile_ms}ms"
+      echo ""
+    } >> "${diag_file}"
+
+    {
+      echo "--- Compile bench_simple.hs (-O2 optimization) ---"
+    } >> "${diag_file}"
+
+    compile_start=$(date +%s%N)
+    { time ${bench_ghc} -O2 -o "${bench_dir}/bench_simple_o2" "${bench_dir}/bench_simple.hs" ; } >> "${diag_file}" 2>&1
+    compile_end=$(date +%s%N)
+    compile_ms=$(( (compile_end - compile_start) / 1000000 ))
+    echo "    -O2 compile: ${compile_ms}ms"
+    {
+      echo "Compile time: ${compile_ms}ms"
+      echo ""
+    } >> "${diag_file}"
+
+    echo "  Benchmark 2: Single-threaded compile (fibonacci)"
+    {
+      echo "--- Compile bench_fib.hs (-O2 optimization) ---"
+    } >> "${diag_file}"
+
+    compile_start=$(date +%s%N)
+    { time ${bench_ghc} -O2 -o "${bench_dir}/bench_fib" "${bench_dir}/bench_fib.hs" ; } >> "${diag_file}" 2>&1
+    compile_end=$(date +%s%N)
+    compile_ms=$(( (compile_end - compile_start) / 1000000 ))
+    echo "    -O2 compile: ${compile_ms}ms"
+    {
+      echo "Compile time: ${compile_ms}ms"
+      echo ""
+    } >> "${diag_file}"
+
+  else
+    echo "    (Bootstrap GHC not available yet, skipping compile benchmarks)"
+    echo "Bootstrap GHC not available, skipping compile benchmarks" >> "${diag_file}"
+  fi
+
+  # ----------------------------------------
+  # 6b. BENCHMARK: Clang/C compiler
+  # ----------------------------------------
+  echo "  Benchmark 2b: C compiler (Clang)"
+  {
+    echo ""
+    echo "=== BENCHMARK: C Compiler (Clang) ==="
+    echo ""
+  } >> "${diag_file}"
+
+  # Create a simple C benchmark file
+  cat > "${bench_dir}/bench.c" << 'CBENCH'
+#include <stdio.h>
+#include <stdlib.h>
+
+// Simple compute-intensive function
+long fib(int n) {
+    if (n <= 1) return n;
+    long a = 0, b = 1;
+    for (int i = 2; i <= n; i++) {
+        long t = a + b;
+        a = b;
+        b = t;
+    }
+    return b;
+}
+
+int main() {
+    printf("%ld\n", fib(45));
+    return 0;
+}
+CBENCH
+
+  # Create a more complex C file with templates/macros
+  cat > "${bench_dir}/bench_complex.c" << 'CBENCH'
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <math.h>
+
+#define ARRAY_SIZE 1000
+#define ITERATIONS 100
+
+double compute_stuff(double* arr, int size) {
+    double sum = 0.0;
+    for (int iter = 0; iter < ITERATIONS; iter++) {
+        for (int i = 0; i < size; i++) {
+            arr[i] = sin(arr[i]) * cos(arr[i] * 0.5) + sqrt(fabs(arr[i]));
+            sum += arr[i];
+        }
+    }
+    return sum;
+}
+
+int main() {
+    double* arr = malloc(ARRAY_SIZE * sizeof(double));
+    for (int i = 0; i < ARRAY_SIZE; i++) arr[i] = (double)i / ARRAY_SIZE;
+    printf("%.6f\n", compute_stuff(arr, ARRAY_SIZE));
+    free(arr);
+    return 0;
+}
+CBENCH
+
+  local bench_cc="${CC:-cc}"
+  {
+    echo "Using CC: ${bench_cc}"
+    echo "CC version: $(${bench_cc} --version 2>&1 | head -1)"
+    echo ""
+  } >> "${diag_file}"
+
+  # Simple C compile -O0
+  {
+    echo "--- Compile bench.c (-O0) ---"
+  } >> "${diag_file}"
+  local c_start=$(date +%s%N)
+  { time ${bench_cc} -O0 -o "${bench_dir}/bench_c" "${bench_dir}/bench.c" ; } >> "${diag_file}" 2>&1
+  local c_end=$(date +%s%N)
+  local c_ms=$(( (c_end - c_start) / 1000000 ))
+  echo "    -O0 compile: ${c_ms}ms"
+  {
+    echo "Compile time: ${c_ms}ms"
+    echo ""
+  } >> "${diag_file}"
+
+  # Simple C compile -O2
+  {
+    echo "--- Compile bench.c (-O2) ---"
+  } >> "${diag_file}"
+  c_start=$(date +%s%N)
+  { time ${bench_cc} -O2 -o "${bench_dir}/bench_c_o2" "${bench_dir}/bench.c" ; } >> "${diag_file}" 2>&1
+  c_end=$(date +%s%N)
+  c_ms=$(( (c_end - c_start) / 1000000 ))
+  echo "    -O2 compile: ${c_ms}ms"
+  {
+    echo "Compile time: ${c_ms}ms"
+    echo ""
+  } >> "${diag_file}"
+
+  # Complex C compile with math library -O2
+  {
+    echo "--- Compile bench_complex.c (-O2 -lm) ---"
+  } >> "${diag_file}"
+  c_start=$(date +%s%N)
+  { time ${bench_cc} -O2 -o "${bench_dir}/bench_complex" "${bench_dir}/bench_complex.c" -lm ; } >> "${diag_file}" 2>&1
+  c_end=$(date +%s%N)
+  c_ms=$(( (c_end - c_start) / 1000000 ))
+  echo "    -O2 complex compile: ${c_ms}ms"
+  {
+    echo "Compile time: ${c_ms}ms"
+    echo ""
+  } >> "${diag_file}"
+
+  # Test linker speed separately
+  echo "  Benchmark 2c: Linker speed"
+  {
+    echo ""
+    echo "=== BENCHMARK: Linker ==="
+    echo ""
+  } >> "${diag_file}"
+
+  # Compile to object file only, then link separately
+  ${bench_cc} -O2 -c -o "${bench_dir}/bench.o" "${bench_dir}/bench.c" 2>/dev/null
+
+  c_start=$(date +%s%N)
+  { time ${bench_cc} -o "${bench_dir}/bench_linked" "${bench_dir}/bench.o" ; } >> "${diag_file}" 2>&1
+  c_end=$(date +%s%N)
+  c_ms=$(( (c_end - c_start) / 1000000 ))
+  echo "    Link single .o: ${c_ms}ms"
+  {
+    echo "Link time: ${c_ms}ms"
+    echo ""
+    echo "LD: ${LD:-default}"
+    ${LD:-ld} --version 2>&1 | head -1 || echo "ld version unknown"
+  } >> "${diag_file}"
+
+  # ----------------------------------------
+  # 7. BENCHMARK: Process spawn rate
+  # ----------------------------------------
+  echo "  Benchmark 3: Process spawn rate"
+  {
+    echo ""
+    echo "=== BENCHMARK: Process Spawn Rate ==="
+    echo ""
+  } >> "${diag_file}"
+
+  local spawn_start=$(date +%s%N)
+  for i in {1..100}; do
+    /bin/true
+  done
+  local spawn_end=$(date +%s%N)
+  local spawn_us=$(( (spawn_end - spawn_start) / 1000 ))
+  local spawn_per_sec=$(( 100 * 1000000 / spawn_us ))
+  echo "    100x /bin/true: ${spawn_us}μs (${spawn_per_sec}/sec)"
+  {
+    echo "100x /bin/true: ${spawn_us}μs"
+    echo "Spawns per second: ${spawn_per_sec}"
+  } >> "${diag_file}"
+
+  # Test with actual command execution
+  spawn_start=$(date +%s%N)
+  for i in {1..50}; do
+    echo "test" > /dev/null
+  done
+  spawn_end=$(date +%s%N)
+  spawn_us=$(( (spawn_end - spawn_start) / 1000 ))
+  echo "    50x echo: ${spawn_us}μs"
+  {
+    echo "50x echo: ${spawn_us}μs"
+    echo ""
+  } >> "${diag_file}"
+
+  # ----------------------------------------
+  # 8. BENCHMARK: Filesystem I/O
+  # ----------------------------------------
+  echo "  Benchmark 4: Filesystem I/O"
+  {
+    echo ""
+    echo "=== BENCHMARK: Filesystem I/O ==="
+    echo ""
+  } >> "${diag_file}"
+
+  # Create many small files (simulates GHC's .hi/.o file creation)
+  local io_dir="${bench_dir}/io_test"
+  mkdir -p "${io_dir}"
+
+  local io_start=$(date +%s%N)
+  for i in {1..100}; do
+    echo "test content for file ${i}" > "${io_dir}/file_${i}.txt"
+  done
+  local io_end=$(date +%s%N)
+  local io_write_us=$(( (io_end - io_start) / 1000 ))
+  echo "    Create 100 files: ${io_write_us}μs"
+  {
+    echo "Create 100 files: ${io_write_us}μs"
+  } >> "${diag_file}"
+
+  # Read many small files
+  io_start=$(date +%s%N)
+  for i in {1..100}; do
+    cat "${io_dir}/file_${i}.txt" > /dev/null
+  done
+  io_end=$(date +%s%N)
+  local io_read_us=$(( (io_end - io_start) / 1000 ))
+  echo "    Read 100 files: ${io_read_us}μs"
+  {
+    echo "Read 100 files: ${io_read_us}μs"
+  } >> "${diag_file}"
+
+  # Sync to measure actual write
+  io_start=$(date +%s%N)
+  sync 2>/dev/null || true
+  io_end=$(date +%s%N)
+  local sync_us=$(( (io_end - io_start) / 1000 ))
+  echo "    sync: ${sync_us}μs"
+  {
+    echo "sync: ${sync_us}μs"
+  } >> "${diag_file}"
+
+  # Cleanup
+  rm -rf "${io_dir}"
+
+  # ----------------------------------------
+  # 9. BENCHMARK: Parallel efficiency test
+  # ----------------------------------------
+  echo "  Benchmark 5: Parallel process test"
+  {
+    echo ""
+    echo "=== BENCHMARK: Parallel Efficiency ==="
+    echo ""
+  } >> "${diag_file}"
+
+  local par_count=${CPU_COUNT:-2}
+
+  # Sequential baseline
+  local seq_start=$(date +%s%N)
+  for i in $(seq 1 ${par_count}); do
+    for j in {1..50}; do /bin/true; done
+  done
+  local seq_end=$(date +%s%N)
+  local seq_us=$(( (seq_end - seq_start) / 1000 ))
+  echo "    Sequential (${par_count}x50 spawns): ${seq_us}μs"
+  {
+    echo "Sequential ${par_count}x50 spawns: ${seq_us}μs"
+  } >> "${diag_file}"
+
+  # Parallel execution
+  local par_start=$(date +%s%N)
+  for i in $(seq 1 ${par_count}); do
+    ( for j in {1..50}; do /bin/true; done ) &
+  done
+  wait
+  local par_end=$(date +%s%N)
+  local par_us=$(( (par_end - par_start) / 1000 ))
+  local speedup="N/A"
+  if [[ ${par_us} -gt 0 ]]; then
+    speedup=$(awk "BEGIN {printf \"%.2f\", ${seq_us}/${par_us}}")
+  fi
+  echo "    Parallel (${par_count} workers): ${par_us}μs (speedup: ${speedup}x)"
+  {
+    echo "Parallel ${par_count} workers: ${par_us}μs"
+    echo "Speedup: ${speedup}x (ideal: ${par_count}x)"
+  } >> "${diag_file}"
+
+  # ----------------------------------------
+  # 10. Memory bandwidth (simple test)
+  # ----------------------------------------
+  echo "  Benchmark 6: Memory test"
+  {
+    echo ""
+    echo "=== BENCHMARK: Memory ==="
+    echo ""
+  } >> "${diag_file}"
+
+  # Use dd to test memory/disk throughput
+  local mem_start=$(date +%s%N)
+  dd if=/dev/zero of="${bench_dir}/memtest" bs=1M count=100 2>/dev/null || true
+  local mem_end=$(date +%s%N)
+  local mem_us=$(( (mem_end - mem_start) / 1000 ))
+  local mem_mbps="N/A"
+  if [[ ${mem_us} -gt 0 ]]; then
+    mem_mbps=$(awk "BEGIN {printf \"%.0f\", 100 * 1000000 / ${mem_us}}")
+  fi
+  echo "    Write 100MB: ${mem_us}μs (${mem_mbps} MB/s)"
+  {
+    echo "Write 100MB: ${mem_us}μs"
+    echo "Throughput: ${mem_mbps} MB/s"
+  } >> "${diag_file}"
+
+  rm -f "${bench_dir}/memtest"
+
+  # Cleanup bench dir
+  rm -rf "${bench_dir}"
+
+  local diag_end=$(date +%s)
+  local diag_duration=$((diag_end - diag_start))
+
+  {
+    echo ""
+    echo "========================================"
+    echo "DIAGNOSTICS COMPLETE"
+    echo "Duration: ${diag_duration}s"
+    echo "========================================"
+  } >> "${diag_file}"
+
+  echo ""
+  echo "  ✓ Diagnostics complete (${diag_duration}s)"
+  echo "  Full report: ${diag_file}"
+  echo ""
+}
+
+# ==============================================================================
 # Helper Functions
 # ==============================================================================
 
@@ -64,14 +613,17 @@ start_process_monitor() {
 
   echo "  Starting process monitor for ${phase}..."
   (
-    echo "timestamp,ghc_procs,cabal_procs,cc_procs,total_procs" > "${monitor_file}"
+    echo "timestamp,ghc_procs,cabal_procs,cc_procs,ld_procs,total_procs" > "${monitor_file}"
     while true; do
-      local ghc_count=$(pgrep -c "ghc" 2>/dev/null || echo 0)
-      local cabal_count=$(pgrep -c "cabal" 2>/dev/null || echo 0)
-      local cc_count=$(pgrep -c "clang\|gcc" 2>/dev/null || echo 0)
-      local total=$(ps aux 2>/dev/null | wc -l || echo 0)
-      echo "$(date +%s),${ghc_count},${cabal_count},${cc_count},${total}" >> "${monitor_file}"
-      sleep 5
+      # Use ps + grep instead of pgrep for better cross-platform compatibility
+      # Count processes containing these patterns in their command line
+      local ghc_count=$(ps aux 2>/dev/null | grep -E '[g]hc|[g]hc-[0-9]|[g]hc-pkg|[g]hc-bin' | wc -l | tr -d ' ')
+      local cabal_count=$(ps aux 2>/dev/null | grep -E '[c]abal' | wc -l | tr -d ' ')
+      local cc_count=$(ps aux 2>/dev/null | grep -E '[c]lang|[g]cc' | grep -v 'ghc' | wc -l | tr -d ' ')
+      local ld_count=$(ps aux 2>/dev/null | grep -E '[l]d\b|[l]d64|[l]ld' | wc -l | tr -d ' ')
+      local total=$(ps aux 2>/dev/null | wc -l | tr -d ' ')
+      echo "$(date +%s),${ghc_count},${cabal_count},${cc_count},${ld_count},${total}" >> "${monitor_file}"
+      sleep 2
     done
   ) &
   MONITOR_PID=$!
@@ -91,11 +643,18 @@ stop_process_monitor() {
   fi
 
   if [[ -f "${monitor_file}" ]]; then
+    local sample_count=$(( $(wc -l < "${monitor_file}" | tr -d ' ') - 1 ))
+    local max_ghc=$(cut -d',' -f2 "${monitor_file}" | tail -n +2 | sort -n | tail -1)
+    local max_cabal=$(cut -d',' -f3 "${monitor_file}" | tail -n +2 | sort -n | tail -1)
+    local max_cc=$(cut -d',' -f4 "${monitor_file}" | tail -n +2 | sort -n | tail -1)
+    local max_ld=$(cut -d',' -f5 "${monitor_file}" | tail -n +2 | sort -n | tail -1)
+
     echo "  === Process Monitor Summary for ${phase} ==="
-    echo "  Samples: $(wc -l < "${monitor_file}")"
-    echo "  Max GHC processes: $(cut -d',' -f2 "${monitor_file}" | tail -n +2 | sort -n | tail -1)"
-    echo "  Max Cabal processes: $(cut -d',' -f3 "${monitor_file}" | tail -n +2 | sort -n | tail -1)"
-    echo "  Max CC processes: $(cut -d',' -f4 "${monitor_file}" | tail -n +2 | sort -n | tail -1)"
+    echo "  Samples:      ${sample_count}"
+    echo "  Max GHC processes: ${max_ghc:-0}"
+    echo "  Max Cabal processes: ${max_cabal:-0}"
+    echo "  Max CC processes: ${max_cc:-0}"
+    echo "  Max LD processes: ${max_ld:-0}"
     echo "  ==========================================="
   fi
 }
