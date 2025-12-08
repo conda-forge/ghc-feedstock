@@ -331,6 +331,24 @@ create_symlinks() {
     echo "    ${ghc_target}-ghc-${PKG_VERSION} -> ghc-${PKG_VERSION}"
   fi
 
+  # CRITICAL: Create symlinks inside lib/ghc-${version}/bin/ for wrapper scripts
+  # The wrapper scripts in ${PREFIX}/bin/ reference binaries like "ghc-9.4.8"
+  # but cross-compiled binaries are named "aarch64-unknown-linux-gnu-ghc-9.4.8"
+  local lib_bin_dir="${PREFIX}/lib/ghc-${PKG_VERSION}/bin"
+  if [[ -d "${lib_bin_dir}" ]]; then
+    pushd "${lib_bin_dir}" >/dev/null
+    for bin in ghc ghci ghc-pkg hp2ps hsc2hs haddock hpc runghc unlit; do
+      local target_versioned="${ghc_target}-${bin}-${PKG_VERSION}"
+      local short_versioned="${bin}-${PKG_VERSION}"
+      # Create short-versioned -> target-versioned symlink if target exists
+      if [[ -f "${target_versioned}" ]] && [[ ! -e "${short_versioned}" ]]; then
+        ln -sf "${target_versioned}" "${short_versioned}"
+        echo "    lib/bin: ${target_versioned} -> ${short_versioned}"
+      fi
+    done
+    popd >/dev/null
+  fi
+
   echo "  ✓ Symlinks created"
 }
 
