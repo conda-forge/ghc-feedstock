@@ -167,6 +167,9 @@ platform_pre_configure_ghc() {
   export ac_cv_lib_ffi_ffi_call=yes
 
   # CRITICAL: Tell autoconf which compiler to use (prevents "checking for gcc... no")
+  # Need BOTH ac_cv_prog_* AND ac_cv_path_* plus clear ac_cv_path_ac_pt_* to prevent searching
+  export ac_cv_path_ac_pt_CC=""
+  export ac_cv_path_ac_pt_CXX=""
   export ac_cv_prog_CC="${CC}"
   export ac_cv_prog_CXX="${CXX}"
   export ac_cv_prog_CPP="${CPP}"
@@ -176,6 +179,12 @@ platform_pre_configure_ghc() {
   export ac_cv_prog_RANLIB="${RANLIB}"
   export ac_cv_prog_STRIP="${STRIP}"
   export ac_cv_prog_OBJDUMP="${OBJDUMP}"
+  export ac_cv_path_CC="${_BUILD_PREFIX}/Library/bin/${CC}.exe"
+  export ac_cv_path_CXX="${_BUILD_PREFIX}/Library/bin/${CXX}.exe"
+  export ac_cv_path_AR="${AR}"
+  export ac_cv_path_LD="${LD}"
+  export ac_cv_path_NM="${NM}"
+  export ac_cv_path_RANLIB="${RANLIB}"
 
   # Force use of conda-provided toolchain and libraries (not inplace MinGW)
   export UseSystemMingw=YES
