@@ -32,6 +32,18 @@ INSTALL_METHOD="bindist"
 platform_setup_environment() {
   echo "  Configuring Windows-specific environment..."
 
+  # CRITICAL: Ensure _PREFIX_ and _BUILD_PREFIX_ are set to Windows-format paths (C:/...)
+  # The build.bat should set these, but if they contain unexpanded %PREFIX% placeholders,
+  # recreate them from the Unix-style paths (_PREFIX, _BUILD_PREFIX)
+  if [[ -z "${_PREFIX_:-}" || "${_PREFIX_}" == *"%"* ]]; then
+    export _PREFIX_=$(echo "${_PREFIX}" | sed 's#^/c/#C:/#; s#^/d/#D:/#')
+  fi
+  if [[ -z "${_BUILD_PREFIX_:-}" || "${_BUILD_PREFIX_}" == *"%"* ]]; then
+    export _BUILD_PREFIX_=$(echo "${_BUILD_PREFIX}" | sed 's#^/c/#C:/#; s#^/d/#D:/#')
+  fi
+  echo "    _PREFIX_=${_PREFIX_}"
+  echo "    _BUILD_PREFIX_=${_BUILD_PREFIX_}"
+
   # Build clean PATH - don't append conda's bad PATH with unexpanded %BUILD_PREFIX% placeholders
   # Include MSYS2 tools (m2-coreutils, m2-bash, etc.) from Library/usr/bin
   export PATH="${_BUILD_PREFIX}/Library/bin:${_BUILD_PREFIX}/Library/usr/bin:${_BUILD_PREFIX}/ghc-bootstrap/bin:${_BUILD_PREFIX}/bin:/c/Windows/System32:/c/Windows"
@@ -609,21 +621,25 @@ patch_bootstrap_settings() {
     return 1
   fi
 
-  # CRITICAL: Build paths directly from _BUILD_PREFIX, not from ${LD} variable
-  # Conda sets LD=%BUILD_PREFIX%/... so we can't use it - must use _BUILD_PREFIX
-  local LD_WIN=$(echo "${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-ld.exe" | sed 's#^/c/#C:/#')
-  local AR_WIN=$(echo "${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-ar.exe" | sed 's#^/c/#C:/#')
-  local RANLIB_WIN=$(echo "${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-ranlib.exe" | sed 's#^/c/#C:/#')
+  # CRITICAL: Use _BUILD_PREFIX_ (C:/bld/... format) for all tool paths
+  # GHC on Windows cannot execute paths like /c/bld/... - needs C:/bld/...
+  local CC_WIN="${_BUILD_PREFIX_}/Library/bin/x86_64-w64-mingw32-gcc.exe"
+  local CXX_WIN="${_BUILD_PREFIX_}/Library/bin/x86_64-w64-mingw32-g++.exe"
+  local LD_WIN="${_BUILD_PREFIX_}/Library/bin/x86_64-w64-mingw32-ld.exe"
+  local AR_WIN="${_BUILD_PREFIX_}/Library/bin/x86_64-w64-mingw32-ar.exe"
+  local RANLIB_WIN="${_BUILD_PREFIX_}/Library/bin/x86_64-w64-mingw32-ranlib.exe"
 
-  echo "  Patching with actual paths (from _BUILD_PREFIX):"
+  echo "  Patching with Windows-format paths (_BUILD_PREFIX_):"
+  echo "    CC_WIN=${CC_WIN}"
+  echo "    CXX_WIN=${CXX_WIN}"
   echo "    LD_WIN=${LD_WIN}"
   echo "    AR_WIN=${AR_WIN}"
   echo "    RANLIB_WIN=${RANLIB_WIN}"
 
-  # Patch settings file
-  perl -pi -e "s#(C compiler command\", \")[^\"]*#\$1${CC}#" "${settings_file}"
-  perl -pi -e "s#(Haskell CPP command\", \")[^\"]*#\$1${CC}#" "${settings_file}"
-  perl -pi -e "s#(C\+\+ compiler command\", \")[^\"]*#\$1${CXX}#" "${settings_file}"
+  # Patch settings file with Windows-format paths
+  perl -pi -e "s#(C compiler command\", \")[^\"]*#\$1${CC_WIN}#" "${settings_file}"
+  perl -pi -e "s#(Haskell CPP command\", \")[^\"]*#\$1${CC_WIN}#" "${settings_file}"
+  perl -pi -e "s#(C\+\+ compiler command\", \")[^\"]*#\$1${CXX_WIN}#" "${settings_file}"
   # CRITICAL: Fix "ld command" field that points to non-existent $tooldir/mingw/bin/ld.exe
   perl -pi -e "s#(ld command\", \")[^\"]*#\$1${LD_WIN}#" "${settings_file}"
   perl -pi -e "s#(Merge objects command\", \")[^\"]*#\$1${LD_WIN}#" "${settings_file}"
@@ -631,23 +647,23 @@ patch_bootstrap_settings() {
   perl -pi -e "s#(ranlib command\", \")[^\"]*#\$1${RANLIB_WIN}#" "${settings_file}"
   perl -pi -e "s#(dllwrap command\", \")[^\"]*#\$1false#" "${settings_file}"
 
-  # Setup windres wrapper (using _BUILD_PREFIX, not conda variable)
+  # Setup windres wrapper (using _BUILD_PREFIX_, Windows format)
   if [[ -f "${_BUILD_PREFIX}/Library/bin/windres.bat" ]]; then
-    local WINDRES_WIN=$(echo "${_BUILD_PREFIX}/Library/bin/windres.bat" | sed 's#^/c/#C:/#')
+    local WINDRES_WIN="${_BUILD_PREFIX_}/Library/bin/windres.bat"
     perl -pi -e "s#(windres command\", \")[^\"]*#\$1${WINDRES_WIN}#" "${settings_file}"
   fi
 
-  # Update include paths
+  # Update include paths - use _BUILD_PREFIX_ and _PREFIX_ (Windows format)
   # Replace bootstrap's mingw/include with conda include paths
-  perl -pi -e "s#-I\\\$tooldir/mingw/include#-I${_BUILD_PREFIX}/Library/include#g" "${settings_file}"
+  perl -pi -e "s#-I\\\$tooldir/mingw/include#-I${_BUILD_PREFIX_}/Library/include#g" "${settings_file}"
 
   # Add CFLAGS and basic include path to compiler flags
   # Note: More include paths will be added later in patch_stage0_settings_include_paths()
-  perl -pi -e "s#(C compiler flags\", \")([^\"]*)#\$1\$2 ${CFLAGS} -I${_PREFIX}/Library/include#" "${settings_file}"
-  perl -pi -e "s#(C\+\+ compiler flags\", \")([^\"]*)#\$1\$2 ${CXXFLAGS} -I${_PREFIX}/Library/include#" "${settings_file}"
+  perl -pi -e "s#(C compiler flags\", \")([^\"]*)#\$1\$2 ${CFLAGS} -I${_PREFIX_}/Library/include#" "${settings_file}"
+  perl -pi -e "s#(C\+\+ compiler flags\", \")([^\"]*)#\$1\$2 ${CXXFLAGS} -I${_PREFIX_}/Library/include#" "${settings_file}"
 
   # Haskell CPP needs traditional-cpp for Haskell compatibility
-  perl -pi -e "s#(Haskell CPP flags\", \")[^\"]*#\$1-E -undef -traditional-cpp -I${_BUILD_PREFIX}/Library/include -I${_PREFIX}/Library/include#" "${settings_file}"
+  perl -pi -e "s#(Haskell CPP flags\", \")[^\"]*#\$1-E -undef -traditional-cpp -I${_BUILD_PREFIX_}/Library/include -I${_PREFIX_}/Library/include#" "${settings_file}"
 
   # CRITICAL: Add mingw32_stubs library to link flags for bootstrap GHC
   # The bootstrap GHC's time library references __imp__timezone and __imp__tzname
