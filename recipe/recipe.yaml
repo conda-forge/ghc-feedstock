@@ -102,10 +102,10 @@ requirements:
       then:
         - ncurses
 
-  ignore_run_exports:
-    from_package:
-      - ncurses
-    
+  # NOTE: ncurses IS a real runtime dependency (ghc-pkg, ghci link against libtinfo)
+  # Do NOT add ignore_run_exports for ncurses - the "overdepending" warning is a
+  # false positive because the linter doesn't scan tools in lib/ghc-*/bin/
+
 tests:
   - package_contents:
       bin:
