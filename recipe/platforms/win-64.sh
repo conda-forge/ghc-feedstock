@@ -231,9 +231,17 @@ platform_build_hadrian() {
 
   pushd "${_SRC_DIR}/hadrian" >/dev/null
 
-  # Build Hadrian with single-threaded build to avoid race conditions
+  # Add mingw32_stubs to link line for Hadrian build
+  # This provides __imp__timezone and __imp__tzname symbols needed by bootstrap GHC's time library
+  # IMPORTANT: LDFLAGS environment variable is not automatically used by Cabal/GHC
+  # We must pass linker flags via --ghc-options=-optl-lmingw32_stubs
+  local STUBS_LIB="${_BUILD_PREFIX}/Library/lib"
+
+  # CRITICAL: Build Hadrian with single-threaded Cabal (-j1) to avoid race conditions
   # Parallel ghc-pkg updates can conflict on package.cache
-  run_and_log "build-hadrian" "${CABAL}" v2-build -j${CPU_COUNT} hadrian
+  run_and_log "build-hadrian" "${CABAL}" v2-build -j1 \
+    --ghc-options="-optl-L${STUBS_LIB} -optl-lmingw32_stubs" \
+    hadrian
 
   popd >/dev/null
 
