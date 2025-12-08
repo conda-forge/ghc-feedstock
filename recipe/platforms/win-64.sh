@@ -84,6 +84,9 @@ platform_setup_environment() {
   # Create chkstk_ms stub library
   create_chkstk_stub
 
+  # Create mingw32 compatibility stubs (timezone symbols for UCRT)
+  create_mingw32_stubs
+
   # Install windres wrapper
   if [[ -f "${_RECIPE_DIR}/support/windres.bat" ]]; then
     cp "${_RECIPE_DIR}/support/windres.bat" "${_BUILD_PREFIX}/Library/bin/"
@@ -92,6 +95,11 @@ platform_setup_environment() {
 
   # Patch bootstrap settings
   patch_bootstrap_settings
+
+  # CRITICAL: Patch bootstrap's time package to link against mingw32_stubs
+  # The time library references __imp__timezone and __imp__tzname which are
+  # MSVCRT symbols not available in UCRT. Our stubs provide these.
+  patch_bootstrap_time_package
 
   # Set up temp variables
   export TMP="$(cygpath -w "${TEMP}")"
@@ -514,6 +522,73 @@ EOF
   fi
 
   echo "  ✓ Created ${CHKSTK_LIB}"
+}
+
+create_mingw32_stubs() {
+  echo "  Creating MinGW32 compatibility stub library (timezone symbols)..."
+
+  local STUBS_OBJ="${_SRC_DIR}/mingw32_stubs.o"
+  local STUBS_LIB="${_BUILD_PREFIX}/Library/lib/libmingw32_stubs.a"
+
+  # Compile stubs from recipe support directory
+  if [[ -f "${_RECIPE_DIR}/support/mingw32_stubs.c" ]]; then
+    ${CC} -c "${_RECIPE_DIR}/support/mingw32_stubs.c" -o "${STUBS_OBJ}"
+  else
+    echo "ERROR: mingw32_stubs.c not found at ${_RECIPE_DIR}/support/mingw32_stubs.c"
+    exit 1
+  fi
+
+  ${AR} rcs "${STUBS_LIB}" "${STUBS_OBJ}"
+
+  if [[ ! -f "${STUBS_LIB}" ]]; then
+    echo "ERROR: Failed to create mingw32_stubs library"
+    exit 1
+  fi
+
+  echo "  ✓ Created ${STUBS_LIB}"
+}
+
+patch_bootstrap_time_package() {
+  echo "  Patching bootstrap GHC's time package to use mingw32_stubs..."
+
+  local pkg_db="${_BUILD_PREFIX}/ghc-bootstrap/lib/package.conf.d"
+  local time_conf
+  time_conf=$(find "${pkg_db}" -name "time-*.conf" 2>/dev/null | head -1)
+
+  if [[ -z "${time_conf}" || ! -f "${time_conf}" ]]; then
+    echo "WARNING: Bootstrap time package conf not found in ${pkg_db}"
+    return 1
+  fi
+
+  echo "  Found time package: ${time_conf}"
+
+  # Use Windows-format path for the stubs library directory
+  local STUBS_LIB_DIR="${_BUILD_PREFIX}/Library/lib"
+
+  # Add extra-lib-dirs if not present
+  if ! grep -q "extra-lib-dirs:" "${time_conf}"; then
+    echo "extra-lib-dirs: ${STUBS_LIB_DIR}" >> "${time_conf}"
+  else
+    # Append to existing extra-lib-dirs
+    perl -pi -e "s#(extra-lib-dirs:.*)#\$1 ${STUBS_LIB_DIR}#" "${time_conf}"
+  fi
+
+  # Add extra-libraries if not present
+  if ! grep -q "extra-libraries:" "${time_conf}"; then
+    echo "extra-libraries: mingw32_stubs" >> "${time_conf}"
+  else
+    # Append to existing extra-libraries
+    perl -pi -e "s#(extra-libraries:.*)#\$1 mingw32_stubs#" "${time_conf}"
+  fi
+
+  echo "  Recaching bootstrap package database..."
+  "${_BUILD_PREFIX}/ghc-bootstrap/bin/ghc-pkg" recache
+
+  echo "  ===== PATCHED TIME PACKAGE CONF ====="
+  cat "${time_conf}"
+  echo "  ===== END TIME PACKAGE CONF ====="
+
+  echo "  ✓ Bootstrap time package patched"
 }
 
 patch_bootstrap_settings() {
