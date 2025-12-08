@@ -395,8 +395,10 @@ patch_stage2_settings() {
 platform_pre_build_stage2() {
   echo "  Running Windows-specific Stage2 pre-build..."
 
-  # Create fake mingw structure for binary distribution
-  create_fake_mingw_for_binary_dist
+  # NOTE: Do NOT create fake mingw directory here!
+  # Creating _build/mingw BEFORE stage2:exe:ghc-bin invalidates Hadrian's cache,
+  # causing it to reconfigure Stage 1 packages which triggers "builderMainLoop" errors.
+  # The fake mingw is created later in platform_pre_install_ghc() before binary-dist.
 
   echo "  ✓ Windows Stage2 pre-build complete"
 }
@@ -436,6 +438,17 @@ platform_build_stage2() {
 # ==============================================================================
 # Phase 8: Install GHC
 # ==============================================================================
+
+platform_pre_install_ghc() {
+  echo "  Running Windows-specific pre-install..."
+
+  # Create fake mingw structure for binary distribution
+  # This MUST be done AFTER all Stage 2 builds complete, not before!
+  # Creating it earlier invalidates Hadrian's cache and causes builderMainLoop errors.
+  create_fake_mingw_for_binary_dist
+
+  echo "  ✓ Windows pre-install complete"
+}
 
 platform_install_ghc() {
   echo "  Installing GHC from binary distribution (Windows method)..."
