@@ -235,16 +235,13 @@ needs_fix() {
 
 # Get the recommended Hadrian flavour for the current version
 get_hadrian_flavour() {
-  local major_version=$(get_ghc_major_version)
   local platform="${1:-${target_platform:-linux-64}}"
+  local major_version=$(get_ghc_major_version)
 
   case "${major_version}" in
     9.2)
       # GHC 9.2.x builds are slower, use faster flavours
       case "${platform}" in
-        win-64)
-          echo "quickest"
-          ;;
         *)
           echo "quick"
           ;;
@@ -258,7 +255,7 @@ get_hadrian_flavour() {
           echo "release+no_profiled_libs"
           ;;
         *)
-          echo "quick"
+          echo "release"
           ;;
       esac
       ;;
