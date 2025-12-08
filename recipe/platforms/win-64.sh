@@ -411,7 +411,7 @@ platform_build_stage2() {
   # Use -j1 for this specific step to avoid "builderMainLoop: invalid argument" error
   # This error occurs when Stage 0 GHC spawns too many processes during linking
   local hadrian_bin="${HADRIAN_CMD[0]}"
-  local hadrian_dir="${HADRIAN_CMD[2]}"  # --directory value
+  local hadrian_dir="${HADRIAN_CMD[3]}"  # --directory value (index 3, after the flag at index 2)
   run_and_log "stage2-exe" "${hadrian_bin}" -j1 --directory "${hadrian_dir}" stage2:exe:ghc-bin --flavour="${HADRIAN_FLAVOUR}" --freeze1 --docs=none --progress-info=none
 
   # Patch Stage1 settings file (created by stage2:exe:ghc-bin)
