@@ -60,3 +60,88 @@ platform_post_configure_ghc() {
 
   echo "  ✓ Hadrian system.config patched"
 }
+
+# ==============================================================================
+# Phase 5: Build Hadrian (with profiling)
+# ==============================================================================
+
+platform_build_hadrian() {
+  echo "  Building Hadrian for Linux (cabal-built with profiling)..."
+
+  pushd "${SRC_DIR}/hadrian" >/dev/null
+
+  # Build Hadrian with cabal - use profiled version for timing analysis
+  run_and_log_profiled "build-hadrian" "${CABAL}" v2-build -j${CPU_COUNT} -v hadrian
+
+  popd >/dev/null
+
+  # Find Hadrian binary
+  local hadrian_bin=$(find "${SRC_DIR}"/hadrian/dist-newstyle -name hadrian -type f | head -1)
+
+  if [[ ! -f "${hadrian_bin}" ]]; then
+    echo "ERROR: Hadrian binary not found after build"
+    exit 1
+  fi
+
+  # Set up Hadrian command array with timing enabled
+  HADRIAN_CMD=("${hadrian_bin}" "-j${CPU_COUNT}" "--directory" "${SRC_DIR}" "--timing")
+  HADRIAN_FLAVOUR="${HADRIAN_FLAVOUR:-release}"
+
+  echo "  Hadrian binary: ${hadrian_bin}"
+  echo "  Hadrian flags: -j${CPU_COUNT} --timing"
+  echo "  ✓ Hadrian built (cabal-built)"
+}
+
+# ==============================================================================
+# Phase 6: Build Stage 1 (with profiling)
+# ==============================================================================
+
+platform_build_stage1() {
+  echo "  Building Stage 1 GHC for Linux..."
+
+  local options=(--flavour="${HADRIAN_FLAVOUR}" --docs=none --progress-info=brief)
+
+  run_and_log_profiled "stage1-ghc" "${HADRIAN_CMD[@]}" "${options[@]}" stage1:exe:ghc-bin
+  run_and_log "stage1-pkg" "${HADRIAN_CMD[@]}" "${options[@]}" stage1:exe:ghc-pkg
+  run_and_log "stage1-hsc2hs" "${HADRIAN_CMD[@]}" "${options[@]}" stage1:exe:hsc2hs
+
+  # Update stage0 settings
+  if type -t update_stage_settings >/dev/null 2>&1; then
+    update_stage_settings "stage0"
+  fi
+
+  # Build Stage 1 libraries - profile the main lib build
+  run_and_log "stage1-lib-prim" "${HADRIAN_CMD[@]}" "${options[@]}" stage1:lib:ghc-prim
+  run_and_log "stage1-lib-bignum" "${HADRIAN_CMD[@]}" "${options[@]}" stage1:lib:ghc-bignum
+  run_and_log "stage1-lib-base" "${HADRIAN_CMD[@]}" "${options[@]}" stage1:lib:base
+  run_and_log "stage1-lib-th" "${HADRIAN_CMD[@]}" "${options[@]}" stage1:lib:template-haskell
+  run_and_log "stage1-lib-ghci" "${HADRIAN_CMD[@]}" "${options[@]}" stage1:lib:ghci
+  run_and_log_profiled "stage1-lib-ghc" "${HADRIAN_CMD[@]}" "${options[@]}" stage1:lib:ghc
+
+  # Update stage0 settings again
+  if type -t update_stage_settings >/dev/null 2>&1; then
+    update_stage_settings "stage0"
+  fi
+}
+
+# ==============================================================================
+# Phase 7: Build Stage 2 (with profiling)
+# ==============================================================================
+
+platform_build_stage2() {
+  echo "  Building Stage 2 GHC for Linux..."
+
+  local options=(--flavour="${HADRIAN_FLAVOUR}" --docs=none --progress-info=brief)
+
+  run_and_log_profiled "stage2-ghc" "${HADRIAN_CMD[@]}" "${options[@]}" stage2:exe:ghc-bin
+  run_and_log "stage2-pkg" "${HADRIAN_CMD[@]}" "${options[@]}" stage2:exe:ghc-pkg
+  run_and_log "stage2-hsc2hs" "${HADRIAN_CMD[@]}" "${options[@]}" stage2:exe:hsc2hs
+
+  # Build Stage 2 libraries
+  run_and_log "stage2-lib-prim" "${HADRIAN_CMD[@]}" "${options[@]}" stage2:lib:ghc-prim
+  run_and_log "stage2-lib-bignum" "${HADRIAN_CMD[@]}" "${options[@]}" stage2:lib:ghc-bignum
+  run_and_log "stage2-lib-base" "${HADRIAN_CMD[@]}" "${options[@]}" stage2:lib:base
+  run_and_log "stage2-lib-th" "${HADRIAN_CMD[@]}" "${options[@]}" stage2:lib:template-haskell
+  run_and_log "stage2-lib-ghci" "${HADRIAN_CMD[@]}" "${options[@]}" stage2:lib:ghci
+  run_and_log_profiled "stage2-lib-ghc" "${HADRIAN_CMD[@]}" "${options[@]}" stage2:lib:ghc
+}

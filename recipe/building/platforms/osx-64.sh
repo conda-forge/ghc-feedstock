@@ -147,10 +147,10 @@ platform_post_configure_ghc() {
   perl -pi -e 's#(=\s+)(clang|clang\+\+|llc|nm|opt|ranlib)$#$1x86_64-apple-darwin13.4.0-$2#' "${settings_file}"
 
   # Add library paths and rpath to linker flags
-  perl -pi -e "s#(conf-gcc-linker-args-stage[12].*?= )#\$1-Wl,-L${PREFIX}/lib -Wl,-rpath,${PREFIX}/lib#" "${settings_file}"
-  perl -pi -e "s#(conf-ld-linker-args-stage[12].*?= )#\$1-L${PREFIX}/lib -rpath ${PREFIX}/lib#" "${settings_file}"
-  perl -pi -e "s#(settings-c-compiler-link-flags.*?= )#\$1-Wl,-L${PREFIX}/lib -Wl,-rpath,${PREFIX}/lib#" "${settings_file}"
-  perl -pi -e "s#(settings-ld-flags.*?= )#\$1-L${PREFIX}/lib -rpath ${PREFIX}/lib#" "${settings_file}"
+  perl -pi -e "s#(conf-gcc-linker-args-stage[12].*?= )#\$1-Wl,-L${PREFIX}/lib -Wl,-rpath,${PREFIX}/lib #" "${settings_file}"
+  perl -pi -e "s#(conf-ld-linker-args-stage[12].*?= )#\$1-L${PREFIX}/lib -rpath ${PREFIX}/lib #" "${settings_file}"
+  perl -pi -e "s#(settings-c-compiler-link-flags.*?= )#\$1-Wl,-L${PREFIX}/lib -Wl,-rpath,${PREFIX}/lib #" "${settings_file}"
+  perl -pi -e "s#(settings-ld-flags.*?= )#\$1-L${PREFIX}/lib -rpath ${PREFIX}/lib #" "${settings_file}"
 
   # Add doc builder placeholders - Hadrian validates these even with --docs=none
   if ! grep -q "^xelatex" "${settings_file}"; then
@@ -172,9 +172,9 @@ platform_build_hadrian() {
 
   pushd "${SRC_DIR}/hadrian" >/dev/null
 
-  # Build Hadrian with cabal (consistent with other platforms)
-  # Hadrian is a temporary build tool, no special linking flags needed
-  run_and_log "build-hadrian" "${CABAL}" v2-build -j${CPU_COUNT} hadrian
+  # Build Hadrian with cabal - use profiled version for timing analysis
+  # -v flag for verbose output to see what's being compiled
+  run_and_log_profiled "build-hadrian" "${CABAL}" v2-build -j${CPU_COUNT} -v hadrian
 
   popd >/dev/null
 
@@ -186,11 +186,14 @@ platform_build_hadrian() {
     exit 1
   fi
 
-  # Set up Hadrian command array
-  HADRIAN_CMD=("${hadrian_bin}" "-j${CPU_COUNT}" "--directory" "${SRC_DIR}")
+  # Set up Hadrian command array with timing enabled
+  # --timing: Show per-rule timing information
+  # --progress-info=brief: Show build progress
+  HADRIAN_CMD=("${hadrian_bin}" "-j${CPU_COUNT}" "--directory" "${SRC_DIR}" "--timing")
   HADRIAN_FLAVOUR="release"
 
   echo "  Hadrian binary: ${hadrian_bin}"
+  echo "  Hadrian flags: -j${CPU_COUNT} --timing"
   echo "  ✓ Hadrian built (cabal-built)"
 }
 
@@ -201,8 +204,9 @@ platform_build_hadrian() {
 platform_build_stage1() {
   echo "  Building Stage 1 GHC for macOS..."
 
-  run_and_log "stage1-exe" "${HADRIAN_CMD[@]}" stage1:exe:ghc-bin \
-    --flavour="${HADRIAN_FLAVOUR}" --docs=none --progress-info=none
+  # Use profiled version with progress info for timing analysis
+  run_and_log_profiled "stage1-exe" "${HADRIAN_CMD[@]}" stage1:exe:ghc-bin \
+    --flavour="${HADRIAN_FLAVOUR}" --docs=none --progress-info=brief
 
   # Update stage0 settings with link flags
   local settings_file="${SRC_DIR}/_build/stage0/lib/settings"
@@ -212,9 +216,9 @@ platform_build_stage1() {
     echo "  Updated stage0 settings"
   fi
 
-  # Build Stage 1 libraries
-  run_and_log "stage1-lib" "${HADRIAN_CMD[@]}" stage1:lib:ghc \
-    --flavour="${HADRIAN_FLAVOUR}" --docs=none --progress-info=none
+  # Build Stage 1 libraries - this is the slowest phase, profile it
+  run_and_log_profiled "stage1-lib" "${HADRIAN_CMD[@]}" stage1:lib:ghc \
+    --flavour="${HADRIAN_FLAVOUR}" --docs=none --progress-info=brief
 
   # Update settings again after lib build
   if [[ -f "${settings_file}" ]]; then
@@ -232,8 +236,8 @@ platform_build_stage1() {
 platform_build_stage2() {
   echo "  Building Stage 2 GHC for macOS..."
 
-  run_and_log "stage2-exe" "${HADRIAN_CMD[@]}" stage2:exe:ghc-bin \
-    --flavour="${HADRIAN_FLAVOUR}" --freeze1 --docs=none --progress-info=none
+  run_and_log_profiled "stage2-exe" "${HADRIAN_CMD[@]}" stage2:exe:ghc-bin \
+    --flavour="${HADRIAN_FLAVOUR}" --freeze1 --docs=none --progress-info=brief
 
   # Update stage1 settings
   local settings_file="${SRC_DIR}/_build/stage1/lib/settings"
@@ -241,8 +245,8 @@ platform_build_stage2() {
     update_settings_link_flags "${settings_file}"
   fi
 
-  run_and_log "stage2-lib" "${HADRIAN_CMD[@]}" stage2:lib:ghc \
-    --flavour="${HADRIAN_FLAVOUR}" --freeze1 --docs=none --progress-info=none
+  run_and_log_profiled "stage2-lib" "${HADRIAN_CMD[@]}" stage2:lib:ghc \
+    --flavour="${HADRIAN_FLAVOUR}" --freeze1 --docs=none --progress-info=brief
 
   echo "  ✓ Stage 2 GHC built"
 }

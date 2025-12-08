@@ -52,6 +52,107 @@ run_and_log() {
   return 0
 }
 
+# ==============================================================================
+# Build Profiling Functions
+# ==============================================================================
+
+# Start background process monitor
+# Usage: start_process_monitor "phase-name"
+start_process_monitor() {
+  local phase="$1"
+  local monitor_file="${SRC_DIR}/_logs/monitor-${phase}.log"
+
+  echo "  Starting process monitor for ${phase}..."
+  (
+    echo "timestamp,ghc_procs,cabal_procs,cc_procs,total_procs" > "${monitor_file}"
+    while true; do
+      local ghc_count=$(pgrep -c "ghc" 2>/dev/null || echo 0)
+      local cabal_count=$(pgrep -c "cabal" 2>/dev/null || echo 0)
+      local cc_count=$(pgrep -c "clang\|gcc" 2>/dev/null || echo 0)
+      local total=$(ps aux 2>/dev/null | wc -l || echo 0)
+      echo "$(date +%s),${ghc_count},${cabal_count},${cc_count},${total}" >> "${monitor_file}"
+      sleep 5
+    done
+  ) &
+  MONITOR_PID=$!
+  echo "  Monitor PID: ${MONITOR_PID}"
+}
+
+# Stop process monitor and print summary
+# Usage: stop_process_monitor "phase-name"
+stop_process_monitor() {
+  local phase="$1"
+  local monitor_file="${SRC_DIR}/_logs/monitor-${phase}.log"
+
+  if [[ -n "${MONITOR_PID:-}" ]]; then
+    kill "${MONITOR_PID}" 2>/dev/null || true
+    wait "${MONITOR_PID}" 2>/dev/null || true
+    unset MONITOR_PID
+  fi
+
+  if [[ -f "${monitor_file}" ]]; then
+    echo "  === Process Monitor Summary for ${phase} ==="
+    echo "  Samples: $(wc -l < "${monitor_file}")"
+    echo "  Max GHC processes: $(cut -d',' -f2 "${monitor_file}" | tail -n +2 | sort -n | tail -1)"
+    echo "  Max Cabal processes: $(cut -d',' -f3 "${monitor_file}" | tail -n +2 | sort -n | tail -1)"
+    echo "  Max CC processes: $(cut -d',' -f4 "${monitor_file}" | tail -n +2 | sort -n | tail -1)"
+    echo "  ==========================================="
+  fi
+}
+
+# Run command with process monitoring and verbose timing
+# Usage: run_and_log_profiled "phase" command args...
+run_and_log_profiled() {
+  local phase="$1"
+  shift
+
+  ((_log_index++)) || true
+  mkdir -p "${SRC_DIR}/_logs"
+  local log_file="${SRC_DIR}/_logs/$(printf "%02d" ${_log_index})-${phase}.log"
+  local timing_file="${SRC_DIR}/_logs/$(printf "%02d" ${_log_index})-${phase}-timing.log"
+
+  echo "  [PROFILED] Running: $*"
+  echo "  Log: ${log_file}"
+  echo "  Timing: ${timing_file}"
+
+  # Start process monitor
+  start_process_monitor "${phase}"
+
+  local start_time=$(date +%s)
+  local start_date=$(date '+%Y-%m-%d %H:%M:%S')
+
+  # Run with time command for detailed resource usage
+  { time "$@" ; } > "${log_file}" 2>&1 || {
+    local end_time=$(date +%s)
+    local duration=$((end_time - start_time))
+    stop_process_monitor "${phase}"
+    echo "*** Command failed after ${duration}s! Last 50 lines:"
+    tail -50 "${log_file}"
+    return 1
+  }
+
+  local end_time=$(date +%s)
+  local end_date=$(date '+%Y-%m-%d %H:%M:%S')
+  local duration=$((end_time - start_time))
+  local minutes=$((duration / 60))
+  local seconds=$((duration % 60))
+
+  # Stop monitor and get summary
+  stop_process_monitor "${phase}"
+
+  # Save timing info
+  {
+    echo "Phase: ${phase}"
+    echo "Start: ${start_date}"
+    echo "End: ${end_date}"
+    echo "Duration: ${minutes}m ${seconds}s (${duration}s)"
+    echo "Command: $*"
+  } > "${timing_file}"
+
+  echo "  ✓ ${phase} completed in ${minutes}m ${seconds}s"
+  return 0
+}
+
 # Install bash completion script
 # Should be called from platform_post_install or default_post_install
 install_bash_completion() {
