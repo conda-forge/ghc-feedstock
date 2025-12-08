@@ -1,4 +1,5 @@
 conda_build_tool: rattler-build
+conda_install_tool: pixi
 github:
   branch_name: main
   tooling_branch_name: main
@@ -11,9 +12,13 @@ build_platform:
   osx_arm64: osx_64
 test: native_and_emulated
 azure:
-    # toggle for freeing up some extra space on the default Azure Pipelines
-    # linux image before running the Docker container for building
-    free_disk_space: true
-    settings_win:
-        variables:
-            CONDA_BLD_PATH: "C:\\bld"
+  # toggle for freeing up some extra space on the default Azure Pipelines
+  # linux image before running the Docker container for building
+  free_disk_space: true
+  settings_linux:
+    swapfile_size: 10GiB
+  settings_win:
+    swapfile_size: 10GiB
+    variables:
+      SET_PAGEFILE: "True"
+      CONDA_BLD_PATH: "C:\\bld"
