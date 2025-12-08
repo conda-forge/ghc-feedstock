@@ -32,12 +32,6 @@ INSTALL_METHOD="bindist"
 platform_setup_environment() {
   echo "  Configuring Windows-specific environment..."
 
-  # CRITICAL: Set GHC RTS options to prevent "builderMainLoop: invalid argument" errors
-  # This error occurs when GHC's process library hits Windows handle limits or race conditions
-  # -N1 limits RTS to single capability (reduces process spawning contention)
-  export GHCRTS="-N1"
-  echo "  GHCRTS=${GHCRTS}"
-
   # Compute Windows-format paths (C:/bld/...) from Unix-format (_PREFIX=/c/bld/...)
   # These are needed for GHC settings files which cannot execute /c/bld/... paths
   if [[ -z "${_PREFIX_:-}" ]]; then
