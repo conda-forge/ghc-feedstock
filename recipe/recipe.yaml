@@ -45,6 +45,10 @@ source:
           - patches/${{ ghc_major }}/fix-hp2ps-utilities-stdlib.patch
           # Fix UCRT compatibility - remove MSVCRT __imp__environ symbol
           - patches/${{ ghc_major }}/fix-windows-ucrt-environ.patch
+          # Fix Hadrian to recognize MinGW-w64 platform (w64 vendor)
+          # Without this, platformSupportsSharedLibs returns True for Windows
+          # causing Hadrian to request dynamic RTS builds that fail
+          - patches/${{ ghc_major }}/fix-hadrian-mingw-w64-platform-detection.patch
 
       # macOS-specific patches
       - if: osx
