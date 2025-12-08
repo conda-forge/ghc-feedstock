@@ -175,6 +175,18 @@ run_system_diagnostics() {
     echo ""
   } >> "${diag_file}"
 
+  # Helper function for high-resolution timing (works on both Linux and macOS)
+  # Returns milliseconds since epoch
+  _get_time_ms() {
+    if [[ "$(uname)" == "Darwin" ]]; then
+      # macOS: use python for millisecond precision (date +%s%N not supported)
+      python3 -c "import time; print(int(time.time() * 1000))" 2>/dev/null || echo $(($(date +%s) * 1000))
+    else
+      # Linux: use nanoseconds and convert to ms
+      echo $(( $(date +%s%N) / 1000000 ))
+    fi
+  }
+
   # Create a simple Haskell benchmark file
   local bench_dir="${SRC_DIR}/_bench"
   mkdir -p "${bench_dir}"
@@ -207,57 +219,60 @@ HSBENCH
     bench_ghc=$(which ghc)
   fi
 
-  if [[ -n "${bench_ghc}" ]]; then
+  if [[ -n "${bench_ghc}" ]] && ${bench_ghc} --version >/dev/null 2>&1; then
     echo "  Benchmark 1: Single-threaded compile (simple)"
     {
       echo "Using GHC: ${bench_ghc}"
-      echo "GHC version: $(${bench_ghc} --version)"
+      echo "GHC version: $(${bench_ghc} --version 2>&1)"
       echo ""
       echo "--- Compile bench_simple.hs (no optimization) ---"
     } >> "${diag_file}"
 
-    local compile_start=$(date +%s%N)
-    { time ${bench_ghc} -O0 -o "${bench_dir}/bench_simple" "${bench_dir}/bench_simple.hs" ; } >> "${diag_file}" 2>&1
-    local compile_end=$(date +%s%N)
-    local compile_ms=$(( (compile_end - compile_start) / 1000000 ))
-    echo "    -O0 compile: ${compile_ms}ms"
-    {
-      echo "Compile time: ${compile_ms}ms"
-      echo ""
-    } >> "${diag_file}"
+    local compile_start=$(_get_time_ms)
+    if ${bench_ghc} -O0 -o "${bench_dir}/bench_simple" "${bench_dir}/bench_simple.hs" >> "${diag_file}" 2>&1; then
+      local compile_end=$(_get_time_ms)
+      local compile_ms=$((compile_end - compile_start))
+      echo "    -O0 compile: ${compile_ms}ms"
+      { echo "Compile time: ${compile_ms}ms"; echo ""; } >> "${diag_file}"
+    else
+      echo "    -O0 compile: FAILED (see log)"
+      { echo "Compile FAILED"; echo ""; } >> "${diag_file}"
+    fi
 
     {
       echo "--- Compile bench_simple.hs (-O2 optimization) ---"
     } >> "${diag_file}"
 
-    compile_start=$(date +%s%N)
-    { time ${bench_ghc} -O2 -o "${bench_dir}/bench_simple_o2" "${bench_dir}/bench_simple.hs" ; } >> "${diag_file}" 2>&1
-    compile_end=$(date +%s%N)
-    compile_ms=$(( (compile_end - compile_start) / 1000000 ))
-    echo "    -O2 compile: ${compile_ms}ms"
-    {
-      echo "Compile time: ${compile_ms}ms"
-      echo ""
-    } >> "${diag_file}"
+    compile_start=$(_get_time_ms)
+    if ${bench_ghc} -O2 -o "${bench_dir}/bench_simple_o2" "${bench_dir}/bench_simple.hs" >> "${diag_file}" 2>&1; then
+      local compile_end=$(_get_time_ms)
+      local compile_ms=$((compile_end - compile_start))
+      echo "    -O2 compile: ${compile_ms}ms"
+      { echo "Compile time: ${compile_ms}ms"; echo ""; } >> "${diag_file}"
+    else
+      echo "    -O2 compile: FAILED (see log)"
+      { echo "Compile FAILED"; echo ""; } >> "${diag_file}"
+    fi
 
     echo "  Benchmark 2: Single-threaded compile (fibonacci)"
     {
       echo "--- Compile bench_fib.hs (-O2 optimization) ---"
     } >> "${diag_file}"
 
-    compile_start=$(date +%s%N)
-    { time ${bench_ghc} -O2 -o "${bench_dir}/bench_fib" "${bench_dir}/bench_fib.hs" ; } >> "${diag_file}" 2>&1
-    compile_end=$(date +%s%N)
-    compile_ms=$(( (compile_end - compile_start) / 1000000 ))
-    echo "    -O2 compile: ${compile_ms}ms"
-    {
-      echo "Compile time: ${compile_ms}ms"
-      echo ""
-    } >> "${diag_file}"
+    compile_start=$(_get_time_ms)
+    if ${bench_ghc} -O2 -o "${bench_dir}/bench_fib" "${bench_dir}/bench_fib.hs" >> "${diag_file}" 2>&1; then
+      local compile_end=$(_get_time_ms)
+      local compile_ms=$((compile_end - compile_start))
+      echo "    -O2 compile: ${compile_ms}ms"
+      { echo "Compile time: ${compile_ms}ms"; echo ""; } >> "${diag_file}"
+    else
+      echo "    -O2 compile: FAILED (see log)"
+      { echo "Compile FAILED"; echo ""; } >> "${diag_file}"
+    fi
 
   else
-    echo "    (Bootstrap GHC not available yet, skipping compile benchmarks)"
-    echo "Bootstrap GHC not available, skipping compile benchmarks" >> "${diag_file}"
+    echo "    (Bootstrap GHC not available or not working, skipping compile benchmarks)"
+    echo "Bootstrap GHC not available or not working, skipping compile benchmarks" >> "${diag_file}"
   fi
 
   # ----------------------------------------
@@ -334,43 +349,46 @@ CBENCH
   {
     echo "--- Compile bench.c (-O0) ---"
   } >> "${diag_file}"
-  local c_start=$(date +%s%N)
-  { time ${bench_cc} -O0 -o "${bench_dir}/bench_c" "${bench_dir}/bench.c" ; } >> "${diag_file}" 2>&1
-  local c_end=$(date +%s%N)
-  local c_ms=$(( (c_end - c_start) / 1000000 ))
-  echo "    -O0 compile: ${c_ms}ms"
-  {
-    echo "Compile time: ${c_ms}ms"
-    echo ""
-  } >> "${diag_file}"
+  local c_start=$(_get_time_ms)
+  if ${bench_cc} -O0 -o "${bench_dir}/bench_c" "${bench_dir}/bench.c" >> "${diag_file}" 2>&1; then
+    local c_end=$(_get_time_ms)
+    local c_ms=$((c_end - c_start))
+    echo "    -O0 compile: ${c_ms}ms"
+    { echo "Compile time: ${c_ms}ms"; echo ""; } >> "${diag_file}"
+  else
+    echo "    -O0 compile: FAILED"
+    { echo "Compile FAILED"; echo ""; } >> "${diag_file}"
+  fi
 
   # Simple C compile -O2
   {
     echo "--- Compile bench.c (-O2) ---"
   } >> "${diag_file}"
-  c_start=$(date +%s%N)
-  { time ${bench_cc} -O2 -o "${bench_dir}/bench_c_o2" "${bench_dir}/bench.c" ; } >> "${diag_file}" 2>&1
-  c_end=$(date +%s%N)
-  c_ms=$(( (c_end - c_start) / 1000000 ))
-  echo "    -O2 compile: ${c_ms}ms"
-  {
-    echo "Compile time: ${c_ms}ms"
-    echo ""
-  } >> "${diag_file}"
+  c_start=$(_get_time_ms)
+  if ${bench_cc} -O2 -o "${bench_dir}/bench_c_o2" "${bench_dir}/bench.c" >> "${diag_file}" 2>&1; then
+    local c_end=$(_get_time_ms)
+    local c_ms=$((c_end - c_start))
+    echo "    -O2 compile: ${c_ms}ms"
+    { echo "Compile time: ${c_ms}ms"; echo ""; } >> "${diag_file}"
+  else
+    echo "    -O2 compile: FAILED"
+    { echo "Compile FAILED"; echo ""; } >> "${diag_file}"
+  fi
 
   # Complex C compile with math library -O2
   {
     echo "--- Compile bench_complex.c (-O2 -lm) ---"
   } >> "${diag_file}"
-  c_start=$(date +%s%N)
-  { time ${bench_cc} -O2 -o "${bench_dir}/bench_complex" "${bench_dir}/bench_complex.c" -lm ; } >> "${diag_file}" 2>&1
-  c_end=$(date +%s%N)
-  c_ms=$(( (c_end - c_start) / 1000000 ))
-  echo "    -O2 complex compile: ${c_ms}ms"
-  {
-    echo "Compile time: ${c_ms}ms"
-    echo ""
-  } >> "${diag_file}"
+  c_start=$(_get_time_ms)
+  if ${bench_cc} -O2 -o "${bench_dir}/bench_complex" "${bench_dir}/bench_complex.c" -lm >> "${diag_file}" 2>&1; then
+    local c_end=$(_get_time_ms)
+    local c_ms=$((c_end - c_start))
+    echo "    -O2 complex compile: ${c_ms}ms"
+    { echo "Compile time: ${c_ms}ms"; echo ""; } >> "${diag_file}"
+  else
+    echo "    -O2 complex compile: FAILED"
+    { echo "Compile FAILED"; echo ""; } >> "${diag_file}"
+  fi
 
   # Test linker speed separately
   echo "  Benchmark 2c: Linker speed"
@@ -381,16 +399,22 @@ CBENCH
   } >> "${diag_file}"
 
   # Compile to object file only, then link separately
-  ${bench_cc} -O2 -c -o "${bench_dir}/bench.o" "${bench_dir}/bench.c" 2>/dev/null
+  if ${bench_cc} -O2 -c -o "${bench_dir}/bench.o" "${bench_dir}/bench.c" 2>/dev/null; then
+    c_start=$(_get_time_ms)
+    if ${bench_cc} -o "${bench_dir}/bench_linked" "${bench_dir}/bench.o" >> "${diag_file}" 2>&1; then
+      local c_end=$(_get_time_ms)
+      local c_ms=$((c_end - c_start))
+      echo "    Link single .o: ${c_ms}ms"
+      { echo "Link time: ${c_ms}ms"; echo ""; } >> "${diag_file}"
+    else
+      echo "    Link: FAILED"
+      { echo "Link FAILED"; echo ""; } >> "${diag_file}"
+    fi
+  else
+    echo "    Link: SKIPPED (compile failed)"
+  fi
 
-  c_start=$(date +%s%N)
-  { time ${bench_cc} -o "${bench_dir}/bench_linked" "${bench_dir}/bench.o" ; } >> "${diag_file}" 2>&1
-  c_end=$(date +%s%N)
-  c_ms=$(( (c_end - c_start) / 1000000 ))
-  echo "    Link single .o: ${c_ms}ms"
   {
-    echo "Link time: ${c_ms}ms"
-    echo ""
     echo "LD: ${LD:-default}"
     ${LD:-ld} --version 2>&1 | head -1 || echo "ld version unknown"
   } >> "${diag_file}"
@@ -405,29 +429,36 @@ CBENCH
     echo ""
   } >> "${diag_file}"
 
-  local spawn_start=$(date +%s%N)
+  # Use /usr/bin/true on macOS, /bin/true on Linux
+  local true_cmd="/bin/true"
+  [[ "$(uname)" == "Darwin" ]] && true_cmd="/usr/bin/true"
+
+  local spawn_start=$(_get_time_ms)
   for i in {1..100}; do
-    /bin/true
+    ${true_cmd}
   done
-  local spawn_end=$(date +%s%N)
-  local spawn_us=$(( (spawn_end - spawn_start) / 1000 ))
-  local spawn_per_sec=$(( 100 * 1000000 / spawn_us ))
-  echo "    100x /bin/true: ${spawn_us}μs (${spawn_per_sec}/sec)"
+  local spawn_end=$(_get_time_ms)
+  local spawn_ms=$((spawn_end - spawn_start))
+  local spawn_per_sec="N/A"
+  if [[ ${spawn_ms} -gt 0 ]]; then
+    spawn_per_sec=$((100 * 1000 / spawn_ms))
+  fi
+  echo "    100x /bin/true: ${spawn_ms}ms (${spawn_per_sec}/sec)"
   {
-    echo "100x /bin/true: ${spawn_us}μs"
+    echo "100x /bin/true: ${spawn_ms}ms"
     echo "Spawns per second: ${spawn_per_sec}"
   } >> "${diag_file}"
 
   # Test with actual command execution
-  spawn_start=$(date +%s%N)
+  spawn_start=$(_get_time_ms)
   for i in {1..50}; do
     echo "test" > /dev/null
   done
-  spawn_end=$(date +%s%N)
-  spawn_us=$(( (spawn_end - spawn_start) / 1000 ))
-  echo "    50x echo: ${spawn_us}μs"
+  spawn_end=$(_get_time_ms)
+  spawn_ms=$((spawn_end - spawn_start))
+  echo "    50x echo: ${spawn_ms}ms"
   {
-    echo "50x echo: ${spawn_us}μs"
+    echo "50x echo: ${spawn_ms}ms"
     echo ""
   } >> "${diag_file}"
 
@@ -445,37 +476,37 @@ CBENCH
   local io_dir="${bench_dir}/io_test"
   mkdir -p "${io_dir}"
 
-  local io_start=$(date +%s%N)
+  local io_start=$(_get_time_ms)
   for i in {1..100}; do
     echo "test content for file ${i}" > "${io_dir}/file_${i}.txt"
   done
-  local io_end=$(date +%s%N)
-  local io_write_us=$(( (io_end - io_start) / 1000 ))
-  echo "    Create 100 files: ${io_write_us}μs"
+  local io_end=$(_get_time_ms)
+  local io_write_ms=$((io_end - io_start))
+  echo "    Create 100 files: ${io_write_ms}ms"
   {
-    echo "Create 100 files: ${io_write_us}μs"
+    echo "Create 100 files: ${io_write_ms}ms"
   } >> "${diag_file}"
 
   # Read many small files
-  io_start=$(date +%s%N)
+  io_start=$(_get_time_ms)
   for i in {1..100}; do
     cat "${io_dir}/file_${i}.txt" > /dev/null
   done
-  io_end=$(date +%s%N)
-  local io_read_us=$(( (io_end - io_start) / 1000 ))
-  echo "    Read 100 files: ${io_read_us}μs"
+  io_end=$(_get_time_ms)
+  local io_read_ms=$((io_end - io_start))
+  echo "    Read 100 files: ${io_read_ms}ms"
   {
-    echo "Read 100 files: ${io_read_us}μs"
+    echo "Read 100 files: ${io_read_ms}ms"
   } >> "${diag_file}"
 
   # Sync to measure actual write
-  io_start=$(date +%s%N)
+  io_start=$(_get_time_ms)
   sync 2>/dev/null || true
-  io_end=$(date +%s%N)
-  local sync_us=$(( (io_end - io_start) / 1000 ))
-  echo "    sync: ${sync_us}μs"
+  io_end=$(_get_time_ms)
+  local sync_ms=$((io_end - io_start))
+  echo "    sync: ${sync_ms}ms"
   {
-    echo "sync: ${sync_us}μs"
+    echo "sync: ${sync_ms}ms"
   } >> "${diag_file}"
 
   # Cleanup
@@ -494,57 +525,57 @@ CBENCH
   local par_count=${CPU_COUNT:-2}
 
   # Sequential baseline
-  local seq_start=$(date +%s%N)
+  local seq_start=$(_get_time_ms)
   for i in $(seq 1 ${par_count}); do
-    for j in {1..50}; do /bin/true; done
+    for j in {1..50}; do ${true_cmd}; done
   done
-  local seq_end=$(date +%s%N)
-  local seq_us=$(( (seq_end - seq_start) / 1000 ))
-  echo "    Sequential (${par_count}x50 spawns): ${seq_us}μs"
+  local seq_end=$(_get_time_ms)
+  local seq_ms=$((seq_end - seq_start))
+  echo "    Sequential (${par_count}x50 spawns): ${seq_ms}ms"
   {
-    echo "Sequential ${par_count}x50 spawns: ${seq_us}μs"
+    echo "Sequential ${par_count}x50 spawns: ${seq_ms}ms"
   } >> "${diag_file}"
 
   # Parallel execution
-  local par_start=$(date +%s%N)
+  local par_start=$(_get_time_ms)
   for i in $(seq 1 ${par_count}); do
-    ( for j in {1..50}; do /bin/true; done ) &
+    ( for j in {1..50}; do ${true_cmd}; done ) &
   done
   wait
-  local par_end=$(date +%s%N)
-  local par_us=$(( (par_end - par_start) / 1000 ))
+  local par_end=$(_get_time_ms)
+  local par_ms=$((par_end - par_start))
   local speedup="N/A"
-  if [[ ${par_us} -gt 0 ]]; then
-    speedup=$(awk "BEGIN {printf \"%.2f\", ${seq_us}/${par_us}}")
+  if [[ ${par_ms} -gt 0 ]]; then
+    speedup=$(awk "BEGIN {printf \"%.2f\", ${seq_ms}.0/${par_ms}.0}")
   fi
-  echo "    Parallel (${par_count} workers): ${par_us}μs (speedup: ${speedup}x)"
+  echo "    Parallel (${par_count} workers): ${par_ms}ms (speedup: ${speedup}x)"
   {
-    echo "Parallel ${par_count} workers: ${par_us}μs"
+    echo "Parallel ${par_count} workers: ${par_ms}ms"
     echo "Speedup: ${speedup}x (ideal: ${par_count}x)"
   } >> "${diag_file}"
 
   # ----------------------------------------
   # 10. Memory bandwidth (simple test)
   # ----------------------------------------
-  echo "  Benchmark 6: Memory test"
+  echo "  Benchmark 6: Memory/disk write test"
   {
     echo ""
-    echo "=== BENCHMARK: Memory ==="
+    echo "=== BENCHMARK: Memory/Disk ==="
     echo ""
   } >> "${diag_file}"
 
   # Use dd to test memory/disk throughput
-  local mem_start=$(date +%s%N)
+  local mem_start=$(_get_time_ms)
   dd if=/dev/zero of="${bench_dir}/memtest" bs=1M count=100 2>/dev/null || true
-  local mem_end=$(date +%s%N)
-  local mem_us=$(( (mem_end - mem_start) / 1000 ))
+  local mem_end=$(_get_time_ms)
+  local mem_ms=$((mem_end - mem_start))
   local mem_mbps="N/A"
-  if [[ ${mem_us} -gt 0 ]]; then
-    mem_mbps=$(awk "BEGIN {printf \"%.0f\", 100 * 1000000 / ${mem_us}}")
+  if [[ ${mem_ms} -gt 0 ]]; then
+    mem_mbps=$(awk "BEGIN {printf \"%.0f\", 100.0 * 1000.0 / ${mem_ms}.0}")
   fi
-  echo "    Write 100MB: ${mem_us}μs (${mem_mbps} MB/s)"
+  echo "    Write 100MB: ${mem_ms}ms (${mem_mbps} MB/s)"
   {
-    echo "Write 100MB: ${mem_us}μs"
+    echo "Write 100MB: ${mem_ms}ms"
     echo "Throughput: ${mem_mbps} MB/s"
   } >> "${diag_file}"
 
