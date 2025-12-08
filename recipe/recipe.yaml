@@ -177,7 +177,7 @@ tests:
       - ghc -v hello.hs
       - if: unix
         then:
-          -${{ "./hello" if unix else "hello" }}
+          - ${{ "./hello" if unix else "hello" }}
     requirements:
       run:
         - ${{ compiler('c') }}

@@ -461,8 +461,20 @@ update_installed_settings() {
 
   local settings_file=$(find "${PREFIX}/lib" -name settings | head -n 1)
   if [[ "${target_platform}" == "linux-"* ]]; then
+    # Add library paths
     perl -pi -e "s#(C compiler link flags\", \"[^\"]*)#\$1 -Wl,-L\\\$topdir/x86_64-linux-ghc-${PKG_VERSION} -Wl,-rpath,\\\$topdir/x86_64-linux-ghc-${PKG_VERSION} -Wl,-L\\\$topdir/../../../lib -Wl,-rpath,\\\$topdir/../../../lib#" "${settings_file}"
-    perl -pi -e "s#(ld flags\", \")#\$1-L\\\$topdir/x86_64-linux-ghc-${PKG_VERSION} -rpath \\\$topdir/x86_64-linux-ghc-${PKG_VERSION} -L\\\$topdir/../../../lib -rpath \\\$topdir/../../../lib#" "${settings_file}"
+    perl -pi -e "s#(ld flags\", \")#\$1-L\\\$topdir/x86_64-linux-ghc-${PKG_VERSION} -rpath \\\$topdir/x86_64-linux-ghc-${PKG_VERSION} -L\\\$topdir/../../../lib -rpath \\\$topdir/../../../lib #" "${settings_file}"
+
+    # CRITICAL: Add -no-pie for GHC 9.2.x and 9.4.x to work around PIE relocation errors
+    # The RTS static libraries are not compiled with -fPIC, so linking executables fails
+    # with "relocation R_X86_64_32S against symbol ... cannot be used when making a PIE object"
+    local major_version
+    major_version=$(get_ghc_major_version)
+    if [[ "${major_version}" == "9.2" || "${major_version}" == "9.4" ]]; then
+      echo "    Adding -no-pie to installed settings for GHC ${major_version}.x PIE fix"
+      perl -pi -e 's#(C compiler link flags", "[^"]*)#$1 -no-pie#' "${settings_file}"
+      perl -pi -e 's#(ld flags", "[^"]*)#$1 -no-pie #' "${settings_file}"
+    fi
 
   elif [[ "${target_platform}" == "osx-"* ]]; then
     perl -i -pe "s#(C compiler flags\", \")([^\"]*)#\1\2 -fno-lto#" "${settings_file}"
