@@ -140,14 +140,32 @@ run_and_log_profiled() {
   # Stop monitor and get summary
   stop_process_monitor "${phase}"
 
-  # Save timing info
+  # Save timing info to file AND print to stdout
   {
     echo "Phase: ${phase}"
     echo "Start: ${start_date}"
     echo "End: ${end_date}"
     echo "Duration: ${minutes}m ${seconds}s (${duration}s)"
     echo "Command: $*"
-  } > "${timing_file}"
+  } | tee "${timing_file}"
+
+  # Extract and print Hadrian timing info if present (from --timing flag)
+  if [[ -f "${log_file}" ]]; then
+    local timing_lines=$(grep -E "^(Build completed|Finished|Total time|spent|Rule .* took)" "${log_file}" 2>/dev/null | tail -20)
+    if [[ -n "${timing_lines}" ]]; then
+      echo "  --- Hadrian Timing Summary ---"
+      echo "${timing_lines}" | sed 's/^/  /'
+      echo "  ------------------------------"
+    fi
+
+    # Show slowest rules if timing data exists
+    local slow_rules=$(grep -E "took [0-9]+\.[0-9]+s" "${log_file}" 2>/dev/null | sort -t' ' -k3 -rn | head -10)
+    if [[ -n "${slow_rules}" ]]; then
+      echo "  --- Top 10 Slowest Rules ---"
+      echo "${slow_rules}" | sed 's/^/  /'
+      echo "  ----------------------------"
+    fi
+  fi
 
   echo "  ✓ ${phase} completed in ${minutes}m ${seconds}s"
   return 0
