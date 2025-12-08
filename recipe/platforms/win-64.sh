@@ -408,7 +408,11 @@ platform_build_stage2() {
   # normal MinGW linking. Custom link flags are only for Stage1 settings.
 
   # CRITICAL: Build stage2:exe:ghc-bin FIRST to generate _build/stage1/lib/settings
-  run_and_log "stage2-exe" "${HADRIAN_CMD[@]}" stage2:exe:ghc-bin --flavour="${HADRIAN_FLAVOUR}" --freeze1 --docs=none --progress-info=none
+  # Use -j1 for this specific step to avoid "builderMainLoop: invalid argument" error
+  # This error occurs when Stage 0 GHC spawns too many processes during linking
+  local hadrian_bin="${HADRIAN_CMD[0]}"
+  local hadrian_dir="${HADRIAN_CMD[2]}"  # --directory value
+  run_and_log "stage2-exe" "${hadrian_bin}" -j1 --directory "${hadrian_dir}" stage2:exe:ghc-bin --flavour="${HADRIAN_FLAVOUR}" --freeze1 --docs=none --progress-info=none
 
   # Patch Stage1 settings file (created by stage2:exe:ghc-bin)
   patch_stage2_settings
