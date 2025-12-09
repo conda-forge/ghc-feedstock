@@ -44,6 +44,8 @@ platform_setup_environment() {
   # export CXX="x86_64-w64-mingw32-g++"
   # export CPP="x86_64-w64-mingw32-cpp"
 
+  env
+  
   echo "  GCC toolchain:"
   echo "    CPP=${CPP}"
   echo "     CC=${CC}"
