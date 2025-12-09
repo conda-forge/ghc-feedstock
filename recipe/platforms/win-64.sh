@@ -28,7 +28,7 @@ INSTALL_METHOD="bindist"
 #  # errors in the Stage1 ghc.exe. Release flavour produces optimized binaries
 #  # that can exceed relocation limits and crash when Cabal tries to detect version.
 #  FLAVOUR="quickest"
-FLAVOUR="default"
+FLAVOUR="default+split_sections"
 
 # ==============================================================================
 # Phase 1: Environment Setup
