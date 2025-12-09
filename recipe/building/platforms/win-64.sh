@@ -170,7 +170,7 @@ platform_pre_configure_ghc() {
   export ac_cv_path_ac_pt_CC=""
   export ac_cv_path_ac_pt_CXX=""
   
-  export ac_cv_prog_CC="${_BUILD_PREFIX_}"/Library/bin/"${CC}"
+  #export ac_cv_prog_CC="${_BUILD_PREFIX_}"/Library/bin/"${CC}"
   #export ac_cv_prog_CXX="${CXX}"
   # export ac_cv_prog_CPP="${CPP}"
   #export ac_cv_prog_AR="${AR}"
