@@ -5,30 +5,21 @@ The bootstrap GHC on Windows triggers "builderMainLoop: invalid argument"
 errors when linking ghc.exe with -threaded. This happens because GHC spawns
 multiple processes during linking which fail on Azure CI Windows.
 
-This patch disables the -threaded flag for the ghc executable on Windows
-by checking windowsHost before using threadedBootstrapper.
+This patch modifies ghc-bin.cabal.in to not use -threaded on Windows,
+regardless of the threaded flag setting.
 
-diff --git a/hadrian/src/Settings/Packages.hs b/hadrian/src/Settings/Packages.hs
---- a/hadrian/src/Settings/Packages.hs
-+++ b/hadrian/src/Settings/Packages.hs
-@@ -5,6 +5,7 @@ import Flavour
- import Oracles.Setting
- import Oracles.Flag
- import Packages
-+import Hadrian.Utilities (windowsHost)
- import Settings
+diff --git a/ghc/ghc-bin.cabal.in b/ghc/ghc-bin.cabal.in
+--- a/ghc/ghc-bin.cabal.in
++++ b/ghc/ghc-bin.cabal.in
+@@ -88,7 +88,10 @@ Executable ghc
+     -- mk/config.mk.in logic for GhcThreaded (which ends up
+     -- always being True as well). One can still opt out by
+     -- disabling this flag.
+-    if flag(threaded)
++    -- On Windows, -threaded causes "builderMainLoop: invalid argument" errors
++    -- when the bootstrap GHC spawns processes during linking on Azure CI.
++    -- Disable -threaded on Windows to work around this issue.
++    if flag(threaded) && !os(windows)
+       ghc-options: -threaded
 
- -- | Package-specific command-line arguments.
-@@ -84,8 +85,10 @@ packageArgs = do
-             , notM cross `cabalFlag` "terminfo"
-             , ifM stage0
-                   -- We build a threaded stage 1 if the bootstrapping compiler
--                  -- supports it.
--                  (threadedBootstrapper `cabalFlag` "threaded")
-+                  -- supports it. Disabled on Windows to avoid builderMainLoop
-+                  -- errors when the bootstrap GHC spawns processes during linking.
-+                  ((if windowsHost then pure False else threadedBootstrapper)
-+                    `cabalFlag` "threaded")
-
-                   -- We build a threaded stage N, N>1 if the configuration calls
-                   -- for it.
+     ghc-options: -eventlog
