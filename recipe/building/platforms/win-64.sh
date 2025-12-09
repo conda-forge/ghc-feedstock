@@ -29,10 +29,10 @@ platform_setup_environment() {
 
   # Build clean PATH - don't append conda's bad PATH with unexpanded %BUILD_PREFIX% placeholders
   # Include MSYS2 tools (m2-coreutils, m2-bash, etc.) from Library/usr/bin
-  export PATH="${_BUILD_PREFIX}/Library/bin:${_BUILD_PREFIX}/Library/usr/bin:${_BUILD_PREFIX}/ghc-bootstrap/bin:${_BUILD_PREFIX}/bin:/c/Windows/System32:/c/Windows"
+  export PATH="${_BUILD_PREFIX_}/Library/bin:${_BUILD_PREFIX_}/Library/usr/bin:${_BUILD_PREFIX_}/ghc-bootstrap/bin:${_BUILD_PREFIX_}/bin:/c/Windows/System32:/c/Windows"
 
   # Set up Cabal environment
-  export CABAL="${_BUILD_PREFIX}/bin/cabal"
+  export CABAL="${_BUILD_PREFIX_}/bin/cabal"
   export CABAL_DIR="${SRC_DIR}\\.cabal"
   export _PYTHON="${_BUILD_PREFIX}/python.exe"
   # CRITICAL: Use _BUILD_PREFIX (Unix path) not BUILD_PREFIX (has %BUILD_PREFIX% placeholder)
@@ -40,19 +40,23 @@ platform_setup_environment() {
   export LIBRARY_PATH="${_BUILD_PREFIX}/Library/lib${LIBRARY_PATH:+:}${LIBRARY_PATH:-}"
 
   # Use GCC toolchain to match bootstrap GHC compiler
-  export CC="x86_64-w64-mingw32-gcc"
-  export CXX="x86_64-w64-mingw32-g++"
-  export CPP="x86_64-w64-mingw32-cpp"
+  # export CC="x86_64-w64-mingw32-gcc"
+  # export CXX="x86_64-w64-mingw32-g++"
+  # export CPP="x86_64-w64-mingw32-cpp"
 
   echo "  GCC toolchain:"
-  echo "    CC=${CC}"
-  echo "    CXX=${CXX}"
   echo "    CPP=${CPP}"
+  echo "     CC=${CC}"
+  echo "    CXX=${CXX}"
+  echo "     AR=${AR}"
+  echo "     LD=${LD}"
+  echo " RANLIB=${RANLIB}"
+  echo "     NM=${NM}"
 
   # Define toolchain variables early for bootstrap settings patching
-  export LD="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-ld.exe"
-  export AR="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-ar.exe"
-  export RANLIB="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-ranlib.exe"
+  # export LD="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-ld.exe"
+  # export AR="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-ar.exe"
+  # export RANLIB="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-ranlib.exe"
 
   # Expand conda variables in flags
   expand_conda_variables
@@ -170,6 +174,7 @@ platform_pre_configure_ghc() {
   # Need BOTH ac_cv_prog_* AND ac_cv_path_* plus clear ac_cv_path_ac_pt_* to prevent searching
   export ac_cv_path_ac_pt_CC=""
   export ac_cv_path_ac_pt_CXX=""
+  
   export ac_cv_prog_CC="${CC}"
   export ac_cv_prog_CXX="${CXX}"
   export ac_cv_prog_CPP="${CPP}"
@@ -179,12 +184,13 @@ platform_pre_configure_ghc() {
   export ac_cv_prog_RANLIB="${RANLIB}"
   export ac_cv_prog_STRIP="${STRIP}"
   export ac_cv_prog_OBJDUMP="${OBJDUMP}"
-  export ac_cv_path_CC="${_BUILD_PREFIX}/Library/bin/${CC}.exe"
-  export ac_cv_path_CXX="${_BUILD_PREFIX}/Library/bin/${CXX}.exe"
-  export ac_cv_path_AR="${AR}"
-  export ac_cv_path_LD="${LD}"
-  export ac_cv_path_NM="${NM}"
-  export ac_cv_path_RANLIB="${RANLIB}"
+  
+  export ac_cv_path_CC="${_BUILD_PREFIX_}"/Library/bin/"${CC}"
+  export ac_cv_path_CXX="${_BUILD_PREFIX_}"/Library/bin/"${CXX}"
+  export ac_cv_path_AR="${_BUILD_PREFIX_}"/Library/bin/"${AR}"
+  export ac_cv_path_LD="${_BUILD_PREFIX_}"/Library/bin/"${LD}"
+  export ac_cv_path_NM="${_BUILD_PREFIX_}"/Library/bin/"${NM}"
+  export ac_cv_path_RANLIB="${_BUILD_PREFIX_}"/Library/bin/"${RANLIB}"
 
   # Force use of conda-provided toolchain and libraries (not inplace MinGW)
   export UseSystemMingw=YES
@@ -199,21 +205,21 @@ platform_pre_configure_ghc() {
 
   # CRITICAL: Override ALL conda toolchain variables that have %BUILD_PREFIX% placeholders
   # Configure reads these from environment, NOT from bootstrap GHC settings
-  export ADDR2LINE="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-addr2line.exe"
-  export AR="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-ar.exe"
-  export AS="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-as.exe"
-  export CXXFILT="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-c++filt.exe"
-  export ELFEDIT="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-elfedit.exe"
-  export GPROF="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-gprof.exe"
-  export LD="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-ld.exe"
-  export NM="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-nm.exe"
-  export OBJCOPY="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-objcopy.exe"
-  export OBJDUMP="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-objdump.exe"
-  export RANLIB="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-ranlib.exe"
-  export READELF="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-readelf.exe"
-  export SIZE="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-size.exe"
-  export STRINGS="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-strings.exe"
-  export STRIP="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-strip.exe"
+  # export ADDR2LINE="${_BUILD_PREFIX_}/Library/bin/x86_64-w64-mingw32-addr2line.exe"
+  # export AR="${_BUILD_PREFIX_}/Library/bin/x86_64-w64-mingw32-ar.exe"
+  # export AS="${_BUILD_PREFIX_}/Library/bin/x86_64-w64-mingw32-as.exe"
+  # export CXXFILT="${_BUILD_PREFIX_}/Library/bin/x86_64-w64-mingw32-c++filt.exe"
+  # export ELFEDIT="${_BUILD_PREFIX_}/Library/bin/x86_64-w64-mingw32-elfedit.exe"
+  # export GPROF="${_BUILD_PREFIX_}/Library/bin/x86_64-w64-mingw32-gprof.exe"
+  # export LD="${_BUILD_PREFIX_}/Library/bin/x86_64-w64-mingw32-ld.exe"
+  # export NM="${_BUILD_PREFIX_}/Library/bin/x86_64-w64-mingw32-nm.exe"
+  # export OBJCOPY="${_BUILD_PREFIX_}/Library/bin/x86_64-w64-mingw32-objcopy.exe"
+  # export OBJDUMP="${_BUILD_PREFIX_}/Library/bin/x86_64-w64-mingw32-objdump.exe"
+  # export RANLIB="${_BUILD_PREFIX_}/Library/bin/x86_64-w64-mingw32-ranlib.exe"
+  # export READELF="${_BUILD_PREFIX_}/Library/bin/x86_64-w64-mingw32-readelf.exe"
+  # export SIZE="${_BUILD_PREFIX_}/Library/bin/x86_64-w64-mingw32-size.exe"
+  # export STRINGS="${_BUILD_PREFIX_}/Library/bin/x86_64-w64-mingw32-strings.exe"
+  # export STRIP="${_BUILD_PREFIX_}/Library/bin/x86_64-w64-mingw32-strip.exe"
 
   echo "  Toolchain environment variables overridden with actual paths"
 
@@ -553,12 +559,12 @@ patch_bootstrap_settings() {
 
   # CRITICAL: Build paths directly from _BUILD_PREFIX, not from ${LD} variable
   # Conda sets LD=%BUILD_PREFIX%/... so we can't use it - must use _BUILD_PREFIX
-  local LD_WIN=$(echo "${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-ld.exe" | sed 's#^/c/#C:/#')
-  local AR_WIN=$(echo "${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-ar.exe" | sed 's#^/c/#C:/#')
-  local NM_WIN=$(echo "${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-nm.exe" | sed 's#^/c/#C:/#')
-  local RANLIB_WIN=$(echo "${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-ranlib.exe" | sed 's#^/c/#C:/#')
-  local OBJDUMP_WIN=$(echo "${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-objdump.exe" | sed 's#^/c/#C:/#')
-  local STRIP_WIN=$(echo "${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-strip.exe" | sed 's#^/c/#C:/#')
+  local LD_WIN="${_BUILD_PREFIX_}"/Library/bin/x86_64-w64-mingw32-ld.exe
+  local AR_WIN="${_BUILD_PREFIX_}"/Library/bin/x86_64-w64-mingw32-ar.exe
+  local NM_WIN="${_BUILD_PREFIX_}"/Library/bin/x86_64-w64-mingw32-nm.exe
+  local RANLIB_WIN="${_BUILD_PREFIX_}"/Library/bin/x86_64-w64-mingw32-ranlib.exe
+  local OBJDUMP_WIN="${_BUILD_PREFIX_}"/Library/bin/x86_64-w64-mingw32-objdump.exe
+  local STRIP_WIN="${_BUILD_PREFIX_}"/Library/bin/x86_64-w64-mingw32-strip.exe
 
   echo "  Patching with actual paths (from _BUILD_PREFIX):"
   echo "    LD_WIN=${LD_WIN}"
@@ -582,7 +588,7 @@ patch_bootstrap_settings() {
 
   # Setup windres wrapper (using _BUILD_PREFIX, not conda variable)
   if [[ -f "${_BUILD_PREFIX}/Library/bin/windres.bat" ]]; then
-    local WINDRES_WIN=$(echo "${_BUILD_PREFIX}/Library/bin/windres.bat" | sed 's#^/c/#C:/#')
+    local WINDRES_WIN="${_BUILD_PREFIX_}"/Library/bin/windres.bat
     perl -pi -e "s#(windres command\", \")[^\"]*#\$1${WINDRES_WIN}#" "${settings_file}"
   fi
 
