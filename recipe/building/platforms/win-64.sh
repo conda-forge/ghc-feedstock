@@ -555,11 +555,15 @@ patch_bootstrap_settings() {
   # Conda sets LD=%BUILD_PREFIX%/... so we can't use it - must use _BUILD_PREFIX
   local LD_WIN=$(echo "${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-ld.exe" | sed 's#^/c/#C:/#')
   local AR_WIN=$(echo "${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-ar.exe" | sed 's#^/c/#C:/#')
+  local NM_WIN=$(echo "${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-nm.exe" | sed 's#^/c/#C:/#')
   local RANLIB_WIN=$(echo "${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-ranlib.exe" | sed 's#^/c/#C:/#')
+  local OBJDUMP_WIN=$(echo "${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-objdump.exe" | sed 's#^/c/#C:/#')
+  local STRIP_WIN=$(echo "${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-strip.exe" | sed 's#^/c/#C:/#')
 
   echo "  Patching with actual paths (from _BUILD_PREFIX):"
   echo "    LD_WIN=${LD_WIN}"
   echo "    AR_WIN=${AR_WIN}"
+  echo "    NM_WIN=${NM_WIN}"
   echo "    RANLIB_WIN=${RANLIB_WIN}"
 
   # Patch settings file
@@ -570,7 +574,10 @@ patch_bootstrap_settings() {
   perl -pi -e "s#(ld command\", \")[^\"]*#\$1${LD_WIN}#" "${settings_file}"
   perl -pi -e "s#(Merge objects command\", \")[^\"]*#\$1${LD_WIN}#" "${settings_file}"
   perl -pi -e "s#(ar command\", \")[^\"]*#\$1${AR_WIN}#" "${settings_file}"
+  perl -pi -e "s#(nm command\", \")[^\"]*#\$1${NM_WIN}#" "${settings_file}"
   perl -pi -e "s#(ranlib command\", \")[^\"]*#\$1${RANLIB_WIN}#" "${settings_file}"
+  perl -pi -e "s#(objdump command\", \")[^\"]*#\$1${OBJDUMP_WIN}#" "${settings_file}"
+  perl -pi -e "s#(strip command\", \")[^\"]*#\$1${STRIP_WIN}#" "${settings_file}"
   perl -pi -e "s#(dllwrap command\", \")[^\"]*#\$1false#" "${settings_file}"
 
   # Setup windres wrapper (using _BUILD_PREFIX, not conda variable)
