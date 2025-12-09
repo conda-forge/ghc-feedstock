@@ -874,7 +874,10 @@ patch_system_config() {
   # on Azure CI causes "builderMainLoop: invalid argument (Invalid argument)" errors
   # when it spawns processes during Stage 1/2 compilation.
   # Setting this to NO makes Hadrian build Stage 0 ghc.exe WITHOUT -threaded.
+  echo "  Patching bootstrap-threaded-rts..."
+  echo "  Before: $(grep 'bootstrap-threaded-rts' "${config_file}")"
   perl -pi -e 's#^bootstrap-threaded-rts\s*=\s*.*$#bootstrap-threaded-rts      = NO#' "${config_file}"
+  echo "  After:  $(grep 'bootstrap-threaded-rts' "${config_file}")"
 
   # NOTE: Do NOT add --allow-multiple-definition here!
   # The proper solution is library ordering in Stage1 settings where -lmingw32
