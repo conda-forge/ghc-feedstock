@@ -296,6 +296,7 @@ platform_build_stage1() {
   echo "  Building Stage 1 GHC (Windows)..."
 
   # Build Stage 1 GHC compiler
+  CC="${_BUILD_PREFIX}"/Library/bin/"${CC}" \
   run_and_log "stage1-ghc" "${HADRIAN_CMD[@]}" --flavour="${HADRIAN_FLAVOUR}" stage1:exe:ghc-bin
 
   # CRITICAL: After stage1:exe:ghc-bin creates _build/stage0/lib/settings,
