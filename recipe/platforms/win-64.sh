@@ -24,11 +24,12 @@ source "${RECIPE_DIR}/lib/common-hooks.sh"
 PLATFORM_NAME="Windows x86_64 (MinGW-w64 UCRT + GCC)"
 PLATFORM_TYPE="native"
 INSTALL_METHOD="bindist"
-#  # CRITICAL: Use quickest flavour on Windows to avoid "32 bit pseudo relocation"
-#  # errors in the Stage1 ghc.exe. Release flavour produces optimized binaries
-#  # that can exceed relocation limits and crash when Cabal tries to detect version.
-#  FLAVOUR="quickest"
-FLAVOUR="quick"
+# CRITICAL: Use quickest flavour on Windows to avoid "32 bit pseudo relocation"
+# errors in the Stage1 ghc.exe. Even "quick" flavour produces 92MB binaries
+# that exceed relocation limits and crash when Cabal tries to detect version.
+# - quick: 92MB ghc.exe, crashes with relocation error
+# - quickest: Uses -O0 everywhere and no dynamic libs, produces smaller binary
+FLAVOUR="quickest"
 
 # ==============================================================================
 # Phase 1: Environment Setup
