@@ -555,33 +555,17 @@ patch_bootstrap_settings() {
     return 1
   fi
 
-  # CRITICAL: Build paths directly from _BUILD_PREFIX, not from ${LD} variable
-  # Conda sets LD=%BUILD_PREFIX%/... so we can't use it - must use _BUILD_PREFIX
-  local LD_WIN="${_BUILD_PREFIX_}"/Library/bin/x86_64-w64-mingw32-ld.exe
-  local AR_WIN="${_BUILD_PREFIX_}"/Library/bin/x86_64-w64-mingw32-ar.exe
-  local NM_WIN="${_BUILD_PREFIX_}"/Library/bin/x86_64-w64-mingw32-nm.exe
-  local RANLIB_WIN="${_BUILD_PREFIX_}"/Library/bin/x86_64-w64-mingw32-ranlib.exe
-  local OBJDUMP_WIN="${_BUILD_PREFIX_}"/Library/bin/x86_64-w64-mingw32-objdump.exe
-  local STRIP_WIN="${_BUILD_PREFIX_}"/Library/bin/x86_64-w64-mingw32-strip.exe
-
-  echo "  Patching with actual paths (from _BUILD_PREFIX):"
-  echo "    LD_WIN=${LD_WIN}"
-  echo "    AR_WIN=${AR_WIN}"
-  echo "    NM_WIN=${NM_WIN}"
-  echo "    RANLIB_WIN=${RANLIB_WIN}"
-
   # Patch settings file
-  perl -pi -e "s#(C compiler command\", \")[^\"]*#\$1${CC}#" "${settings_file}"
-  perl -pi -e "s#(Haskell CPP command\", \")[^\"]*#\$1${CC}#" "${settings_file}"
-  perl -pi -e "s#(C\+\+ compiler command\", \")[^\"]*#\$1${CXX}#" "${settings_file}"
-  # CRITICAL: Fix "ld command" field that points to non-existent $tooldir/mingw/bin/ld.exe
-  perl -pi -e "s#(ld command\", \")[^\"]*#\$1${LD_WIN}#" "${settings_file}"
-  perl -pi -e "s#(Merge objects command\", \")[^\"]*#\$1${LD_WIN}#" "${settings_file}"
-  perl -pi -e "s#(ar command\", \")[^\"]*#\$1${AR_WIN}#" "${settings_file}"
-  perl -pi -e "s#(nm command\", \")[^\"]*#\$1${NM_WIN}#" "${settings_file}"
-  perl -pi -e "s#(ranlib command\", \")[^\"]*#\$1${RANLIB_WIN}#" "${settings_file}"
-  perl -pi -e "s#(objdump command\", \")[^\"]*#\$1${OBJDUMP_WIN}#" "${settings_file}"
-  perl -pi -e "s#(strip command\", \")[^\"]*#\$1${STRIP_WIN}#" "${settings_file}"
+  perl -pi -e "s#(C compiler command\", \")[^\"]*#\$1${_BUILD_PREFIX_}/Library/bin/${CC}#" "${settings_file}"
+  perl -pi -e "s#(Haskell CPP command\", \")[^\"]*#\$1${_BUILD_PREFIX_}/Library/bin/${CC}#" "${settings_file}"
+  perl -pi -e "s#(C\+\+ compiler command\", \")[^\"]*#\$1${_BUILD_PREFIX_}/Library/bin/${CXX}#" "${settings_file}"
+  perl -pi -e "s#(ld command\", \")[^\"]*#\$1${_BUILD_PREFIX_}/Library/bin/${LD}#" "${settings_file}"
+  perl -pi -e "s#(Merge objects command\", \")[^\"]*#\$1${_BUILD_PREFIX_}/Library/bin/${LD}#" "${settings_file}"
+  perl -pi -e "s#(ar command\", \")[^\"]*#\$1${_BUILD_PREFIX_}/Library/bin/${AR}#" "${settings_file}"
+  perl -pi -e "s#(nm command\", \")[^\"]*#\$1${_BUILD_PREFIX_}/Library/bin/${NM}#" "${settings_file}"
+  perl -pi -e "s#(ranlib command\", \")[^\"]*#\$1${_BUILD_PREFIX_}/Library/bin/${RANLIB}#" "${settings_file}"
+  perl -pi -e "s#(objdump command\", \")[^\"]*#\$1${_BUILD_PREFIX_}/Library/bin/${OBJDUMP}#" "${settings_file}"
+  perl -pi -e "s#(strip command\", \")[^\"]*#\$1${_BUILD_PREFIX_}/Library/bin/${STRIP}#" "${settings_file}"
   perl -pi -e "s#(dllwrap command\", \")[^\"]*#\$1false#" "${settings_file}"
 
   # Setup windres wrapper (using _BUILD_PREFIX, not conda variable)
