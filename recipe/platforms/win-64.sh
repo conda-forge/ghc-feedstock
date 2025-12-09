@@ -387,6 +387,28 @@ platform_build_stage2() {
   # This creates _build/stage1/bin/ghc.exe (NOT stage1:exe:ghc-bin which creates stage0!)
   run_and_log "stage2-exe" "${HADRIAN_CMD[@]}" stage2:exe:ghc-bin --flavour="${FLAVOUR}" --freeze1 --docs=none --progress-info=none
 
+  # DEBUG: Test Stage1 ghc.exe to diagnose potential 32-bit relocation issues
+  echo "  ========================================"
+  echo "  DEBUG: Testing Stage1 ghc.exe"
+  echo "  ========================================"
+  local ghc_stage1="${_SRC_DIR}/_build/stage1/bin/ghc.exe"
+  echo "  Binary: ${ghc_stage1}"
+  echo "  Size: $(ls -lh "${ghc_stage1}" 2>/dev/null | awk '{print $5}')"
+  echo "  Testing --version:"
+  if "${ghc_stage1}" --version 2>&1; then
+    echo "  ✓ ghc.exe --version succeeded"
+  else
+    local exit_code=$?
+    echo "  ✗ ghc.exe --version FAILED with exit code: ${exit_code}"
+    echo "  Exit code 0xC0000005 (-1073741819) = Access Violation (likely 32-bit relocation issue)"
+    # Check PE info if objdump available
+    if command -v objdump &>/dev/null; then
+      echo "  PE ImageBase and size:"
+      objdump -p "${ghc_stage1}" 2>/dev/null | grep -E "ImageBase|SizeOfImage" || true
+    fi
+  fi
+  echo "  ========================================"
+
   # Patch Stage1 settings file (created by stage2:exe:ghc-bin)
   patch_stage2_settings
 
