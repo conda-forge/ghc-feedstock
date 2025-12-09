@@ -278,6 +278,24 @@ patch_stage0_settings_include_paths() {
   # CRITICAL: Use _PREFIX (Unix paths) NOT PREFIX (Windows paths)
   # CRITICAL: Include both _PREFIX and _BUILD_PREFIX
   # Use correct regex with closing quote capture group
+  perl -pi -e "s#(C compiler command\", \")[^\"]*#\$1${_BUILD_PREFIX_}/Library/bin/${CC}#" "${settings_file}"
+  perl -pi -e "s#(Haskell CPP command\", \")[^\"]*#\$1${_BUILD_PREFIX_}/Library/bin/${CC}#" "${settings_file}"
+  perl -pi -e "s#(C\+\+ compiler command\", \")[^\"]*#\$1${_BUILD_PREFIX_}/Library/bin/${CXX}#" "${settings_file}"
+  perl -pi -e "s#(ld command\", \")[^\"]*#\$1${_BUILD_PREFIX_}/Library/bin/${LD}#" "${settings_file}"
+  perl -pi -e "s#(Merge objects command\", \")[^\"]*#\$1${_BUILD_PREFIX_}/Library/bin/${LD}#" "${settings_file}"
+  perl -pi -e "s#(ar command\", \")[^\"]*#\$1${_BUILD_PREFIX_}/Library/bin/${AR}#" "${settings_file}"
+  perl -pi -e "s#(nm command\", \")[^\"]*#\$1${_BUILD_PREFIX_}/Library/bin/${NM}#" "${settings_file}"
+  perl -pi -e "s#(ranlib command\", \")[^\"]*#\$1${_BUILD_PREFIX_}/Library/bin/${RANLIB}#" "${settings_file}"
+  perl -pi -e "s#(objdump command\", \")[^\"]*#\$1${_BUILD_PREFIX_}/Library/bin/${OBJDUMP}#" "${settings_file}"
+  perl -pi -e "s#(strip command\", \")[^\"]*#\$1${_BUILD_PREFIX_}/Library/bin/${STRIP}#" "${settings_file}"
+  perl -pi -e "s#(dllwrap command\", \")[^\"]*#\$1false#" "${settings_file}"
+
+  # Setup windres wrapper (using _BUILD_PREFIX, not conda variable)
+  if [[ -f "${_BUILD_PREFIX}/Library/bin/windres.bat" ]]; then
+    local WINDRES_WIN="${_BUILD_PREFIX_}"/Library/bin/windres.bat
+    perl -pi -e "s#(windres command\", \")[^\"]*#\$1${WINDRES_WIN}#" "${settings_file}"
+  fi
+
   perl -pi -e "s#(C compiler flags\", \")([^\"]*)(\")#\$1\$2 -I${_PREFIX}/Library/include -I${_BUILD_PREFIX}/Library/include\$3#" "${settings_file}"
   perl -pi -e "s#(C\+\+ compiler flags\", \")([^\"]*)(\")#\$1\$2 -I${_PREFIX}/Library/include -I${_BUILD_PREFIX}/Library/include\$3#" "${settings_file}"
 
@@ -355,6 +373,23 @@ patch_stage2_settings() {
   local LINK_FLAGS="-Wl,--subsystem,console -Wl,--enable-auto-import -Wl,--image-base=0x140000000 -Wl,--dynamicbase -Wl,--high-entropy-va -Xlinker -L${CHKSTK_DIR} -Xlinker -L${MINGW_SYSROOT}"
   LINK_FLAGS="${LINK_FLAGS} -Xlinker -lmoldname -Xlinker -lmingwex -Xlinker -lmingw32 -Xlinker -lchkstk_ms -Xlinker -lgcc -Xlinker -lucrt -Xlinker -lkernel32 -Xlinker -ladvapi32"
 
+  perl -pi -e "s#(C compiler command\", \")[^\"]*#\$1${_BUILD_PREFIX_}/Library/bin/${CC}#" "${settings_file}"
+  perl -pi -e "s#(Haskell CPP command\", \")[^\"]*#\$1${_BUILD_PREFIX_}/Library/bin/${CC}#" "${settings_file}"
+  perl -pi -e "s#(C\+\+ compiler command\", \")[^\"]*#\$1${_BUILD_PREFIX_}/Library/bin/${CXX}#" "${settings_file}"
+  perl -pi -e "s#(ld command\", \")[^\"]*#\$1${_BUILD_PREFIX_}/Library/bin/${LD}#" "${settings_file}"
+  perl -pi -e "s#(Merge objects command\", \")[^\"]*#\$1${_BUILD_PREFIX_}/Library/bin/${LD}#" "${settings_file}"
+  perl -pi -e "s#(ar command\", \")[^\"]*#\$1${_BUILD_PREFIX_}/Library/bin/${AR}#" "${settings_file}"
+  perl -pi -e "s#(nm command\", \")[^\"]*#\$1${_BUILD_PREFIX_}/Library/bin/${NM}#" "${settings_file}"
+  perl -pi -e "s#(ranlib command\", \")[^\"]*#\$1${_BUILD_PREFIX_}/Library/bin/${RANLIB}#" "${settings_file}"
+  perl -pi -e "s#(objdump command\", \")[^\"]*#\$1${_BUILD_PREFIX_}/Library/bin/${OBJDUMP}#" "${settings_file}"
+  perl -pi -e "s#(strip command\", \")[^\"]*#\$1${_BUILD_PREFIX_}/Library/bin/${STRIP}#" "${settings_file}"
+  perl -pi -e "s#(dllwrap command\", \")[^\"]*#\$1false#" "${settings_file}"
+
+  # Setup windres wrapper (using _BUILD_PREFIX, not conda variable)
+  if [[ -f "${_BUILD_PREFIX}/Library/bin/windres.bat" ]]; then
+    local WINDRES_WIN="${_BUILD_PREFIX_}"/Library/bin/windres.bat
+    perl -pi -e "s#(windres command\", \")[^\"]*#\$1${WINDRES_WIN}#" "${settings_file}"
+  fi
   perl -pi -e "s#(C compiler link flags\", \")#\$1${LINK_FLAGS} #" "${settings_file}"
   perl -pi -e "s#(ld flags\", \")#\$1--subsystem,console --enable-auto-import --image-base=0x140000000 --dynamicbase --high-entropy-va -L${CHKSTK_DIR} -L${MINGW_SYSROOT} -lmoldname -lmingwex -lmingw32 -lchkstk_ms -lgcc -lucrt -lkernel32 -ladvapi32 #" "${settings_file}"
 
