@@ -869,6 +869,13 @@ patch_system_config() {
   perl -pi -e 's#^use-system-ffi\s*=\s*.*$#use-system-ffi = YES#' "${config_file}"
   perl -pi -e "s#^intree-gmp\s*=\s*.*#intree-gmp = NO#" "${config_file}"
 
+  # CRITICAL: Disable threaded RTS for Stage 0 GHC to avoid builderMainLoop errors
+  # The bootstrap GHC on Windows has threaded RTS, but running a threaded Stage 0 GHC
+  # on Azure CI causes "builderMainLoop: invalid argument (Invalid argument)" errors
+  # when it spawns processes during Stage 1/2 compilation.
+  # Setting this to NO makes Hadrian build Stage 0 ghc.exe WITHOUT -threaded.
+  perl -pi -e 's#^bootstrap-threaded-rts\s*=\s*.*$#bootstrap-threaded-rts      = NO#' "${config_file}"
+
   # NOTE: Do NOT add --allow-multiple-definition here!
   # The proper solution is library ordering in Stage1 settings where -lmingw32
   # comes AFTER user objects so user's main() is found first.
