@@ -296,9 +296,11 @@ platform_build_stage1() {
   echo "  Building Stage 1 GHC (Windows)..."
 
   # Build Stage 1 GHC compiler
-  CC="${_BUILD_PREFIX}"/Library/bin/"${CC}" \
-  run_and_log "stage1-ghc" "${HADRIAN_CMD[@]}" --flavour="${HADRIAN_FLAVOUR}" stage1:exe:ghc-bin
-
+  (
+    export CC="${_BUILD_PREFIX}"/Library/bin/"${CC}"
+    run_and_log "stage1-ghc" "${HADRIAN_CMD[@]}" --flavour="${HADRIAN_FLAVOUR}" stage1:exe:ghc-bin CC="${_BUILD_PREFIX}"/Library/bin/"${CC}"
+  )
+  
   # CRITICAL: After stage1:exe:ghc-bin creates _build/stage0/lib/settings,
   # patch it with include paths BEFORE building libraries that need ffi.h
   patch_stage0_settings_include_paths
