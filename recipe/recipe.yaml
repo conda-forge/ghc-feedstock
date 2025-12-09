@@ -49,6 +49,9 @@ source:
           # Without this, platformSupportsSharedLibs returns True for Windows
           # causing Hadrian to request dynamic RTS builds that fail
           - patches/${{ ghc_major }}/fix-hadrian-mingw-w64-platform-detection.patch
+          # Disable -threaded for ghc.exe on Windows to avoid builderMainLoop errors
+          # The bootstrap GHC spawns processes during linking that fail on Azure CI
+          - patches/${{ ghc_major }}/disable-threaded-ghc-exe-windows.patch
 
       # macOS-specific patches
       - if: osx
