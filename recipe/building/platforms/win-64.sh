@@ -29,20 +29,14 @@ platform_setup_environment() {
 
   # Build clean PATH - don't append conda's bad PATH with unexpanded %BUILD_PREFIX% placeholders
   # Include MSYS2 tools (m2-coreutils, m2-bash, etc.) from Library/usr/bin
-  export PATH="${_BUILD_PREFIX}/Library/bin:${_BUILD_PREFIX}/Library/usr/bin:${_BUILD_PREFIX}/ghc-bootstrap/bin:${_BUILD_PREFIX}/bin:/c/Windows/System32:/c/Windows"
+  export PATH="${_BUILD_PREFIX}/Library/bin:${_BUILD_PREFIX}/Library/usr/bin:${_BUILD_PREFIX}/Library/mingw-w64/bin:${_BUILD_PREFIX}/ghc-bootstrap/bin:${_BUILD_PREFIX}/bin:/c/Windows/System32:/c/Windows"
 
   # Set up Cabal environment
   export CABAL="${_BUILD_PREFIX_}/bin/cabal"
   export CABAL_DIR="${SRC_DIR}\\.cabal"
   export _PYTHON="${_BUILD_PREFIX}/python.exe"
-  # CRITICAL: Use _BUILD_PREFIX (Unix path) not BUILD_PREFIX (has %BUILD_PREFIX% placeholder)
   export GHC="${_BUILD_PREFIX}/ghc-bootstrap/bin/ghc.exe"
   export LIBRARY_PATH="${_BUILD_PREFIX}/Library/lib${LIBRARY_PATH:+:}${LIBRARY_PATH:-}"
-
-  # Use GCC toolchain to match bootstrap GHC compiler
-  # export CC="x86_64-w64-mingw32-gcc"
-  # export CXX="x86_64-w64-mingw32-g++"
-  # export CPP="x86_64-w64-mingw32-cpp"
 
   export -p
   
