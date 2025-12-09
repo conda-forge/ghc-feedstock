@@ -29,7 +29,7 @@ platform_setup_environment() {
 
   # Build clean PATH - don't append conda's bad PATH with unexpanded %BUILD_PREFIX% placeholders
   # Include MSYS2 tools (m2-coreutils, m2-bash, etc.) from Library/usr/bin
-  export PATH="${_BUILD_PREFIX_}/Library/bin:${_BUILD_PREFIX_}/Library/usr/bin:${_BUILD_PREFIX_}/ghc-bootstrap/bin:${_BUILD_PREFIX_}/bin:/c/Windows/System32:/c/Windows"
+  export PATH="${_BUILD_PREFIX}/Library/bin:${_BUILD_PREFIX}/Library/usr/bin:${_BUILD_PREFIX}/ghc-bootstrap/bin:${_BUILD_PREFIX}/bin:/c/Windows/System32:/c/Windows"
 
   # Set up Cabal environment
   export CABAL="${_BUILD_PREFIX_}/bin/cabal"
@@ -44,6 +44,8 @@ platform_setup_environment() {
   # export CXX="x86_64-w64-mingw32-g++"
   # export CPP="x86_64-w64-mingw32-cpp"
 
+  export -p
+  
   echo "  GCC toolchain:"
   echo "     CC=${CC}"
   echo "    CXX=${CXX}"
@@ -176,7 +178,7 @@ platform_pre_configure_ghc() {
   
   export ac_cv_prog_CC="${CC}"
   export ac_cv_prog_CXX="${CXX}"
-  export ac_cv_prog_CPP="${CPP}"
+  # export ac_cv_prog_CPP="${CPP}"
   export ac_cv_prog_AR="${AR}"
   export ac_cv_prog_LD="${LD}"
   export ac_cv_prog_NM="${NM}"
