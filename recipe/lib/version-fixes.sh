@@ -314,9 +314,21 @@ is_windows_supported() {
 }
 
 # Get the required bootstrap GHC version for the current version
-# We standardize on 9.2.8 as it's the most reliable bootstrap version
+# Unix: 9.2.8 (most reliable)
+# Windows: 9.6.7 (has process-1.6.19.0 with job object fix for builderMainLoop bug)
 get_bootstrap_version() {
-  echo "9.2.8"
+  local platform="${1:-${target_platform:-linux-64}}"
+
+  case "${platform}" in
+    win-64)
+      # Windows needs 9.6.7 bootstrap which has process-1.6.19.0
+      # GHC 9.2.8's process-1.6.16.0 has a job object bug causing builderMainLoop errors
+      echo "9.6.7"
+      ;;
+    *)
+      echo "9.2.8"
+      ;;
+  esac
 }
 
 # Check if version requires separate ghc-prim/ghc-bignum build steps
