@@ -57,6 +57,9 @@ source:
           - patches/${{ ghc_major }}/disable-process-job-objects-windows.patch
           # Also disable in Cabal library (Hadrian uses Cabal's process wrappers)
           - patches/${{ ghc_major }}/disable-cabal-process-jobs-windows.patch
+          # Disable ghcThreaded in Hadrian default flavour on Windows
+          # This prevents -threaded flag from being passed to ghc.exe builds
+          - patches/${{ ghc_major }}/disable-ghc-threaded-windows-hadrian.patch
 
       # macOS-specific patches
       - if: osx
