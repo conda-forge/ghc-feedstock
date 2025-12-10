@@ -1,0 +1,31 @@
+From: conda-forge
+Subject: [PATCH] Disable process job objects on Windows to avoid Azure DevOps conflicts
+
+Azure DevOps runs builds in a job object. When GHC's builderMainLoop tries to
+create nested job objects for child processes, it can fail with "Invalid argument"
+due to job object nesting restrictions or conflicts with the CI environment.
+
+This patch disables process job tracking on Windows by making enableProcessJobs
+a no-op. This fixes the "builderMainLoop: invalid argument" error on Azure CI.
+
+The job object feature was added to fix GHC #16450, but causes issues in CI
+environments that already use job objects for process management.
+
+diff --git a/compiler/GHC/SysTools/Process.hs b/compiler/GHC/SysTools/Process.hs
+--- a/compiler/GHC/SysTools/Process.hs
++++ b/compiler/GHC/SysTools/Process.hs
+@@ -38,10 +38,14 @@ import GHC.Utils.TmpFs
+
+ -- | Enable process jobs support on Windows if it can be expected to work (e.g.
+ -- @process >= 1.6.9.0@).
++--
++-- NOTE: Disabled for conda-forge builds. Azure DevOps runs builds inside a
++-- job object, and creating nested job objects fails with "Invalid argument".
++-- See GHC #16450 for the original issue that motivated this feature.
+ enableProcessJobs :: CreateProcess -> CreateProcess
+ #if defined(MIN_VERSION_process)
+-enableProcessJobs opts = opts { use_process_jobs = True }
++enableProcessJobs opts = opts  -- Disabled: conflicts with Azure DevOps job objects
+ #else
+ enableProcessJobs opts = opts
+ #endif

@@ -52,6 +52,9 @@ source:
           # Disable -threaded for ghc.exe on Windows to avoid builderMainLoop errors
           # The bootstrap GHC spawns processes during linking that fail on Azure CI
           - patches/${{ ghc_major }}/disable-threaded-ghc-exe-windows.patch
+          # Disable process job objects on Windows - Azure DevOps runs builds in
+          # a job object, and nested job objects cause "Invalid argument" errors
+          - patches/${{ ghc_major }}/disable-process-job-objects-windows.patch
 
       # macOS-specific patches
       - if: osx
