@@ -241,7 +241,12 @@ get_hadrian_flavour() {
   case "${major_version}" in
     9.2)
       # GHC 9.2.x builds are slower, use faster flavours
+      # Windows: Use 'quickest' to avoid 92MB binary size triggering PE/COFF
+      # 32-bit relocation limits (R_X86_64_PC32 overflow)
       case "${platform}" in
+        win-64)
+          echo "quickest"
+          ;;
         *)
           echo "quick"
           ;;
