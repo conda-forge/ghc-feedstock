@@ -174,7 +174,7 @@ platform_pre_configure_ghc() {
   #export ac_cv_prog_CXX="${CXX}"
   # export ac_cv_prog_CPP="${CPP}"
   #export ac_cv_prog_AR="${AR}"
-  #export ac_cv_prog_LD="${LD}"
+  export ac_cv_prog_LD="${_BUILD_PREFIX_}"/Library/bin/"${LD}"
   #export ac_cv_prog_NM="${NM}"
   #export ac_cv_prog_RANLIB="${RANLIB}"
   #export ac_cv_prog_STRIP="${STRIP}"
