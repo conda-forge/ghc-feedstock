@@ -26,19 +26,23 @@ PLATFORM_TYPE="native"
 INSTALL_METHOD="bindist"
 # Windows 32-bit pseudo relocation workaround:
 # Large GHC binaries (>60MB) can crash due to MinGW pseudo-relocations when
-# code addresses exceed ±2GB from Windows DLLs. Two strategies:
+# code addresses exceed ±2GB from Windows DLLs.
 #
-# Strategy 1: Use quickest flavour (smaller binary, -O0)
-# - quickest: ~50MB ghc.exe, works but unoptimized
+# TESTED APPROACHES (all failed for Stage1 ghc.exe):
+# - quick flavour: ~92MB ghc.exe crashes with pseudo relocation error
+# - quick + low-image-base flags: Flags only apply to Stage2 settings,
+#   NOT to Stage1 which is built by Hadrian using bootstrap GHC settings.
+#   LDFLAGS is ignored by GHC build system (known bug #2933).
+# - --default-image-base-low: Not supported by conda-forge binutils
 #
-# Strategy 2: Use quick flavour + low image base (disable ASLR)
-# - quick: ~92MB ghc.exe with -O optimizations
-# - Disable ASLR (--disable-dynamicbase) to keep image at low address
-# - Use --default-image-base-low to maximize address range
-# - See: https://github.com/input-output-hk/haskell.nix/issues/2228
+# WORKING SOLUTION: Use quickest flavour
+# - quickest: ~50MB ghc.exe with -O0, fits within relocation limits
+# - Produces unoptimized but functional GHC
 #
-# Currently trying Strategy 2 for better runtime performance.
-FLAVOUR="quick"
+# Upstream fix needed: GHC #16469 (large memory model on Windows, 5+ years open)
+# See: https://github.com/input-output-hk/haskell.nix/issues/2228
+#      https://gitlab.haskell.org/ghc/ghc/-/issues/16469
+FLAVOUR="quickest"
 
 # ==============================================================================
 # Phase 1: Environment Setup
@@ -370,21 +374,17 @@ patch_stage2_settings() {
   # Build complete link flags string
   # CRITICAL: Use -Xlinker prefix because flags go through GHC to linker
   #
-  # PSEUDO-RELOCATION WORKAROUND:
-  # Large GHC binaries can exceed 32-bit relocation limits when ASLR places
-  # the executable far from Windows DLLs. Workaround:
-  # - --disable-dynamicbase: Disable ASLR to use fixed base address
-  # - --disable-high-entropy-va: Disable 64-bit ASLR randomization
-  # - --default-image-base-low: Force image base below 4GB boundary
-  # - --image-base=0x10000: Very low base address (64KB, just above NULL)
-  # This keeps code addresses as close as possible to Windows DLLs.
-  # See: https://github.com/input-output-hk/haskell.nix/issues/2228
-  #      https://github.com/msys2/MINGW-packages/issues/8139
-  local LINK_FLAGS="-Wl,--subsystem,console -Wl,--enable-auto-import -Wl,--disable-dynamicbase -Wl,--disable-high-entropy-va -Wl,--default-image-base-low -Wl,--image-base=0x10000 -Xlinker -L${CHKSTK_DIR} -Xlinker -L${MINGW_SYSROOT}"
+  # NOTE: These flags affect the INSTALLED GHC (what users compile with),
+  # not the Stage1 ghc.exe used during build. For Stage1 we rely on quickest
+  # flavour to produce small enough binaries.
+  #
+  # For installed GHC: Use low image base to help user programs avoid
+  # pseudo-relocation issues with large binaries.
+  local LINK_FLAGS="-Wl,--subsystem,console -Wl,--enable-auto-import -Wl,--disable-dynamicbase -Wl,--disable-high-entropy-va -Wl,--image-base=0x10000 -Xlinker -L${CHKSTK_DIR} -Xlinker -L${MINGW_SYSROOT}"
   LINK_FLAGS="${LINK_FLAGS} -Xlinker -lmoldname -Xlinker -lmingwex -Xlinker -lmingw32 -Xlinker -lchkstk_ms -Xlinker -lgcc -Xlinker -lucrt -Xlinker -lkernel32 -Xlinker -ladvapi32"
 
   perl -pi -e "s#(C compiler link flags\", \")#\$1${LINK_FLAGS} #" "${settings_file}"
-  perl -pi -e "s#(ld flags\", \")#\$1--subsystem,console --enable-auto-import --disable-dynamicbase --disable-high-entropy-va --default-image-base-low --image-base=0x10000 -L${CHKSTK_DIR} -L${MINGW_SYSROOT} -lmoldname -lmingwex -lmingw32 -lchkstk_ms -lgcc -lucrt -lkernel32 -ladvapi32 #" "${settings_file}"
+  perl -pi -e "s#(ld flags\", \")#\$1--subsystem,console --enable-auto-import --disable-dynamicbase --disable-high-entropy-va --image-base=0x10000 -L${CHKSTK_DIR} -L${MINGW_SYSROOT} -lmoldname -lmingwex -lmingw32 -lchkstk_ms -lgcc -lucrt -lkernel32 -ladvapi32 #" "${settings_file}"
 
   echo "  ✓ Stage2 settings patched"
 }
@@ -770,12 +770,12 @@ rebuild_touchy_with_correct_linker_flags() {
   mkdir -p "$(dirname "${touchy_output}")"
 
   echo "  Compiling touchy.exe with correct flags..."
-  # Use same low-image-base flags as main GHC build for consistency
+  # Use low-image-base flags to avoid pseudo-relocation issues
+  # Note: --default-image-base-low not supported by conda-forge binutils
   "${CC}" "${touchy_source}" -o "${touchy_output}" \
     -Wl,--enable-auto-import \
     -Wl,--disable-dynamicbase \
     -Wl,--disable-high-entropy-va \
-    -Wl,--default-image-base-low \
     -Wl,--image-base=0x10000 \
     -lucrt -lkernel32 || {
     echo "ERROR: Failed to compile touchy.exe"
