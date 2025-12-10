@@ -288,17 +288,15 @@ patch_stage0_settings_include_paths() {
   perl -pi -e "s#(ranlib command\", \")[^\"]*#\$1${_BUILD_PREFIX_}/Library/bin/${RANLIB}#" "${settings_file}"
   perl -pi -e "s#(objdump command\", \")[^\"]*#\$1${_BUILD_PREFIX_}/Library/bin/${OBJDUMP}#" "${settings_file}"
   perl -pi -e "s#(strip command\", \")[^\"]*#\$1${_BUILD_PREFIX_}/Library/bin/${STRIP}#" "${settings_file}"
-  perl -pi -e "s#(windres command\", \")[^\"]*#\$1${_BUILD_PREFIX_}/Library/bin/windres.bat#" "${settings_file}"
   perl -pi -e "s#(dllwrap command\", \")[^\"]*#\$1false#" "${settings_file}"
 
   # Setup windres wrapper (using _BUILD_PREFIX, not conda variable)
   if [[ -f "${_BUILD_PREFIX}/Library/bin/windres.bat" ]]; then
-    local WINDRES_WIN="${_BUILD_PREFIX_}"/Library/bin/windres.bat
-    perl -pi -e "s#(windres command\", \")[^\"]*#\$1${WINDRES_WIN}#" "${settings_file}"
+    perl -pi -e "s#(windres command\", \")[^\"]*#\$1${_BUILD_PREFIX_}/Library/bin/windres.bat#" "${settings_file}"
   fi
 
-  perl -pi -e "s#(C compiler flags\", \")([^\"]*)(\")#\$1\$2 -I${_PREFIX}/Library/include -I${_BUILD_PREFIX}/Library/include\$3#" "${settings_file}"
-  perl -pi -e "s#(C\+\+ compiler flags\", \")([^\"]*)(\")#\$1\$2 -I${_PREFIX}/Library/include -I${_BUILD_PREFIX}/Library/include\$3#" "${settings_file}"
+  perl -pi -e "s#(C compiler flags\", \")([^\"]*)(\")#\$1\$2 -I${_BUILD_PREFIX}/Library/include -I${_PREFIX}/Library/include\$3#" "${settings_file}"
+  perl -pi -e "s#(C\+\+ compiler flags\", \")([^\"]*)(\")#\$1\$2 -I${_BUILD_PREFIX}/Library/include -I${_PREFIX}/Library/include\$3#" "${settings_file}"
 
   # IMPORTANT: DO NOT patch stage0/bootstrap GHC link flags with custom CRT!
   # The bootstrap GHC must use NORMAL MinGW linking so that intermediate
@@ -307,6 +305,7 @@ patch_stage0_settings_include_paths() {
 
   echo "  Stage0 settings after patching:"
   grep "C compiler flags\|C++ compiler flags" "${settings_file}" || echo "  (grep failed)"
+  cat "${settings_file}"
 
   echo "  ✓ Stage0 settings include paths added"
 }
@@ -384,17 +383,17 @@ patch_stage2_settings() {
   perl -pi -e "s#(ranlib command\", \")[^\"]*#\$1${_BUILD_PREFIX_}/Library/bin/${RANLIB}#" "${settings_file}"
   perl -pi -e "s#(objdump command\", \")[^\"]*#\$1${_BUILD_PREFIX_}/Library/bin/${OBJDUMP}#" "${settings_file}"
   perl -pi -e "s#(strip command\", \")[^\"]*#\$1${_BUILD_PREFIX_}/Library/bin/${STRIP}#" "${settings_file}"
-  perl -pi -e "s#(windres command\", \")[^\"]*#\$1${_BUILD_PREFIX_}/Library/bin/windres.bat#" "${settings_file}"
   perl -pi -e "s#(dllwrap command\", \")[^\"]*#\$1false#" "${settings_file}"
 
   # Setup windres wrapper (using _BUILD_PREFIX, not conda variable)
   if [[ -f "${_BUILD_PREFIX}/Library/bin/windres.bat" ]]; then
-    local WINDRES_WIN="${_BUILD_PREFIX_}"/Library/bin/windres.bat
-    perl -pi -e "s#(windres command\", \")[^\"]*#\$1${WINDRES_WIN}#" "${settings_file}"
+    perl -pi -e "s#(windres command\", \")[^\"]*#\$1${_BUILD_PREFIX_}/Library/bin/windres.bat#" "${settings_file}"
   fi
   perl -pi -e "s#(C compiler link flags\", \")#\$1${LINK_FLAGS} #" "${settings_file}"
   perl -pi -e "s#(ld flags\", \")#\$1--subsystem,console --enable-auto-import --image-base=0x140000000 --dynamicbase --high-entropy-va -L${CHKSTK_DIR} -L${MINGW_SYSROOT} -lmoldname -lmingwex -lmingw32 -lchkstk_ms -lgcc -lucrt -lkernel32 -ladvapi32 #" "${settings_file}"
 
+  cat "${settings_file}"
+  
   echo "  ✓ Stage2 settings patched"
 }
 
@@ -412,6 +411,9 @@ platform_build_stage2() {
 
   # NOTE: Do NOT patch stage0 settings here - the bootstrap GHC must use
   # normal MinGW linking. Custom link flags are only for Stage1 settings.
+
+  # Patch Stage1 settings file (created by stage2:exe:ghc-bin)
+  patch_stage2_settings
 
   # CRITICAL: Build stage2:exe:ghc-bin FIRST to generate _build/stage1/lib/settings
   run_and_log "stage2-exe" "${HADRIAN_CMD[@]}" stage2:exe:ghc-bin --flavour="${HADRIAN_FLAVOUR}" --freeze1 --docs=none --progress-info=none
