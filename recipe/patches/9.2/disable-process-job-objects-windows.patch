@@ -1,31 +1,41 @@
 From: conda-forge
-Subject: [PATCH] Disable process job objects on Windows to avoid Azure DevOps conflicts
+Subject: [PATCH] Disable process jobs on Windows to avoid builderMainLoop error
 
-Azure DevOps runs builds in a job object. When GHC's builderMainLoop tries to
-create nested job objects for child processes, it can fail with "Invalid argument"
-due to job object nesting restrictions or conflicts with the CI environment.
+GHC 9.2.8 bundles process-1.6.16.0 which has a bug in Windows job object
+handling that can cause "builderMainLoop: invalid argument" errors when
+spawning processes. This was fixed in process-1.6.18.0 ("Fix deadlock
+when waiting for process completion and process jobs").
 
-This patch disables process job tracking on Windows by making enableProcessJobs
-a no-op. This fixes the "builderMainLoop: invalid argument" error on Azure CI.
+Since we cannot easily upgrade the bundled process library, this patch
+disables the use_process_jobs feature on Windows to avoid the error.
+This means GHC won't use job objects for process management, which is
+fine for the conda-forge build environment.
 
-The job object feature was added to fix GHC #16450, but causes issues in CI
-environments that already use job objects for process management.
+See:
+- https://hackage.haskell.org/package/process-1.6.24.0/changelog
+- https://github.com/haskell/cabal/issues/7309
+- https://gitlab.haskell.org/ghc/ghc/-/issues/18274
 
 diff --git a/compiler/GHC/SysTools/Process.hs b/compiler/GHC/SysTools/Process.hs
 --- a/compiler/GHC/SysTools/Process.hs
 +++ b/compiler/GHC/SysTools/Process.hs
-@@ -38,10 +38,14 @@ import GHC.Utils.TmpFs
+@@ -36,13 +36,17 @@ import System.Process
 
- -- | Enable process jobs support on Windows if it can be expected to work (e.g.
- -- @process >= 1.6.9.0@).
-+--
-+-- NOTE: Disabled for conda-forge builds. Azure DevOps runs builds inside a
-+-- job object, and creating nested job objects fails with "Invalid argument".
-+-- See GHC #16450 for the original issue that motivated this feature.
+ import GHC.Utils.TmpFs
+
+--- | Enable process jobs support on Windows if it can be expected to work (e.g.
+--- @process >= 1.6.9.0@).
++-- | Enable process jobs support on Windows if it can be expected to work
++-- (e.g. @process >= 1.6.9.0@).
++-- CONDA-FORGE: Disabled on Windows due to builderMainLoop errors with
++-- process-1.6.16.0 bundled with GHC 9.2.8. The bug was fixed in process-1.6.18.0.
  enableProcessJobs :: CreateProcess -> CreateProcess
- #if defined(MIN_VERSION_process)
--enableProcessJobs opts = opts { use_process_jobs = True }
-+enableProcessJobs opts = opts  -- Disabled: conflicts with Azure DevOps job objects
+-#if defined(MIN_VERSION_process)
++#if defined(MIN_VERSION_process) && !defined(mingw32_HOST_OS)
+ enableProcessJobs opts = opts { use_process_jobs = True }
  #else
++-- On Windows (mingw32_HOST_OS) or when process version is unknown,
++-- don't enable process jobs to avoid "builderMainLoop: invalid argument" errors
  enableProcessJobs opts = opts
  #endif
+
