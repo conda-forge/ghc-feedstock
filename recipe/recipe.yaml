@@ -111,6 +111,9 @@ tests:
             - hpc
             - runghc
             - runhaskell
+        - if: not unix
+          then:
+            - ghc_windres.bat
       files:
         - etc/conda/activate.d/ghc_activate.${{ "sh" if unix else "bat" }}
         - if: unix

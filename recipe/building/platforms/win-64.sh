@@ -288,6 +288,7 @@ patch_stage0_settings_include_paths() {
   perl -pi -e "s#(ranlib command\", \")[^\"]*#\$1${_BUILD_PREFIX_}/Library/bin/${RANLIB}#" "${settings_file}"
   perl -pi -e "s#(objdump command\", \")[^\"]*#\$1${_BUILD_PREFIX_}/Library/bin/${OBJDUMP}#" "${settings_file}"
   perl -pi -e "s#(strip command\", \")[^\"]*#\$1${_BUILD_PREFIX_}/Library/bin/${STRIP}#" "${settings_file}"
+  perl -pi -e "s#(windres command\", \")[^\"]*#\$1${_BUILD_PREFIX_}/Library/bin/windres.bat#" "${settings_file}"
   perl -pi -e "s#(dllwrap command\", \")[^\"]*#\$1false#" "${settings_file}"
 
   # Setup windres wrapper (using _BUILD_PREFIX, not conda variable)
@@ -383,6 +384,7 @@ patch_stage2_settings() {
   perl -pi -e "s#(ranlib command\", \")[^\"]*#\$1${_BUILD_PREFIX_}/Library/bin/${RANLIB}#" "${settings_file}"
   perl -pi -e "s#(objdump command\", \")[^\"]*#\$1${_BUILD_PREFIX_}/Library/bin/${OBJDUMP}#" "${settings_file}"
   perl -pi -e "s#(strip command\", \")[^\"]*#\$1${_BUILD_PREFIX_}/Library/bin/${STRIP}#" "${settings_file}"
+  perl -pi -e "s#(windres command\", \")[^\"]*#\$1${_BUILD_PREFIX_}/Library/bin/windres.bat#" "${settings_file}"
   perl -pi -e "s#(dllwrap command\", \")[^\"]*#\$1false#" "${settings_file}"
 
   # Setup windres wrapper (using _BUILD_PREFIX, not conda variable)
@@ -461,6 +463,7 @@ platform_install_ghc() {
 
   # Windows binary distributions are relocatable - just copy the contents
   cp -r "${bindist_dir}"/* "${_PREFIX}"/
+  cp -r "${_BUILD_PREFIX}"/Library/bin/windres.bat "${_PREFIX}"/ghc_windres.bat
 
   echo "  ✓ Installation completed"
 
@@ -601,6 +604,7 @@ patch_bootstrap_settings() {
   perl -pi -e "s#(ranlib command\", \")[^\"]*#\$1${_BUILD_PREFIX_}/Library/bin/${RANLIB}#" "${settings_file}"
   perl -pi -e "s#(objdump command\", \")[^\"]*#\$1${_BUILD_PREFIX_}/Library/bin/${OBJDUMP}#" "${settings_file}"
   perl -pi -e "s#(strip command\", \")[^\"]*#\$1${_BUILD_PREFIX_}/Library/bin/${STRIP}#" "${settings_file}"
+  perl -pi -e "s#(windres command\", \")[^\"]*#\$1${_BUILD_PREFIX_}/Library/bin/windres.bat#" "${settings_file}"
   perl -pi -e "s#(dllwrap command\", \")[^\"]*#\$1false#" "${settings_file}"
 
   # Setup windres wrapper (using _BUILD_PREFIX, not conda variable)
@@ -729,6 +733,7 @@ post_install_cleanup() {
 
     # Fix: Change \$2 to $2 for proper backreference
     perl -pi -e 's#((?:C compiler|C\+\+ compiler|Haskell CPP|ld|Merge objects|ar|ranlib) command",\s*")[^"]*-(gcc|g\+\+|ld|ar|ranlib)(?:.exe)?#$1x86_64-w64-mingw32-$2.exe#' "${settings_file}"
+    perl -pi -e "s#(windres command\", \")[^\"]*#\$1\$topdir/../../bin/ghc_windres.bat#" "${settings_file}"
     perl -pi -e 's#(compiler link flags",\s*"[^"]*)#$1 -Wl,-L\$topdir/../../lib#' "${settings_file}"
     perl -pi -e 's#(ld flags",\s*"[^"]*)#$1 -L\$topdir/../../lib#' "${settings_file}"
 
