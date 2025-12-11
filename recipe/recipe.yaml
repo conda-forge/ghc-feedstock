@@ -1,6 +1,10 @@
 context:
   version: "9.2.8"
-  bootstrap_version: "9.2.8"
+  # Bootstrap version differs by platform:
+  # - Unix: 9.2.8 (most reliable)
+  # - Windows: 9.6.7 (has process-1.6.19.0 which fixes builderMainLoop job object bug)
+  bootstrap_version_unix: "9.2.8"
+  bootstrap_version_windows: "9.6.7"
   # GHC major version for patch selection (e.g., "9.2" from "9.2.8")
   ghc_major: "9.2"
 
@@ -49,6 +53,10 @@ source:
           # Without this, platformSupportsSharedLibs returns True for Windows
           # causing Hadrian to request dynamic RTS builds that fail
           - patches/${{ ghc_major }}/fix-hadrian-mingw-w64-platform-detection.patch
+          # Hadrian Cabal 3.10 compatibility - required when using GHC 9.6.7 bootstrap
+          # GHC 9.6.7 has Cabal 3.10 which removed readGenericPackageDescription API
+          # This patch adds conditional code to use parseGenericPackageDescription instead
+          - patches/${{ ghc_major }}/hadrian-cabal-3.10-compat.patch
           # Disable -threaded for ghc.exe on Windows to avoid builderMainLoop errors
           # The bootstrap GHC spawns processes during linking that fail on Azure CI
           - patches/${{ ghc_major }}/disable-threaded-ghc-exe-windows.patch
@@ -61,8 +69,7 @@ source:
           # This prevents -threaded flag from being passed to ghc.exe builds
           - patches/${{ ghc_major }}/disable-ghc-threaded-windows-hadrian.patch
           # Disable job objects in process library C code (libraries/process)
-          # This is the KEY fix - Stage 1 GHC will have patched process library
-          # so it won't trigger builderMainLoop when building Stage 2
+          # Belt-and-suspenders: ensures Stage 1 GHC also has patched process library
           - patches/${{ ghc_major }}/disable-process-library-job-objects-windows.patch
 
       # macOS-specific patches
@@ -77,7 +84,10 @@ build:
   number: 0
   script:
     env:
-      BOOTSTRAP_VERSION: ${{ bootstrap_version }}
+      # BOOTSTRAP_VERSION is determined at runtime by get_bootstrap_version() in version-fixes.sh
+      # based on target platform (unix=9.2.8, windows=9.6.7)
+      BOOTSTRAP_VERSION_UNIX: ${{ bootstrap_version_unix }}
+      BOOTSTRAP_VERSION_WINDOWS: ${{ bootstrap_version_windows }}
 
 requirements:
   build:
@@ -87,7 +97,12 @@ requirements:
     - binutils >=${{ binutils_version }}
     - cabal ==3.10.3.0
     - curl
-    - ghc-bootstrap ==${{ bootstrap_version }}
+    # Bootstrap GHC: use 9.2.8 on Unix, 9.6.7 on Windows
+    # Windows needs 9.6.7 because it has process-1.6.19.0 which fixes the
+    # builderMainLoop job object bug (GHC 9.2.8 has buggy process-1.6.16.0)
+    - if: unix
+      then: ghc-bootstrap ==${{ bootstrap_version_unix }}
+      else: ghc-bootstrap ==${{ bootstrap_version_windows }}
     - llvm-tools ${{ c_compiler_version }}.*
     - perl 5.32.*
     - pkg-config

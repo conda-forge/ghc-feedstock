@@ -314,9 +314,23 @@ is_windows_supported() {
 }
 
 # Get the required bootstrap GHC version for the current version
-# We standardize on 9.2.8 as it's the most reliable bootstrap version
+# Unix: Use 9.2.8 as it's the most reliable bootstrap version
+# Windows: Use 9.6.7 because it has process-1.6.19.0 which fixes the
+#          builderMainLoop job object bug (fixed in process-1.6.18.0)
+#          GHC 9.2.8 bundles process-1.6.16.0 which has the bug
 get_bootstrap_version() {
-  echo "9.2.8"
+  local platform="${target_platform:-${build_platform:-}}"
+
+  case "${platform}" in
+    win-64|win-*)
+      # Windows needs 9.6.7 bootstrap for fixed process library
+      echo "9.6.7"
+      ;;
+    *)
+      # Unix platforms use 9.2.8
+      echo "9.2.8"
+      ;;
+  esac
 }
 
 # Check if version requires separate ghc-prim/ghc-bignum build steps
