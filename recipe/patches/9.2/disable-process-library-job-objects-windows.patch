@@ -1,0 +1,43 @@
+From: conda-forge
+Subject: [PATCH] Disable job objects in process library to fix builderMainLoop error
+
+GHC 9.2.8 bundles process-1.6.16.0 which has a bug in Windows job object
+handling that causes "builderMainLoop: invalid argument" errors. The bug
+was fixed in process-1.6.18.0 but we cannot easily upgrade the bundled library.
+
+This patch makes the createJob() function in the process library's C code
+return NULL immediately, effectively disabling job objects. This is safe
+because job objects are an optimization for process management, not a
+required feature.
+
+The Stage 1 GHC we build will contain this patched process library, so when
+it compiles Stage 2 GHC, the builderMainLoop error won't occur.
+
+See:
+- https://hackage.haskell.org/package/process-1.6.24.0/changelog
+- https://github.com/haskell/cabal/issues/7309
+
+diff --git a/libraries/process/cbits/win32/runProcess.c b/libraries/process/cbits/win32/runProcess.c
+--- a/libraries/process/cbits/win32/runProcess.c
++++ b/libraries/process/cbits/win32/runProcess.c
+@@ -212,6 +212,12 @@ fail:
+ static HANDLE
+ createJob ()
+ {
++    // CONDA-FORGE: Disable job objects to avoid "builderMainLoop: invalid argument"
++    // errors caused by a bug in process-1.6.16.0 (fixed in 1.6.18.0).
++    // Job objects are an optimization, not required for correct operation.
++    return NULL;
++
++#if 0  // Original code disabled
+     HANDLE hJob = CreateJobObject (NULL, NULL);
+     JOBOBJECT_EXTENDED_LIMIT_INFORMATION jeli;
+     ZeroMemory(&jeli, sizeof(JOBOBJECT_EXTENDED_LIMIT_INFORMATION));
+@@ -226,6 +232,7 @@ createJob ()
+
+     maperrno();
+     return NULL;
++#endif
+ }
+
+ /* Small helper function that determines how the std handle should be used.

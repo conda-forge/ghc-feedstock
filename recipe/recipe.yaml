@@ -60,6 +60,10 @@ source:
           # Disable ghcThreaded in Hadrian default flavour on Windows
           # This prevents -threaded flag from being passed to ghc.exe builds
           - patches/${{ ghc_major }}/disable-ghc-threaded-windows-hadrian.patch
+          # Disable job objects in process library C code (libraries/process)
+          # This is the KEY fix - Stage 1 GHC will have patched process library
+          # so it won't trigger builderMainLoop when building Stage 2
+          - patches/${{ ghc_major }}/disable-process-library-job-objects-windows.patch
 
       # macOS-specific patches
       - if: osx
@@ -83,11 +87,7 @@ requirements:
     - binutils >=${{ binutils_version }}
     - cabal ==3.10.3.0
     - curl
-    # Windows needs GHC 9.6.7 bootstrap (has process-1.6.19.0 with job object fix)
-    # Unix can use GHC 9.2.8 bootstrap
-    - if: unix
-      then: ghc-bootstrap ==${{ bootstrap_version }}
-      else: ghc-bootstrap ==9.6.7
+    - ghc-bootstrap ==${{ bootstrap_version }}
     - llvm-tools ${{ c_compiler_version }}.*
     - perl 5.32.*
     - pkg-config
