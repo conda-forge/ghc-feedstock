@@ -57,6 +57,9 @@ source:
           # GHC 9.6.7 has Cabal 3.10 which removed readGenericPackageDescription API
           # This patch adds conditional code to use parseGenericPackageDescription instead
           - patches/${{ ghc_major }}/hadrian-cabal-3.10-compat.patch
+          # Relax version bounds for GHC 9.6.7 bootstrap compatibility
+          # GHC 9.6.7 has base 4.18.x (libs require < 4.17) and time 1.12.2 (require < 1.12)
+          - patches/${{ ghc_major }}/relax-bootstrap-version-bounds.patch
           # Disable -threaded for ghc.exe on Windows to avoid builderMainLoop errors
           # The bootstrap GHC spawns processes during linking that fail on Azure CI
           - patches/${{ ghc_major }}/disable-threaded-ghc-exe-windows.patch
