@@ -414,7 +414,7 @@ relax_bootstrap_version_bounds() {
       echo "    ✓ Patched: $(basename ${cabal_file})"
       ((++count))  # Use pre-increment to avoid exit code 1 when count=0
     fi
-  done < <(find "${libraries_dir}" -name "*.cabal" -o -name "*.cabal.in" -print0 2>/dev/null)
+  done < <(find "${libraries_dir}" \( -name "*.cabal" -o -name "*.cabal.in" \) -print0 2>/dev/null)
 
   echo "  ✓ Version bounds relaxed in ${count} files for 9.6.7 bootstrap compatibility"
 }
