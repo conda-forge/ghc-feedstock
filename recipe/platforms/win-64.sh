@@ -333,8 +333,45 @@ patch_stage0_settings_include_paths() {
   echo "  ✓ Stage0 settings include paths added"
 }
 
+prepopulate_stage0_package_db() {
+  # Pre-populate Stage0 package database with boot packages from bootstrap GHC.
+  # This works around an issue where ghc-pkg stdin piping fails silently on Windows,
+  # causing Hadrian's copyConf to not produce the expected .conf files.
+  #
+  # When conf files already exist, Hadrian's copyConf skips the ghc-pkg operations
+  # (see: unlessM (liftIO $ IO.doesFileExist conf) in Rules/Register.hs)
+
+  echo "  Pre-populating Stage0 package database from bootstrap GHC..."
+
+  local stage0_pkg_db="${_SRC_DIR}/_build/stage0/lib/package.conf.d"
+  local bootstrap_pkg_db="${_BUILD_PREFIX}/ghc-bootstrap/lib/package.conf.d"
+
+  # Create stage0 package database directory
+  mkdir -p "${stage0_pkg_db}"
+
+  # Initialize package database
+  "${_BUILD_PREFIX}/ghc-bootstrap/bin/ghc-pkg" init "${stage0_pkg_db}" 2>/dev/null || true
+
+  # Copy all .conf files from bootstrap
+  local count=0
+  for conf in "${bootstrap_pkg_db}"/*.conf; do
+    if [[ -f "${conf}" ]]; then
+      cp "${conf}" "${stage0_pkg_db}/"
+      count=$((count + 1))
+    fi
+  done
+
+  # Recache the package database
+  "${_BUILD_PREFIX}/ghc-bootstrap/bin/ghc-pkg" --package-db="${stage0_pkg_db}" recache
+
+  echo "  ✓ Copied ${count} package configs to Stage0 database"
+}
+
 platform_build_stage1() {
   echo "  Building Stage 1 GHC (Windows)..."
+
+  # Pre-populate Stage0 package database to avoid ghc-pkg stdin piping issues
+  prepopulate_stage0_package_db
 
   # Build Stage 1 GHC compiler
   run_and_log "stage1-ghc" "${HADRIAN_CMD[@]}" --flavour="${HADRIAN_FLAVOUR}" stage1:exe:ghc-bin
