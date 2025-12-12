@@ -1,16 +1,26 @@
+From: conda-forge
+Subject: [PATCH] Add Cabal 3.10 compatibility for Hadrian
+
+GHC 9.6.7 ships with Cabal 3.10 which removed the readGenericPackageDescription
+and readHookedBuildInfo APIs. This patch adds conditional code using
+MIN_VERSION_Cabal macros to use the new parseGenericPackageDescription and
+parseHookedBuildInfo APIs when building with Cabal >= 3.8.0.
+
+This is required when using GHC 9.6.7 as bootstrap to build GHC 9.2.8.
+
 --- a/hadrian/src/Hadrian/Haskell/Cabal/Parse.hs
 +++ b/hadrian/src/Hadrian/Haskell/Cabal/Parse.hs
-@@ -46,6 +46,9 @@
+@@ -44,6 +44,9 @@
+ #if !MIN_VERSION_Cabal(3,4,0)
+ import qualified Distribution.Types.CondTree                   as C
  #endif
- import qualified Distribution.Verbosity                        as C
- import Hadrian.Expression
 +#if MIN_VERSION_Cabal(3,8,0)
 +import qualified Data.ByteString as BS
 +#endif
+ import qualified Distribution.Verbosity                        as C
+ import Hadrian.Expression
  import Hadrian.Haskell.Cabal
- import Hadrian.Haskell.Cabal.Type
- import Hadrian.Oracles.Cabal
-@@ -63,7 +66,17 @@
+@@ -64,7 +67,15 @@
  parsePackageData :: Package -> Action PackageData
  parsePackageData pkg = do
      gpd <- traced "cabal-read" $
@@ -26,8 +36,8 @@
      let pd      = C.packageDescription gpd
          pkgId   = C.package pd
          name    = C.unPackageName (C.pkgName pkgId)
-@@ -88,7 +101,18 @@
- 
+@@ -89,7 +100,15 @@
+
  -- | Parse the package identifier from a Cabal file.
  parseCabalPkgId :: FilePath -> IO String
 +#if MIN_VERSION_Cabal(3,8,0)
@@ -39,11 +49,10 @@
 +#else
  parseCabalPkgId file = C.display . C.package . C.packageDescription <$> C.readGenericPackageDescription C.silent file
 +#endif
- 
+
  biModules :: C.PackageDescription -> (C.BuildInfo, [C.ModuleName], Maybe (C.ModuleName, String))
  biModules pd = go [ comp | comp@(bi,_,_) <-
-@@ -314,7 +338,16 @@
- getHookedBuildInfo (baseDir:baseDirs) = do
+@@ -315,7 +334,15 @@
      maybeInfoFile <- C.findHookedPackageDesc C.normal baseDir
      case maybeInfoFile of
          Nothing       -> getHookedBuildInfo baseDirs
@@ -56,6 +65,6 @@
 +#else
          Just infoFile -> C.readHookedBuildInfo C.silent infoFile
 +#endif
- 
+
  externalPackageDeps :: C.LocalBuildInfo -> [(C.UnitId, C.MungedPackageId)]
  externalPackageDeps lbi =
