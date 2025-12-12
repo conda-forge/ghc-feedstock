@@ -6,6 +6,10 @@ and readHookedBuildInfo APIs. This patch adds conditional code using
 MIN_VERSION_Cabal macros to use the new parseGenericPackageDescription and
 parseHookedBuildInfo APIs when building with Cabal >= 3.8.0.
 
+In Cabal 3.8+, these parse functions return Either instead of ParseResult:
+- parseGenericPackageDescription :: ByteString -> Either (Maybe Version, NonEmpty PError) GenericPackageDescription
+- parseHookedBuildInfo :: ByteString -> Either (Maybe Version, NonEmpty PError) HookedBuildInfo
+
 This is required when using GHC 9.6.7 as bootstrap to build GHC 9.2.8.
 
 --- a/hadrian/src/Hadrian/Haskell/Cabal/Parse.hs
@@ -28,8 +32,8 @@ This is required when using GHC 9.6.7 as bootstrap to build GHC 9.2.8.
 +        do
 +            contents <- liftIO $ BS.readFile (pkgCabalFile pkg)
 +            case C.parseGenericPackageDescription contents of
-+                C.ParseFailed err -> error $ "Failed to parse " ++ pkgCabalFile pkg ++ ": " ++ show err
-+                C.ParseOk _ gpd' -> return gpd'
++                Left err -> error $ "Failed to parse " ++ pkgCabalFile pkg ++ ": " ++ show err
++                Right gpd' -> return gpd'
 +#else
          C.readGenericPackageDescription C.verbose (pkgCabalFile pkg)
 +#endif
@@ -44,8 +48,8 @@ This is required when using GHC 9.6.7 as bootstrap to build GHC 9.2.8.
 +parseCabalPkgId file = do
 +    contents <- BS.readFile file
 +    case C.parseGenericPackageDescription contents of
-+        C.ParseFailed err -> error $ "Failed to parse " ++ file ++ ": " ++ show err
-+        C.ParseOk _ gpd -> return $ C.display . C.package . C.packageDescription $ gpd
++        Left err -> error $ "Failed to parse " ++ file ++ ": " ++ show err
++        Right gpd -> return $ C.display . C.package . C.packageDescription $ gpd
 +#else
  parseCabalPkgId file = C.display . C.package . C.packageDescription <$> C.readGenericPackageDescription C.silent file
 +#endif
@@ -60,8 +64,8 @@ This is required when using GHC 9.6.7 as bootstrap to build GHC 9.2.8.
 +        Just infoFile -> do
 +            contents <- BS.readFile infoFile
 +            case C.parseHookedBuildInfo contents of
-+                C.ParseFailed err -> error $ "Failed to parse " ++ infoFile ++ ": " ++ show err
-+                C.ParseOk _ hbi -> return hbi
++                Left err -> error $ "Failed to parse " ++ infoFile ++ ": " ++ show err
++                Right hbi -> return hbi
 +#else
          Just infoFile -> C.readHookedBuildInfo C.silent infoFile
 +#endif
