@@ -6,9 +6,9 @@ and readHookedBuildInfo APIs. This patch adds conditional code using
 MIN_VERSION_Cabal macros to use the new parseGenericPackageDescription and
 parseHookedBuildInfo APIs when building with Cabal >= 3.8.0.
 
-In Cabal 3.8+, these parse functions return Either instead of ParseResult:
-- parseGenericPackageDescription :: ByteString -> Either (Maybe Version, NonEmpty PError) GenericPackageDescription
-- parseHookedBuildInfo :: ByteString -> Either (Maybe Version, NonEmpty PError) HookedBuildInfo
+In Cabal 3.8+, these parse functions return ParseResult (a newtype), and
+you must use runParseResult to extract the Either:
+  runParseResult :: ParseResult a -> ([PWarning], Either (Maybe Version, NonEmpty PError) a)
 
 This is required when using GHC 9.6.7 as bootstrap to build GHC 9.2.8.
 
@@ -24,14 +24,15 @@ This is required when using GHC 9.6.7 as bootstrap to build GHC 9.2.8.
  import qualified Distribution.Verbosity                        as C
  import Hadrian.Expression
  import Hadrian.Haskell.Cabal
-@@ -64,7 +67,15 @@
+@@ -64,7 +67,16 @@
  parsePackageData :: Package -> Action PackageData
  parsePackageData pkg = do
      gpd <- traced "cabal-read" $
 +#if MIN_VERSION_Cabal(3,8,0)
 +        do
 +            contents <- liftIO $ BS.readFile (pkgCabalFile pkg)
-+            case C.parseGenericPackageDescription contents of
++            let result = C.parseGenericPackageDescription contents
++            case snd (C.runParseResult result) of
 +                Left err -> error $ "Failed to parse " ++ pkgCabalFile pkg ++ ": " ++ show err
 +                Right gpd' -> return gpd'
 +#else
@@ -40,14 +41,15 @@ This is required when using GHC 9.6.7 as bootstrap to build GHC 9.2.8.
      let pd      = C.packageDescription gpd
          pkgId   = C.package pd
          name    = C.unPackageName (C.pkgName pkgId)
-@@ -89,7 +100,15 @@
+@@ -89,7 +101,16 @@
 
  -- | Parse the package identifier from a Cabal file.
  parseCabalPkgId :: FilePath -> IO String
 +#if MIN_VERSION_Cabal(3,8,0)
 +parseCabalPkgId file = do
 +    contents <- BS.readFile file
-+    case C.parseGenericPackageDescription contents of
++    let result = C.parseGenericPackageDescription contents
++    case snd (C.runParseResult result) of
 +        Left err -> error $ "Failed to parse " ++ file ++ ": " ++ show err
 +        Right gpd -> return $ C.display . C.package . C.packageDescription $ gpd
 +#else
@@ -56,14 +58,15 @@ This is required when using GHC 9.6.7 as bootstrap to build GHC 9.2.8.
 
  biModules :: C.PackageDescription -> (C.BuildInfo, [C.ModuleName], Maybe (C.ModuleName, String))
  biModules pd = go [ comp | comp@(bi,_,_) <-
-@@ -315,7 +334,15 @@
+@@ -315,7 +336,16 @@
      maybeInfoFile <- C.findHookedPackageDesc C.normal baseDir
      case maybeInfoFile of
          Nothing       -> getHookedBuildInfo baseDirs
 +#if MIN_VERSION_Cabal(3,8,0)
 +        Just infoFile -> do
 +            contents <- BS.readFile infoFile
-+            case C.parseHookedBuildInfo contents of
++            let result = C.parseHookedBuildInfo contents
++            case snd (C.runParseResult result) of
 +                Left err -> error $ "Failed to parse " ++ infoFile ++ ": " ++ show err
 +                Right hbi -> return hbi
 +#else
