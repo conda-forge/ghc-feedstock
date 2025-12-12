@@ -380,53 +380,43 @@ relax_bootstrap_version_bounds() {
 
   echo "  Relaxing library version bounds for GHC 9.6.7 bootstrap..."
 
-  # Files that need base/time bounds relaxed
-  local base_time_files=(
-    "${libraries_dir}/array/array.cabal"
-    "${libraries_dir}/deepseq/deepseq.cabal"
-    "${libraries_dir}/directory/directory.cabal"
-    "${libraries_dir}/filepath/filepath.cabal"
-    "${libraries_dir}/ghc-compact/ghc-compact.cabal"
-    "${libraries_dir}/haskeline/haskeline.cabal"
-    "${libraries_dir}/hpc/hpc.cabal"
-    "${libraries_dir}/parsec/parsec.cabal"
-    "${libraries_dir}/process/process.cabal"
-    "${libraries_dir}/stm/stm.cabal"
-    "${libraries_dir}/terminfo/terminfo.cabal"
-    "${libraries_dir}/unix/unix.cabal"
-  )
+  # Find ALL .cabal and .cabal.in files in libraries/ and patch them
+  # This is more robust than maintaining a manual list
+  local count=0
+  while IFS= read -r -d '' cabal_file; do
+    local modified=false
 
-  for cabal_file in "${base_time_files[@]}"; do
-    if [[ -f "${cabal_file}" ]]; then
-      # Relax base < 4.17/4.18 to < 4.19
+    # Relax base < 4.17 to < 4.19
+    if grep -q "base.*<.*4\.17" "${cabal_file}" 2>/dev/null; then
       sed -i 's/base[[:space:]]*>=[[:space:]]*[0-9.]*[[:space:]]*&&[[:space:]]*<[[:space:]]*4\.17/base >= 4.5 \&\& < 4.19/g' "${cabal_file}"
+      modified=true
+    fi
+
+    # Relax base < 4.18 to < 4.19
+    if grep -q "base.*<.*4\.18" "${cabal_file}" 2>/dev/null; then
       sed -i 's/base[[:space:]]*>=[[:space:]]*[0-9.]*[[:space:]]*&&[[:space:]]*<[[:space:]]*4\.18/base >= 4.5 \&\& < 4.19/g' "${cabal_file}"
-      # Relax time < 1.12 to < 1.14
+      modified=true
+    fi
+
+    # Relax time < 1.12 to < 1.14
+    if grep -q "time.*<.*1\.12" "${cabal_file}" 2>/dev/null; then
       sed -i 's/time[[:space:]]*>=[[:space:]]*[0-9.]*[[:space:]]*&&[[:space:]]*<[[:space:]]*1\.12/time >= 1.2 \&\& < 1.14/g' "${cabal_file}"
-      echo "    ✓ Patched base/time: $(basename ${cabal_file})"
+      modified=true
     fi
-  done
 
-  # Files that need ghc-prim bounds relaxed (< 0.9 -> < 0.11)
-  # GHC 9.6.7 has ghc-prim 0.10.0
-  local ghc_prim_files=(
-    "${libraries_dir}/base/base.cabal"
-    "${libraries_dir}/ghc-bignum/ghc-bignum.cabal"
-    "${libraries_dir}/ghc-compact/ghc-compact.cabal"
-    "${libraries_dir}/ghc-heap/ghc-heap.cabal.in"
-    "${libraries_dir}/ghci/ghci.cabal.in"
-    "${libraries_dir}/text/text.cabal"
-  )
-
-  for cabal_file in "${ghc_prim_files[@]}"; do
-    if [[ -f "${cabal_file}" ]]; then
-      # Relax ghc-prim < 0.9 to < 0.11
+    # Relax ghc-prim < 0.9 to < 0.11
+    if grep -q "ghc-prim.*<.*0\.9" "${cabal_file}" 2>/dev/null; then
       sed -i 's/ghc-prim[[:space:]]*>[=]*[[:space:]]*[0-9.]*[[:space:]]*&&[[:space:]]*<[[:space:]]*0\.9/ghc-prim >= 0.2 \&\& < 0.11/g' "${cabal_file}"
-      echo "    ✓ Patched ghc-prim: $(basename ${cabal_file})"
+      modified=true
     fi
-  done
 
-  echo "  ✓ Version bounds relaxed for 9.6.7 bootstrap compatibility"
+    if [[ "${modified}" == "true" ]]; then
+      echo "    ✓ Patched: $(basename ${cabal_file})"
+      ((count++))
+    fi
+  done < <(find "${libraries_dir}" -name "*.cabal" -o -name "*.cabal.in" -print0 2>/dev/null)
+
+  echo "  ✓ Version bounds relaxed in ${count} files for 9.6.7 bootstrap compatibility"
 }
 
 echo "  ✓ Version fixes library loaded (GHC $(get_ghc_major_version))"
