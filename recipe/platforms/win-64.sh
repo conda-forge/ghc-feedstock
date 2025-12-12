@@ -380,8 +380,18 @@ prepopulate_stage0_package_db() {
 platform_build_stage1() {
   echo "  Building Stage 1 GHC (Windows)..."
 
-  # Pre-populate Stage0 package database to avoid ghc-pkg stdin piping issues
-  prepopulate_stage0_package_db
+  # NOTE: Pre-population of Stage0 package database was disabled.
+  # The approach of copying bootstrap package configs into Stage0 causes issues:
+  # - Package configs use ${pkgroot} which expands to wrong locations
+  # - Replacing ${pkgroot} with absolute paths points to bootstrap directories
+  #   that may not have all expected files (e.g., ghcversion.h)
+  # - The bootstrap GHC should use ITS OWN package database, not Stage0's
+  #
+  # With GHC 9.6.7 as bootstrap (which has fixed process library), the original
+  # ghc-pkg stdin piping issue may no longer occur. Let's test without pre-population.
+  #
+  # If ghc-pkg issues return, the fix should be to patch Hadrian to use temp files
+  # instead of stdin piping, NOT to pre-populate the Stage0 database.
 
   # Build Stage 1 GHC compiler
   run_and_log "stage1-ghc" "${HADRIAN_CMD[@]}" --flavour="${HADRIAN_FLAVOUR}" stage1:exe:ghc-bin
