@@ -129,6 +129,12 @@ platform_setup_environment() {
   mkdir -p "${_BUILD_PREFIX}/bin"
   cp "${_BUILD_PREFIX}/Library/usr/bin/m4.exe" "${_BUILD_PREFIX}/bin/" 2>/dev/null || true
 
+  # Relax library version bounds for GHC 9.6.7 bootstrap compatibility
+  # GHC 9.6.7 has base 4.18.x and time 1.12.2, but GHC 9.2.8 libraries
+  # require base < 4.17 and time < 1.12. This sed-based fix is more reliable
+  # than patches since the line numbers vary across library cabal files.
+  relax_bootstrap_version_bounds "${SRC_DIR}"
+
   echo "  ✓ Windows environment configured"
 }
 

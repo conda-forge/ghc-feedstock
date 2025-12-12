@@ -365,4 +365,49 @@ uses_ghc_toolchain() {
   esac
 }
 
+# Relax library version bounds for GHC 9.6.7 bootstrap compatibility
+# GHC 9.6.7 bundles: base 4.18.x, time 1.12.2
+# GHC 9.2.8 libraries require: base < 4.17, time < 1.12
+# This function relaxes upper bounds so 9.6.7 can build 9.2.8
+relax_bootstrap_version_bounds() {
+  local src_dir="${1:-${SRC_DIR:-$(pwd)}}"
+  local libraries_dir="${src_dir}/libraries"
+
+  if [[ ! -d "${libraries_dir}" ]]; then
+    echo "WARNING: Cannot relax version bounds - libraries dir not found: ${libraries_dir}"
+    return 1
+  fi
+
+  echo "  Relaxing library version bounds for GHC 9.6.7 bootstrap..."
+
+  # Relax base upper bound: < 4.17 -> < 4.19
+  local cabal_files=(
+    "${libraries_dir}/array/array.cabal"
+    "${libraries_dir}/deepseq/deepseq.cabal"
+    "${libraries_dir}/directory/directory.cabal"
+    "${libraries_dir}/filepath/filepath.cabal"
+    "${libraries_dir}/ghc-compact/ghc-compact.cabal"
+    "${libraries_dir}/haskeline/haskeline.cabal"
+    "${libraries_dir}/hpc/hpc.cabal"
+    "${libraries_dir}/parsec/parsec.cabal"
+    "${libraries_dir}/process/process.cabal"
+    "${libraries_dir}/stm/stm.cabal"
+    "${libraries_dir}/terminfo/terminfo.cabal"
+    "${libraries_dir}/unix/unix.cabal"
+  )
+
+  for cabal_file in "${cabal_files[@]}"; do
+    if [[ -f "${cabal_file}" ]]; then
+      # Relax base < 4.17 to < 4.19
+      sed -i 's/base[[:space:]]*>=[[:space:]]*[0-9.]*[[:space:]]*&&[[:space:]]*<[[:space:]]*4\.17/base >= 4.5 \&\& < 4.19/g' "${cabal_file}"
+      sed -i 's/base[[:space:]]*>=[[:space:]]*[0-9.]*[[:space:]]*&&[[:space:]]*<[[:space:]]*4\.18/base >= 4.5 \&\& < 4.19/g' "${cabal_file}"
+      # Relax time < 1.12 to < 1.14
+      sed -i 's/time[[:space:]]*>=[[:space:]]*[0-9.]*[[:space:]]*&&[[:space:]]*<[[:space:]]*1\.12/time >= 1.2 \&\& < 1.14/g' "${cabal_file}"
+      echo "    ✓ Patched: $(basename ${cabal_file})"
+    fi
+  done
+
+  echo "  ✓ Version bounds relaxed for 9.6.7 bootstrap compatibility"
+}
+
 echo "  ✓ Version fixes library loaded (GHC $(get_ghc_major_version))"
