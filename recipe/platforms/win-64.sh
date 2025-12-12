@@ -340,11 +340,17 @@ prepopulate_stage0_package_db() {
   #
   # When conf files already exist, Hadrian's copyConf skips the ghc-pkg operations
   # (see: unlessM (liftIO $ IO.doesFileExist conf) in Rules/Register.hs)
+  #
+  # CRITICAL: Package configs use ${pkgroot} which resolves relative to the
+  # package.conf.d directory. After copying, we MUST replace ${pkgroot} with
+  # the absolute path to the bootstrap's lib directory, otherwise include paths
+  # will resolve to the build directory instead of the bootstrap installation.
 
   echo "  Pre-populating Stage0 package database from bootstrap GHC..."
 
   local stage0_pkg_db="${_SRC_DIR}/_build/stage0/lib/package.conf.d"
   local bootstrap_pkg_db="${_BUILD_PREFIX}/ghc-bootstrap/lib/package.conf.d"
+  local bootstrap_lib_dir="${_BUILD_PREFIX}/ghc-bootstrap/lib"
 
   # Create stage0 package database directory
   mkdir -p "${stage0_pkg_db}"
@@ -352,11 +358,15 @@ prepopulate_stage0_package_db() {
   # Initialize package database
   "${_BUILD_PREFIX}/ghc-bootstrap/bin/ghc-pkg" init "${stage0_pkg_db}" 2>/dev/null || true
 
-  # Copy all .conf files from bootstrap
+  # Copy all .conf files from bootstrap and replace ${pkgroot} with absolute path
   local count=0
   for conf in "${bootstrap_pkg_db}"/*.conf; do
     if [[ -f "${conf}" ]]; then
-      cp "${conf}" "${stage0_pkg_db}/"
+      local basename
+      basename=$(basename "${conf}")
+      # Copy and replace ${pkgroot} with absolute path to bootstrap lib directory
+      # This ensures include-dirs, library-dirs etc. point to the bootstrap installation
+      sed "s|\${pkgroot}|${bootstrap_lib_dir}|g" "${conf}" > "${stage0_pkg_db}/${basename}"
       count=$((count + 1))
     fi
   done
@@ -364,7 +374,7 @@ prepopulate_stage0_package_db() {
   # Recache the package database
   "${_BUILD_PREFIX}/ghc-bootstrap/bin/ghc-pkg" --package-db="${stage0_pkg_db}" recache
 
-  echo "  ✓ Copied ${count} package configs to Stage0 database"
+  echo "  ✓ Copied ${count} package configs to Stage0 database (with absolute paths)"
 }
 
 platform_build_stage1() {
