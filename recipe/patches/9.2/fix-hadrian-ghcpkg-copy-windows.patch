@@ -11,8 +11,8 @@ file path to ghc-pkg register instead of using stdin with "-".
 Uses withFile to ensure the file handle is properly closed before
 ghc-pkg reads it (critical on Windows where file locking is strict).
 
-Also adds --force to handle any validation issues with cross-version
-package registration.
+Also removes --expand-pkgroot to avoid issues with %BUILD_PREFIX% paths
+that don't expand properly on Windows, and adds --force for robustness.
 
 See: https://github.com/haskell/process/issues/273
 
@@ -29,18 +29,20 @@ index 1234567..abcdefg 100644
 
  import Base
  import Context
-@@ -336,13 +337,24 @@ runBuilderWith rs b ctx@Context {..} as = do
+@@ -336,14 +337,24 @@ runBuilderWith rs b ctx@Context {..} as = do
                      Stdout stdout <- cmd' (Stdin stdin) [path] buildArgs
                      writeFileChanged output stdout
 
 +                -- On Windows, stdin piping through MSYS2/cmd.exe is unreliable.
 +                -- Write package description to a temp file instead of stdin.
 +                -- Use withFile to ensure handle is closed before ghc-pkg reads.
++                -- Don't use --expand-pkgroot as it leaves %BUILD_PREFIX% unexpanded.
 +                -- See: https://github.com/haskell/process/issues/273
                  GhcPkg Copy _ -> do
                      Stdout pkgDesc <- cmd' [path]
-                       [ "--expand-pkgroot"
-                       , "--no-user-package-db"
+-                      [ "--expand-pkgroot"
+-                      , "--no-user-package-db"
++                      [ "--no-user-package-db"
                        , "describe"
                        , input -- the package name
                        ]
@@ -50,9 +52,8 @@ index 1234567..abcdefg 100644
 +                    liftIO $ withFile tmpFile WriteMode $ \h -> do
 +                      hPutStr h pkgDesc
 +                      hFlush h
-+                    -- Use --force for cross-version registration, remove -v0 for debugging
-+                    let args = filter (/= "-v0") buildArgs ++ ["--force", tmpFile]
-+                    Exit _ <- cmd' [path] args
++                    -- Use --force for robustness
++                    Exit _ <- cmd' [path] (buildArgs ++ ["--force", tmpFile])
 +                    return ()
 
                  GhcPkg Unregister _ -> do
