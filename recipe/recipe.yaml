@@ -74,6 +74,10 @@ source:
           # Disable job objects in process library C code (libraries/process)
           # Belt-and-suspenders: ensures Stage 1 GHC also has patched process library
           - patches/${{ ghc_major }}/disable-process-library-job-objects-windows.patch
+          # Fix ghc-pkg stdin piping issue on Windows
+          # ghc-pkg describe | ghc-pkg register - fails randomly on Windows/MSYS2
+          # This patch uses a temp file instead of stdin for package registration
+          - patches/${{ ghc_major }}/fix-hadrian-ghcpkg-copy-windows.patch
 
       # macOS-specific patches
       - if: osx

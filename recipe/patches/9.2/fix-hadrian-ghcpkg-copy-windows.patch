@@ -1,0 +1,56 @@
+From: Claude <noreply@anthropic.com>
+Subject: [PATCH] Fix ghc-pkg copy stdin piping on Windows
+
+On Windows with MSYS2/cmd.exe, stdin piping from ghc-pkg describe to
+ghc-pkg register is unreliable. This causes random failures when copying
+packages from the bootstrap GHC to Stage0's package database.
+
+The fix writes the package description to a temp file and passes the
+file path to ghc-pkg register instead of using stdin with "-".
+
+See: https://github.com/haskell/process/issues/273
+
+diff --git a/hadrian/src/Builder.hs b/hadrian/src/Builder.hs
+index 1234567..abcdefg 100644
+--- a/hadrian/src/Builder.hs
++++ b/hadrian/src/Builder.hs
+@@ -17,6 +17,7 @@ import Control.Exception.Extra (Partial)
+ import qualified Data.ByteString.Lazy.Char8 as BSL
+ import Development.Shake.Classes
+ import Development.Shake.Command
++import qualified Development.Shake.Command as Shake
+ import Development.Shake.FilePath
+ import GHC.Generics
+ import qualified Hadrian.Builder as H
+@@ -29,6 +30,7 @@ import Hadrian.Oracles.TextFile
+ import Hadrian.Utilities
+ import Oracles.Setting (bashPath)
+ import System.Exit
++import System.Directory (removeFile)
+ import System.IO (stderr)
+
+ import Base
+@@ -336,13 +338,21 @@ runBuilderWith rs b ctx@Context {..} as = do
+                     Stdout stdout <- cmd' (Stdin stdin) [path] buildArgs
+                     writeFileChanged output stdout
+
++                -- On Windows, stdin piping through MSYS2/cmd.exe is unreliable.
++                -- Write package description to a temp file instead of stdin.
++                -- See: https://github.com/haskell/process/issues/273
+                 GhcPkg Copy _ -> do
+                     Stdout pkgDesc <- cmd' [path]
+                       [ "--expand-pkgroot"
+                       , "--no-user-package-db"
+                       , "describe"
+                       , input -- the package name
+                       ]
+-                    cmd' (Stdin pkgDesc) [path] (buildArgs ++ ["-"])
++                    -- Use a temp file instead of stdin to avoid Windows piping issues
++                    let tmpFile = output <.> "pkg-desc"
++                    liftIO $ writeFile tmpFile pkgDesc
++                    cmd' [path] (buildArgs ++ [tmpFile])
++                    -- Clean up temp file
++                    liftIO $ removeFile tmpFile
+
+                 GhcPkg Unregister _ -> do
+                     Exit _ <- cmd' echo [path] (buildArgs ++ [input])
