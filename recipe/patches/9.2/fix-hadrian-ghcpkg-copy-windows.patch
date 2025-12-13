@@ -8,26 +8,31 @@ packages from the bootstrap GHC to Stage0's package database.
 The fix writes the package description to a temp file and passes the
 file path to ghc-pkg register instead of using stdin with "-".
 
+Uses withFile to ensure the file handle is properly closed before
+ghc-pkg reads it (critical on Windows where file locking is strict).
+
 See: https://github.com/haskell/process/issues/273
 
 diff --git a/hadrian/src/Builder.hs b/hadrian/src/Builder.hs
 index 1234567..abcdefg 100644
 --- a/hadrian/src/Builder.hs
 +++ b/hadrian/src/Builder.hs
-@@ -29,6 +29,7 @@ import Hadrian.Oracles.TextFile
+@@ -29,7 +29,7 @@ import Hadrian.Oracles.TextFile
  import Hadrian.Utilities
  import Oracles.Setting (bashPath)
  import System.Exit
-+import qualified System.Directory as SD
- import System.IO (stderr)
+-import System.IO (stderr)
++import System.IO (stderr, withFile, IOMode(..), hPutStr, hFlush)
 
  import Base
-@@ -336,13 +337,22 @@ runBuilderWith rs b ctx@Context {..} as = do
+ import Context
+@@ -336,13 +337,23 @@ runBuilderWith rs b ctx@Context {..} as = do
                      Stdout stdout <- cmd' (Stdin stdin) [path] buildArgs
                      writeFileChanged output stdout
 
 +                -- On Windows, stdin piping through MSYS2/cmd.exe is unreliable.
 +                -- Write package description to a temp file instead of stdin.
++                -- Use withFile to ensure handle is closed before ghc-pkg reads.
 +                -- See: https://github.com/haskell/process/issues/273
                  GhcPkg Copy _ -> do
                      Stdout pkgDesc <- cmd' [path]
@@ -37,12 +42,12 @@ index 1234567..abcdefg 100644
                        , input -- the package name
                        ]
 -                    cmd' (Stdin pkgDesc) [path] (buildArgs ++ ["-"])
-+                    -- Use a temp file instead of stdin to avoid Windows piping issues
++                    -- Write to temp file with explicit flush and close
 +                    let tmpFile = output <.> "pkg-desc"
-+                    liftIO $ writeFile tmpFile pkgDesc
++                    liftIO $ withFile tmpFile WriteMode $ \h -> do
++                      hPutStr h pkgDesc
++                      hFlush h
 +                    Exit _ <- cmd' [path] (buildArgs ++ [tmpFile])
-+                    -- Clean up temp file
-+                    liftIO $ SD.removeFile tmpFile
 +                    return ()
 
                  GhcPkg Unregister _ -> do
