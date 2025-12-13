@@ -11,6 +11,9 @@ file path to ghc-pkg register instead of using stdin with "-".
 Uses withFile to ensure the file handle is properly closed before
 ghc-pkg reads it (critical on Windows where file locking is strict).
 
+Also adds --force to handle any validation issues with cross-version
+package registration.
+
 See: https://github.com/haskell/process/issues/273
 
 diff --git a/hadrian/src/Builder.hs b/hadrian/src/Builder.hs
@@ -26,7 +29,7 @@ index 1234567..abcdefg 100644
 
  import Base
  import Context
-@@ -336,13 +337,23 @@ runBuilderWith rs b ctx@Context {..} as = do
+@@ -336,13 +337,24 @@ runBuilderWith rs b ctx@Context {..} as = do
                      Stdout stdout <- cmd' (Stdin stdin) [path] buildArgs
                      writeFileChanged output stdout
 
@@ -47,7 +50,9 @@ index 1234567..abcdefg 100644
 +                    liftIO $ withFile tmpFile WriteMode $ \h -> do
 +                      hPutStr h pkgDesc
 +                      hFlush h
-+                    Exit _ <- cmd' [path] (buildArgs ++ [tmpFile])
++                    -- Use --force for cross-version registration, remove -v0 for debugging
++                    let args = filter (/= "-v0") buildArgs ++ ["--force", tmpFile]
++                    Exit _ <- cmd' [path] args
 +                    return ()
 
                  GhcPkg Unregister _ -> do
