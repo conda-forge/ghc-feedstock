@@ -1,0 +1,275 @@
+context:
+  version: "9.6.7"
+  bootstrap_version: "9.2.8"
+
+package:
+  name: ghc
+  version: ${{ version }}
+
+source:
+  - url: https://downloads.haskell.org/~ghc/${{ version }}/ghc-${{ version }}-src.tar.xz
+    sha256: d053bf6ce1d588a75cfe8c9316269486e9d8fb89dcdf6fd92836fa2e3df61305
+    patches:
+      - if: aarch64 or ppc64le or arm64
+        then: patches/skip-bindist-recache-crosscompile.patch
+      - if: not unix
+        then:
+          - patches/skip-mingw-copy-conda.patch
+          - patches/force-system-gmp-windows.patch
+          - patches/add-ffi-include-dir-substitution.patch
+          - patches/fix-windows-thriomanager-include.patch
+          - patches/add-threadlabels-include-consolehandler.patch
+          - patches/fix-windows-utimbuf-type.patch
+          - patches/disable-split-sections-windows.patch
+          - patches/skip-mingw-detection-error.patch
+          - patches/fix-windows-reportmemorymap-format.patch
+          - patches/fix-windows-pei386-format.patch
+          - patches/fix-windows-mmap-format.patch
+          - patches/fix-hp2ps-utilities-stdlib.patch
+      - if: osx and arm64
+        then:
+          - patches/patch-osname-macos.patch
+
+build:
+  number: 0
+  script:
+    env:
+      BOOTSTRAP_VERSION: ${{ bootstrap_version }}
+
+requirements:
+  build:
+    - ${{ compiler('c') }}
+    - ${{ compiler('cxx') }}
+    - ${{ stdlib('c') }}
+    - binutils >=${{ binutils_version }}
+    - cabal ==3.10.3.0
+    - curl
+    - ghc-bootstrap ==${{ bootstrap_version }}
+    - llvm-tools ${{ c_compiler_version }}.*
+    - perl 5.32.*
+    - pkg-config
+    - python 3.10.*
+    - sphinx
+
+    - if: unix
+      then:
+        - autoconf
+        - automake
+        - bash >=5.2
+        - file
+        - findutils
+        - m4
+        - make
+        - sed
+      else:
+        - libgcc-devel_win-64
+        - m2-autoconf
+        - m2-automake-wrapper
+        - m2-bash >=5.2
+        - m2-coreutils
+        - m2-file
+        - m2-findutils
+        - m2-grep
+        - m2-m4
+        - m2-make
+        - m2-sed
+        - m2-tar
+        - m2-which
+
+    - if: build_platform != target_platform
+      then:
+        - gmp
+        - libffi
+        - libiconv
+        - if: unix
+          then: ncurses
+  host:
+    - gmp
+    - libiconv
+    - libffi
+    - if: unix
+      then: ncurses
+  # run:
+  #   - if: unix
+  #     then: ncurses
+  # ignore_run_exports:
+  #   from_package:
+  #     - ncurses
+    
+tests:
+  - package_contents:
+      bin:
+        - ghc
+        - ghc-pkg
+        - ghci
+        - hp2ps
+        - hsc2hs
+        - if: build_platform == target_platform
+          then:
+            - haddock
+            - hpc
+            - runghc
+            - runhaskell
+        - if: not unix
+          then:
+            - ghc_windres.bat
+      files:
+        - etc/conda/activate.d/ghc_activate.${{ "sh" if unix else "bat" }}
+        - if: unix
+          then:
+            - etc/bash_completion.d/ghc
+            - lib/ghc-${{ version }}/lib/llvm-passes
+            - lib/ghc-${{ version }}/lib/llvm-targets
+            - lib/ghc-${{ version }}/lib/package.conf.d/**
+            - lib/ghc-${{ version }}/lib/ghc-usage.txt
+            - lib/ghc-${{ version }}/lib/ghci-usage.txt
+            - lib/ghc-${{ version }}/lib/settings
+            - lib/ghc-${{ version }}/lib/template-hsc.h
+            - lib/ghc-${{ version }}/lib/*-ghc-${{ version }}/**
+          else:
+            - include/**
+            - lib/bin/ghc-iserv.exe
+            - lib/bin/touchy.exe
+            - lib/bin/unlit.exe
+            - lib/ghc-usage.txt
+            - lib/ghci-usage.txt
+            - lib/llvm-passes
+            - lib/llvm-targets
+            - lib/package.conf.d/**
+            - lib/settings
+            - lib/template-hsc.h
+            - lib/x86_64-windows-ghc-${{ version }}/**
+
+  - script:
+      - ghc --version
+      - ghc-pkg --version
+      - ghci --version
+      - hsc2hs --version
+      - if: build_platform == target_platform
+        then:
+          - haddock --version
+          - hpc help
+          - runghc --version
+          - runhaskell --version
+
+  - script:
+      - ghc --version
+      - printf 'main = putStrLn "Hello conda-forge"\n' > hello.hs
+      - ghc -v hello.hs
+      - if: unix
+        then: ./hello
+        else: hello
+      - if: not unix
+        then:
+          # Verify GHC can resolve and invoke windres via $topdir path in settings
+          - ghc --print-libdir
+          - ghc --info | findstr windres
+          # Test windres wrapper by manually compiling a resource file
+          # GHC 9.6.x doesn't automatically process user .rc files through windres
+          - echo main = return () > test_res.hs
+          - echo 1 RCDATA { "test" } > test.rc
+          - cmd /c "%PREFIX%\lib\..\bin\ghc_windres.bat" --input=test.rc --output=test_res_rc.o --output-format=coff
+          - ghc -v test_res.hs test_res_rc.o -o test_res.exe
+    requirements:
+      run:
+        - ${{ compiler('c') }}
+        - libiconv
+        - if: unix
+          then:
+            - ${{ stdlib('c') }}
+        - if: linux
+          then:
+            - ld_impl_${{ target_platform }} ${{ binutils_version }}
+        - if: osx or not unix
+          then:
+            - lld ${{ c_compiler_version }}.*
+
+  - script:
+      - if: not osx
+        then:
+          - printf 'main = putStrLn "Hello threaded conda-forge"\n' > hello_t.hs
+          - ghc -threaded hello_t.hs
+          - if: unix
+            then: ./hello_t
+            else: hello_t
+          - if: unix
+            then:
+              - printf 'main = putStrLn "Hello profiled conda-forge"\n' > hello_p.hs
+              - ghc -v -prof hello_p.hs
+              - ./hello_p
+            else: echo "No profiling on non-unix"
+        else: echo "Profiling fails on osx"
+    requirements:
+      run:
+        - ${{ compiler('c') }}
+        - libiconv
+        - if: unix
+          then:
+            - ${{ stdlib('c') }}
+        - if: linux
+          then:
+            - ld_impl_${{ target_platform }} ${{ binutils_version }}
+
+  - script:
+      - if: unix
+        then:
+          - printf 'main = putStrLn "Hello conda-forge"\n' > hello.hs
+          - ghc -dynamic hello.hs && ./hello
+          - printf 'main = putStrLn "Hello threaded conda-forge"\n' > hello_t.hs
+          - ghc -dynamic -threaded hello_t.hs && ./hello_t
+        else:
+          - echo "No dyn on non-unix"
+    requirements:
+      run:
+        - ${{ compiler('c') }}
+        - libiconv
+        - if: unix
+          then:
+            - ${{ stdlib('c') }}
+        - if: linux
+          then:
+            - ld_impl_${{ target_platform }} ${{ binutils_version }}
+        - if: osx
+          then:
+            - lld ${{ c_compiler_version }}.*
+
+  - script:
+      - printf 'import System.Posix.Signals\nmain = installHandler sigTERM Default Nothing >> putStrLn "Signal test"\n' > signal_test.hs
+      - if: unix
+        then: |
+          ghc signal_test.hs
+          ./signal_test
+        else: |
+          echo Skipping signal test on Windows
+    requirements:
+      run:
+        - ${{ compiler('c') }}
+        - libiconv
+        - if: unix
+          then:
+            - ${{ stdlib('c') }}
+        - if: linux
+          then:
+            - ld_impl_${{ target_platform }} ${{ binutils_version }}
+        - if: osx
+          then:
+            - lld ${{ c_compiler_version }}.*
+
+
+about:
+  homepage: https://haskell.org/ghc/
+  license: BSD-3-Clause
+  license_file:
+    - LICENSE
+  summary: Glorious Glasgow Haskell Compilation System
+  description: |
+    GHC is a state-of-the-art, open source, compiler and interactive environment 
+    for the functional language Haskell.
+  documentation: https://www.haskell.org/ghc/documentation.html
+  repository: https://gitlab.haskell.org/ghc/ghc
+
+extra:
+  recipe-maintainers:
+    - eggzilla
+    - step21
+    - xhochy
