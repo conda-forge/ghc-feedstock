@@ -14,23 +14,15 @@ diff --git a/hadrian/src/Builder.hs b/hadrian/src/Builder.hs
 index 1234567..abcdefg 100644
 --- a/hadrian/src/Builder.hs
 +++ b/hadrian/src/Builder.hs
-@@ -17,6 +17,7 @@ import Control.Exception.Extra (Partial)
- import qualified Data.ByteString.Lazy.Char8 as BSL
- import Development.Shake.Classes
- import Development.Shake.Command
-+import qualified Development.Shake.Command as Shake
- import Development.Shake.FilePath
- import GHC.Generics
- import qualified Hadrian.Builder as H
-@@ -29,6 +30,7 @@ import Hadrian.Oracles.TextFile
+@@ -29,6 +29,7 @@ import Hadrian.Oracles.TextFile
  import Hadrian.Utilities
  import Oracles.Setting (bashPath)
  import System.Exit
-+import System.Directory (removeFile)
++import qualified System.Directory as SD
  import System.IO (stderr)
 
  import Base
-@@ -336,13 +338,21 @@ runBuilderWith rs b ctx@Context {..} as = do
+@@ -336,13 +337,21 @@ runBuilderWith rs b ctx@Context {..} as = do
                      Stdout stdout <- cmd' (Stdin stdin) [path] buildArgs
                      writeFileChanged output stdout
 
@@ -50,7 +42,7 @@ index 1234567..abcdefg 100644
 +                    liftIO $ writeFile tmpFile pkgDesc
 +                    cmd' [path] (buildArgs ++ [tmpFile])
 +                    -- Clean up temp file
-+                    liftIO $ removeFile tmpFile
++                    liftIO $ SD.removeFile tmpFile
 
                  GhcPkg Unregister _ -> do
                      Exit _ <- cmd' echo [path] (buildArgs ++ [input])
