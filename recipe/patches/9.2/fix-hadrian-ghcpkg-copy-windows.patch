@@ -22,7 +22,7 @@ index 1234567..abcdefg 100644
  import System.IO (stderr)
 
  import Base
-@@ -336,13 +337,21 @@ runBuilderWith rs b ctx@Context {..} as = do
+@@ -336,13 +337,22 @@ runBuilderWith rs b ctx@Context {..} as = do
                      Stdout stdout <- cmd' (Stdin stdin) [path] buildArgs
                      writeFileChanged output stdout
 
@@ -40,9 +40,10 @@ index 1234567..abcdefg 100644
 +                    -- Use a temp file instead of stdin to avoid Windows piping issues
 +                    let tmpFile = output <.> "pkg-desc"
 +                    liftIO $ writeFile tmpFile pkgDesc
-+                    cmd' [path] (buildArgs ++ [tmpFile])
++                    Exit _ <- cmd' [path] (buildArgs ++ [tmpFile])
 +                    -- Clean up temp file
 +                    liftIO $ SD.removeFile tmpFile
++                    return ()
 
                  GhcPkg Unregister _ -> do
                      Exit _ <- cmd' echo [path] (buildArgs ++ [input])
