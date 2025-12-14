@@ -11,8 +11,9 @@ file path to ghc-pkg register instead of using stdin with "-".
 Uses withFile to ensure the file handle is properly closed before
 ghc-pkg reads it (critical on Windows where file locking is strict).
 
-Also filters out haddock-interfaces and haddock-html fields which may
-contain unexpanded %BUILD_PREFIX% paths that cause registration issues.
+Also filters out haddock-interfaces and haddock-html fields (including
+their continuation lines) which may contain unexpanded %BUILD_PREFIX%
+paths that cause registration issues.
 
 See: https://github.com/haskell/process/issues/273
 
@@ -35,7 +36,7 @@ diff --git a/hadrian/src/Builder.hs b/hadrian/src/Builder.hs
 
  import Base
  import Context
-@@ -336,13 +337,29 @@
+@@ -336,13 +337,37 @@
                      Stdout stdout <- cmd' (Stdin stdin) [path] buildArgs
                      writeFileChanged output stdout
 
@@ -52,11 +53,19 @@ diff --git a/hadrian/src/Builder.hs b/hadrian/src/Builder.hs
                        , input -- the package name
                        ]
 -                    cmd' (Stdin pkgDesc) [path] (buildArgs ++ ["-"])
-+                    -- Filter out haddock fields that may have bad paths
++                    -- Filter out haddock fields and their continuation lines
++                    -- Continuation lines start with whitespace
 +                    let dominated field line = field `isPrefixOf` line
-+                        dominated' line = dominated "haddock-interfaces:" line
-+                                       || dominated "haddock-html:" line
-+                        cleanedDesc = unlines $ filter (not . dominated') $ lines pkgDesc
++                        isContinuation line = case line of
++                          (c:_) -> c == ' ' || c == '\t'
++                          []    -> False
++                        -- Remove haddock fields and following continuation lines
++                        filterFields [] = []
++                        filterFields (l:ls)
++                          | dominated "haddock-interfaces:" l = filterFields (dropWhile isContinuation ls)
++                          | dominated "haddock-html:" l = filterFields (dropWhile isContinuation ls)
++                          | otherwise = l : filterFields ls
++                        cleanedDesc = unlines $ filterFields $ lines pkgDesc
 +                    -- Write to temp file with explicit flush and close
 +                    let tmpFile = output <.> "pkg-desc"
 +                    liftIO $ withFile tmpFile WriteMode $ \h -> do
