@@ -1,51 +1,44 @@
 From: Claude <noreply@anthropic.com>
-Subject: [PATCH] Debug ghc-pkg copy on Windows
+Subject: [PATCH] Fix Stage0 package registration for mismatched bootstrap versions
 
-Add diagnostic output to understand why ghc-pkg register doesn't
-create the expected .conf file on Windows. Use putStrLn for stdout
-which is more likely to appear in CI logs.
+When using a newer bootstrap GHC (e.g., 9.6.7 to build 9.2.8), the
+bootstrap may have different package versions than the source. For
+example, bootstrap has template-haskell-2.20.0.0 while source has
+template-haskell-2.18.0.0.
 
-diff --git a/hadrian/src/Builder.hs b/hadrian/src/Builder.hs
---- a/hadrian/src/Builder.hs
-+++ b/hadrian/src/Builder.hs
-@@ -17,6 +17,7 @@
- import Control.Exception.Extra (Partial)
- import qualified Data.ByteString.Lazy.Char8 as BSL
-+import qualified System.Directory as Dir
- import Development.Shake.Classes
- import Development.Shake.Command
- import Development.Shake.FilePath
-@@ -336,13 +337,30 @@
-                     Stdout stdout <- cmd' (Stdin stdin) [path] buildArgs
-                     writeFileChanged output stdout
+The original logic checks if a package NAME is in stagePackages to
+decide between copyConf (copy from bootstrap) and buildConf (build
+from source). But when the VERSION differs, we need to copy from
+bootstrap, not build from source.
 
-+                -- Debug: print what we're doing for GhcPkg Copy
-                 GhcPkg Copy _ -> do
-+                    liftIO $ putStrLn "=============================================="
-+                    liftIO $ putStrLn $ "GHCPKG_COPY_DEBUG: input=" ++ input
-+                    liftIO $ putStrLn $ "GHCPKG_COPY_DEBUG: output=" ++ output
-+                    liftIO $ putStrLn $ "GHCPKG_COPY_DEBUG: path=" ++ path
-                     Stdout pkgDesc <- cmd' [path]
-                       [ "--expand-pkgroot"
-                       , "--no-user-package-db"
-                       , "describe"
-                       , input -- the package name
-                       ]
--                    cmd' (Stdin pkgDesc) [path] (buildArgs ++ ["-"])
-+                    liftIO $ putStrLn $ "GHCPKG_COPY_DEBUG: pkgDesc length=" ++ show (length pkgDesc)
-+                    liftIO $ putStrLn $ "GHCPKG_COPY_DEBUG: pkgDesc first 300 chars:"
-+                    liftIO $ putStrLn $ take 300 pkgDesc
-+                    liftIO $ putStrLn $ "GHCPKG_COPY_DEBUG: buildArgs=" ++ show buildArgs
-+                    -- Run the original command
-+                    cmd' (Stdin pkgDesc) [path] (buildArgs ++ ["-"])
-+                    -- Check if output file exists
-+                    exists <- liftIO $ Dir.doesFileExist output
-+                    liftIO $ putStrLn $ "GHCPKG_COPY_DEBUG: after register, file exists=" ++ show exists
-+                    -- List files in output directory
-+                    let dir = takeDirectory output
-+                    files <- liftIO $ Dir.listDirectory dir
-+                    liftIO $ putStrLn $ "GHCPKG_COPY_DEBUG: files in dir: " ++ show (take 30 files)
-+                    liftIO $ putStrLn "=============================================="
+This patch compares the requested conf file's package-id with what
+the source package would produce. If they differ, use copyConf.
 
-                 GhcPkg Unregister _ -> do
-                     Exit _ <- cmd' echo [path] (buildArgs ++ [input])
+diff --git a/hadrian/src/Rules/Register.hs b/hadrian/src/Rules/Register.hs
+--- a/hadrian/src/Rules/Register.hs
++++ b/hadrian/src/Rules/Register.hs
+@@ -101,14 +101,22 @@
+     -- Register a package.
+     root -/- relativePackageDbPath stage -/- "*.conf" %> \conf -> do
+         historyDisable
+
+         pkgName <- getPackageNameFromConfFile conf
+         let pkg = unsafeFindPackageByName pkgName
+
+         when (pkg == compiler) $ need =<< ghcLibDeps stage
+
+-        isBoot <- (pkg `notElem`) <$> stagePackages Stage0
++        -- Check if this is a boot package (not in source) OR if the
++        -- requested version differs from the source package version.
++        -- This handles the case where bootstrap GHC has different
++        -- package versions than the source being built.
++        notInSource <- (pkg `notElem`) <$> stagePackages Stage0
++        srcPkgId <- pkgIdentifier pkg
++        let confPkgId = takeBaseName conf
++            versionMismatch = confPkgId /= srcPkgId
++            isBoot = notInSource || versionMismatch
+
+         let ctx = Context stage pkg vanilla
+         case stage of
+             Stage0 | isBoot -> copyConf  rs ctx conf
+             _               -> buildConf rs ctx conf
