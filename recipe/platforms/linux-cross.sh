@@ -18,6 +18,9 @@ set -eu
 # Source common hook defaults (provides no-op implementations)
 source "${RECIPE_DIR}/lib/common-hooks.sh"
 
+# Source cross-compilation helpers (shared with osx-arm64)
+source "${RECIPE_DIR}/lib/cross-helpers.sh"
+
 # Platform metadata
 PLATFORM_NAME="Linux cross-compilation"
 PLATFORM_TYPE="cross"
@@ -257,77 +260,6 @@ patch_final_settings() {
   echo "  ✓ Final settings patched"
 }
 
-fix_wrapper_scripts() {
-  echo "  Fixing wrapper scripts..."
-
-  # GHC bindist Makefile uses 'find . ! -type d' to list wrapper files,
-  # which outputs './ghci' instead of 'ghci'. This "./" gets embedded in:
-  #   exeprog="./ghci"
-  #   executablename="/path/to/lib/bin/./ghci"
-  # causing paths like: $libdir/bin/./target-ghci-9.6.7
-  #
-  # GHC installs TWO sets of wrapper scripts:
-  # 1. Target-prefixed: $PREFIX/bin/${ghc_target}-ghci
-  # 2. Short-name: $PREFIX/bin/ghci
-  # Both may have the bug and both need fixing
-  pushd "${PREFIX}/bin" >/dev/null
-
-  for wrapper in ghc ghci ghc-pkg runghc runhaskell haddock hp2ps hsc2hs hpc; do
-    # Fix target-prefixed wrapper
-    local target_wrapper="${ghc_target}-${wrapper}"
-    if [[ -f "${target_wrapper}" ]]; then
-      # Fix both exeprog and executablename - both can have "./" prefix from find
-      perl -pi -e 's#^(exeprog=")\./#$1#' "${target_wrapper}"
-      perl -pi -e 's#(/bin/)\./#$1#' "${target_wrapper}"  # Fix executablename path
-    fi
-    # Fix short-name wrapper (may be script or symlink - only fix if script)
-    if [[ -f "${wrapper}" ]] && [[ ! -L "${wrapper}" ]]; then
-      perl -pi -e 's#^(exeprog=")\./#$1#' "${wrapper}"
-      perl -pi -e 's#(/bin/)\./#$1#' "${wrapper}"  # Fix executablename path
-    fi
-  done
-
-  popd >/dev/null
-  echo "  ✓ Wrapper scripts fixed"
-}
-
-create_symlinks() {
-  echo "  Creating symlinks for cross-compiled tools..."
-
-  pushd "${PREFIX}/bin" >/dev/null
-
-  # GHC bindist installs versioned wrappers like:
-  #   powerpc64le-unknown-linux-gnu-ghci-9.6.7
-  # But the ghci symlink points to:
-  #   powerpc64le-unknown-linux-gnu-ghci (without version)
-  # Create the missing intermediate symlinks:
-  for bin in ghc ghci ghc-pkg hp2ps hsc2hs haddock hpc runghc; do
-    local versioned="${ghc_target}-${bin}-${PKG_VERSION}"
-    local unversioned="${ghc_target}-${bin}"
-    # Create unversioned -> versioned symlink if needed
-    if [[ -f "${versioned}" ]] && [[ ! -e "${unversioned}" ]]; then
-      ln -sf "${versioned}" "${unversioned}"
-      echo "    ${versioned} -> ${unversioned}"
-    fi
-    # Create short name -> unversioned symlink if needed
-    if [[ -e "${unversioned}" ]] && [[ ! -e "${bin}" ]]; then
-      ln -sf "${unversioned}" "${bin}"
-      echo "    ${unversioned} -> ${bin}"
-    fi
-  done
-
-  popd >/dev/null
-
-  # Create directory symlink for libraries
-  if [[ -d "${PREFIX}/lib/${ghc_target}-ghc-${PKG_VERSION}" ]]; then
-    mv "${PREFIX}/lib/${ghc_target}-ghc-${PKG_VERSION}" "${PREFIX}/lib/ghc-${PKG_VERSION}"
-    ln -sf "${PREFIX}/lib/ghc-${PKG_VERSION}" "${PREFIX}/lib/${ghc_target}-ghc-${PKG_VERSION}"
-    echo "    ${ghc_target}-ghc-${PKG_VERSION} -> ghc-${PKG_VERSION}"
-  fi
-
-  echo "  ✓ Symlinks created"
-}
-
 platform_install_ghc() {
   echo "  Creating binary distribution..."
 
@@ -376,41 +308,11 @@ platform_install_ghc() {
   echo "  ✓ Installation complete"
 }
 
-fix_ghci_wrapper() {
-  echo "  Fixing ghci wrapper to call ghc --interactive..."
-
-  # For cross-compiled GHC, ghci is NOT a separate binary - it's just ghc --interactive.
-  # The bindist install creates a broken wrapper pointing to a non-existent ghci binary.
-  # Replace it with a simple script that calls ghc --interactive.
-
-  local ghci_wrapper="${PREFIX}/bin/${ghc_target}-ghci"
-  if [[ -f "${ghci_wrapper}" ]]; then
-    cat > "${ghci_wrapper}" << 'GHCI_EOF'
-#!/bin/sh
-exec "${0%ghci}ghc" --interactive ${1+"$@"}
-GHCI_EOF
-    chmod +x "${ghci_wrapper}"
-    echo "    Fixed ${ghc_target}-ghci"
-  fi
-
-  # Also fix the short-name ghci if it's a script (not symlink)
-  local short_ghci="${PREFIX}/bin/ghci"
-  if [[ -f "${short_ghci}" ]] && [[ ! -L "${short_ghci}" ]]; then
-    cat > "${short_ghci}" << 'GHCI_EOF'
-#!/bin/sh
-exec "${0%ghci}ghc" --interactive ${1+"$@"}
-GHCI_EOF
-    chmod +x "${short_ghci}"
-    echo "    Fixed ghci"
-  fi
-
-  echo "  ✓ ghci wrapper fixed"
-}
-
 platform_post_install() {
   patch_final_settings
-  fix_wrapper_scripts
-  fix_ghci_wrapper
-  create_symlinks
+  # Use cross-helpers for wrapper/symlink fixes (ghc_target is set by configure_cross_triples)
+  cross_fix_wrapper_scripts "${ghc_target}"
+  cross_fix_ghci_wrapper "${ghc_target}"
+  cross_create_symlinks "${ghc_target}"
   install_bash_completion
 }

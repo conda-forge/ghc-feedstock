@@ -20,6 +20,9 @@ set -eu
 # Source common hook defaults (provides no-op implementations)
 source "${RECIPE_DIR}/lib/common-hooks.sh"
 
+# Source cross-compilation helpers (shared with linux-cross)
+source "${RECIPE_DIR}/lib/cross-helpers.sh"
+
 # Platform metadata
 PLATFORM_NAME="macOS arm64 (cross-compiled from x86_64)"
 PLATFORM_TYPE="cross"
@@ -330,31 +333,10 @@ platform_install_ghc() {
 # Phase 9: Post-Install
 # ==============================================================================
 
-create_symlinks() {
-  echo "  Creating symlinks for cross-compiled tools..."
-
-  # Create links: triplet-bin -> bin
-  pushd "${PREFIX}/bin" >/dev/null
-  for bin in ghc ghci ghc-pkg hp2ps hsc2hs; do
-    if [[ -f "${conda_target}-${bin}" ]] && [[ ! -f "${bin}" ]]; then
-      ln -sf "${conda_target}-${bin}" "${bin}"
-      echo "    ${conda_target}-${bin} -> ${bin}"
-    fi
-  done
-  popd >/dev/null
-
-  # Create directory symlink for libraries
-  if [[ -d "${PREFIX}/lib/${conda_target}-ghc-${PKG_VERSION}" ]]; then
-    mv "${PREFIX}/lib/${conda_target}-ghc-${PKG_VERSION}" "${PREFIX}/lib/ghc-${PKG_VERSION}"
-    ln -sf "${PREFIX}/lib/ghc-${PKG_VERSION}" "${PREFIX}/lib/${conda_target}-ghc-${PKG_VERSION}"
-    echo "    ${conda_target}-ghc-${PKG_VERSION} -> ghc-${PKG_VERSION}"
-  fi
-
-  echo "  ✓ Symlinks created"
-}
-
 platform_post_install() {
-  create_symlinks
+  # Use cross-helpers for symlink creation (conda_target is set by configure_cross_triples)
+  # Note: macOS doesn't need wrapper script fixes like Linux does
+  cross_create_symlinks "${conda_target}"
   install_bash_completion
 
   # Verify installation
