@@ -78,6 +78,10 @@ source:
           # ghc-pkg describe | ghc-pkg register - fails randomly on Windows/MSYS2
           # This patch uses a temp file instead of stdin for package registration
           - patches/${{ ghc_major }}/fix-hadrian-ghcpkg-copy-windows.patch
+          # Fix Hadrian configurePackageRules to need .conf files before configure
+          # Cabal.configurePackage needs dependencies registered in package database
+          # Without this: "missing dependencies: ghc-boot-th ==9.2.8"
+          - patches/${{ ghc_major }}/fix-hadrian-configure-needs-conf.patch
 
       # macOS-specific patches
       - if: osx

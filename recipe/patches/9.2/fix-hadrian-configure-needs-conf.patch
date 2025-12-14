@@ -1,0 +1,40 @@
+From: conda-forge
+Subject: [PATCH] Fix Hadrian configurePackageRules to need .conf files
+
+When using a different bootstrap GHC version (e.g., 9.6.7 to build 9.2.8),
+Cabal.configurePackage needs dependency packages to be registered in the
+package database before it can resolve version constraints.
+
+The original code only calls needLibrary which ensures .a files exist, but
+Cabal.configurePackage uses ghc-pkg to check the package database. This
+patch adds logic to also need the .conf files for Stage0 dependencies.
+
+Error without this fix:
+  "Encountered missing or private dependencies: ghc-boot-th ==9.2.8"
+
+This happens because template-haskell needs ghc-boot-th == 9.2.8, but
+the package database only has the bootstrap's ghc-boot-th (different version)
+until the source's ghc-boot-th is built and registered.
+
+diff --git a/hadrian/src/Rules/Register.hs b/hadrian/src/Rules/Register.hs
+--- a/hadrian/src/Rules/Register.hs
++++ b/hadrian/src/Rules/Register.hs
+@@ -42,8 +42,17 @@ configurePackageRules = do
+         when (pkg == ghcBignum) $ do
+           isGmp <- (== "gmp") <$> interpretInContext ctx getBignumBackend
+           when isGmp $
+             need [buildP -/- "include/ghc-gmp.h"]
+-        needLibrary =<< contextDependencies ctx
++        deps <- contextDependencies ctx
++        needLibrary deps
++        -- For Stage0, also ensure dependency packages are registered in the
++        -- package database before configuring. This is needed when using a
++        -- different bootstrap GHC version, as Cabal.configurePackage checks
++        -- version constraints against the package database.
++        when (stage == Stage0) $ do
++            dbPath <- packageDbPath stage
++            depPkgIds <- mapM (pkgIdentifier . package) deps
++            need [dbPath -/- pkgId <.> "conf" | pkgId <- depPkgIds]
+         Cabal.configurePackage ctx
+
+     root -/- "**/autogen/cabal_macros.h" %> \out -> do
