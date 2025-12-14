@@ -2,7 +2,8 @@ From: Claude <noreply@anthropic.com>
 Subject: [PATCH] Debug ghc-pkg copy on Windows
 
 Add diagnostic output to understand why ghc-pkg register doesn't
-create the expected .conf file on Windows.
+create the expected .conf file on Windows. Use putStrLn for stdout
+which is more likely to appear in CI logs.
 
 diff --git a/hadrian/src/Builder.hs b/hadrian/src/Builder.hs
 --- a/hadrian/src/Builder.hs
@@ -14,22 +15,16 @@ diff --git a/hadrian/src/Builder.hs b/hadrian/src/Builder.hs
  import Development.Shake.Classes
  import Development.Shake.Command
  import Development.Shake.FilePath
-@@ -30,7 +31,7 @@
- import Hadrian.Utilities
- import Oracles.Setting (bashPath)
- import System.Exit
--import System.IO (stderr)
-+import System.IO (stderr, hPutStrLn)
-
- import Base
- import Context
-@@ -336,13 +337,26 @@
+@@ -336,13 +337,30 @@
                      Stdout stdout <- cmd' (Stdin stdin) [path] buildArgs
                      writeFileChanged output stdout
 
 +                -- Debug: print what we're doing for GhcPkg Copy
                  GhcPkg Copy _ -> do
-+                    liftIO $ hPutStrLn stderr $ "DEBUG GhcPkg Copy: input=" ++ input ++ " output=" ++ output
++                    liftIO $ putStrLn "=============================================="
++                    liftIO $ putStrLn $ "GHCPKG_COPY_DEBUG: input=" ++ input
++                    liftIO $ putStrLn $ "GHCPKG_COPY_DEBUG: output=" ++ output
++                    liftIO $ putStrLn $ "GHCPKG_COPY_DEBUG: path=" ++ path
                      Stdout pkgDesc <- cmd' [path]
                        [ "--expand-pkgroot"
                        , "--no-user-package-db"
@@ -37,18 +32,20 @@ diff --git a/hadrian/src/Builder.hs b/hadrian/src/Builder.hs
                        , input -- the package name
                        ]
 -                    cmd' (Stdin pkgDesc) [path] (buildArgs ++ ["-"])
-+                    liftIO $ hPutStrLn stderr $ "DEBUG: pkgDesc length=" ++ show (length pkgDesc)
-+                    liftIO $ hPutStrLn stderr $ "DEBUG: pkgDesc first 500 chars=" ++ take 500 pkgDesc
-+                    liftIO $ hPutStrLn stderr $ "DEBUG: buildArgs=" ++ show buildArgs
++                    liftIO $ putStrLn $ "GHCPKG_COPY_DEBUG: pkgDesc length=" ++ show (length pkgDesc)
++                    liftIO $ putStrLn $ "GHCPKG_COPY_DEBUG: pkgDesc first 300 chars:"
++                    liftIO $ putStrLn $ take 300 pkgDesc
++                    liftIO $ putStrLn $ "GHCPKG_COPY_DEBUG: buildArgs=" ++ show buildArgs
 +                    -- Run the original command
 +                    cmd' (Stdin pkgDesc) [path] (buildArgs ++ ["-"])
 +                    -- Check if output file exists
 +                    exists <- liftIO $ Dir.doesFileExist output
-+                    liftIO $ hPutStrLn stderr $ "DEBUG: after register, file exists=" ++ show exists
++                    liftIO $ putStrLn $ "GHCPKG_COPY_DEBUG: after register, file exists=" ++ show exists
 +                    -- List files in output directory
 +                    let dir = takeDirectory output
 +                    files <- liftIO $ Dir.listDirectory dir
-+                    liftIO $ hPutStrLn stderr $ "DEBUG: files in " ++ dir ++ ": " ++ show (take 20 files)
++                    liftIO $ putStrLn $ "GHCPKG_COPY_DEBUG: files in dir: " ++ show (take 30 files)
++                    liftIO $ putStrLn "=============================================="
 
                  GhcPkg Unregister _ -> do
                      Exit _ <- cmd' echo [path] (buildArgs ++ [input])
