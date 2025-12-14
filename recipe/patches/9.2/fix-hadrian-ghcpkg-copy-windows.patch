@@ -11,8 +11,8 @@ file path to ghc-pkg register instead of using stdin with "-".
 Uses withFile to ensure the file handle is properly closed before
 ghc-pkg reads it (critical on Windows where file locking is strict).
 
-Also removes --expand-pkgroot to avoid issues with %BUILD_PREFIX% paths
-that don't expand properly on Windows, and adds --force for robustness.
+Also filters out haddock-interfaces and haddock-html fields which may
+contain unexpanded %BUILD_PREFIX% paths that cause registration issues.
 
 See: https://github.com/haskell/process/issues/273
 
@@ -20,7 +20,15 @@ diff --git a/hadrian/src/Builder.hs b/hadrian/src/Builder.hs
 index 1234567..abcdefg 100644
 --- a/hadrian/src/Builder.hs
 +++ b/hadrian/src/Builder.hs
-@@ -29,7 +29,7 @@ import Hadrian.Oracles.TextFile
+@@ -24,12 +24,13 @@ import Development.Shake.Classes
+ import GHC.Generics
+ import qualified Hadrian.Builder.Ar as Ar
+ import Hadrian.Builder.Ar (ArMode (..))
++import Data.List (isPrefixOf)
+ import Hadrian.Builder.Sphinx
+ import Hadrian.Builder.Tar
+ import Hadrian.Oracles.Path
+ import Hadrian.Oracles.TextFile
  import Hadrian.Utilities
  import Oracles.Setting (bashPath)
  import System.Exit
@@ -29,28 +37,32 @@ index 1234567..abcdefg 100644
 
  import Base
  import Context
-@@ -336,14 +337,24 @@ runBuilderWith rs b ctx@Context {..} as = do
+@@ -336,14 +337,30 @@ runBuilderWith rs b ctx@Context {..} as = do
                      Stdout stdout <- cmd' (Stdin stdin) [path] buildArgs
                      writeFileChanged output stdout
 
 +                -- On Windows, stdin piping through MSYS2/cmd.exe is unreliable.
 +                -- Write package description to a temp file instead of stdin.
 +                -- Use withFile to ensure handle is closed before ghc-pkg reads.
-+                -- Don't use --expand-pkgroot as it leaves %BUILD_PREFIX% unexpanded.
++                -- Filter out haddock fields that may have unexpanded %BUILD_PREFIX%.
 +                -- See: https://github.com/haskell/process/issues/273
                  GhcPkg Copy _ -> do
                      Stdout pkgDesc <- cmd' [path]
--                      [ "--expand-pkgroot"
--                      , "--no-user-package-db"
-+                      [ "--no-user-package-db"
+                       [ "--expand-pkgroot"
+                       , "--no-user-package-db"
                        , "describe"
                        , input -- the package name
                        ]
 -                    cmd' (Stdin pkgDesc) [path] (buildArgs ++ ["-"])
++                    -- Filter out haddock fields that may have bad paths
++                    let dominated field line = field `isPrefixOf` line
++                        dominated' line = dominated "haddock-interfaces:" line
++                                       || dominated "haddock-html:" line
++                        cleanedDesc = unlines $ filter (not . dominated') $ lines pkgDesc
 +                    -- Write to temp file with explicit flush and close
 +                    let tmpFile = output <.> "pkg-desc"
 +                    liftIO $ withFile tmpFile WriteMode $ \h -> do
-+                      hPutStr h pkgDesc
++                      hPutStr h cleanedDesc
 +                      hFlush h
 +                    -- Use --force for robustness
 +                    Exit _ <- cmd' [path] (buildArgs ++ ["--force", tmpFile])
