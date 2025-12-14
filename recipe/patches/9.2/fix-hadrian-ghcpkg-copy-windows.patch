@@ -25,7 +25,7 @@ diff --git a/hadrian/src/Builder.hs b/hadrian/src/Builder.hs
 
  import Base
  import Context
-@@ -336,13 +336,23 @@
+@@ -336,13 +336,21 @@
                      Stdout stdout <- cmd' (Stdin stdin) [path] buildArgs
                      writeFileChanged output stdout
 
@@ -46,8 +46,7 @@ diff --git a/hadrian/src/Builder.hs b/hadrian/src/Builder.hs
 +                    liftIO $ withFile tmpFile WriteMode $ \h -> do
 +                      hPutStr h pkgDesc
 +                      hFlush h
-+                    Exit _ <- cmd' [path] (buildArgs ++ ["--force", tmpFile])
-+                    return ()
++                    cmd' [path] (buildArgs ++ [tmpFile])
 
                  GhcPkg Unregister _ -> do
                      Exit _ <- cmd' echo [path] (buildArgs ++ [input])
