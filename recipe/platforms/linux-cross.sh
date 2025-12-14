@@ -15,10 +15,7 @@
 
 set -eu
 
-# Source common hook defaults (provides no-op implementations)
 source "${RECIPE_DIR}/lib/common-hooks.sh"
-
-# Source cross-compilation helpers (shared with osx-arm64)
 source "${RECIPE_DIR}/lib/cross-helpers.sh"
 
 # Platform metadata
@@ -46,64 +43,23 @@ platform_setup_environment() {
   # GHC, PATH already set by common_setup_environment
   export CONDA_BUILD_SYSROOT="${BUILD_PREFIX}/x86_64-conda-linux-gnu/sysroot"
 
-  # Disable statx (libc 2.20+) since we target libc 2.17
+  # Stage0 tools (run on build host)
   export AR_STAGE0="${BUILD_PREFIX}/bin/${conda_host}-ar"
   export CC_STAGE0="${CC_FOR_BUILD}"
   export LD_STAGE0="${BUILD_PREFIX}/bin/${conda_host}-ld"
 
-  export ac_cv_func_statx=no
-  export ac_cv_have_decl_statx=no
-  export ac_cv_lib_ffi_ffi_call=yes
+  # Set autoconf variables (statx=no for glibc 2.17, LLVM tools for cross)
+  set_autoconf_toolchain_vars --linux --cross
 
-  # CRITICAL: Tell autoconf configure scripts we're cross-compiling
-  # This prevents them from trying to run test programs (which would fail
-  # because the target binaries can't execute on the build host)
+  # CRITICAL: Tell autoconf we're cross-compiling (prevents running test programs)
   export cross_compiling=yes
 
   echo "  ✓ Linux ${target_arch} cross-compilation environment ready"
 }
 
 # ==============================================================================
-# Phase 2: Bootstrap Setup
+# Phase 2: Bootstrap Setup - uses default (phases.sh verifies GHC automatically)
 # ==============================================================================
-
-platform_setup_bootstrap() {
-  # Bootstrap GHC already configured in platform_setup_environment
-  # Just verify it's available
-  if [[ -z "${GHC:-}" ]]; then
-    echo "ERROR: GHC not set by platform_setup_environment"
-    exit 1
-  fi
-  echo "  Bootstrap GHC already configured: ${GHC}"
-}
-
-# ==============================================================================
-# Phase 3: Cabal Setup
-# ==============================================================================
-
-platform_setup_cabal() {
-  echo "  Setting up Cabal for cross-compilation..."
-
-  # CABAL and CABAL_DIR already set by common_setup_cabal
-  echo "  CABAL: ${CABAL}"
-  echo "  CABAL_DIR: ${CABAL_DIR}"
-
-  # Initialize cabal directory
-  mkdir -p "${CABAL_DIR}"
-  "${CABAL}" user-config init
-
-  # Ensure logs directory exists
-  mkdir -p "${SRC_DIR}/_logs"
-
-  # Run cabal update with detailed error logging
-  "${CABAL}" v2-update 2>&1 | tee "${SRC_DIR}/_logs/01-cabal-update.log" || {
-    echo "ERROR: Cabal update failed"
-    tail -50 "${SRC_DIR}/_logs/01-cabal-update.log"
-    exit 1
-  }
-
-  echo "  ✓ Cabal setup complete"
-}
 
 # ==============================================================================
 # Phase 4: Configure GHC
@@ -120,19 +76,8 @@ platform_configure_ghc() {
   local -a configure_args
   build_configure_args configure_args "-L${PREFIX}/lib ${LDFLAGS:-}"
 
-  # Add cross-compilation specific toolchain paths
-  configure_args+=(
-    ac_cv_path_AR="${BUILD_PREFIX}/bin/${conda_target}-ar"
-    ac_cv_path_AS="${BUILD_PREFIX}/bin/${conda_target}-as"
-    ac_cv_path_CC="${BUILD_PREFIX}/bin/${conda_target}-clang"
-    ac_cv_path_CXX="${BUILD_PREFIX}/bin/${conda_target}-clang++"
-    ac_cv_path_LD="${BUILD_PREFIX}/bin/${conda_target}-ld"
-    ac_cv_path_NM="${BUILD_PREFIX}/bin/${conda_target}-nm"
-    ac_cv_path_OBJDUMP="${BUILD_PREFIX}/bin/${conda_target}-objdump"
-    ac_cv_path_RANLIB="${BUILD_PREFIX}/bin/${conda_target}-ranlib"
-    ac_cv_path_LLC="${BUILD_PREFIX}/bin/${conda_target}-llc"
-    ac_cv_path_OPT="${BUILD_PREFIX}/bin/${conda_target}-opt"
-  )
+  # Add cross-compilation specific toolchain paths using shared helper
+  cross_build_toolchain_args configure_args "${conda_target}"
 
   run_and_log "configure" ./configure -v "${system_config[@]}" "${configure_args[@]}" || {
     cat config.log
@@ -143,66 +88,24 @@ platform_configure_ghc() {
 }
 
 # ==============================================================================
-# Phase 5: Patch System Config
+# Phase 5: Patch System Config - uses shared cross_patch_system_config()
 # ==============================================================================
 
 platform_post_configure_ghc() {
-  echo "  Patching hadrian system.config for cross-compilation..."
-
-  # Use standardized helpers for cross-compilation
-  strip_build_prefix_from_tools "python"  # Exclude python from stripping
-  add_toolchain_prefix_to_tools "${conda_target}"
-  fix_python_path_for_cross
-  patch_system_config_linker_flags
-
-  echo "  ✓ System config patched"
+  cross_patch_system_config "${conda_target}"
 }
 
 # ==============================================================================
-# Phase 6: Build Hadrian
+# Phase 6: Build Hadrian - uses default with cross-compile flags
 # ==============================================================================
 
-platform_build_hadrian() {
-  echo "  Building Hadrian for cross-compilation..."
-
-  pushd "${SRC_DIR}/hadrian" >/dev/null
-
+platform_pre_build_hadrian() {
   # Set CFLAGS and LDFLAGS for hadrian build
   export CFLAGS="--sysroot=${CONDA_BUILD_SYSROOT} -march=nocona -mtune=haswell -ftree-vectorize -fPIC -fstack-protector-strong -fno-plt -O2 -ffunction-sections -pipe -isystem ${PREFIX}/include -fdebug-prefix-map=${SRC_DIR}=/usr/local/src/conda/ghc-${PKG_VERSION} -fdebug-prefix-map=${PREFIX}=/usr/local/src/conda-prefix"
   export LDFLAGS="-L${BUILD_PREFIX}/${conda_host}/lib -L${BUILD_PREFIX}/${conda_host}/sysroot/usr/lib ${LDFLAGS:-}"
 
-  # Build hadrian - let cabal resolve dependencies automatically
-  # Hadrian is a temporary build tool, no special linking flags needed
-  run_and_log "build-hadrian" "${CABAL}" v2-build \
-    --with-ar="${AR_STAGE0}" \
-    --with-gcc="${CC_STAGE0}" \
-    --with-ghc="${GHC}" \
-    --with-ld="${LD_STAGE0}" \
-    -j${CPU_COUNT} \
-    hadrian
-
-  local cabal_exit_code=${PIPESTATUS[0]}
-
-  if [[ ${cabal_exit_code} -ne 0 ]]; then
-    echo "ERROR: Cabal build FAILED with exit code ${cabal_exit_code}"
-    popd >/dev/null
-    return 1
-  fi
-
-  popd >/dev/null
-
-  # Find hadrian binary
-  local hadrian_bin=$(find "${SRC_DIR}/hadrian/dist-newstyle/build" -name hadrian -type f | head -1)
-
-  if [[ ! -f "${hadrian_bin}" ]]; then
-    echo "ERROR: Hadrian binary not found"
-    return 1
-  fi
-
-  HADRIAN_CMD=("${hadrian_bin}" "-j${CPU_COUNT}" "--directory" "${SRC_DIR}")
-
-  echo "  Hadrian binary: ${hadrian_bin}"
-  echo "  ✓ Hadrian built"
+  # Set up Hadrian cabal flags using cross-compile helper
+  cross_setup_hadrian_flags
 }
 
 # ==============================================================================
@@ -261,51 +164,12 @@ patch_final_settings() {
 }
 
 platform_install_ghc() {
-  echo "  Creating binary distribution..."
+  # Cross-compile install needs build-host compiler for wrapper script generation
+  local extra_args="ac_cv_path_CC=${BUILD_PREFIX}/bin/${conda_host}-clang"
+  extra_args+=" ac_cv_path_CXX=${BUILD_PREFIX}/bin/${conda_host}-clang++"
+  extra_args+=" CFLAGS= CXXFLAGS= LDFLAGS="
 
-  # Create binary distribution first
-  run_and_log "bindist" "${HADRIAN_CMD[@]}" binary-dist \
-    --prefix="${PREFIX}" \
-    --flavour="${FLAVOUR}" \
-    --freeze1 \
-    --freeze2 \
-    --docs=none \
-    --progress-info=none
-
-  echo "  Installing from binary distribution..."
-
-  local bindist_dir=$(find "${SRC_DIR}/_build/bindist" -name "ghc-${PKG_VERSION}-${ghc_target}" -type d | head -1)
-
-  if [[ -z "${bindist_dir}" ]]; then
-    echo "ERROR: Could not find binary distribution directory"
-    ls -la "${SRC_DIR}/_build/bindist/" || true
-    return 1
-  fi
-
-  echo "  Binary distribution: ${bindist_dir}"
-
-  pushd "${bindist_dir}" >/dev/null
-
-  # Configure the binary distribution
-  # Must use BUILD machine compiler (x86_64) with clean flags - not target compiler
-  # Use ac_cv_path_* to properly cache paths for wrapper script generation
-  ac_cv_path_CC="${BUILD_PREFIX}/bin/${conda_host}-clang" \
-  ac_cv_path_CXX="${BUILD_PREFIX}/bin/${conda_host}-clang++" \
-  CFLAGS="" \
-  CXXFLAGS="" \
-  LDFLAGS="" \
-  run_and_log "configure-install" ./configure --prefix="${PREFIX}" --target="${ghc_target}" || {
-    cat config.log
-    popd >/dev/null
-    return 1
-  }
-
-  # Install (update_package_db fails due to cross ghc-pkg)
-  run_and_log "make-install" make install_bin install_lib install_man
-
-  popd >/dev/null
-
-  echo "  ✓ Installation complete"
+  bindist_install "${ghc_target}" "${extra_args}"
 }
 
 platform_post_install() {

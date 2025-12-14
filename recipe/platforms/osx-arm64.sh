@@ -19,9 +19,8 @@ set -eu
 
 # Source common hook defaults (provides no-op implementations)
 source "${RECIPE_DIR}/lib/common-hooks.sh"
-
-# Source cross-compilation helpers (shared with linux-cross)
 source "${RECIPE_DIR}/lib/cross-helpers.sh"
+source "${RECIPE_DIR}/lib/macos-common.sh"
 
 # Platform metadata
 PLATFORM_NAME="macOS arm64 (cross-compiled from x86_64)"
@@ -47,31 +46,24 @@ platform_setup_environment() {
 
   # GHC, PATH already set by common_setup_environment
 
-  # Find llvm-ar (required for Apple ld64 compatibility)
-  export AR_STAGE0=$(find "${BUILD_PREFIX}" -name llvm-ar | head -1)
-  echo "  AR_STAGE0: ${AR_STAGE0}"
+  # Use shared macOS setup for LLVM ar (skip iconv compat - arm64 uses different approach)
+  macos_setup_llvm_ar
+
+  # Create symlinks for host tools (needed for stage1 build)
+  ln -sf "${BUILD_PREFIX}/bin/${conda_host}-ar" "${BUILD_PREFIX}/bin/ar" 2>/dev/null || true
+  ln -sf "${BUILD_PREFIX}/bin/${conda_host}-as" "${BUILD_PREFIX}/bin/as" 2>/dev/null || true
+  ln -sf "${BUILD_PREFIX}/bin/${conda_host}-ld" "${BUILD_PREFIX}/bin/ld" 2>/dev/null || true
 
   echo "  ✓ macOS cross-compilation environment ready"
 }
 
 # ==============================================================================
-# Phase 2: Bootstrap Setup
+# Phase 2: Bootstrap Setup - uses default (phases.sh verifies GHC automatically)
 # ==============================================================================
 
-platform_setup_bootstrap() {
-  # Bootstrap GHC already configured in platform_setup_environment
-  if [[ -z "${GHC:-}" ]]; then
-    echo "ERROR: GHC not set by platform_setup_environment"
-    exit 1
-  fi
-  echo "  Bootstrap GHC already configured: ${GHC}"
-}
-
 # ==============================================================================
-# Phase 3: Cabal Setup
+# Phase 3: Cabal Setup - uses default
 # ==============================================================================
-
-# Uses default - common_setup_cabal + default_setup_cabal provide standard behavior
 
 # ==============================================================================
 # Phase 4: Configure GHC
@@ -88,25 +80,11 @@ platform_configure_ghc() {
   local -a configure_args
   build_configure_args configure_args "-L${PREFIX}/lib ${LDFLAGS:-}"
 
-  # Add cross-compilation specific toolchain overrides
+  # Set autoconf variables (macOS + cross-compile LLVM tools)
+  set_autoconf_toolchain_vars --macos --cross
+
+  # Add cross-compilation specific toolchain paths
   configure_args+=(
-    ac_cv_lib_ffi_ffi_call=yes
-
-    ac_cv_prog_AR="${AR}"
-    ac_cv_prog_AS="${AS}"
-    ac_cv_prog_CC="${CC}"
-    ac_cv_prog_CXX="${CXX}"
-    ac_cv_prog_LD="${LD}"
-    ac_cv_prog_NM="${NM}"
-    ac_cv_prog_RANLIB="${RANLIB}"
-
-    ac_cv_path_ac_pt_AR="${AR}"
-    ac_cv_path_ac_pt_NM="${NM}"
-    ac_cv_path_ac_pt_RANLIB="${RANLIB}"
-
-    ac_cv_prog_ac_ct_LLC="${conda_target}-llc"
-    ac_cv_prog_ac_ct_OPT="${conda_target}-opt"
-
     CC_STAGE0="${CC_FOR_BUILD}"
     LD_STAGE0="${BUILD_PREFIX}/bin/${conda_host}-ld"
 
@@ -135,112 +113,27 @@ platform_configure_ghc() {
 platform_post_configure_ghc() {
   echo "  Patching system.config for cross-compilation..."
 
-  local settings_file="${SRC_DIR}/hadrian/cfg/system.config"
+  # Use standardized cross-compile patching from cross-helpers.sh
+  # This handles: strip BUILD_PREFIX, fix python path, add toolchain prefix, linker flags
+  cross_patch_system_config "${conda_target}" "ar clang clang++ llc nm objdump opt ranlib"
 
-  # Use standardized helpers for cross-compilation
-  strip_build_prefix_from_tools "python"  # Exclude python from stripping
-  fix_python_path_for_cross
-  add_toolchain_prefix_to_tools "${conda_target}" "ar clang clang++ llc nm objdump opt ranlib"
-  patch_system_config_linker_flags
+  # Apply macOS-specific cross-compile patches from macos-common.sh
+  # This handles: system-ar, ffi/iconv lib dirs, stage0 flags, ar command, objdump fix
+  macos_cross_system_config_patches "${conda_host}" "${conda_target}"
 
-  # macOS-specific: Set system-ar to llvm-ar for stage0
-  perl -pi -e "s#(system-ar\\s*?=\\s).*#\$1${AR_STAGE0}#" "${settings_file}"
-
-  # CRITICAL FIX: Clear ffi-lib-dir and iconv-lib-dir for cross-compilation
-  # Problem: Hadrian's Settings/Packages.hs adds cabalExtraDirs for ghci and rts
-  # packages using ffi-lib-dir. This adds -L$PREFIX/lib to ALL stages including
-  # Stage0. For cross-compilation, $PREFIX/lib contains arm64 libraries, but
-  # Stage0 needs x86_64 libraries. The linker finds arm64 libs first and fails:
-  #   ld: warning: ignoring file $PREFIX/lib/libffi.dylib, building for macOS-x86_64
-  #   but attempting to link with file built for macOS-arm64
-  #   Undefined symbols: _ffi_call, _locale_charset
-  #
-  # Solution: Clear these settings so Hadrian doesn't add -L$PREFIX/lib.
-  # Stage0 will use system/SDK libraries (/Library/Developer/.../usr/lib).
-  # Stage1+ gets library paths from conf-gcc-linker-args-stage1/2.
-  echo "  Clearing ffi/iconv lib dirs to prevent arm64 libs in Stage0..."
-  perl -pi -e 's#^(ffi-lib-dir\s*=).*#$1#' "${settings_file}"
-  perl -pi -e 's#^(iconv-lib-dir\s*=).*#$1#' "${settings_file}"
-
-  # macOS-specific: Set stage0 compiler/linker flags for BUILD machine (x86_64)
-  perl -pi -e "s#(conf-cc-args-stage0\\s*?=\\s).*#\$1--target=${conda_host}#" "${settings_file}"
-  perl -pi -e "s#(conf-gcc-linker-args-stage0\\s*?=\\s).*#\$1--target=${conda_host} -Wl,-L${BUILD_PREFIX}/lib -Wl,-rpath,${BUILD_PREFIX}/lib#" "${settings_file}"
-  perl -pi -e "s#(conf-ld-linker-args-stage0\\s*?=\\s).*#\$1-L${BUILD_PREFIX}/lib -rpath ${BUILD_PREFIX}/lib#" "${settings_file}"
-
-  # macOS-specific: Override ar command in settings
-  perl -pi -e "s#(settings-ar-command\\s*?=\\s).*#\$1${conda_target}-ar#" "${settings_file}"
-
-  # macOS-specific: objdump doesn't need prefix (undo the prefix we just added)
-  perl -pi -e "s#${conda_target}-(objdump)#\$1#" "${settings_file}"
-
-  # macOS-specific: Patch bootstrap settings
-  echo "  Patching bootstrap settings..."
-  # Find bootstrap settings dynamically - PKG_VERSION is 9.6.7 but bootstrap is 9.2.8
-  local bootstrap_settings
-  bootstrap_settings=$(find "${BUILD_PREFIX}/ghc-bootstrap/lib" -name settings -type f 2>/dev/null | head -1)
-  if [[ -n "${bootstrap_settings}" ]] && [[ -f "${bootstrap_settings}" ]]; then
-    echo "  Found bootstrap settings: ${bootstrap_settings}"
-    # Remove problematic libiconv2 reference
-    perl -pi -e "s#[^ ]+/usr/lib/libiconv2.tbd##" "${bootstrap_settings}"
-    # Add -fno-lto to compiler flags
-    perl -pi -e "s#(C compiler flags\", \")#\$1-v -fno-lto #" "${bootstrap_settings}"
-    perl -pi -e 's#(C\+\+ compiler flags", "[^"]*)#$1 -fno-lto#' "${bootstrap_settings}"
-    # CRITICAL: Add BUILD_PREFIX library paths for stage0 linking (x86_64 libs)
-    # Stage0 runs on x86_64, so it needs x86_64 libffi/libiconv from BUILD_PREFIX
-    perl -pi -e "s#(C compiler link flags\", \"[^\"]*)#\$1 -fno-lto -Wl,-L${BUILD_PREFIX}/lib -Wl,-rpath,${BUILD_PREFIX}/lib#" "${bootstrap_settings}"
-    perl -pi -e "s#(ld flags\", \"[^\"]*)#\$1 -L${BUILD_PREFIX}/lib -rpath ${BUILD_PREFIX}/lib#" "${bootstrap_settings}"
-    # Fix ar and ranlib commands
-    perl -pi -e "s#(ar command\", \")[^\"]*#\$1${AR_STAGE0}#" "${bootstrap_settings}"
-    perl -pi -e "s#(ranlib command\", \")[^\"]*#\$1llvm-ranlib#" "${bootstrap_settings}"
-    # Fix tool commands with host prefix
-    perl -pi -e "s#((llc|opt|clang) command\", \")[^\"]*#\$1${conda_host}-\$2#" "${bootstrap_settings}"
-    echo "  Patched bootstrap settings"
-  fi
+  # Use shared helper for bootstrap settings (cross-compile mode)
+  macos_patch_bootstrap_settings "${conda_host}" "cross"
 
   echo "  ✓ System config patched"
 }
 
 # ==============================================================================
-# Phase 5: Build Hadrian
+# Phase 5: Build Hadrian - uses default with cross-compile flags
 # ==============================================================================
 
-platform_build_hadrian() {
-  echo "  Building Hadrian for cross-compilation..."
-
-  pushd "${SRC_DIR}/hadrian" >/dev/null
-
-  # Build hadrian - let cabal resolve dependencies automatically
-  # Hadrian is a temporary build tool, no special linking flags needed
-  "${CABAL}" v2-build \
-    --with-ghc="${GHC}" \
-    --with-gcc="${CC_FOR_BUILD}" \
-    --with-ar="${AR_STAGE0}" \
-    -j${CPU_COUNT} \
-    hadrian \
-    2>&1 | tee "${SRC_DIR}/cabal-verbose.log"
-
-  local cabal_exit_code=${PIPESTATUS[0]}
-
-  if [[ ${cabal_exit_code} -ne 0 ]]; then
-    echo "ERROR: Cabal build FAILED with exit code ${cabal_exit_code}"
-    popd >/dev/null
-    return 1
-  fi
-
-  popd >/dev/null
-
-  # Find hadrian binary
-  local hadrian_bin=$(find "${SRC_DIR}/hadrian/dist-newstyle/build" -name hadrian -type f | head -1)
-
-  if [[ ! -f "${hadrian_bin}" ]]; then
-    echo "ERROR: Hadrian binary not found"
-    return 1
-  fi
-
-  HADRIAN_CMD=("${hadrian_bin}" "-j${CPU_COUNT}" "--directory" "${SRC_DIR}")
-
-  echo "  Hadrian binary: ${hadrian_bin}"
-  echo "  ✓ Hadrian built"
+platform_pre_build_hadrian() {
+  # Set up Hadrian cabal flags using cross-compile helper
+  cross_setup_hadrian_flags
 }
 
 # ==============================================================================
@@ -250,17 +143,13 @@ platform_build_hadrian() {
 platform_pre_build_stage1() {
   disable_copy_optimization
 
-  # Set up build environment for stage1
+  # Set up build environment for stage1 (using build-host tools)
   export AR="${AR_STAGE0}"
   export AS="${BUILD_PREFIX}/bin/${conda_host}-as"
   export CC="${BUILD_PREFIX}/bin/${conda_host}-clang"
   export CXX="${BUILD_PREFIX}/bin/${conda_host}-clang++"
   export LD="${BUILD_PREFIX}/bin/${conda_host}-ld"
-
-  # Create symlinks for host tools
-  ln -sf "${BUILD_PREFIX}/bin/${conda_host}-ar" "${BUILD_PREFIX}/bin/ar" 2>/dev/null || true
-  ln -sf "${BUILD_PREFIX}/bin/${conda_host}-as" "${BUILD_PREFIX}/bin/as" 2>/dev/null || true
-  ln -sf "${BUILD_PREFIX}/bin/${conda_host}-ld" "${BUILD_PREFIX}/bin/ld" 2>/dev/null || true
+  # Note: Symlinks for host tools created in platform_setup_environment
 }
 
 platform_build_stage1() {
@@ -281,17 +170,11 @@ platform_build_stage1() {
     echo "WARNING: Stage0 GHC failed to report version"
   }
 
-  echo "  ✓ Stage 1 cross-compiler built"
-}
-
-platform_post_build_stage1() {
-  echo "  Building Stage 1 libraries..."
-
   # Build libraries with release flavour (for full ways: vanilla, profiling, dynamic)
   run_and_log "stage1-lib" "${HADRIAN_CMD[@]}" --flavour="${FLAVOUR}" \
     stage1:lib:ghc --docs=none --progress-info=none
 
-  echo "  ✓ Stage 1 libraries built"
+  echo "  ✓ Stage 1 cross-compiler built"
 }
 
 # ==============================================================================
@@ -315,18 +198,8 @@ platform_build_stage2() {
 # ==============================================================================
 
 platform_install_ghc() {
-  echo "  Installing from binary distribution..."
-
-  run_and_log "install" "${HADRIAN_CMD[@]}" install \
-    --prefix="${PREFIX}" \
-    --flavour="${FLAVOUR}" \
-    --freeze1 --freeze2 \
-    --docs=none --progress-info=none || true
-
-  echo "  Contents of ${PREFIX}/bin and ${PREFIX}/lib:"
-  ls -l1 "${PREFIX}"/{bin,lib}/* || true
-
-  echo "  ✓ Installation complete"
+  # Use shared bindist_install helper (cross-compile to arm64)
+  bindist_install "${conda_target}"
 }
 
 # ==============================================================================

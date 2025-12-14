@@ -15,6 +15,79 @@
 set -eu
 
 # ==============================================================================
+# Common Hadrian Options
+# ==============================================================================
+# These options are used consistently across all stage builds.
+# Platform scripts can use: "${HADRIAN_CMD[@]}" ${HADRIAN_STAGE_OPTS} ...
+
+HADRIAN_STAGE_OPTS="--docs=none --progress-info=none"
+
+# ==============================================================================
+# Binary Distribution Installation Helper
+# ==============================================================================
+# Creates binary distribution and installs it using configure/make.
+# Used by most platforms for consistent installation.
+#
+# Parameters:
+#   $1 - target_triple: Target for cross-compile (empty for native)
+#   $2 - extra_configure_args: Additional configure arguments (optional)
+#
+# Usage:
+#   bindist_install                           # Native build
+#   bindist_install "${ghc_target}"           # Cross-compile
+#   bindist_install "" "--with-cc=clang"      # Native with extra args
+#
+bindist_install() {
+  local target_triple="${1:-}"
+  local extra_args="${2:-}"
+
+  echo "  Creating binary distribution..."
+
+  # Create binary distribution directory (faster than binary-dist tarball)
+  run_and_log "bindist" "${HADRIAN_CMD[@]}" binary-dist-dir \
+    --prefix="${PREFIX}" \
+    --flavour="${FLAVOUR}" \
+    --freeze1 --freeze2 \
+    --docs=none --progress-info=none
+
+  # Find bindist directory
+  local bindist_pattern="ghc-${PKG_VERSION}-*"
+  local bindist_dir
+  bindist_dir=$(find "${SRC_DIR}/_build/bindist" -maxdepth 1 -name "${bindist_pattern}" -type d | head -1)
+
+  if [[ -z "${bindist_dir}" ]]; then
+    echo "ERROR: Binary distribution directory not found"
+    echo "Looking for: ${bindist_pattern} in ${SRC_DIR}/_build/bindist"
+    ls -la "${SRC_DIR}/_build/bindist/" 2>/dev/null || true
+    return 1
+  fi
+
+  echo "  Installing from: ${bindist_dir}"
+
+  pushd "${bindist_dir}" >/dev/null
+
+  # Build configure command
+  local -a configure_cmd=(./configure --prefix="${PREFIX}")
+  if [[ -n "${target_triple}" ]]; then
+    configure_cmd+=(--target="${target_triple}")
+  fi
+
+  # Run configure
+  run_and_log "configure-install" "${configure_cmd[@]}" ${extra_args} || {
+    cat config.log 2>/dev/null | tail -100
+    popd >/dev/null
+    return 1
+  }
+
+  # Install (skip update_package_db which can fail for cross-compile)
+  run_and_log "make-install" make install_bin install_lib install_man
+
+  popd >/dev/null
+
+  echo "  ✓ Binary distribution installed"
+}
+
+# ==============================================================================
 # Logging
 # ==============================================================================
 
@@ -131,6 +204,7 @@ build_system_config() {
   [[ -n "$build_triple" ]] && _result+=("--build=$build_triple")
   [[ -n "$host_triple" ]] && _result+=("--host=$host_triple")
   [[ -n "$target_triple" ]] && _result+=("--target=$target_triple")
+  true  # Ensure function returns 0 (set -e safe)
 }
 
 # Build Hadrian command array with standard flags
@@ -148,42 +222,85 @@ build_hadrian_cmd() {
   _result=("${hadrian_bin}" "-j${jobs}" "--directory" "${SRC_DIR}")
 }
 
-# Set autoconf cache variables for toolchain
-# Exports ac_cv_* variables to environment for configure scripts
+# ==============================================================================
+# Autoconf Cache Variables for Toolchain
+# ==============================================================================
+# Sets ac_cv_* variables for configure scripts.
+# Unified helper for all platforms - call before ./configure.
 #
 # Parameters:
-#   $1 - target_prefix: Tool prefix (e.g., "x86_64-conda-linux-gnu")
-#   $2 - debug: Set to "true" to print exported variables (optional)
+#   $1 - options: Space-separated options:
+#        --linux     Add Linux-specific vars (statx=no for glibc 2.17)
+#        --macos     Add macOS-specific vars (clear ac_pt_* to prevent Xcode interference)
+#        --windows   Add Windows-specific vars (DLLWRAP, WINDRES)
+#        --cross     Add cross-compile vars (LLC, OPT with target prefix)
+#        --prefix=X  Tool prefix for LLVM tools (default: uses conda_target or empty)
+#
+# Usage:
+#   set_autoconf_toolchain_vars --linux                    # Native Linux
+#   set_autoconf_toolchain_vars --linux --cross            # Linux cross-compile
+#   set_autoconf_toolchain_vars --macos                    # Native macOS
+#   set_autoconf_toolchain_vars --macos --cross            # macOS cross-compile
+#   set_autoconf_toolchain_vars --windows                  # Windows
 #
 set_autoconf_toolchain_vars() {
-  local target_prefix="$1"
-  local debug="${2:-false}"
+  local opts="$*"
+  local is_linux=false is_macos=false is_windows=false
+  local tool_prefix="${conda_target:-${CONDA_TOOLCHAIN_HOST:-}}"
 
-  [[ "$debug" == "true" ]] && echo "=== Setting autoconf toolchain variables for: ${target_prefix}"
+  # Parse options
+  for opt in $opts; do
+    case "$opt" in
+      --linux)   is_linux=true ;;
+      --macos)   is_macos=true ;;
+      --windows) is_windows=true ;;
+      --prefix=*) tool_prefix="${opt#--prefix=}" ;;
+    esac
+  done
 
-  # Core build tools - set all patterns for maximum compatibility
+  echo "  Setting autoconf toolchain variables..."
+
+  # Common: libffi detection (all platforms)
+  export ac_cv_lib_ffi_ffi_call=yes
+  export ac_cv_use_system_libffi=yes
+
+  # Core build tools - set from environment variables
   for tool in AR AS CC CXX LD NM OBJDUMP RANLIB; do
-    local tool_value="${!tool:-}"  # Indirect expansion
+    local tool_value="${!tool:-}"
     if [[ -n "$tool_value" ]]; then
       export ac_cv_prog_${tool}="${tool_value}"
       export ac_cv_path_${tool}="${tool_value}"
-      export ac_cv_path_ac_pt_${tool}="${tool_value}"
-      [[ "$debug" == "true" ]] && echo "  ac_cv_prog_${tool}=${tool_value}"
     fi
   done
 
-  # LLVM tools
-  export ac_cv_prog_LLC="${target_prefix}-llc"
-  export ac_cv_prog_OPT="${target_prefix}-opt"
+  # LLVM tools - always set if prefix available (doesn't hurt if not needed)
+  if [[ -n "$tool_prefix" ]]; then
+    export ac_cv_prog_LLC="${tool_prefix}-llc"
+    export ac_cv_prog_OPT="${tool_prefix}-opt"
+    export ac_cv_prog_ac_ct_LLC="${tool_prefix}-llc"
+    export ac_cv_prog_ac_ct_OPT="${tool_prefix}-opt"
+  fi
 
-  # CRITICAL: glibc 2.17 compatibility (statx added in 2.28)
-  export ac_cv_func_statx=no
-  export ac_cv_have_decl_statx=no
+  # Linux-specific: glibc 2.17 compatibility (statx added in 2.28)
+  if [[ "$is_linux" == "true" ]]; then
+    export ac_cv_func_statx=no
+    export ac_cv_have_decl_statx=no
+  fi
 
-  # libffi detection
-  export ac_cv_lib_ffi_ffi_call=yes
+  # macOS-specific: clear ac_pt_* to prevent Xcode/wrong tool detection
+  if [[ "$is_macos" == "true" ]]; then
+    export ac_cv_path_ac_pt_CC=""
+    export ac_cv_path_ac_pt_CXX=""
+    export DEVELOPER_DIR=""
+  fi
 
-  [[ "$debug" == "true" ]] && echo "  ac_cv_func_statx=no (glibc 2.17 compat)"
+  # Windows-specific: additional tools
+  if [[ "$is_windows" == "true" ]]; then
+    [[ -n "${DLLWRAP:-}" ]] && export ac_cv_path_DLLWRAP="${DLLWRAP}"
+    [[ -n "${WINDRES:-}" ]] && export ac_cv_path_WINDRES="${WINDRES}"
+  fi
+
+  echo "  ✓ Autoconf variables set"
 }
 
 # ==============================================================================

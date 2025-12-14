@@ -247,12 +247,21 @@ phase_build_hadrian() {
 
 default_build_hadrian() {
   pushd "${SRC_DIR}/hadrian" >/dev/null
-    run_and_log "build-hadrian" "${CABAL}" v2-build hadrian
+
+  # Build cabal command with optional platform-specific flags
+  # Platforms can set HADRIAN_CABAL_FLAGS array before this phase
+  local -a cabal_args=(-j${CPU_COUNT} hadrian)
+  if [[ -n "${HADRIAN_CABAL_FLAGS[*]:-}" ]]; then
+    cabal_args=("${HADRIAN_CABAL_FLAGS[@]}" "${cabal_args[@]}")
+  fi
+
+  run_and_log "build-hadrian" "${CABAL}" v2-build "${cabal_args[@]}"
+
   popd >/dev/null
 
-  # Find Hadrian binary
+  # Find Hadrian binary (check for .exe on Windows)
   local hadrian_bin
-  hadrian_bin=$(find "${SRC_DIR}"/hadrian/dist-newstyle -name hadrian -type f -perm /111 | head -1)
+  hadrian_bin=$(find "${SRC_DIR}"/hadrian/dist-newstyle -name "hadrian" -o -name "hadrian.exe" -type f 2>/dev/null | head -1)
 
   if [[ ! -f "${hadrian_bin}" ]]; then
     echo "ERROR: Hadrian binary not found after build"
@@ -264,6 +273,8 @@ default_build_hadrian() {
   declare -ga HADRIAN_CMD  # Global array
   build_hadrian_cmd HADRIAN_CMD "${hadrian_bin}"
   FLAVOUR="${FLAVOUR:-release}"
+
+  echo "  Hadrian binary: ${hadrian_bin}"
 }
 
 # ==============================================================================
@@ -297,23 +308,13 @@ default_build_stage1() {
   run_and_log    "stage1-pkg" "${HADRIAN_CMD[@]}" "${options[@]}" stage1:exe:ghc-pkg
   run_and_log "stage1-hsc2hs" "${HADRIAN_CMD[@]}" "${options[@]}" stage1:exe:hsc2hs
 
-  # Update stage0 settings before building libraries (if helper available)
+  # Update stage0 settings before building libraries
   if type -t update_stage_settings >/dev/null 2>&1; then
     update_stage_settings "stage0"
   fi
 
-  # Build Stage 1 libraries in staggered order to avoid race conditions
-  run_and_log   "stage1-lib-prim" "${HADRIAN_CMD[@]}" "${options[@]}" stage1:lib:ghc-prim
-  run_and_log "stage1-lib-bignum" "${HADRIAN_CMD[@]}" "${options[@]}" stage1:lib:ghc-bignum
-  run_and_log   "stage1-lib-base" "${HADRIAN_CMD[@]}" "${options[@]}" stage1:lib:base
-  run_and_log     "stage1-lib-th" "${HADRIAN_CMD[@]}" "${options[@]}" stage1:lib:template-haskell
-  run_and_log   "stage1-lib-ghci" "${HADRIAN_CMD[@]}" "${options[@]}" stage1:lib:ghci
-  run_and_log    "stage1-lib-ghc" "${HADRIAN_CMD[@]}" "${options[@]}" stage1:lib:ghc
-
-  # Update stage0 settings again after library build
-  if type -t update_stage_settings >/dev/null 2>&1; then
-    update_stage_settings "stage0"
-  fi
+  # Build Stage 1 libraries (Hadrian handles dependency order internally)
+  run_and_log "stage1-lib" "${HADRIAN_CMD[@]}" "${options[@]}" stage1:lib:ghc
 }
 
 # ==============================================================================
@@ -348,23 +349,13 @@ default_build_stage2() {
   run_and_log    "stage2-pkg" "${HADRIAN_CMD[@]}" "${options[@]}" stage2:exe:ghc-pkg
   run_and_log "stage2-hsc2hs" "${HADRIAN_CMD[@]}" "${options[@]}" stage2:exe:hsc2hs
 
-  # Update stage1 settings before building libraries (if helper available)
+  # Update stage1 settings before building libraries
   if type -t update_stage_settings >/dev/null 2>&1; then
     update_stage_settings "stage1"
   fi
 
-  # Build Stage 2 libraries in staggered order to avoid race conditions
-  run_and_log   "stage2-lib-prim" "${HADRIAN_CMD[@]}" "${options[@]}" stage2:lib:ghc-prim
-  run_and_log "stage2-lib-bignum" "${HADRIAN_CMD[@]}" "${options[@]}" stage2:lib:ghc-bignum
-  run_and_log   "stage2-lib-base" "${HADRIAN_CMD[@]}" "${options[@]}" stage2:lib:base
-  run_and_log     "stage2-lib-th" "${HADRIAN_CMD[@]}" "${options[@]}" stage2:lib:template-haskell
-  run_and_log   "stage2-lib-ghci" "${HADRIAN_CMD[@]}" "${options[@]}" stage2:lib:ghci
-  run_and_log    "stage2-lib-ghc" "${HADRIAN_CMD[@]}" "${options[@]}" stage2:lib:ghc
-
-  # Update stage1 settings again after library build
-  if type -t update_stage_settings >/dev/null 2>&1; then
-    update_stage_settings "stage1"
-  fi
+  # Build Stage 2 libraries (Hadrian handles dependency order internally)
+  run_and_log "stage2-lib" "${HADRIAN_CMD[@]}" "${options[@]}" stage2:lib:ghc
 }
 
 # ==============================================================================
@@ -392,24 +383,8 @@ phase_install_ghc() {
 }
 
 default_install_ghc() {
-  # Create binary distribution (--docs=none to skip documentation build)
-  run_and_log "binary-dist" "${HADRIAN_CMD[@]}" --flavour="${FLAVOUR}" binary-dist --prefix="${PREFIX}" --docs=none
-
-  # Find bindist directory
-  local bindist_dir=$(find "${SRC_DIR}"/_build/bindist -type d -name "ghc-${PKG_VERSION}-*" | head -1)
-
-  if [[ -z "${bindist_dir}" ]]; then
-    echo "ERROR: Binary distribution directory not found"
-    exit 1
-  fi
-
-  echo "  Installing from: ${bindist_dir}"
-
-  # Install from bindist
-  pushd "${bindist_dir}" >/dev/null
-    ./configure --prefix="${PREFIX}" || { cat config.log; exit 1; }
-    run_and_log "make-install" make install_bin install_lib install_man
-  popd >/dev/null
+  # Use shared bindist_install helper (native build - no target triple)
+  bindist_install
 }
 
 # ==============================================================================

@@ -19,6 +19,78 @@ _get_target_triple() {
 }
 
 # ==============================================================================
+# Cross-Compile Hadrian Build Setup
+# ==============================================================================
+# Sets HADRIAN_CABAL_FLAGS for cross-compilation builds.
+# Call this before phase_build_hadrian() to use default_build_hadrian().
+#
+# Usage:
+#   cross_setup_hadrian_flags
+#
+cross_setup_hadrian_flags() {
+  echo "  Setting up Hadrian cabal flags for cross-compilation..."
+
+  # These flags ensure Hadrian is built with the correct build-machine tools
+  declare -ga HADRIAN_CABAL_FLAGS=(
+    "--with-ghc=${GHC}"
+    "--with-ar=${AR_STAGE0:-${AR:-}}"
+    "--with-gcc=${CC_STAGE0:-${CC_FOR_BUILD:-}}"
+  )
+
+  # Add LD if set
+  if [[ -n "${LD_STAGE0:-}" ]]; then
+    HADRIAN_CABAL_FLAGS+=("--with-ld=${LD_STAGE0}")
+  fi
+
+  echo "  HADRIAN_CABAL_FLAGS: ${HADRIAN_CABAL_FLAGS[*]}"
+}
+
+# ==============================================================================
+# Cross-Compile Configure Arguments Builder
+# ==============================================================================
+# Builds an array of ac_cv_path_* arguments for cross-compilation.
+# These tell configure where to find the target toolchain.
+#
+# Parameters:
+#   $1 - result_array_name: Name of array to populate (nameref)
+#   $2 - toolchain_prefix: Target toolchain prefix (e.g., "aarch64-conda-linux-gnu")
+#
+# Usage:
+#   local -a extra_args
+#   cross_build_toolchain_args extra_args "${conda_target}"
+#   ./configure "${extra_args[@]}"
+#
+cross_build_toolchain_args() {
+  local -n _result="$1"
+  local prefix="$2"
+
+  echo "  Building toolchain args for: ${prefix}"
+
+  # Standard toolchain tools with their ac_cv_path names
+  local -a tools=(AR AS CC CXX LD NM OBJDUMP RANLIB)
+
+  for tool in "${tools[@]}"; do
+    local tool_lower="${tool,,}"  # lowercase
+    local tool_path="${BUILD_PREFIX}/bin/${prefix}-${tool_lower}"
+
+    # Handle clang naming (CC -> clang, CXX -> clang++)
+    if [[ "${tool}" == "CC" ]]; then
+      tool_path="${BUILD_PREFIX}/bin/${prefix}-clang"
+    elif [[ "${tool}" == "CXX" ]]; then
+      tool_path="${BUILD_PREFIX}/bin/${prefix}-clang++"
+    fi
+
+    if [[ -f "${tool_path}" ]] || [[ -L "${tool_path}" ]]; then
+      _result+=("ac_cv_path_${tool}=${tool_path}")
+    fi
+  done
+
+  # LLVM tools
+  _result+=("ac_cv_path_LLC=${BUILD_PREFIX}/bin/${prefix}-llc")
+  _result+=("ac_cv_path_OPT=${BUILD_PREFIX}/bin/${prefix}-opt")
+}
+
+# ==============================================================================
 # Symlink Creation for Cross-Compiled Tools
 # ==============================================================================
 # Creates symlinks so cross-compiled tools can be invoked without target prefix.

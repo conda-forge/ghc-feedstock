@@ -120,33 +120,15 @@ platform_setup_cabal() {
 # now handles Windows paths automatically (${_PREFIX}/Library/{include,lib})
 
 platform_pre_configure_ghc() {
-  # Configure environment variables for Windows
-  export ac_cv_lib_ffi_ffi_call=yes
-
   # Force use of conda-provided toolchain and libraries (not inplace MinGW)
   export UseSystemMingw=YES
   export WindowsToolchainAutoconf=NO
   export WINDOWS_TOOLCHAIN_AUTOCONF=no
-
-  # Force use of system libffi (conda-provided)
   export UseSystemFfi=YES
-  export ac_cv_use_system_libffi=yes
-
-  export ac_cv_prog_LD="${LD}"
-  
-  export ac_cv_path_CC="${CC}"
-  export ac_cv_path_CXX="${CXX}"
-  export ac_cv_path_AR="${AR}"
-  export ac_cv_path_DLLWRAP="${DLLWRAP}"
-  export ac_cv_path_LD="${LD}"
-  export ac_cv_path_NM="${NM}"
-  export ac_cv_path_OBJDUMP="${OBJDUMP}"
-  export ac_cv_path_RANLIB="${RANLIB}"
-  export ac_cv_path_WINDRES="${WINDRES}"
-  
   export CXX_STD_LIB_LIBS="stdc++"
 
-  echo "  Toolchain environment variables overridden with actual paths"
+  # Set autoconf variables (Windows-specific: ffi, DLLWRAP, WINDRES)
+  set_autoconf_toolchain_vars --windows
 
   # Set up Windows SDK paths
   setup_windows_sdk
@@ -165,6 +147,7 @@ platform_post_configure_ghc() {
 # Phase 5: Build Hadrian
 # ==============================================================================
 
+# Note: Windows needs custom Hadrian build due to _SRC_DIR path format
 platform_build_hadrian() {
   echo "  Building Hadrian (Windows)..."
 
@@ -209,18 +192,6 @@ platform_build_stage1() {
   run_and_log "stage1-lib" "${HADRIAN_CMD[@]}" --flavour="${FLAVOUR}" stage1:lib:ghc
 
   echo "  ✓ Stage 1 GHC built"
-}
-
-platform_post_build_stage1() {
-  echo "  Running Windows-specific Stage1 post-build..."
-
-  # NOTE: Stage1 ghc.exe is NOT created until stage2:exe:ghc-bin runs!
-  # - stage1:exe:ghc-bin creates _build/stage0/bin/ghc.exe
-  # - stage2:exe:ghc-bin creates _build/stage1/bin/ghc.exe
-  # So we can't test Stage1 ghc.exe here - it doesn't exist yet.
-  # The test and touchy rebuild are done AFTER stage2:exe:ghc-bin in platform_build_stage2.
-
-  echo "  ✓ Windows Stage1 post-build complete (Stage1 ghc.exe test deferred to Stage2)"
 }
 
 # ==============================================================================
