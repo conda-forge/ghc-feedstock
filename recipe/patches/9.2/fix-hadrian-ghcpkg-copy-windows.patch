@@ -11,23 +11,12 @@ file path to ghc-pkg register instead of using stdin with "-".
 Uses withFile to ensure the file handle is properly closed before
 ghc-pkg reads it (critical on Windows where file locking is strict).
 
-Also filters out haddock-interfaces and haddock-html fields (including
-their continuation lines) which may contain unexpanded %BUILD_PREFIX%
-paths that cause registration issues.
-
 See: https://github.com/haskell/process/issues/273
 
 diff --git a/hadrian/src/Builder.hs b/hadrian/src/Builder.hs
 --- a/hadrian/src/Builder.hs
 +++ b/hadrian/src/Builder.hs
-@@ -17,6 +17,7 @@
- import Control.Exception.Extra (Partial)
- import qualified Data.ByteString.Lazy.Char8 as BSL
-+import Data.List (isPrefixOf)
- import Development.Shake.Classes
- import Development.Shake.Command
- import Development.Shake.FilePath
-@@ -30,7 +31,7 @@
+@@ -30,7 +30,7 @@
  import Hadrian.Utilities
  import Oracles.Setting (bashPath)
  import System.Exit
@@ -36,14 +25,13 @@ diff --git a/hadrian/src/Builder.hs b/hadrian/src/Builder.hs
 
  import Base
  import Context
-@@ -336,13 +337,37 @@
+@@ -336,13 +336,23 @@
                      Stdout stdout <- cmd' (Stdin stdin) [path] buildArgs
                      writeFileChanged output stdout
 
 +                -- On Windows, stdin piping through MSYS2/cmd.exe is unreliable.
 +                -- Write package description to a temp file instead of stdin.
 +                -- Use withFile to ensure handle is closed before ghc-pkg reads.
-+                -- Filter out haddock fields that may have unexpanded %BUILD_PREFIX%.
 +                -- See: https://github.com/haskell/process/issues/273
                  GhcPkg Copy _ -> do
                      Stdout pkgDesc <- cmd' [path]
@@ -53,25 +41,11 @@ diff --git a/hadrian/src/Builder.hs b/hadrian/src/Builder.hs
                        , input -- the package name
                        ]
 -                    cmd' (Stdin pkgDesc) [path] (buildArgs ++ ["-"])
-+                    -- Filter out haddock fields and their continuation lines
-+                    -- Continuation lines start with whitespace
-+                    let dominated field line = field `isPrefixOf` line
-+                        isContinuation line = case line of
-+                          (c:_) -> c == ' ' || c == '\t'
-+                          []    -> False
-+                        -- Remove haddock fields and following continuation lines
-+                        filterFields [] = []
-+                        filterFields (l:ls)
-+                          | dominated "haddock-interfaces:" l = filterFields (dropWhile isContinuation ls)
-+                          | dominated "haddock-html:" l = filterFields (dropWhile isContinuation ls)
-+                          | otherwise = l : filterFields ls
-+                        cleanedDesc = unlines $ filterFields $ lines pkgDesc
 +                    -- Write to temp file with explicit flush and close
 +                    let tmpFile = output <.> "pkg-desc"
 +                    liftIO $ withFile tmpFile WriteMode $ \h -> do
-+                      hPutStr h cleanedDesc
++                      hPutStr h pkgDesc
 +                      hFlush h
-+                    -- Use --force for robustness
 +                    Exit _ <- cmd' [path] (buildArgs ++ ["--force", tmpFile])
 +                    return ()
 
