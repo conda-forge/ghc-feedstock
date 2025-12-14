@@ -1,39 +1,35 @@
 From: Claude <noreply@anthropic.com>
-Subject: [PATCH] Fix ghc-pkg copy stdin piping on Windows
+Subject: [PATCH] Debug ghc-pkg copy on Windows
 
-On Windows with MSYS2/cmd.exe, stdin piping from ghc-pkg describe to
-ghc-pkg register is unreliable. This causes random failures when copying
-packages from the bootstrap GHC to Stage0's package database.
-
-The fix writes the package description to a temp file and passes the
-file path to ghc-pkg register instead of using stdin with "-".
-
-Uses withFile to ensure the file handle is properly closed before
-ghc-pkg reads it (critical on Windows where file locking is strict).
-
-See: https://github.com/haskell/process/issues/273
+Add diagnostic output to understand why ghc-pkg register doesn't
+create the expected .conf file on Windows.
 
 diff --git a/hadrian/src/Builder.hs b/hadrian/src/Builder.hs
 --- a/hadrian/src/Builder.hs
 +++ b/hadrian/src/Builder.hs
-@@ -30,7 +30,7 @@
+@@ -17,6 +17,7 @@
+ import Control.Exception.Extra (Partial)
+ import qualified Data.ByteString.Lazy.Char8 as BSL
++import qualified System.Directory as Dir
+ import Development.Shake.Classes
+ import Development.Shake.Command
+ import Development.Shake.FilePath
+@@ -30,7 +31,7 @@
  import Hadrian.Utilities
  import Oracles.Setting (bashPath)
  import System.Exit
 -import System.IO (stderr)
-+import System.IO (stderr, withFile, IOMode(..), hPutStr, hFlush)
++import System.IO (stderr, hPutStrLn)
 
  import Base
  import Context
-@@ -336,13 +336,21 @@
+@@ -336,13 +337,26 @@
                      Stdout stdout <- cmd' (Stdin stdin) [path] buildArgs
                      writeFileChanged output stdout
 
-+                -- On Windows, stdin piping through MSYS2/cmd.exe is unreliable.
-+                -- Write package description to a temp file instead of stdin.
-+                -- Use withFile to ensure handle is closed before ghc-pkg reads.
-+                -- See: https://github.com/haskell/process/issues/273
++                -- Debug: print what we're doing for GhcPkg Copy
                  GhcPkg Copy _ -> do
++                    liftIO $ hPutStrLn stderr $ "DEBUG GhcPkg Copy: input=" ++ input ++ " output=" ++ output
                      Stdout pkgDesc <- cmd' [path]
                        [ "--expand-pkgroot"
                        , "--no-user-package-db"
@@ -41,12 +37,18 @@ diff --git a/hadrian/src/Builder.hs b/hadrian/src/Builder.hs
                        , input -- the package name
                        ]
 -                    cmd' (Stdin pkgDesc) [path] (buildArgs ++ ["-"])
-+                    -- Write to temp file with explicit flush and close
-+                    let tmpFile = output <.> "pkg-desc"
-+                    liftIO $ withFile tmpFile WriteMode $ \h -> do
-+                      hPutStr h pkgDesc
-+                      hFlush h
-+                    cmd' [path] (buildArgs ++ [tmpFile])
++                    liftIO $ hPutStrLn stderr $ "DEBUG: pkgDesc length=" ++ show (length pkgDesc)
++                    liftIO $ hPutStrLn stderr $ "DEBUG: pkgDesc first 500 chars=" ++ take 500 pkgDesc
++                    liftIO $ hPutStrLn stderr $ "DEBUG: buildArgs=" ++ show buildArgs
++                    -- Run the original command
++                    cmd' (Stdin pkgDesc) [path] (buildArgs ++ ["-"])
++                    -- Check if output file exists
++                    exists <- liftIO $ Dir.doesFileExist output
++                    liftIO $ hPutStrLn stderr $ "DEBUG: after register, file exists=" ++ show exists
++                    -- List files in output directory
++                    let dir = takeDirectory output
++                    files <- liftIO $ Dir.listDirectory dir
++                    liftIO $ hPutStrLn stderr $ "DEBUG: files in " ++ dir ++ ": " ++ show (take 20 files)
 
                  GhcPkg Unregister _ -> do
                      Exit _ <- cmd' echo [path] (buildArgs ++ [input])
