@@ -17,18 +17,16 @@ contain unexpanded %BUILD_PREFIX% paths that cause registration issues.
 See: https://github.com/haskell/process/issues/273
 
 diff --git a/hadrian/src/Builder.hs b/hadrian/src/Builder.hs
-index 1234567..abcdefg 100644
 --- a/hadrian/src/Builder.hs
 +++ b/hadrian/src/Builder.hs
-@@ -24,12 +24,13 @@ import Development.Shake.Classes
- import GHC.Generics
- import qualified Hadrian.Builder.Ar as Ar
- import Hadrian.Builder.Ar (ArMode (..))
+@@ -17,6 +17,7 @@
+ import Control.Exception.Extra (Partial)
+ import qualified Data.ByteString.Lazy.Char8 as BSL
 +import Data.List (isPrefixOf)
- import Hadrian.Builder.Sphinx
- import Hadrian.Builder.Tar
- import Hadrian.Oracles.Path
- import Hadrian.Oracles.TextFile
+ import Development.Shake.Classes
+ import Development.Shake.Command
+ import Development.Shake.FilePath
+@@ -30,7 +31,7 @@
  import Hadrian.Utilities
  import Oracles.Setting (bashPath)
  import System.Exit
@@ -37,7 +35,7 @@ index 1234567..abcdefg 100644
 
  import Base
  import Context
-@@ -336,14 +337,30 @@ runBuilderWith rs b ctx@Context {..} as = do
+@@ -336,13 +337,29 @@
                      Stdout stdout <- cmd' (Stdin stdin) [path] buildArgs
                      writeFileChanged output stdout
 
