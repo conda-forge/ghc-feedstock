@@ -152,9 +152,6 @@ platform_post_configure_ghc() {
   fix_python_path_for_cross
   patch_system_config_linker_flags
 
-  echo "  Patched system.config:"
-  cat "${SRC_DIR}/hadrian/cfg/system.config"
-
   echo "  ✓ System config patched"
 }
 
@@ -256,9 +253,6 @@ patch_final_settings() {
   # Pattern: Match full quoted path, capture the target prefix (e.g., aarch64-conda-linux-gnu-)
   # and tool name, then replace with just prefix+tool (no absolute path)
   perl -pi -e "s#\"[^\"]*/([^/]*-)(ar|as|clang|clang\+\+|ld|nm|objdump|ranlib|llc|opt)\"#\"\$1\$2\"#g" "${settings_file}"
-
-  echo "  Final settings file:"
-  cat "${settings_file}"
 
   echo "  ✓ Final settings patched"
 }

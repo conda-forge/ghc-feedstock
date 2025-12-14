@@ -113,10 +113,6 @@ build_configure_args() {
 #   $4 - target_triple: Target machine triple (empty = omit)
 #
 build_system_config() {
-  echo "  DEBUG: build_system_config called, args: '$1' '$2' '$3' '$4'"
-  echo "  DEBUG: PREFIX=${PREFIX}"
-  echo "  DEBUG: _PREFIX=${_PREFIX:-not_set} _PREFIX_=${_PREFIX_:-not_set}"
-
   local -n _result="$1"
   local build_triple="${2:-}"
   local host_triple="${3:-}"
@@ -130,14 +126,11 @@ build_system_config() {
   else
     prefix_path="${PREFIX}"
   fi
-  echo "  DEBUG: prefix_path=${prefix_path}"
 
   _result+=("--prefix=${prefix_path}")
   [[ -n "$build_triple" ]] && _result+=("--build=$build_triple")
   [[ -n "$host_triple" ]] && _result+=("--host=$host_triple")
   [[ -n "$target_triple" ]] && _result+=("--target=$target_triple")
-
-  echo "  DEBUG: build_system_config done, result has ${#_result[@]} elements"
 }
 
 # Build Hadrian command array with standard flags

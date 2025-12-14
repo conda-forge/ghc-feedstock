@@ -90,23 +90,16 @@ platform_configure_ghc() {
   echo "  Configuring GHC for macOS x86_64..."
 
   local osx_triple="x86_64-apple-darwin13.4.0"
-  echo "  DEBUG: osx_triple=${osx_triple}"
 
   # Build system config using nameref helper (native build: same triple for build/host)
-  echo "  DEBUG: Building system_config array..."
   local -a system_config
   build_system_config system_config "${osx_triple}" "${osx_triple}" ""
-  echo "  DEBUG: system_config has ${#system_config[@]} elements: ${system_config[*]}"
 
   # Build standard configure args using nameref helper (--with-gmp, --with-ffi, etc.)
-  echo "  DEBUG: Building configure_args array..."
   local -a configure_args
   build_configure_args configure_args
-  echo "  DEBUG: configure_args has ${#configure_args[@]} elements"
 
   # Override ac_cv variables for toolchain (environment variables)
-  echo "  DEBUG: Setting ac_cv variables..."
-  echo "  DEBUG: AR=${AR:-UNSET} CC=${CC:-UNSET} LD=${LD:-UNSET}"
   export ac_cv_path_ac_pt_CC=""
   export ac_cv_path_ac_pt_CXX=""
   export ac_cv_prog_AR="${AR:-}"
@@ -121,7 +114,6 @@ platform_configure_ghc() {
   export ac_cv_path_RANLIB="${RANLIB:-}"
   export DEVELOPER_DIR=""
 
-  echo "  DEBUG: Calling run_and_log configure..."
   run_and_log "configure" ./configure "${system_config[@]}" "${configure_args[@]}" || {
     cat config.log
     return 1
@@ -262,8 +254,6 @@ platform_post_install() {
   local settings_file=$(find "${PREFIX}/lib" -name settings | head -n 1)
   if [[ -f "${settings_file}" ]]; then
     set_macos_conda_ar_ranlib "${settings_file}" "${CONDA_TOOLCHAIN_BUILD}"
-    echo "  Final settings:"
-    cat "${settings_file}"
   fi
 
   install_bash_completion

@@ -170,9 +170,6 @@ platform_post_configure_ghc() {
   # macOS-specific: objdump doesn't need prefix (undo the prefix we just added)
   perl -pi -e "s#${conda_target}-(objdump)#\$1#" "${settings_file}"
 
-  echo "  Patched system.config:"
-  cat "${settings_file}"
-
   # macOS-specific: Patch bootstrap settings
   echo "  Patching bootstrap settings..."
   # Find bootstrap settings dynamically - PKG_VERSION is 9.6.7 but bootstrap is 9.2.8
@@ -195,7 +192,6 @@ platform_post_configure_ghc() {
     # Fix tool commands with host prefix
     perl -pi -e "s#((llc|opt|clang) command\", \")[^\"]*#\$1${conda_host}-\$2#" "${bootstrap_settings}"
     echo "  Patched bootstrap settings"
-    cat "${bootstrap_settings}"
   fi
 
   echo "  ✓ System config patched"
