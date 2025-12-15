@@ -1,36 +1,49 @@
 From: conda-forge
-Subject: [PATCH] Add explicit ghc-pkg recache after Cabal register for Stage0 packages
+Subject: [PATCH] Use ghc-pkg register directly instead of cabal register for Stage0
 
 When using a different bootstrap GHC version (e.g., 9.6.7 to build 9.2.8),
-Cabal's register command doesn't properly update the package database cache.
+Cabal's register command doesn't properly register packages to the Stage0
+package database.
 
-The issue is:
-1. cabal copy --target-package-db puts the .conf file in the correct location
-2. cabal register is supposed to register the package but doesn't update
-   the package.cache file properly
+The issue:
+1. cabal copy --target-package-db creates the .conf file in the right place
+2. cabal register (without --package-db support) may register to wrong db
 3. Subsequent configure steps can't find the newly registered package
 
-The fix adds an explicit ghc-pkg recache call after Cabal.registerPackage
-for Stage0 packages. This ensures the package.cache file is updated and
-the package becomes visible to ghc-pkg queries.
-
-Note: GhcPkg Init actually does 'ghc-pkg recache' (see GhcPkg.hs comment).
-We reuse it here to update the cache after registration.
+The fix uses ghc-pkg register directly for Stage0 packages, similar to how
+copyConf handles bootstrap packages. This is more reliable than going through
+Cabal's registration machinery.
 
 diff --git a/hadrian/src/Rules/Register.hs b/hadrian/src/Rules/Register.hs
 --- a/hadrian/src/Rules/Register.hs
 +++ b/hadrian/src/Rules/Register.hs
-@@ -143,6 +143,13 @@ buildConf _ context@Context {..} _conf = do
+@@ -141,9 +141,28 @@ buildConf _ context@Context {..} _conf = do
+         when (bignum == "gmp") $
+             need [path -/- "include/ghc-gmp.h"]
+ 
      -- Copy and register the package.
++    -- Note: For Stage0 with different bootstrap versions, Cabal.registerPackage
++    -- doesn't reliably register to the correct package database. We use ghc-pkg
++    -- directly instead, similar to how copyConf handles bootstrap packages.
      Cabal.copyPackage context
-     Cabal.registerPackage context
+-    Cabal.registerPackage context
 +
-+    -- Explicitly recache the package database after registration.
-+    -- Cabal's register command doesn't always update the package.cache file
-+    -- properly, especially when using a different bootstrap GHC version.
-+    -- GhcPkg Init actually does 'ghc-pkg recache' (see GhcPkg.hs).
-+    when (stage == Stage0) $
-+        build $ target context (GhcPkg Init stage) [] []
-
++    case stage of
++        Stage0 -> do
++            -- Use ghc-pkg register directly for Stage0
++            -- The .conf file was created by copyPackage
++            pkgDbPath <- packageDbPath stage
++            pkgId <- pkgIdentifier package
++            let confFile = pkgDbPath -/- pkgId <.> "conf"
++            putProgressInfo $ "| Register package " ++ quote (pkgName package) ++ " (via ghc-pkg)"
++            -- Call ghc-pkg register directly with the conf file
++            ghcPkgPath <- builderPath (GhcPkg Init stage)
++            verbosity <- getVerbosity
++            let verbosityFlag = if verbosity < Chatty then ["-v0"] else []
++            cmd_ [ghcPkgPath] (["--no-user-package-db", "--global-package-db", pkgDbPath
++                              , "register"] ++ verbosityFlag ++ [confFile])
++        _ ->
++            Cabal.registerPackage context
+ 
      -- We declare that this rule also produces files matching:
-     --   <root>/stage<N>/lib/<arch>-<os>-ghc-<version>/*libHS<pkgid>*
+     --   - <root>/stage<N>/lib/<arch>-<os>-ghc-<version>/*libHS<pkgid>*
