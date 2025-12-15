@@ -82,6 +82,9 @@ source:
           # Cabal.configurePackage needs dependencies registered in package database
           # Without this: "missing dependencies: ghc-boot-th ==9.2.8"
           - patches/${{ ghc_major }}/fix-hadrian-configure-needs-conf.patch
+          # Explicitly pass --package-db to Cabal.registerPackage
+          # Ensures package registration goes to Stage0 database, not bootstrap's
+          - patches/${{ ghc_major }}/fix-cabal-register-package-db.patch
 
       # macOS-specific patches
       - if: osx

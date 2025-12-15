@@ -1,0 +1,29 @@
+From: conda-forge
+Subject: [PATCH] Explicitly pass package database to Cabal.registerPackage
+
+When using a different bootstrap GHC version, the package database needs
+to be explicitly passed to the register command. Without this, the
+registration might go to the wrong database or fail to update the cache.
+
+The copyPackage function already passes --target-package-db explicitly,
+but registerPackage was relying on the builddir config which may not
+work correctly on Windows with version mismatches.
+
+This patch adds explicit --package-db to the register command.
+
+diff --git a/hadrian/src/Hadrian/Haskell/Cabal/Parse.hs b/hadrian/src/Hadrian/Haskell/Cabal/Parse.hs
+--- a/hadrian/src/Hadrian/Haskell/Cabal/Parse.hs
++++ b/hadrian/src/Hadrian/Haskell/Cabal/Parse.hs
+@@ -188,9 +188,11 @@ registerPackage context@Context {..} = do
+     putProgressInfo $ "| Register package " ++ quote (pkgName package)
+     ctxPath <- Context.contextPath context
+     gpd <- pkgGenericDescription package
++    pkgDbPath <- packageDbPath stage
+     verbosity <- getVerbosity
+     let v = if verbosity >= Loud then "-v3" else "-v0"
+     traced "cabal-register" $
+         C.defaultMainWithHooksNoReadArgs C.autoconfUserHooks gpd
+-            [ "register", "--builddir", ctxPath, v ]
++            [ "register", "--builddir", ctxPath, "--package-db", pkgDbPath, v ]
++
+ -- | What type of file is Main
