@@ -378,10 +378,8 @@ patch_windows_settings() {
   perl -pi -e "s#(dllwrap command\", \")[^\"]*#\$1${DLLWRAP}#" "${settings_file}"
 
   # --- windres wrapper (common to all) ---
-  # CRITICAL: GHC uses CreateProcess which can't execute .bat files directly.
-  # Must prefix with "cmd.exe /c" to invoke batch files.
   if [[ -f "${_BUILD_PREFIX}/Library/bin/windres.bat" ]]; then
-    perl -pi -e "s#(windres command\", \")[^\"]*#\$1C:/Windows/System32/cmd.exe /c ${_BUILD_PREFIX_}/Library/bin/windres.bat#" "${settings_file}"
+    perl -pi -e "s#(windres command\", \")[^\"]*#\$1${_BUILD_PREFIX_}/Library/bin/windres.bat#" "${settings_file}"
   else
     echo "  WARNING: windres.bat not found at ${_BUILD_PREFIX}/Library/bin/windres.bat"
     echo "  windres setting will NOT be patched - this may cause build failures!"
@@ -592,8 +590,7 @@ post_install_cleanup() {
 
     # Fix: Change \$2 to $2 for proper backreference
     perl -pi -e 's#((?:C compiler|C\+\+ compiler|Haskell CPP|ld|Merge objects|ar|ranlib) command",\s*")[^"]*-(gcc|g\+\+|ld|ar|ranlib)(?:.exe)?#$1x86_64-w64-mingw32-$2.exe#' "${settings_file}"
-    # CRITICAL: cmd.exe /c required because GHC CreateProcess can't execute .bat files directly
-    perl -pi -e 's#(windres command",\s*")[^"]*#$1C:/Windows/System32/cmd.exe /c \$topdir/../bin/ghc_windres.bat#' "${settings_file}"
+    perl -pi -e 's#(windres command",\s*")[^"]*#$1\$topdir/../bin/ghc_windres.bat#' "${settings_file}"
     perl -pi -e 's#(compiler link flags",\s*"[^"]*)#$1 -Wl,-L\$topdir/../../lib#' "${settings_file}"
     perl -pi -e 's#(ld flags",\s*"[^"]*)#$1 -L\$topdir/../../lib#' "${settings_file}"
 
@@ -652,9 +649,8 @@ patch_system_config() {
   perl -pi -e 's#^use-system-ffi\s*=\s*.*$#use-system-ffi = YES#' "${config_file}"
   perl -pi -e "s#^intree-gmp\s*=\s*.*#intree-gmp = NO#" "${config_file}"
 
-  # CRITICAL: Set windres command - must use cmd.exe /c to execute .bat files
-  # GHC uses CreateProcess which can't execute .bat files directly
-  perl -pi -e "s#^settings-windres-command\\s*=.*#settings-windres-command = C:/Windows/System32/cmd.exe /c ${_BUILD_PREFIX_}/Library/bin/windres.bat#" "${config_file}"
+  # Set windres - default is 'false' which causes Stage0 build to fail
+  perl -pi -e "s#^settings-windres-command\\s*=.*#settings-windres-command = ${_BUILD_PREFIX_}/Library/bin/windres.bat#" "${config_file}"
 
   # NOTE: Do NOT add --allow-multiple-definition here!
   # The proper solution is library ordering in Stage1 settings where -lmingw32
