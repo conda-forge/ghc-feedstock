@@ -198,8 +198,14 @@ platform_build_stage2() {
 # ==============================================================================
 
 platform_install_ghc() {
-  # Use shared bindist_install helper (cross-compile to arm64)
-  bindist_install "${conda_target}"
+  # Cross-compile install needs build-host compiler and pre-set C++ std lib
+  # to avoid configure failing on libc++ link test (it runs x86_64 tests)
+  local extra_args="ac_cv_path_CC=${BUILD_PREFIX}/bin/${conda_host}-clang"
+  extra_args+=" ac_cv_path_CXX=${BUILD_PREFIX}/bin/${conda_host}-clang++"
+  extra_args+=" CXX_STD_LIB_LIBS='c++ c++abi'"  # Skip libc++ detection
+  extra_args+=" CFLAGS= CXXFLAGS= LDFLAGS="
+
+  bindist_install "${conda_target}" "${extra_args}"
 }
 
 # ==============================================================================
