@@ -11,6 +11,11 @@ work correctly on Windows with version mismatches.
 
 This patch adds explicit --package-db to the register command.
 
+IMPORTANT: Cabal's argument parser requires --package-db=PATH format
+(joined with =), not --package-db PATH (separate arguments). See
+hadrian/src/Settings/Builders/Common.hs line 60 for the pattern:
+  prefix <- ifM (builder Ghc) (return "-package-db ") (return "--package-db=")
+
 diff --git a/hadrian/src/Hadrian/Haskell/Cabal/Parse.hs b/hadrian/src/Hadrian/Haskell/Cabal/Parse.hs
 --- a/hadrian/src/Hadrian/Haskell/Cabal/Parse.hs
 +++ b/hadrian/src/Hadrian/Haskell/Cabal/Parse.hs
@@ -24,6 +29,6 @@ diff --git a/hadrian/src/Hadrian/Haskell/Cabal/Parse.hs b/hadrian/src/Hadrian/Ha
      traced "cabal-register" $
          C.defaultMainWithHooksNoReadArgs C.autoconfUserHooks gpd
 -            [ "register", "--builddir", ctxPath, v ]
-+            [ "register", "--builddir", ctxPath, "--package-db", pkgDbPath, v ]
++            [ "register", "--builddir", ctxPath, "--package-db=" ++ pkgDbPath, v ]
 +
  -- | What type of file is Main
