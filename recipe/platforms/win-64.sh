@@ -56,6 +56,8 @@ platform_setup_environment() {
   export CABAL="${_BUILD_PREFIX}/bin/cabal"
   export CABAL_DIR="${SRC_DIR}\\.cabal"
   export GHC="${_BUILD_PREFIX}/ghc-bootstrap/bin/ghc.exe"
+  # Python path for Hadrian - must use Windows format (C:/...) for GHC
+  export PYTHON="${_BUILD_PREFIX_}/python.exe"
   export LIBRARY_PATH="${_BUILD_PREFIX}/Library/lib${LIBRARY_PATH:+:}${LIBRARY_PATH:-}"
 
   # Expand conda variables in flags
@@ -623,8 +625,9 @@ patch_system_config() {
     return 1
   fi
 
-  # Fix Python path
-  perl -pi -e "s#(^python\\s*=).*#\$1 ${CONDA_PYTHON_EXE}#" "${config_file}"
+  # Fix Python path - use PYTHON from environment (Windows format C:/...)
+  # CONDA_PYTHON_EXE may contain backslashes that get interpreted as escapes
+  perl -pi -e "s#(^python\\s*=).*#\$1 ${PYTHON}#" "${config_file}"
 
   # Expand conda variables - both %VAR% and $ENV{VAR} patterns
   perl -pi -e "s#%PREFIX%#${_PREFIX}#g" "${config_file}"
