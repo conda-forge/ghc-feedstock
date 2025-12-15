@@ -17,13 +17,7 @@ the source package would produce. If they differ, use copyConf.
 diff --git a/hadrian/src/Rules/Register.hs b/hadrian/src/Rules/Register.hs
 --- a/hadrian/src/Rules/Register.hs
 +++ b/hadrian/src/Rules/Register.hs
-@@ -101,14 +101,22 @@
-     -- Register a package.
-     root -/- relativePackageDbPath stage -/- "*.conf" %> \conf -> do
-         historyDisable
-
-         pkgName <- getPackageNameFromConfFile conf
-         let pkg = unsafeFindPackageByName pkgName
+@@ -107,7 +107,15 @@ registerPackageRules rs stage = do
 
          when (pkg == compiler) $ need =<< ghcLibDeps stage
 
@@ -40,5 +34,3 @@ diff --git a/hadrian/src/Rules/Register.hs b/hadrian/src/Rules/Register.hs
 
          let ctx = Context stage pkg vanilla
          case stage of
-             Stage0 | isBoot -> copyConf  rs ctx conf
-             _               -> buildConf rs ctx conf
