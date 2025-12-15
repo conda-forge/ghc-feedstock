@@ -1,25 +1,36 @@
 From: conda-forge
-Subject: [PATCH] Use --inplace flag for Cabal register to ensure correct package database
+Subject: [PATCH] Add explicit ghc-pkg recache after Cabal register for Stage0 packages
 
 When using a different bootstrap GHC version (e.g., 9.6.7 to build 9.2.8),
-packages need to be registered in the correct Stage0 package database.
+Cabal's register command doesn't properly update the package database cache.
 
-The Cabal 'register' command does NOT support --package-db=PATH - it only
-has --user/--global choice options. The package database path is determined
-from LocalBuildInfo set during configure.
+The issue is:
+1. cabal copy --target-package-db puts the .conf file in the correct location
+2. cabal register is supposed to register the package but doesn't update
+   the package.cache file properly
+3. Subsequent configure steps can't find the newly registered package
 
-The --inplace flag tells Cabal to register the package in the build location
-using the package database from the configure step, rather than trying to
-register to user/global databases.
+The fix adds an explicit ghc-pkg recache call after Cabal.registerPackage
+for Stage0 packages. This ensures the package.cache file is updated and
+the package becomes visible to ghc-pkg queries.
 
-diff --git a/hadrian/src/Hadrian/Haskell/Cabal/Parse.hs b/hadrian/src/Hadrian/Haskell/Cabal/Parse.hs
---- a/hadrian/src/Hadrian/Haskell/Cabal/Parse.hs
-+++ b/hadrian/src/Hadrian/Haskell/Cabal/Parse.hs
-@@ -191,4 +191,5 @@ registerPackage context@Context {..} = do
-     let v = if verbosity >= Loud then "-v3" else "-v0"
-     traced "cabal-register" $
-         C.defaultMainWithHooksNoReadArgs C.autoconfUserHooks gpd
--            [ "register", "--builddir", ctxPath, v ]
-+            [ "register", "--builddir", ctxPath, "--inplace", v ]
+Note: GhcPkg Init actually does 'ghc-pkg recache' (see GhcPkg.hs comment).
+We reuse it here to update the cache after registration.
+
+diff --git a/hadrian/src/Rules/Register.hs b/hadrian/src/Rules/Register.hs
+--- a/hadrian/src/Rules/Register.hs
++++ b/hadrian/src/Rules/Register.hs
+@@ -143,6 +143,13 @@ buildConf _ context@Context {..} _conf = do
+     -- Copy and register the package.
+     Cabal.copyPackage context
+     Cabal.registerPackage context
 +
- -- | What type of file is Main
++    -- Explicitly recache the package database after registration.
++    -- Cabal's register command doesn't always update the package.cache file
++    -- properly, especially when using a different bootstrap GHC version.
++    -- GhcPkg Init actually does 'ghc-pkg recache' (see GhcPkg.hs).
++    when (stage == Stage0) $
++        build $ target context (GhcPkg Init stage) [] []
+
+     -- We declare that this rule also produces files matching:
+     --   <root>/stage<N>/lib/<arch>-<os>-ghc-<version>/*libHS<pkgid>*
