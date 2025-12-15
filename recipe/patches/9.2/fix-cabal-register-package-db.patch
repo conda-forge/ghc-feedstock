@@ -1,34 +1,25 @@
 From: conda-forge
-Subject: [PATCH] Explicitly pass package database to Cabal.registerPackage
+Subject: [PATCH] Use --inplace flag for Cabal register to ensure correct package database
 
-When using a different bootstrap GHC version, the package database needs
-to be explicitly passed to the register command. Without this, the
-registration might go to the wrong database or fail to update the cache.
+When using a different bootstrap GHC version (e.g., 9.6.7 to build 9.2.8),
+packages need to be registered in the correct Stage0 package database.
 
-The copyPackage function already passes --target-package-db explicitly,
-but registerPackage was relying on the builddir config which may not
-work correctly on Windows with version mismatches.
+The Cabal 'register' command does NOT support --package-db=PATH - it only
+has --user/--global choice options. The package database path is determined
+from LocalBuildInfo set during configure.
 
-This patch adds explicit --package-db to the register command.
-
-IMPORTANT: Cabal's argument parser requires --package-db=PATH format
-(joined with =), not --package-db PATH (separate arguments). See
-hadrian/src/Settings/Builders/Common.hs line 60 for the pattern:
-  prefix <- ifM (builder Ghc) (return "-package-db ") (return "--package-db=")
+The --inplace flag tells Cabal to register the package in the build location
+using the package database from the configure step, rather than trying to
+register to user/global databases.
 
 diff --git a/hadrian/src/Hadrian/Haskell/Cabal/Parse.hs b/hadrian/src/Hadrian/Haskell/Cabal/Parse.hs
 --- a/hadrian/src/Hadrian/Haskell/Cabal/Parse.hs
 +++ b/hadrian/src/Hadrian/Haskell/Cabal/Parse.hs
-@@ -188,9 +188,11 @@ registerPackage context@Context {..} = do
-     putProgressInfo $ "| Register package " ++ quote (pkgName package)
-     ctxPath <- Context.contextPath context
-     gpd <- pkgGenericDescription package
-+    pkgDbPath <- packageDbPath stage
-     verbosity <- getVerbosity
+@@ -191,4 +191,5 @@ registerPackage context@Context {..} = do
      let v = if verbosity >= Loud then "-v3" else "-v0"
      traced "cabal-register" $
          C.defaultMainWithHooksNoReadArgs C.autoconfUserHooks gpd
 -            [ "register", "--builddir", ctxPath, v ]
-+            [ "register", "--builddir", ctxPath, "--package-db=" ++ pkgDbPath, v ]
++            [ "register", "--builddir", ctxPath, "--inplace", v ]
 +
  -- | What type of file is Main
