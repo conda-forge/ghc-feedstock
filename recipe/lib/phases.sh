@@ -261,7 +261,7 @@ default_build_hadrian() {
 
   # Find Hadrian binary (check for .exe on Windows)
   local hadrian_bin
-  hadrian_bin=$(find "${SRC_DIR}"/hadrian/dist-newstyle -name "hadrian" -o -name "hadrian.exe" -type f 2>/dev/null | head -1)
+  hadrian_bin=$(find "${SRC_DIR}"/hadrian/dist-newstyle \( -name "hadrian" -o -name "hadrian.exe" \) -type f -perm /111 2>/dev/null | head -1)
 
   if [[ ! -f "${hadrian_bin}" ]]; then
     echo "ERROR: Hadrian binary not found after build"

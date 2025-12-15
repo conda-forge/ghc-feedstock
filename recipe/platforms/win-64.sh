@@ -37,6 +37,19 @@ platform_setup_environment() {
   # Include MSYS2 tools (m2-coreutils, m2-bash, etc.) from Library/usr/bin
   export PATH="${_BUILD_PREFIX}/Library/bin:${_BUILD_PREFIX}/Library/usr/bin:${_BUILD_PREFIX}/ghc-bootstrap/bin:${_BUILD_PREFIX}/bin:/c/Windows/System32:/c/Windows"
 
+  # Set up MinGW-w64 toolchain paths (these are in Library/bin/ with full triple prefix)
+  export CC="x86_64-w64-mingw32-gcc"
+  export CXX="x86_64-w64-mingw32-g++"
+  export CPP="x86_64-w64-mingw32-cpp"
+  export LD="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-ld.exe"
+  export AR="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-ar.exe"
+  export NM="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-nm.exe"
+  export RANLIB="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-ranlib.exe"
+  export OBJDUMP="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-objdump.exe"
+  export STRIP="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-strip.exe"
+  export DLLWRAP="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-dllwrap.exe"
+  export WINDRES="${_BUILD_PREFIX}/Library/bin/x86_64-w64-mingw32-windres.exe"
+
   # Set up Cabal environment
   export CABAL="${_BUILD_PREFIX}/bin/cabal"
   export CABAL_DIR="${SRC_DIR}\\.cabal"
