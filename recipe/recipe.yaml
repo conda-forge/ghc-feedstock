@@ -57,6 +57,7 @@ requirements:
     - ${{ "m2-" if not unix }}bash >=5.2
     - ${{ "m2-" if not unix }}file
     - ${{ "m2-" if not unix }}findutils
+    - ${{ "m2-" if not unix }}grep
     - ${{ "m2-" if not unix }}m4
     - ${{ "m2-" if not unix }}make
     - ${{ "m2-" if not unix }}tar

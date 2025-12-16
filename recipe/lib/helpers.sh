@@ -395,40 +395,22 @@ patch_system_config_linker_flags() {
   perl -pi -e "s#(settings-c-compiler-link-flags.*?= )#\$1-Wl,-L${prefix}/lib -Wl,-rpath,${prefix}/lib #" "${settings_file}"
   perl -pi -e "s#(settings-ld-flags.*?= )#\$1-L${prefix}/lib -rpath ${prefix}/lib #" "${settings_file}"
 
-  # Add xelatex placeholder - Hadrian validates this even with --docs=none
-  # Without this, build fails with: "Non optional builder 'xelatex' is not specified"
-  # Note: system.config.in has "xelatex = @XELATEX@" which becomes "xelatex = " if not found
-  # We need to detect and replace empty values or add the line if missing
-  #
-  # IMPORTANT: The line might be "xelatex = " (with trailing space) or "xelatex =" or similar
-  # Check if value is empty/whitespace by looking for a non-whitespace char after =
-  # NOTE: Using sed instead of perl because perl's $ anchor can miss \r in CRLF files
+  # Add doc tool placeholders - Hadrian validates these even with --docs=none
+  # system.config.in has "xelatex = @XELATEX@" which becomes "xelatex = " if not found
+  # Replace empty values with /bin/true placeholder
   if ! grep -qE "^xelatex\s*=\s*\S" "${settings_file}"; then
-    # Replace the line completely (sed handles line endings correctly)
-    sed -i 's/^xelatex[[:space:]]*=.*/xelatex = \/bin\/true/' "${settings_file}"
-    # If line still doesn't exist with a value, add it
-    if ! grep -qE "^xelatex\s*=\s*\S" "${settings_file}"; then
-      echo "xelatex = /bin/true" >> "${settings_file}"
-    fi
-    echo "  Added xelatex placeholder to system.config"
+    perl -pi -e 's/^xelatex\s*=.*/xelatex = \/bin\/true/' "${settings_file}"
+    grep -qE "^xelatex\s*=\s*\S" "${settings_file}" || echo "xelatex = /bin/true" >> "${settings_file}"
   fi
 
-  # Add sphinx-build placeholder - same issue as xelatex
   if ! grep -qE "^sphinx-build\s*=\s*\S" "${settings_file}"; then
-    sed -i 's/^sphinx-build[[:space:]]*=.*/sphinx-build = \/bin\/true/' "${settings_file}"
-    if ! grep -qE "^sphinx-build\s*=\s*\S" "${settings_file}"; then
-      echo "sphinx-build = /bin/true" >> "${settings_file}"
-    fi
-    echo "  Added sphinx-build placeholder to system.config"
+    perl -pi -e 's/^sphinx-build\s*=.*/sphinx-build = \/bin\/true/' "${settings_file}"
+    grep -qE "^sphinx-build\s*=\s*\S" "${settings_file}" || echo "sphinx-build = /bin/true" >> "${settings_file}"
   fi
 
-  # Add makeindex placeholder - same issue as xelatex/sphinx-build
   if ! grep -qE "^makeindex\s*=\s*\S" "${settings_file}"; then
-    sed -i 's/^makeindex[[:space:]]*=.*/makeindex = \/bin\/true/' "${settings_file}"
-    if ! grep -qE "^makeindex\s*=\s*\S" "${settings_file}"; then
-      echo "makeindex = /bin/true" >> "${settings_file}"
-    fi
-    echo "  Added makeindex placeholder to system.config"
+    perl -pi -e 's/^makeindex\s*=.*/makeindex = \/bin\/true/' "${settings_file}"
+    grep -qE "^makeindex\s*=\s*\S" "${settings_file}" || echo "makeindex = /bin/true" >> "${settings_file}"
   fi
 
   echo "  ✓ system.config linker flags patched"
