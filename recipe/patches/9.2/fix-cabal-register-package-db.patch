@@ -75,7 +75,7 @@ diff --git a/hadrian/src/Rules/Register.hs b/hadrian/src/Rules/Register.hs
 +            verbosity <- getVerbosity
 +            let verbosityFlag = if verbosity < Chatty then ["-v0"] else []
 +            cmd_ [ghcPkgPath] (["--no-user-package-db", "--global-package-db", pkgDbPath
-+                              , "register"] ++ verbosityFlag ++ [confFile])
++                              , "register", "--force"] ++ verbosityFlag ++ [confFile])
 +        _ ->
 +            Cabal.registerPackage context
  
