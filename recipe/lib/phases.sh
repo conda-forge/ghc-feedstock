@@ -302,11 +302,8 @@ phase_build_stage1() {
 }
 
 default_build_stage1() {
-  # Build Stage 1 GHC executables
-  local -a options=(--flavour="${FLAVOUR}" --docs=none --progress-info=none)
-  run_and_log    "stage1-ghc" "${HADRIAN_CMD[@]}" "${options[@]}" stage1:exe:ghc-bin
-  run_and_log    "stage1-pkg" "${HADRIAN_CMD[@]}" "${options[@]}" stage1:exe:ghc-pkg
-  run_and_log "stage1-hsc2hs" "${HADRIAN_CMD[@]}" "${options[@]}" stage1:exe:hsc2hs
+  # Build Stage 1 GHC executables (ghc-bin, ghc-pkg, hsc2hs)
+  build_stage_executables 1
 
   # Update stage0 settings before building libraries
   if type -t update_stage_settings >/dev/null 2>&1; then
@@ -314,7 +311,7 @@ default_build_stage1() {
   fi
 
   # Build Stage 1 libraries (Hadrian handles dependency order internally)
-  run_and_log "stage1-lib" "${HADRIAN_CMD[@]}" "${options[@]}" stage1:lib:ghc
+  build_stage_libraries 1
 }
 
 # ==============================================================================
@@ -342,12 +339,8 @@ phase_build_stage2() {
 }
 
 default_build_stage2() {
-  # Build Stage 2 GHC executables and libraries
-  # --freeze1 ensures Stage 1 compiler is not rebuilt
-  local -a options=(--flavour="${FLAVOUR}" --freeze1 --docs=none --progress-info=none)
-  run_and_log    "stage2-ghc" "${HADRIAN_CMD[@]}" "${options[@]}" stage2:exe:ghc-bin
-  run_and_log    "stage2-pkg" "${HADRIAN_CMD[@]}" "${options[@]}" stage2:exe:ghc-pkg
-  run_and_log "stage2-hsc2hs" "${HADRIAN_CMD[@]}" "${options[@]}" stage2:exe:hsc2hs
+  # Build Stage 2 GHC executables (--freeze1 ensures Stage 1 is not rebuilt)
+  build_stage_executables 2 --freeze1
 
   # Update stage1 settings before building libraries
   if type -t update_stage_settings >/dev/null 2>&1; then
@@ -355,7 +348,7 @@ default_build_stage2() {
   fi
 
   # Build Stage 2 libraries (Hadrian handles dependency order internally)
-  run_and_log "stage2-lib" "${HADRIAN_CMD[@]}" "${options[@]}" stage2:lib:ghc
+  build_stage_libraries 2 --freeze1
 }
 
 # ==============================================================================

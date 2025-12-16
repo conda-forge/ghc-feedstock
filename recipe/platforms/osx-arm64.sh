@@ -211,14 +211,9 @@ platform_build_stage2() {
 # ==============================================================================
 
 platform_install_ghc() {
-  # Cross-compile install needs build-host compiler and pre-set C++ std lib
-  # to avoid configure failing on libc++ link test (it runs x86_64 tests)
-  local extra_args="ac_cv_path_CC=${BUILD_PREFIX}/bin/${conda_host}-clang"
-  extra_args+=" ac_cv_path_CXX=${BUILD_PREFIX}/bin/${conda_host}-clang++"
-  extra_args+=" CXX_STD_LIB_LIBS='c++ c++abi'"  # Skip libc++ detection
-  extra_args+=" CFLAGS= CXXFLAGS= LDFLAGS="
-
-  bindist_install "${conda_target}" "${extra_args}"
+  # Use shared cross-compile bindist install with macOS-specific C++ std lib skip
+  # (avoids configure failing on libc++ link test which runs x86_64 tests)
+  cross_bindist_install "${conda_target}" "CXX_STD_LIB_LIBS='c++ c++abi'"
 }
 
 # ==============================================================================
@@ -226,12 +221,10 @@ platform_install_ghc() {
 # ==============================================================================
 
 platform_post_install() {
-  # Use cross-helpers for symlink creation (conda_target is set by configure_cross_triples)
-  # Note: macOS doesn't need wrapper script fixes like Linux does
-  cross_create_symlinks "${conda_target}"
-  install_bash_completion
+  # Use shared cross-compile post-install (macOS doesn't need wrapper fixes)
+  cross_post_install "${conda_target}" "no-wrapper-fix"
 
-  # Verify installation
+  # Verify installation (may fail for cross-compiled binary - that's expected)
   echo "  Verifying GHC installation..."
   "${PREFIX}/bin/ghc" --version || {
     echo "WARNING: Installed GHC failed to run (expected for cross-compiled binary)"

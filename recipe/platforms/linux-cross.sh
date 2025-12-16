@@ -164,19 +164,12 @@ patch_final_settings() {
 }
 
 platform_install_ghc() {
-  # Cross-compile install needs build-host compiler for wrapper script generation
-  local extra_args="ac_cv_path_CC=${BUILD_PREFIX}/bin/${conda_host}-clang"
-  extra_args+=" ac_cv_path_CXX=${BUILD_PREFIX}/bin/${conda_host}-clang++"
-  extra_args+=" CFLAGS= CXXFLAGS= LDFLAGS="
-
-  bindist_install "${ghc_target}" "${extra_args}"
+  # Use shared cross-compile bindist install helper
+  cross_bindist_install "${ghc_target}"
 }
 
 platform_post_install() {
   patch_final_settings
-  # Use cross-helpers for wrapper/symlink fixes (ghc_target is set by configure_cross_triples)
-  cross_fix_wrapper_scripts "${ghc_target}"
-  cross_fix_ghci_wrapper "${ghc_target}"
-  cross_create_symlinks "${ghc_target}"
-  install_bash_completion
+  # Use shared cross-compile post-install (wrapper fixes, ghci fix, symlinks, bash completion)
+  cross_post_install "${ghc_target}"
 }

@@ -99,29 +99,18 @@ platform_setup_environment() {
 }
 
 # ==============================================================================
-# Phase 2: Bootstrap Setup
-# ==============================================================================
-
-# NOTE: platform_setup_bootstrap() removed - phases.sh already verifies bootstrap
-# GHC after calling common_setup_environment() and any platform overrides.
-
-# ==============================================================================
 # Phase 3: Cabal Setup
 # ==============================================================================
 
 platform_setup_cabal() {
   echo "  Configuring Windows Cabal..."
 
-  # Clean any stale .cabal directory that might have permission issues
-  echo "  Cleaning stale .cabal directory to prevent permission issues..."
-  rm -rf "${_SRC_DIR}/.cabal"
-  rm -rf "${HOME}/.cabal"
-
+  # Clean stale .cabal directories
+  rm -rf "${_SRC_DIR}/.cabal" "${HOME}/.cabal"
   mkdir -p "${_SRC_DIR}/.cabal"
   "${CABAL}" user-config init
 
-  # CRITICAL: Pass chkstk_ms library through LDFLAGS for linking
-  echo "  Adding chkstk_ms library to LDFLAGS..."
+  # Pass chkstk_ms library through LDFLAGS for linking
   export LDFLAGS="${LDFLAGS} -lchkstk_ms"
 
   run_and_log "cabal-update" "${CABAL}" v2-update || { cat "${_SRC_DIR}"/_logs/cabal-update.log; return 1; }
@@ -132,9 +121,6 @@ platform_setup_cabal() {
 # ==============================================================================
 # Phase 4: Configure GHC
 # ==============================================================================
-
-# NOTE: platform_add_configure_args removed - build_configure_args in helpers.sh
-# now handles Windows paths automatically (${_PREFIX}/Library/{include,lib})
 
 platform_pre_configure_ghc() {
   # Force use of conda-provided toolchain and libraries (not inplace MinGW)
@@ -311,9 +297,26 @@ platform_install_ghc() {
 platform_post_install() {
   echo "  Running Windows-specific post-install verification..."
 
-  # Verify GHC binaries
-  echo "  GHC binaries in ${_PREFIX}/bin:"
-  ls -la "${_PREFIX}/bin" | head -20
+  # Verify expected GHC binaries exist
+  echo "  Checking GHC binaries in ${_PREFIX}/bin:"
+  local -a expected_bins=(ghc.exe ghc-pkg.exe hsc2hs.exe runghc.exe hp2ps.exe hpc.exe)
+  local missing=0
+  for bin in "${expected_bins[@]}"; do
+    if [[ -f "${_PREFIX}/bin/${bin}" ]]; then
+      echo "    ✓ ${bin}"
+    else
+      echo "    ✗ ${bin} MISSING"
+      ((missing++)) || true
+    fi
+  done
+
+  # Show total file count
+  local file_count=$(ls -1 "${_PREFIX}/bin" 2>/dev/null | wc -l)
+  echo "  Total files in bin/: ${file_count}"
+
+  if [[ ${missing} -gt 0 ]]; then
+    echo "WARNING: ${missing} expected binaries missing"
+  fi
 
   echo "  ✓ Windows post-install complete"
 }
@@ -435,22 +438,22 @@ patch_windows_settings() {
 }
 
 expand_conda_variables() {
-  # CRITICAL: Replace ALL conda variables with Unix paths to prevent backslash escape issues
-  # When %PREFIX% expands to C:\bld\..., the \b becomes backspace character!
+  # Replace conda variables with Unix paths (backslash escape prevention)
+  # Use :- default to handle unset variables (set -eu safe)
+  CFLAGS=$(echo "${CFLAGS:-}" | perl -pe "s|%BUILD_PREFIX%|${_BUILD_PREFIX}|g; s|%PREFIX%|${_PREFIX}|g; s|%SRC_DIR%|${_SRC_DIR}|g")
+  CXXFLAGS=$(echo "${CXXFLAGS:-}" | perl -pe "s|%BUILD_PREFIX%|${_BUILD_PREFIX}|g; s|%PREFIX%|${_PREFIX}|g; s|%SRC_DIR%|${_SRC_DIR}|g")
+  LDFLAGS=$(echo "${LDFLAGS:-}" | perl -pe "s|%BUILD_PREFIX%|${_BUILD_PREFIX}|g; s|%PREFIX%|${_PREFIX}|g; s|%SRC_DIR%|${_SRC_DIR}|g")
 
-  echo "  Expanding conda variables in CFLAGS/CXXFLAGS/LDFLAGS..."
-
-  CFLAGS=$(echo "${CFLAGS}" | perl -pe "s|%BUILD_PREFIX%|${_BUILD_PREFIX}|g; s|%PREFIX%|${_PREFIX}|g; s|%SRC_DIR%|${_SRC_DIR}|g")
-  CXXFLAGS=$(echo "${CXXFLAGS}" | perl -pe "s|%BUILD_PREFIX%|${_BUILD_PREFIX}|g; s|%PREFIX%|${_PREFIX}|g; s|%SRC_DIR%|${_SRC_DIR}|g")
-  LDFLAGS=$(echo "${LDFLAGS}" | perl -pe "s|%BUILD_PREFIX%|${_BUILD_PREFIX}|g; s|%PREFIX%|${_PREFIX}|g; s|%SRC_DIR%|${_SRC_DIR}|g")
-
-  CFLAGS=$(echo "${CFLAGS}" | perl -pe "s|\$ENV{BUILD_PREFIX}|${_BUILD_PREFIX}|g; s|\$ENV{PREFIX}|${_PREFIX}|g; s|\$ENV{SRC_DIR}|${_SRC_DIR}|g")
-  CXXFLAGS=$(echo "${CXXFLAGS}" | perl -pe "s|\$ENV{BUILD_PREFIX}|${_BUILD_PREFIX}|g; s|\$ENV{PREFIX}|${_PREFIX}|g; s|\$ENV{SRC_DIR}|${_SRC_DIR}|g")
-  LDFLAGS=$(echo "${LDFLAGS}" | perl -pe "s|\$ENV{BUILD_PREFIX}|${_BUILD_PREFIX}|g; s|\$ENV{PREFIX}|${_PREFIX}|g; s|\$ENV{SRC_DIR}|${_SRC_DIR}|g")
+  CFLAGS=$(echo "${CFLAGS:-}" | perl -pe "s|\$ENV{BUILD_PREFIX}|${_BUILD_PREFIX}|g; s|\$ENV{PREFIX}|${_PREFIX}|g; s|\$ENV{SRC_DIR}|${_SRC_DIR}|g")
+  CXXFLAGS=$(echo "${CXXFLAGS:-}" | perl -pe "s|\$ENV{BUILD_PREFIX}|${_BUILD_PREFIX}|g; s|\$ENV{PREFIX}|${_PREFIX}|g; s|\$ENV{SRC_DIR}|${_SRC_DIR}|g")
+  LDFLAGS=$(echo "${LDFLAGS:-}" | perl -pe "s|\$ENV{BUILD_PREFIX}|${_BUILD_PREFIX}|g; s|\$ENV{PREFIX}|${_PREFIX}|g; s|\$ENV{SRC_DIR}|${_SRC_DIR}|g")
 }
 
 remove_problematic_flags() {
-  echo "  Removing problematic flags..."
+  # Initialize if unset (set -eu safe)
+  CFLAGS="${CFLAGS:-}"
+  CXXFLAGS="${CXXFLAGS:-}"
+  LDFLAGS="${LDFLAGS:-}"
 
   # Remove problematic flags from conda environment
   CFLAGS="${CFLAGS//-nostdlib/}"
@@ -508,12 +511,6 @@ EOF
 
   echo "  ✓ Created ${CHKSTK_LIB}"
 }
-
-# NOTE: Legacy wrapper functions removed - now calling patch_windows_settings() directly:
-# - patch_bootstrap_settings() → patch_windows_settings ... --bootstrap --debug
-# - patch_stage0_settings_include_paths() → patch_windows_settings ... --include-paths
-# - patch_stage2_settings() → patch_windows_settings ... --link-flags
-# - test_stage1_ghc() → removed (was dead code, never called)
 
 rebuild_touchy_with_correct_linker_flags() {
   echo "  Rebuilding touchy.exe with correct linker flags..."

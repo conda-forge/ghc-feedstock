@@ -125,31 +125,25 @@ cross_create_symlinks() {
     # Create unversioned -> versioned symlink if versioned exists
     if [[ -f "${versioned}" ]] && [[ ! -e "${unversioned}" ]]; then
       ln -sf "${versioned}" "${unversioned}"
-      echo "    ${versioned} -> ${unversioned}"
     fi
 
     # Create short name -> unversioned/versioned symlink
     if [[ -e "${unversioned}" ]] && [[ ! -e "${bin}" ]]; then
       ln -sf "${unversioned}" "${bin}"
-      echo "    ${unversioned} -> ${bin}"
     elif [[ -f "${versioned}" ]] && [[ ! -e "${bin}" ]]; then
-      # Direct link if unversioned doesn't exist
       ln -sf "${versioned}" "${bin}"
-      echo "    ${versioned} -> ${bin}"
     fi
   done
 
   popd >/dev/null
 
   # Create directory symlink for libraries
-  # Move target-prefixed dir to standard name and create reverse symlink
   local target_lib_dir="${PREFIX}/lib/${target}-ghc-${PKG_VERSION}"
   local standard_lib_dir="${PREFIX}/lib/ghc-${PKG_VERSION}"
 
   if [[ -d "${target_lib_dir}" ]] && [[ ! -d "${standard_lib_dir}" ]]; then
     mv "${target_lib_dir}" "${standard_lib_dir}"
     ln -sf "${standard_lib_dir}" "${target_lib_dir}"
-    echo "    ${target}-ghc-${PKG_VERSION} -> ghc-${PKG_VERSION}"
   fi
 
   echo "  ✓ Symlinks created"
@@ -219,7 +213,7 @@ cross_fix_ghci_wrapper() {
     return 1
   fi
 
-  echo "  Fixing ghci wrapper to call ghc --interactive..."
+  echo "  Fixing ghci wrapper..."
 
   # Fix target-prefixed ghci wrapper
   local ghci_wrapper="${PREFIX}/bin/${target}-ghci"
@@ -229,7 +223,6 @@ cross_fix_ghci_wrapper() {
 exec "${0%ghci}ghc" --interactive ${1+"$@"}
 GHCI_EOF
     chmod +x "${ghci_wrapper}"
-    echo "    Fixed ${target}-ghci"
   fi
 
   # Also fix short-name ghci if it's a script (not symlink)
@@ -240,7 +233,6 @@ GHCI_EOF
 exec "${0%ghci}ghc" --interactive ${1+"$@"}
 GHCI_EOF
     chmod +x "${short_ghci}"
-    echo "    Fixed ghci"
   fi
 
   echo "  ✓ ghci wrapper fixed"
@@ -318,4 +310,40 @@ cross_post_install() {
 
   # Install bash completion
   install_bash_completion
+}
+
+# ==============================================================================
+# Common Bindist Install for Cross-Compilation
+# ==============================================================================
+# Installs GHC from binary distribution with cross-compile specific settings.
+# Uses build-host compiler for wrapper generation and clears target flags.
+#
+# Parameters:
+#   $1 - target_triple (optional, uses ghc_target/conda_target if not provided)
+#   $2 - extra_args (optional): Additional configure arguments
+#
+# Usage:
+#   cross_bindist_install                                    # Basic cross install
+#   cross_bindist_install "${ghc_target}"                    # Explicit target
+#   cross_bindist_install "${conda_target}" "CXX_STD_LIB_LIBS='c++ c++abi'"  # macOS
+#
+cross_bindist_install() {
+  local target="${1:-$(_get_target_triple)}"
+  local platform_extra="${2:-}"
+
+  if [[ -z "${target}" ]]; then
+    echo "ERROR: cross_bindist_install requires target triple"
+    return 1
+  fi
+
+  # Build-host compiler for wrapper script generation
+  local host="${conda_host:-${build_alias}}"
+  local extra_args="ac_cv_path_CC=${BUILD_PREFIX}/bin/${host}-clang"
+  extra_args+=" ac_cv_path_CXX=${BUILD_PREFIX}/bin/${host}-clang++"
+  extra_args+=" CFLAGS= CXXFLAGS= LDFLAGS="
+
+  # Add platform-specific arguments
+  [[ -n "${platform_extra}" ]] && extra_args+=" ${platform_extra}"
+
+  bindist_install "${target}" "${extra_args}"
 }

@@ -223,6 +223,59 @@ build_hadrian_cmd() {
 }
 
 # ==============================================================================
+# Stage Build Helper
+# ==============================================================================
+# Builds standard stage components (ghc-bin, ghc-pkg, hsc2hs) in sequence.
+# This consolidates the repeated pattern across platforms.
+#
+# Parameters:
+#   $1 - stage: Stage number (1 or 2)
+#   $@ - extra_opts: Additional Hadrian options (e.g., --freeze1)
+#
+# Usage:
+#   build_stage_executables 1                    # Stage 1, no extra opts
+#   build_stage_executables 2 --freeze1          # Stage 2 with freeze
+#
+# Note: This builds executables only. Libraries (stage<N>:lib:ghc) should be
+# built separately as they often need settings patches between exe and lib.
+#
+build_stage_executables() {
+  local stage="$1"
+  shift
+  local -a extra_opts=("$@")
+
+  echo "  Building Stage ${stage} executables..."
+
+  local -a base_opts=(--flavour="${FLAVOUR}" --docs=none --progress-info=none "${extra_opts[@]}")
+
+  run_and_log "stage${stage}-ghc"    "${HADRIAN_CMD[@]}" "${base_opts[@]}" "stage${stage}:exe:ghc-bin"
+  run_and_log "stage${stage}-pkg"    "${HADRIAN_CMD[@]}" "${base_opts[@]}" "stage${stage}:exe:ghc-pkg"
+  run_and_log "stage${stage}-hsc2hs" "${HADRIAN_CMD[@]}" "${base_opts[@]}" "stage${stage}:exe:hsc2hs"
+
+  echo "  ✓ Stage ${stage} executables built"
+}
+
+# Build stage libraries
+#
+# Parameters:
+#   $1 - stage: Stage number (1 or 2)
+#   $@ - extra_opts: Additional Hadrian options (e.g., --freeze1)
+#
+build_stage_libraries() {
+  local stage="$1"
+  shift
+  local -a extra_opts=("$@")
+
+  echo "  Building Stage ${stage} libraries..."
+
+  local -a base_opts=(--flavour="${FLAVOUR}" --docs=none --progress-info=none "${extra_opts[@]}")
+
+  run_and_log "stage${stage}-lib" "${HADRIAN_CMD[@]}" "${base_opts[@]}" "stage${stage}:lib:ghc"
+
+  echo "  ✓ Stage ${stage} libraries built"
+}
+
+# ==============================================================================
 # Autoconf Cache Variables for Toolchain
 # ==============================================================================
 # Sets ac_cv_* variables for configure scripts.
@@ -485,20 +538,12 @@ update_stage_settings() {
   # Check if flags are already present (idempotent operation)
   if grep -q "Wl,-L\${PREFIX}/lib" "${settings_file}" 2>/dev/null || \
      grep -q "Wl,-L${PREFIX}/lib" "${settings_file}" 2>/dev/null; then
-    echo "  ${stage} settings already have library paths, skipping update"
-    return 0
+    return 0  # Already patched
   fi
-
-  echo "  Updating ${stage} settings with library paths..."
 
   # Add library paths and rpath
   perl -pi -e "s#(C compiler link flags\", \"[^\"]*)#\$1 -Wl,-L${PREFIX}/lib -Wl,-rpath,${PREFIX}/lib#" "${settings_file}"
   perl -pi -e "s#(ld flags\", \"[^\"]*)#\$1 -L${PREFIX}/lib -rpath ${PREFIX}/lib#" "${settings_file}"
-
-  echo "  ${stage} settings after update:"
-  grep -E "(C compiler link flags|ld flags)" "${settings_file}" 2>/dev/null || echo "  (no matching lines)"
-
-  echo "  ✓ ${stage} settings updated"
 }
 
 # Update settings file with platform-specific link flags

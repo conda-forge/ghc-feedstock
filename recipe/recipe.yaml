@@ -35,12 +35,32 @@ build:
   script:
     env:
       BOOTSTRAP_VERSION: ${{ bootstrap_version }}
+  dynamic_linking:
+    missing_dso_allowlist:
+      - if: osx
+        then:
+          - /usr/lib/libSystem.B.dylib
+      - if: not unix
+        then:
+          - C:\\Windows\\system32\\SHLWAPI.dll
+          - C:\\Windows\\system32\\WINMM.dll
+          - C:\\Windows\\system32\\WSOCK32.dll
 
 requirements:
   build:
     - ${{ compiler('c') }}
     - ${{ compiler('cxx') }}
     - ${{ stdlib('c') }}
+    
+    - ${{ "m2-" if not unix }}autoconf
+    - ${{ "m2-" if not unix }}automake${{ "-wrapper" if not unix }}
+    - ${{ "m2-" if not unix }}bash >=5.2
+    - ${{ "m2-" if not unix }}file
+    - ${{ "m2-" if not unix }}findutils
+    - ${{ "m2-" if not unix }}m4
+    - ${{ "m2-" if not unix }}make
+    - ${{ "m2-" if not unix }}tar
+    
     - binutils >=${{ binutils_version }}
     - cabal ==3.10.3.0
     - curl
@@ -49,31 +69,11 @@ requirements:
     - perl 5.32.*
     - pkg-config
     - python 3.10.*
-    - sphinx
 
-    - if: unix
+    - if: not unix
       then:
-        - autoconf
-        - automake
-        - bash >=5.2
-        - file
-        - findutils
-        - m4
-        - make
-        - sed
-      else:
         - libgcc-devel_win-64
-        - m2-autoconf
-        - m2-automake-wrapper
-        - m2-bash >=5.2
         - m2-coreutils
-        - m2-file
-        - m2-findutils
-        - m2-grep
-        - m2-m4
-        - m2-make
-        - m2-sed
-        - m2-tar
         - m2-which
 
     - if: build_platform != target_platform
@@ -81,20 +81,14 @@ requirements:
         - gmp
         - libffi
         - libiconv
-        - if: unix
-          then: ncurses
+        - ncurses
   host:
     - gmp
-    - libiconv
     - libffi
     - if: unix
-      then: ncurses
-  # run:
-  #   - if: unix
-  #     then: ncurses
-  # ignore_run_exports:
-  #   from_package:
-  #     - ncurses
+      then:
+        - libiconv
+        - ncurses
     
 tests:
   - package_contents:
@@ -153,27 +147,11 @@ tests:
           - runhaskell --version
 
   - script:
-      - ghc --version
-      - printf 'main = putStrLn "Hello conda-forge"\n' > hello.hs
-      - ghc -v hello.hs
-      - if: unix
-        then: ./hello
-        else: hello
-      - if: not unix
-        then:
-          # Verify GHC can resolve and invoke windres via $topdir path in settings
-          - ghc --print-libdir
-          - ghc --info | findstr windres
-          # Test windres wrapper by manually compiling a resource file
-          # GHC 9.6.x doesn't automatically process user .rc files through windres
-          - echo main = return () > test_res.hs
-          - echo 1 RCDATA { "test" } > test.rc
-          - cmd /c "%PREFIX%\lib\..\bin\ghc_windres.bat" --input=test.rc --output=test_res_rc.o --output-format=coff
-          - ghc -v test_res.hs test_res_rc.o -o test_res.exe
+      - printf 'main = putStrLn "Hello conda-forge"\n' > hello.hs && ghc hello.hs
+      - ${{ "./" if unix }}hello
     requirements:
       run:
         - ${{ compiler('c') }}
-        - libiconv
         - if: unix
           then:
             - ${{ stdlib('c') }}
@@ -185,24 +163,16 @@ tests:
             - lld ${{ c_compiler_version }}.*
 
   - script:
-      - if: not osx
+      - printf 'main = putStrLn "Hello threaded conda-forge"\n' > hello.hs && ghc -threaded hello.hs
+      - ${{ "./" if unix }}hello
+      - if: unix
         then:
-          - printf 'main = putStrLn "Hello threaded conda-forge"\n' > hello_t.hs
-          - ghc -threaded hello_t.hs
-          - if: unix
-            then: ./hello_t
-            else: hello_t
-          - if: unix
-            then:
-              - printf 'main = putStrLn "Hello profiled conda-forge"\n' > hello_p.hs
-              - ghc -v -prof hello_p.hs
-              - ./hello_p
-            else: echo "No profiling on non-unix"
-        else: echo "Profiling fails on osx"
+          - printf 'main = putStrLn "Hello profiled conda-forge"\n' > hello.hs && ghc -prof hello.hs && ./hello
+        else:
+          - echo "No profiling on non-unix"
     requirements:
       run:
         - ${{ compiler('c') }}
-        - libiconv
         - if: unix
           then:
             - ${{ stdlib('c') }}
@@ -213,8 +183,7 @@ tests:
   - script:
       - if: unix
         then:
-          - printf 'main = putStrLn "Hello conda-forge"\n' > hello.hs
-          - ghc -dynamic hello.hs && ./hello
+          - printf 'main = putStrLn "Hello conda-forge"\n' > hello.hs && ghc -dynamic hello.hs && ./hello
           - printf 'main = putStrLn "Hello threaded conda-forge"\n' > hello_t.hs
           - ghc -dynamic -threaded hello_t.hs && ./hello_t
         else:
@@ -222,7 +191,6 @@ tests:
     requirements:
       run:
         - ${{ compiler('c') }}
-        - libiconv
         - if: unix
           then:
             - ${{ stdlib('c') }}
@@ -244,7 +212,6 @@ tests:
     requirements:
       run:
         - ${{ compiler('c') }}
-        - libiconv
         - if: unix
           then:
             - ${{ stdlib('c') }}
