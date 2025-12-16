@@ -15,8 +15,12 @@ Key insight: If we write the .conf file directly to the package db directory,
 ghc-pkg will see it and say "already exists" even with --force. We must
 write to a separate location first.
 
---- a/b/hadrian/src/Hadrian/Haskell/Cabal/Parse.hs	2025-12-16 09:30:00.274183813 -0600
-+++ b/hadrian/src/Hadrian/Haskell/Cabal/Parse.hs	2025-12-16 09:34:20.963113504 -0600
+NOTE: This patch must be applied AFTER hadrian-cabal-3.10-compat.patch,
+fix-hadrian-ghcpkg-copy-windows.patch, and fix-hadrian-configure-needs-conf.patch
+as line numbers depend on those patches being applied first.
+
+--- a/hadrian/src/Hadrian/Haskell/Cabal/Parse.hs
++++ b/hadrian/src/Hadrian/Haskell/Cabal/Parse.hs
 @@ -11,7 +11,7 @@
  -----------------------------------------------------------------------------
  module Hadrian.Haskell.Cabal.Parse (
@@ -24,9 +28,9 @@ write to a separate location first.
 -    buildAutogenFiles, copyPackage, registerPackage
 +    buildAutogenFiles, copyPackage, registerPackage, genPkgConfig
      ) where
- 
+
  import Data.Bifunctor
-@@ -193,6 +193,21 @@
+@@ -214,6 +214,21 @@
      traced "cabal-register" $
          C.defaultMainWithHooksNoReadArgs C.autoconfUserHooks gpd
              [ "register", "--builddir", ctxPath, v ]
@@ -47,12 +51,12 @@ write to a separate location first.
 +
  -- | What type of file is Main
  data MainSourceType = HsMain | CppMain | CMain
- 
---- a/b/hadrian/src/Rules/Register.hs	2025-12-16 09:30:00.274183813 -0600
-+++ b/hadrian/src/Rules/Register.hs	2025-12-16 09:35:49.827430203 -0600
-@@ -142,8 +142,31 @@
+
+--- a/hadrian/src/Rules/Register.hs
++++ b/hadrian/src/Rules/Register.hs
+@@ -159,8 +159,31 @@
              need [path -/- "include/ghc-gmp.h"]
- 
+
      -- Copy and register the package.
 +    -- Note: For Stage0 with different bootstrap versions, Cabal.registerPackage
 +    -- doesn't reliably register to the correct package database. We generate
@@ -80,6 +84,6 @@ write to a separate location first.
 +                              , "register", "--force"] ++ verbosityFlag ++ [tempConfFile])
 +        _ ->
 +            Cabal.registerPackage context
- 
+
      -- We declare that this rule also produces files matching:
      --   - <root>/stage<N>/lib/<arch>-<os>-ghc-<version>/*libHS<pkgid>*
