@@ -171,8 +171,21 @@ platform_build_stage1() {
   }
 
   # Build libraries with release flavour (for full ways: vanilla, profiling, dynamic)
-  run_and_log "stage1-lib" "${HADRIAN_CMD[@]}" --flavour="${FLAVOUR}" \
-    stage1:lib:ghc --docs=none --progress-info=none
+  # Retry logic for -dynamic-too race condition (parallel .dyn_hi file access)
+  local max_retries=3
+  local retry=0
+  while (( retry < max_retries )); do
+    if run_and_log "stage1-lib" "${HADRIAN_CMD[@]}" --flavour="${FLAVOUR}" \
+        stage1:lib:ghc --docs=none --progress-info=none; then
+      break
+    fi
+    ((retry++))
+    echo "  Retry $retry/$max_retries for stage1-lib (dynamic interface race condition)"
+  done
+  if (( retry == max_retries )); then
+    echo "ERROR: stage1-lib failed after $max_retries retries"
+    exit 1
+  fi
 
   echo "  ✓ Stage 1 cross-compiler built"
 }
