@@ -1,42 +1,76 @@
 From: conda-forge
-Subject: [PATCH] Use ghc-pkg register directly instead of cabal register for Stage0
+Subject: [PATCH] Use gen-pkg-config + ghc-pkg register for Stage0 packages
 
 When using a different bootstrap GHC version (e.g., 9.6.7 to build 9.2.8),
-Cabal's register command doesn't properly register packages to the Stage0
-package database.
+Cabal's register command doesn't reliably register packages to the Stage0
+package database. The issue is that 'cabal register' without explicit
+package-db specification may register to the wrong database.
 
-The issue:
-1. cabal copy --target-package-db creates the .conf file in the right place
-2. cabal register (without --package-db support) may register to wrong db
-3. Subsequent configure steps can't find the newly registered package
+The fix:
+1. For Stage0, use 'cabal register --gen-pkg-config=<path>' to generate
+   the .conf file WITHOUT actually registering it
+2. Then use 'ghc-pkg register' to register it to the correct Stage0 db
 
-The fix uses ghc-pkg register directly for Stage0 packages, similar to how
-copyConf handles bootstrap packages. This is more reliable than going through
-Cabal's registration machinery.
+This is similar to how copyConf handles bootstrap packages - using ghc-pkg
+directly with explicit database specification.
 
+diff --git a/hadrian/src/Hadrian/Haskell/Cabal/Parse.hs b/hadrian/src/Hadrian/Haskell/Cabal/Parse.hs
+--- a/hadrian/src/Hadrian/Haskell/Cabal/Parse.hs
++++ b/hadrian/src/Hadrian/Haskell/Cabal/Parse.hs
+@@ -11,7 +11,7 @@
+ -----------------------------------------------------------------------------
+ module Hadrian.Haskell.Cabal.Parse (
+     parsePackageData, resolveContextData, parseCabalPkgId, configurePackage,
+-    buildAutogenFiles, copyPackage, registerPackage
++    buildAutogenFiles, copyPackage, registerPackage, genPkgConfig
+     ) where
+ 
+ import Data.Bifunctor
+@@ -193,6 +193,21 @@
+     traced "cabal-register" $
+         C.defaultMainWithHooksNoReadArgs C.autoconfUserHooks gpd
+             [ "register", "--builddir", ctxPath, v ]
++
++-- | Generate a package config file for the 'Package' without registering.
++-- This is useful when we need to register to a specific package database
++-- using ghc-pkg rather than cabal's default registration.
++genPkgConfig :: Context -> FilePath -> Action ()
++genPkgConfig context@Context {..} confFile = do
++    putProgressInfo $ "| Generate pkg config " ++ quote (pkgName package)
++    ctxPath <- Context.contextPath context
++    gpd <- pkgGenericDescription package
++    verbosity <- getVerbosity
++    let v = if verbosity >= Loud then "-v3" else "-v0"
++    traced "cabal-gen-pkg-config" $
++        C.defaultMainWithHooksNoReadArgs C.autoconfUserHooks gpd
++            [ "register", "--builddir", ctxPath, "--gen-pkg-config=" ++ confFile, v ]
++
+ -- | What type of file is Main
+ data MainSourceType = HsMain | CppMain | CMain
+ 
 diff --git a/hadrian/src/Rules/Register.hs b/hadrian/src/Rules/Register.hs
 --- a/hadrian/src/Rules/Register.hs
 +++ b/hadrian/src/Rules/Register.hs
-@@ -141,9 +141,28 @@ buildConf _ context@Context {..} _conf = do
-         when (bignum == "gmp") $
+@@ -142,8 +142,28 @@
              need [path -/- "include/ghc-gmp.h"]
  
      -- Copy and register the package.
 +    -- Note: For Stage0 with different bootstrap versions, Cabal.registerPackage
-+    -- doesn't reliably register to the correct package database. We use ghc-pkg
-+    -- directly instead, similar to how copyConf handles bootstrap packages.
++    -- doesn't reliably register to the correct package database. We generate
++    -- the .conf file using --gen-pkg-config, then register with ghc-pkg directly.
      Cabal.copyPackage context
 -    Cabal.registerPackage context
 +
 +    case stage of
 +        Stage0 -> do
-+            -- Use ghc-pkg register directly for Stage0
-+            -- The .conf file was created by copyPackage
++            -- Generate .conf file using cabal register --gen-pkg-config
++            -- Then register it explicitly with ghc-pkg to our Stage0 database
 +            pkgDbPath <- packageDbPath stage
 +            pkgId <- pkgIdentifier package
 +            let confFile = pkgDbPath -/- pkgId <.> "conf"
++            Cabal.genPkgConfig context confFile
++            -- Now register the generated .conf file with ghc-pkg
 +            putProgressInfo $ "| Register package " ++ quote (pkgName package) ++ " (via ghc-pkg)"
-+            -- Call ghc-pkg register directly with the conf file
 +            ghcPkgPath <- builderPath (GhcPkg Init stage)
 +            verbosity <- getVerbosity
 +            let verbosityFlag = if verbosity < Chatty then ["-v0"] else []
