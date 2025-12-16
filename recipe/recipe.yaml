@@ -180,6 +180,9 @@ tests:
         - if: linux
           then:
             - ld_impl_${{ target_platform }} ${{ binutils_version }}
+        - if: osx or not unix
+          then:
+            - lld ${{ c_compiler_version }}.*
 
   - script:
       - if: unix
