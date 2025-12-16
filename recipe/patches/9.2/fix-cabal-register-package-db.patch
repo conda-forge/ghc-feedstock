@@ -8,15 +8,15 @@ package-db specification may register to the wrong database.
 
 The fix:
 1. For Stage0, use 'cabal register --gen-pkg-config=<path>' to generate
-   the .conf file WITHOUT actually registering it
+   the .conf file to a TEMP location (NOT in the package db)
 2. Then use 'ghc-pkg register' to register it to the correct Stage0 db
 
-This is similar to how copyConf handles bootstrap packages - using ghc-pkg
-directly with explicit database specification.
+Key insight: If we write the .conf file directly to the package db directory,
+ghc-pkg will see it and say "already exists" even with --force. We must
+write to a separate location first.
 
-diff --git a/hadrian/src/Hadrian/Haskell/Cabal/Parse.hs b/hadrian/src/Hadrian/Haskell/Cabal/Parse.hs
---- a/hadrian/src/Hadrian/Haskell/Cabal/Parse.hs
-+++ b/hadrian/src/Hadrian/Haskell/Cabal/Parse.hs
+--- a/b/hadrian/src/Hadrian/Haskell/Cabal/Parse.hs	2025-12-16 09:30:00.274183813 -0600
++++ b/hadrian/src/Hadrian/Haskell/Cabal/Parse.hs	2025-12-16 09:34:20.963113504 -0600
 @@ -11,7 +11,7 @@
  -----------------------------------------------------------------------------
  module Hadrian.Haskell.Cabal.Parse (
@@ -48,10 +48,9 @@ diff --git a/hadrian/src/Hadrian/Haskell/Cabal/Parse.hs b/hadrian/src/Hadrian/Ha
  -- | What type of file is Main
  data MainSourceType = HsMain | CppMain | CMain
  
-diff --git a/hadrian/src/Rules/Register.hs b/hadrian/src/Rules/Register.hs
---- a/hadrian/src/Rules/Register.hs
-+++ b/hadrian/src/Rules/Register.hs
-@@ -142,8 +142,28 @@
+--- a/b/hadrian/src/Rules/Register.hs	2025-12-16 09:30:00.274183813 -0600
++++ b/hadrian/src/Rules/Register.hs	2025-12-16 09:35:49.827430203 -0600
+@@ -142,8 +142,31 @@
              need [path -/- "include/ghc-gmp.h"]
  
      -- Copy and register the package.
@@ -63,19 +62,22 @@ diff --git a/hadrian/src/Rules/Register.hs b/hadrian/src/Rules/Register.hs
 +
 +    case stage of
 +        Stage0 -> do
-+            -- Generate .conf file using cabal register --gen-pkg-config
-+            -- Then register it explicitly with ghc-pkg to our Stage0 database
++            -- Generate .conf file to a TEMP location (NOT in the package db directory)
++            -- Then register it explicitly with ghc-pkg to our Stage0 database.
++            -- We MUST write to a temp location first because if we write directly
++            -- to the package db, ghc-pkg will see the file and say "already exists".
++            ctxPath <- contextPath context
 +            pkgDbPath <- packageDbPath stage
 +            pkgId <- pkgIdentifier package
-+            let confFile = pkgDbPath -/- pkgId <.> "conf"
-+            Cabal.genPkgConfig context confFile
++            let tempConfFile = ctxPath -/- "build" -/- pkgId <.> "conf"
++            Cabal.genPkgConfig context tempConfFile
 +            -- Now register the generated .conf file with ghc-pkg
 +            putProgressInfo $ "| Register package " ++ quote (pkgName package) ++ " (via ghc-pkg)"
 +            ghcPkgPath <- builderPath (GhcPkg Init stage)
 +            verbosity <- getVerbosity
 +            let verbosityFlag = if verbosity < Chatty then ["-v0"] else []
 +            cmd_ [ghcPkgPath] (["--no-user-package-db", "--global-package-db", pkgDbPath
-+                              , "register", "--force"] ++ verbosityFlag ++ [confFile])
++                              , "register", "--force"] ++ verbosityFlag ++ [tempConfFile])
 +        _ ->
 +            Cabal.registerPackage context
  
