@@ -1,19 +1,13 @@
 From: conda-forge
-Subject: [PATCH] Use gen-pkg-config + ghc-pkg register for Stage0 packages
+Subject: [PATCH] Use gen-pkg-config for Stage0 packages
 
 When using a different bootstrap GHC version (e.g., 9.6.7 to build 9.2.8),
 Cabal's register command doesn't reliably register packages to the Stage0
-package database. The issue is that 'cabal register' without explicit
-package-db specification may register to the wrong database.
+package database.
 
-The fix:
-1. For Stage0, use 'cabal register --gen-pkg-config=<path>' to generate
-   the .conf file to a TEMP location (NOT in the package db)
-2. Then use 'ghc-pkg register' to register it to the correct Stage0 db
-
-Key insight: If we write the .conf file directly to the package db directory,
-ghc-pkg will see it and say "already exists" even with --force. We must
-write to a separate location first.
+The fix: For Stage0, use 'cabal register --gen-pkg-config=<path>' to generate
+the .conf file directly to the package database directory. GHC's package
+database is just a directory of .conf files - this is how copyConf works.
 
 NOTE: This patch must be applied AFTER hadrian-cabal-3.10-compat.patch,
 fix-hadrian-ghcpkg-copy-windows.patch, and fix-hadrian-configure-needs-conf.patch
@@ -30,14 +24,13 @@ as line numbers depend on those patches being applied first.
      ) where
 
  import Data.Bifunctor
-@@ -214,6 +214,21 @@
+@@ -214,6 +214,20 @@
      traced "cabal-register" $
          C.defaultMainWithHooksNoReadArgs C.autoconfUserHooks gpd
              [ "register", "--builddir", ctxPath, v ]
 +
 +-- | Generate a package config file for the 'Package' without registering.
-+-- This is useful when we need to register to a specific package database
-+-- using ghc-pkg rather than cabal's default registration.
++-- This is useful when we need to write the .conf file to a specific location.
 +genPkgConfig :: Context -> FilePath -> Action ()
 +genPkgConfig context@Context {..} confFile = do
 +    putProgressInfo $ "| Generate pkg config " ++ quote (pkgName package)
@@ -54,34 +47,23 @@ as line numbers depend on those patches being applied first.
 
 --- a/hadrian/src/Rules/Register.hs
 +++ b/hadrian/src/Rules/Register.hs
-@@ -159,8 +159,31 @@
+@@ -159,8 +159,20 @@
              need [path -/- "include/ghc-gmp.h"]
 
      -- Copy and register the package.
 +    -- Note: For Stage0 with different bootstrap versions, Cabal.registerPackage
 +    -- doesn't reliably register to the correct package database. We generate
-+    -- the .conf file using --gen-pkg-config, then register with ghc-pkg directly.
++    -- the .conf file directly to the package db (like copyConf does).
      Cabal.copyPackage context
 -    Cabal.registerPackage context
 +
 +    case stage of
 +        Stage0 -> do
-+            -- Generate .conf file to a TEMP location (NOT in the package db directory)
-+            -- Then register it explicitly with ghc-pkg to our Stage0 database.
-+            -- We MUST write to a temp location first because if we write directly
-+            -- to the package db, ghc-pkg will see the file and say "already exists".
-+            ctxPath <- contextPath context
++            -- Generate .conf file directly to the package database directory.
++            -- GHC's package database is just a directory of .conf files.
 +            pkgDbPath <- packageDbPath stage
 +            pkgId <- pkgIdentifier package
-+            let tempConfFile = ctxPath -/- "build" -/- pkgId <.> "conf"
-+            Cabal.genPkgConfig context tempConfFile
-+            -- Now register the generated .conf file with ghc-pkg
-+            putProgressInfo $ "| Register package " ++ quote (pkgName package) ++ " (via ghc-pkg)"
-+            ghcPkgPath <- builderPath (GhcPkg Init stage)
-+            verbosity <- getVerbosity
-+            let verbosityFlag = if verbosity < Chatty then ["-v0"] else []
-+            cmd_ [ghcPkgPath] (["--no-user-package-db", "--global-package-db", pkgDbPath
-+                              , "register", "--force"] ++ verbosityFlag ++ [tempConfFile])
++            Cabal.genPkgConfig context (pkgDbPath -/- pkgId <.> "conf")
 +        _ ->
 +            Cabal.registerPackage context
 
