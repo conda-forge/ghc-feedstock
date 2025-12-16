@@ -275,7 +275,8 @@ platform_install_ghc() {
   run_and_log "bindist" "${HADRIAN_CMD[@]}" binary-dist-dir --prefix="${_PREFIX}" --flavour="${FLAVOUR}" --freeze1 --freeze2 --docs=none
 
   # Find bindist directory
-  local ghc_target="x86_64-w64-mingw32"
+  # GHC uses x86_64-unknown-mingw32 (not x86_64-w64-mingw32) for Windows target
+  local ghc_target="x86_64-unknown-mingw32"
   local bindist_dir=$(find "${_SRC_DIR}"/_build/bindist -name "ghc-${PKG_VERSION}-${ghc_target}" -type d | head -1)
 
   if [[ -z "${bindist_dir}" ]]; then
