@@ -11,24 +11,28 @@ source:
     sha256: d053bf6ce1d588a75cfe8c9316269486e9d8fb89dcdf6fd92836fa2e3df61305
     patches:
       - if: aarch64 or ppc64le or arm64
-        then: patches/skip-bindist-recache-crosscompile.patch
+        then: patches/xcc-skip-ghcpkg-recache-BinaryDist.hs.patch
       - if: not unix
         then:
-          - patches/skip-mingw-copy-conda.patch
-          - patches/force-system-gmp-windows.patch
-          - patches/add-ffi-include-dir-substitution.patch
-          - patches/fix-windows-thriomanager-include.patch
-          - patches/add-threadlabels-include-consolehandler.patch
-          - patches/fix-windows-utimbuf-type.patch
-          - patches/disable-split-sections-windows.patch
-          - patches/skip-mingw-detection-error.patch
-          - patches/fix-windows-reportmemorymap-format.patch
-          - patches/fix-windows-pei386-format.patch
-          - patches/fix-windows-mmap-format.patch
-          - patches/fix-hp2ps-utilities-stdlib.patch
+          - patches/w64-use-conda-toolchain-Builder.hs.patch
+          - patches/w64-use-system-gmp-Flag.hs.patch
+          - patches/w64-ffi-include-interpolation-Generate.hs.patch
+          - patches/w64-ffi-extra-include-dirs-rts.cabal.in.patch
+          - patches/w64-rtsflags-include-ThrIOManager.c.patch
+          - patches/w64-threadlabels-include-ConsoleHandler.c.patch
+          - patches/w64-utimbuf-struct-Internals.hs.patch
+          - patches/w64-disable-pecoff-limit-SplitSections.hs.patch
+          - patches/w64-allow-system-toolchain-BaseDir.hs.patch
+          - patches/w64-format-specifier-ReportMemoryMap.c.patch
+          - patches/w64-format-specifier-PEi386.c.patch
+          - patches/w64-format-specifier-MMap.c.patch
+          - patches/w64-stdlib-include-Utilities.c.patch
       - if: osx and arm64
         then:
-          - patches/patch-osname-macos.patch
+          - patches/oar-osname-darwin-rts-configure.patch
+      - if: osx
+        then:
+          - patches/osx-disable-dead-strip-dylibs-Dynamic.hs.patch
 
 build:
   number: 0
