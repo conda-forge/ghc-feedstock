@@ -1,23 +1,23 @@
 From: Claude <noreply@anthropic.com>
-Subject: [PATCH] Fix Stage0 package registration for source packages
+Subject: [PATCH] Fix Stage0 package registration for mixed bootstrap/source deps
 
-When using a newer bootstrap GHC (e.g., 9.6.7 to build 9.2.8), the
-bootstrap has different package versions than the source. Dependencies
-from bootstrap packages may request bootstrap versions (e.g.,
-ghc-boot-th-9.6.7), but if the package exists in source (ghc-boot-th-9.2.8),
-we must NOT call copyConf.
+When using a newer bootstrap GHC (e.g., 9.6.7 to build 9.2.8), copyConf
+queries bootstrap's package database for dependencies. These dependencies
+have bootstrap version numbers (e.g., template-haskell-2.20.0.0).
 
-The problem: copyConf unregisters by package NAME (not version), so calling
-it for ghc-boot-th-9.6.7 would unregister ghc-boot-th-9.2.8, causing:
-  "Encountered missing or private dependencies: ghc-boot-th ==9.2.8"
+If a dependency package exists in source with a different version (e.g.,
+template-haskell-2.18.0.0), we must use the source version, not the
+bootstrap version. Otherwise the build fails because there's no
+template-haskell-2.20.0.0.conf in our Stage0 package database.
 
-This patch changes the logic:
-- If package NOT in source: use copyConf (copy from bootstrap) ✓
-- If package IN source: ALWAYS use buildConf, even if different version requested
-- If wrong version requested for source package: error explicitly
+This patch makes two changes:
 
-This prevents the race condition where copyConf unregisters the source
-version before another parallel task tries to use it.
+1. In registerPackageRules: For packages in source, NEVER call copyConf.
+   If wrong version requested, error explicitly to help debug.
+
+2. In copyConf: After getting dependencies from bootstrap, remap any
+   package that exists in source to use the source version instead.
+   This ensures copyConf needs the right .conf files.
 
 --- a/hadrian/src/Rules/Register.hs
 +++ b/hadrian/src/Rules/Register.hs
@@ -44,3 +44,25 @@ version before another parallel task tries to use it.
 
          let ctx = Context stage pkg vanilla
          case stage of
+@@ -163,7 +178,22 @@ buildConf _ context@Context {..} _conf = do
+ copyConf :: [(Resource, Int)] -> Context -> FilePath -> Action ()
+ copyConf rs context@Context {..} conf = do
+     depPkgIds <- fmap stdOutToPkgIds . askWithResources rs $
+         target context (GhcPkg Dependencies stage) [pkgName package] []
+-    need =<< mapM (\pkgId -> packageDbPath stage <&> (-/- pkgId <.> "conf")) depPkgIds
++    -- Remap dependency package-ids to source versions when the package exists
++    -- in source. This is needed because bootstrap dependencies have bootstrap
++    -- versions (e.g., template-haskell-2.20.0.0) but we need source versions
++    -- (e.g., template-haskell-2.18.0.0).
++    srcPackages <- stagePackages Stage0
++    remappedDepPkgIds <- forM depPkgIds $ \depPkgId -> do
++        let depName = case parseCabalName depPkgId of
++                        Left _ -> depPkgId  -- Fallback to original if parse fails
++                        Right (name, _) -> name
++        case filter (\p -> pkgName p == depName) srcPackages of
++            (srcPkg:_) -> pkgIdentifier srcPkg  -- Use source version
++            []         -> return depPkgId       -- Keep bootstrap version
++    need =<< mapM (\pkgId -> packageDbPath stage <&> (-/- pkgId <.> "conf")) remappedDepPkgIds
+     -- We should unregister if the file exists since @ghc-pkg@ will complain
+     -- about existing package: https://github.com/snowleopard/hadrian/issues/543.
+     -- Also, we don't always do the unregistration + registration to avoid
