@@ -21,7 +21,7 @@ This patch makes two changes:
 
 --- a/hadrian/src/Rules/Register.hs
 +++ b/hadrian/src/Rules/Register.hs
-@@ -107,7 +107,22 @@ registerPackageRules rs stage = do
+@@ -107,7 +107,21 @@ registerPackageRules rs stage = do
 
          when (pkg == compiler) $ need =<< ghcLibDeps stage
 
@@ -44,8 +44,7 @@ This patch makes two changes:
 
          let ctx = Context stage pkg vanilla
          case stage of
-@@ -163,7 +178,22 @@ buildConf _ context@Context {..} _conf = do
- copyConf :: [(Resource, Int)] -> Context -> FilePath -> Action ()
+@@ -164,7 +178,19 @@ copyConf rs context@Context {..} conf = do
  copyConf rs context@Context {..} conf = do
      depPkgIds <- fmap stdOutToPkgIds . askWithResources rs $
          target context (GhcPkg Dependencies stage) [pkgName package] []
