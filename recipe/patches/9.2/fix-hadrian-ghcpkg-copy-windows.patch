@@ -1,36 +1,46 @@
 From: Claude <noreply@anthropic.com>
-Subject: [PATCH] Fix Stage0 package registration for mismatched bootstrap versions
+Subject: [PATCH] Fix Stage0 package registration for source packages
 
 When using a newer bootstrap GHC (e.g., 9.6.7 to build 9.2.8), the
-bootstrap may have different package versions than the source. For
-example, bootstrap has template-haskell-2.20.0.0 while source has
-template-haskell-2.18.0.0.
+bootstrap has different package versions than the source. Dependencies
+from bootstrap packages may request bootstrap versions (e.g.,
+ghc-boot-th-9.6.7), but if the package exists in source (ghc-boot-th-9.2.8),
+we must NOT call copyConf.
 
-The original logic checks if a package NAME is in stagePackages to
-decide between copyConf (copy from bootstrap) and buildConf (build
-from source). But when the VERSION differs, we need to copy from
-bootstrap, not build from source.
+The problem: copyConf unregisters by package NAME (not version), so calling
+it for ghc-boot-th-9.6.7 would unregister ghc-boot-th-9.2.8, causing:
+  "Encountered missing or private dependencies: ghc-boot-th ==9.2.8"
 
-This patch compares the requested conf file's package-id with what
-the source package would produce. If they differ, use copyConf.
+This patch changes the logic:
+- If package NOT in source: use copyConf (copy from bootstrap) ✓
+- If package IN source: ALWAYS use buildConf, even if different version requested
+- If wrong version requested for source package: error explicitly
 
-diff --git a/hadrian/src/Rules/Register.hs b/hadrian/src/Rules/Register.hs
+This prevents the race condition where copyConf unregisters the source
+version before another parallel task tries to use it.
+
 --- a/hadrian/src/Rules/Register.hs
 +++ b/hadrian/src/Rules/Register.hs
-@@ -107,7 +107,15 @@ registerPackageRules rs stage = do
+@@ -107,7 +107,22 @@ registerPackageRules rs stage = do
 
          when (pkg == compiler) $ need =<< ghcLibDeps stage
 
 -        isBoot <- (pkg `notElem`) <$> stagePackages Stage0
-+        -- Check if this is a boot package (not in source) OR if the
-+        -- requested version differs from the source package version.
-+        -- This handles the case where bootstrap GHC has different
-+        -- package versions than the source being built.
++        -- Determine if this is a boot package (not in source).
++        -- CRITICAL: For packages that exist in source, we must NEVER call
++        -- copyConf, even if a different version is requested. This is because
++        -- copyConf unregisters by package NAME (not version), which would
++        -- remove the source version and cause dependency resolution failures.
 +        notInSource <- (pkg `notElem`) <$> stagePackages Stage0
 +        srcPkgId <- pkgIdentifier pkg
 +        let confPkgId = takeBaseName conf
 +            versionMismatch = confPkgId /= srcPkgId
-+            isBoot = notInSource || versionMismatch
++            -- Only use copyConf for packages truly not in source
++            isBoot = notInSource
++
++        -- If source package but wrong version requested, error explicitly
++        when (not notInSource && versionMismatch) $
++            error $ "Version mismatch: requested " ++ confPkgId ++ " but source has " ++ srcPkgId
 
          let ctx = Context stage pkg vanilla
          case stage of
