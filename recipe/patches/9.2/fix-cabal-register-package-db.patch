@@ -1,13 +1,16 @@
 From: conda-forge
-Subject: [PATCH] Use gen-pkg-config for Stage0 packages
+Subject: [PATCH] Use gen-pkg-config + recache for Stage0 packages
 
 When using a different bootstrap GHC version (e.g., 9.6.7 to build 9.2.8),
 Cabal's register command doesn't reliably register packages to the Stage0
 package database.
 
-The fix: For Stage0, use 'cabal register --gen-pkg-config=<path>' to generate
-the .conf file directly to the package database directory. GHC's package
-database is just a directory of .conf files - this is how copyConf works.
+The fix: For Stage0:
+1. Use 'cabal register --gen-pkg-config=<path>' to generate the .conf file
+2. Run 'ghc-pkg recache' to update the package database cache
+
+Just writing the .conf file is not enough - ghc-pkg needs to recache to
+see the new package when Cabal.configurePackage queries for dependencies.
 
 NOTE: This patch must be applied AFTER hadrian-cabal-3.10-compat.patch,
 fix-hadrian-ghcpkg-copy-windows.patch, and fix-hadrian-configure-needs-conf.patch
@@ -47,23 +50,29 @@ as line numbers depend on those patches being applied first.
 
 --- a/hadrian/src/Rules/Register.hs
 +++ b/hadrian/src/Rules/Register.hs
-@@ -159,8 +159,20 @@
+@@ -159,8 +159,26 @@
              need [path -/- "include/ghc-gmp.h"]
 
      -- Copy and register the package.
 +    -- Note: For Stage0 with different bootstrap versions, Cabal.registerPackage
 +    -- doesn't reliably register to the correct package database. We generate
-+    -- the .conf file directly to the package db (like copyConf does).
++    -- the .conf file directly to the package db, then recache.
      Cabal.copyPackage context
 -    Cabal.registerPackage context
 +
 +    case stage of
 +        Stage0 -> do
 +            -- Generate .conf file directly to the package database directory.
-+            -- GHC's package database is just a directory of .conf files.
 +            pkgDbPath <- packageDbPath stage
 +            pkgId <- pkgIdentifier package
 +            Cabal.genPkgConfig context (pkgDbPath -/- pkgId <.> "conf")
++            -- Recache the package database so ghc-pkg can see the new package.
++            -- This is required for subsequent Cabal.configurePackage calls.
++            ghcPkgPath <- builderPath (GhcPkg Init stage)
++            verbosity <- getVerbosity
++            let verbosityFlag = if verbosity < Chatty then ["-v0"] else []
++            cmd_ [ghcPkgPath] (["--no-user-package-db", "--global-package-db", pkgDbPath
++                              , "recache"] ++ verbosityFlag)
 +        _ ->
 +            Cabal.registerPackage context
 
