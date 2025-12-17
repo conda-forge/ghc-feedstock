@@ -10,7 +10,7 @@ template-haskell-2.18.0.0), we must use the source version, not the
 bootstrap version. Otherwise the build fails because there's no
 template-haskell-2.20.0.0.conf in our Stage0 package database.
 
-This patch makes two changes:
+This patch makes three changes:
 
 1. In registerPackageRules: For packages in source, NEVER call copyConf.
    If wrong version requested, error explicitly to help debug.
@@ -18,6 +18,11 @@ This patch makes two changes:
 2. In copyConf: After getting dependencies from bootstrap, remap any
    package that exists in source to use the source version instead.
    This ensures copyConf needs the right .conf files.
+
+3. In copyConf: When copying a package from bootstrap, also fix the
+   dependency versions in the .conf file content. Uses ghc-pkg describe
+   to get the package info, patches the depends: field to use source
+   versions, then registers the fixed .conf file.
 
 --- a/hadrian/src/Rules/Register.hs
 +++ b/hadrian/src/Rules/Register.hs
@@ -44,7 +49,7 @@ This patch makes two changes:
 
          let ctx = Context stage pkg vanilla
          case stage of
-@@ -164,7 +178,19 @@ copyConf rs context@Context {..} conf = do
+@@ -164,7 +178,26 @@ copyConf rs context@Context {..} conf = do
  copyConf rs context@Context {..} conf = do
      depPkgIds <- fmap stdOutToPkgIds . askWithResources rs $
          target context (GhcPkg Dependencies stage) [pkgName package] []
@@ -62,6 +67,58 @@ This patch makes two changes:
 +            (srcPkg:_) -> pkgIdentifier srcPkg  -- Use source version
 +            []         -> return depPkgId       -- Keep bootstrap version
 +    need =<< mapM (\pkgId -> packageDbPath stage <&> (-/- pkgId <.> "conf")) remappedDepPkgIds
++
++    -- Build version remapping table for fixing .conf file dependencies
++    versionRemappings <- fmap concat . forM srcPackages $ \srcPkg -> do
++        srcPkgId <- pkgIdentifier srcPkg
++        let srcName = pkgName srcPkg
++        return [(srcName, srcPkgId)]
++
      -- We should unregister if the file exists since @ghc-pkg@ will complain
      -- about existing package: https://github.com/snowleopard/hadrian/issues/543.
      -- Also, we don't always do the unregistration + registration to avoid
+@@ -175,12 +208,42 @@ copyConf rs context@Context {..} conf = do
+     unlessM (liftIO $ IO.doesFileExist conf) $ do
+         buildWithResources rs $
+             target context (GhcPkg Unregister stage) [pkgName package] []
+-        buildWithResources rs $
+-            target context (GhcPkg Copy stage) [pkgName package] [conf]
++        -- Get package description from bootstrap, fix dependency versions, register
++        pkgDbPath <- packageDbPath stage
++        ghcPkgPath <- builderPath (GhcPkg Init stage)
++        -- Get the package description from bootstrap
++        Stdout pkgDesc <- cmd [ghcPkgPath] ["describe", pkgName package]
++        -- Fix dependency versions in the description
++        let fixedPkgDesc = fixDependencyVersions versionRemappings pkgDesc
++        -- Write fixed description to conf file and register
++        liftIO $ writeFile conf fixedPkgDesc
++        cmd_ [ghcPkgPath] ["--no-user-package-db", "--global-package-db", pkgDbPath
++                          , "register", conf, "-v0", "--force"]
+   where
+     stdOutToPkgIds :: String -> [String]
+     stdOutToPkgIds = drop 1 . concatMap words . lines
+
++-- | Fix dependency versions in a package description.
++-- Replaces bootstrap package versions with source package versions in the
++-- 'depends:' field. For example, 'template-haskell-2.20.0.0' becomes
++-- 'template-haskell-2.18.0.0' if template-haskell is in source with that version.
++fixDependencyVersions :: [(String, String)] -> String -> String
++fixDependencyVersions remappings desc = unlines $ map fixLine $ lines desc
++  where
++    fixLine line
++        | "depends:" `isPrefixOf` (dropWhile (== ' ') line) = fixDependsLine line
++        | otherwise = line
++    fixDependsLine line =
++        let (prefix, deps) = break (== ':') line
++            depsAfterColon = drop 1 deps  -- Remove the ':'
++        in prefix ++ ":" ++ unwords (map fixDep $ words depsAfterColon)
++    fixDep dep = case parseCabalName dep of
++        Left _ -> dep  -- Can't parse, leave unchanged
++        Right (name, _) -> case lookup name remappings of
++            Just srcPkgId -> srcPkgId  -- Replace with source version
++            Nothing -> dep  -- Not in source, keep bootstrap version
++    isPrefixOf needle haystack = take (length needle) haystack == needle
++
+ getPackageNameFromConfFile :: FilePath -> Action String
+ getPackageNameFromConfFile conf
+     | takeBaseName conf == "rts" = return "rts"
