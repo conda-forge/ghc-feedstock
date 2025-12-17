@@ -85,6 +85,11 @@ source:
           # Explicitly pass --package-db to Cabal.registerPackage
           # Ensures package registration goes to Stage0 database, not bootstrap's
           - patches/${{ ghc_major }}/fix-cabal-register-package-db.patch
+          # Disable testsuite timeout utility on Windows
+          # The testsuite/timeout directory is not in the source tarball, but
+          # Hadrian includes it in stage0Packages for Windows. This causes builds
+          # to fail when querying stagePackages because timeout.cabal doesn't exist.
+          - patches/${{ ghc_major }}/disable-testsuite-timeout-windows.patch
 
       # macOS-specific patches
       - if: osx
