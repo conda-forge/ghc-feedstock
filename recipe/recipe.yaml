@@ -95,6 +95,11 @@ source:
           # GHC 9.6.7 as bootstrap, its parser expects this constant in the
           # HS_CONSTANTS define. Without this patch: "Invalid platform constants"
           - patches/${{ ghc_major }}/fix-deriveconstants-bootstrap-compat.patch
+          # Fix CMM macro compatibility for GHC 9.6+ bootstrap
+          # PUSH_TUPLE_REGS/POP_TUPLE_REGS were renamed to PUSH_ARG_REGS/POP_ARG_REGS
+          # in GHC 9.6+. Since the bootstrap compiler's CMM parser processes the RTS,
+          # we need to use the macro names that the bootstrap GHC understands.
+          - patches/${{ ghc_major }}/fix-cmm-tuple-regs-bootstrap-compat.patch
 
       # macOS-specific patches
       - if: osx
