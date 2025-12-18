@@ -28,7 +28,7 @@ This patch makes three changes:
 
 --- a/hadrian/src/Rules/Register.hs
 +++ b/hadrian/src/Rules/Register.hs
-@@ -107,7 +107,26 @@ registerPackageRules rs stage = do
+@@ -107,7 +107,27 @@ registerPackageRules rs stage = do
 
          when (pkg == compiler) $ need =<< ghcLibDeps stage
 
@@ -42,7 +42,8 @@ This patch makes three changes:
 +        -- SPECIAL CASE: RTS is not in stagePackages but MUST be built from
 +        -- source (it has its own build rules). Never use copyConf for RTS.
 +        notInSource <- (pkg `notElem`) <$> stagePackages Stage0
-+        let isRts = pkgName pkg == "rts"
++        -- Note: pkgName here is a local String variable from getPackageNameFromConfFile
++        let isRts = pkgName == "rts"
 +        srcPkgId <- pkgIdentifier pkg
 +        let confPkgId = takeBaseName conf
 +            versionMismatch = confPkgId /= srcPkgId
@@ -50,13 +51,13 @@ This patch makes three changes:
 +            isBoot = notInSource && not isRts
 +
 +        -- If source package but wrong version requested, error explicitly
-+        -- (Skip this check for RTS since it's built separately)
++        -- (Skip this check for RTS since it is built separately)
 +        when (not notInSource && versionMismatch && not isRts) $
 +            error $ "Version mismatch: requested " ++ confPkgId ++ " but source has " ++ srcPkgId
 
          let ctx = Context stage pkg vanilla
          case stage of
-@@ -164,7 +183,26 @@ copyConf rs context@Context {..} conf = do
+@@ -164,7 +184,25 @@ registerPackageRules rs stage = do
  copyConf rs context@Context {..} conf = do
      depPkgIds <- fmap stdOutToPkgIds . askWithResources rs $
          target context (GhcPkg Dependencies stage) [pkgName package] []
@@ -80,7 +81,6 @@ This patch makes three changes:
 +        srcPkgId <- pkgIdentifier srcPkg
 +        let srcName = pkgName srcPkg
 +        return [(srcName, srcPkgId)]
-+
      -- We should unregister if the file exists since @ghc-pkg@ will complain
      -- about existing package: https://github.com/snowleopard/hadrian/issues/543.
      -- Also, we don't always do the unregistration + registration to avoid
@@ -120,7 +120,7 @@ This patch makes three changes:
 +            depsAfterColon = drop 1 deps  -- Remove the ':'
 +        in prefix ++ ":" ++ unwords (map fixDep $ words depsAfterColon)
 +    fixDep dep = case parseCabalName dep of
-+        Left _ -> dep  -- Can't parse, leave unchanged
++        Left _ -> dep  -- Cannot parse, leave unchanged
 +        Right (name, _) -> case lookup name remappings of
 +            Just srcPkgId -> srcPkgId  -- Replace with source version
 +            Nothing -> dep  -- Not in source, keep bootstrap version
