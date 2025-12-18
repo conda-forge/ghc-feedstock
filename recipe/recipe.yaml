@@ -100,6 +100,10 @@ source:
           # in GHC 9.6+. Since the bootstrap compiler's CMM parser processes the RTS,
           # we need to use the macro names that the bootstrap GHC understands.
           - patches/${{ ghc_major }}/fix-cmm-tuple-regs-bootstrap-compat.patch
+          # Fix INFO_TABLE_FUN macro arity for GHC 9.6+ bootstrap
+          # INFO_TABLE_FUN gained an extra SRT offset parameter in GHC 9.6+.
+          # We need to add the extra 0 parameter for the bootstrap CMM parser.
+          - patches/${{ ghc_major }}/fix-info-table-fun-bootstrap-compat.patch
 
       # macOS-specific patches
       - if: osx
