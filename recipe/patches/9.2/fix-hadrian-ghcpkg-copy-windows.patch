@@ -14,6 +14,8 @@ This patch makes three changes:
 
 1. In registerPackageRules: For packages in source, NEVER call copyConf.
    If wrong version requested, error explicitly to help debug.
+   IMPORTANT: RTS is special - it's not in stagePackages but must be built
+   from source, so we never use copyConf for it.
 
 2. In copyConf: After getting dependencies from bootstrap, remap any
    package that exists in source to use the source version instead.
@@ -26,7 +28,7 @@ This patch makes three changes:
 
 --- a/hadrian/src/Rules/Register.hs
 +++ b/hadrian/src/Rules/Register.hs
-@@ -107,7 +107,21 @@ registerPackageRules rs stage = do
+@@ -107,7 +107,26 @@ registerPackageRules rs stage = do
 
          when (pkg == compiler) $ need =<< ghcLibDeps stage
 
@@ -36,20 +38,25 @@ This patch makes three changes:
 +        -- copyConf, even if a different version is requested. This is because
 +        -- copyConf unregisters by package NAME (not version), which would
 +        -- remove the source version and cause dependency resolution failures.
++        --
++        -- SPECIAL CASE: RTS is not in stagePackages but MUST be built from
++        -- source (it has its own build rules). Never use copyConf for RTS.
 +        notInSource <- (pkg `notElem`) <$> stagePackages Stage0
++        let isRts = pkgName pkg == "rts"
 +        srcPkgId <- pkgIdentifier pkg
 +        let confPkgId = takeBaseName conf
 +            versionMismatch = confPkgId /= srcPkgId
-+            -- Only use copyConf for packages truly not in source
-+            isBoot = notInSource
++            -- Only use copyConf for packages truly not in source AND not RTS
++            isBoot = notInSource && not isRts
 +
 +        -- If source package but wrong version requested, error explicitly
-+        when (not notInSource && versionMismatch) $
++        -- (Skip this check for RTS since it's built separately)
++        when (not notInSource && versionMismatch && not isRts) $
 +            error $ "Version mismatch: requested " ++ confPkgId ++ " but source has " ++ srcPkgId
 
          let ctx = Context stage pkg vanilla
          case stage of
-@@ -164,7 +178,26 @@ copyConf rs context@Context {..} conf = do
+@@ -164,7 +183,26 @@ copyConf rs context@Context {..} conf = do
  copyConf rs context@Context {..} conf = do
      depPkgIds <- fmap stdOutToPkgIds . askWithResources rs $
          target context (GhcPkg Dependencies stage) [pkgName package] []
@@ -77,7 +84,7 @@ This patch makes three changes:
      -- We should unregister if the file exists since @ghc-pkg@ will complain
      -- about existing package: https://github.com/snowleopard/hadrian/issues/543.
      -- Also, we don't always do the unregistration + registration to avoid
-@@ -175,12 +208,42 @@ copyConf rs context@Context {..} conf = do
+@@ -175,12 +213,42 @@ copyConf rs context@Context {..} conf = do
      unlessM (liftIO $ IO.doesFileExist conf) $ do
          buildWithResources rs $
              target context (GhcPkg Unregister stage) [pkgName package] []
