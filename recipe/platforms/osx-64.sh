@@ -65,7 +65,10 @@ platform_post_stage1_executables() {
 
 platform_post_stage2_executables() {
   local settings_file="${SRC_DIR}/_build/stage1/lib/settings"
-  [[ -f "${settings_file}" ]] && update_settings_link_flags "${settings_file}"
+  [[ -f "${settings_file}" ]] && {
+    update_settings_link_flags "${settings_file}"
+    set_macos_conda_ar_ranlib "${settings_file}" "${CONDA_TOOLCHAIN_BUILD}"
+  }
 }
 
 platform_post_install() {

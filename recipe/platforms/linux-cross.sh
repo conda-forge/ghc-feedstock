@@ -43,11 +43,6 @@ platform_setup_environment() {
   # GHC, PATH already set by common_setup_environment
   export CONDA_BUILD_SYSROOT="${BUILD_PREFIX}/x86_64-conda-linux-gnu/sysroot"
 
-  # Stage0 tools (run on build host)
-  export AR_STAGE0="${BUILD_PREFIX}/bin/${conda_host}-ar"
-  export CC_STAGE0="${CC_FOR_BUILD}"
-  export LD_STAGE0="${BUILD_PREFIX}/bin/${conda_host}-ld"
-
   # Set autoconf variables (statx=no for glibc 2.17, LLVM tools for cross)
   set_autoconf_toolchain_vars --linux --cross
 
@@ -76,8 +71,9 @@ platform_configure_ghc() {
   local -a configure_args
   build_configure_args configure_args "-L${PREFIX}/lib ${LDFLAGS:-}"
 
-  # Add cross-compilation specific toolchain paths using shared helper
-  cross_build_toolchain_args configure_args "${conda_target}"
+  # Add cross-compilation toolchain args (target tools + STAGE0 tools + sysroot)
+  # Uses direct variable assignment (CC=, AR=, etc.) per configure.ac API
+  cross_build_toolchain_args configure_args "${conda_target}" "${conda_host}" "--sysroot"
 
   run_and_log "configure" ./configure -v "${system_config[@]}" "${configure_args[@]}" || {
     cat config.log

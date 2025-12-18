@@ -233,5 +233,5 @@ set_macos_conda_ar_ranlib() {
 
 update_installed_settings() {
   local toolchain="${1:-$CONDA_TOOLCHAIN_HOST}"
-  patch_settings "" --installed="${toolchain}"
+  _patch_installed_settings "${toolchain}"
 }

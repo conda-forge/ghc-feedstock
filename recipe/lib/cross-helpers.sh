@@ -48,46 +48,77 @@ cross_setup_hadrian_flags() {
 # ==============================================================================
 # Cross-Compile Configure Arguments Builder
 # ==============================================================================
-# Builds an array of ac_cv_path_* arguments for cross-compilation.
-# These tell configure where to find the target toolchain.
+# Builds an array of toolchain arguments for cross-compilation configure.
+# Uses direct variable assignment (CC=..., AR=...) which is the official
+# autoconf API as documented in GHC's configure.ac.
 #
 # Parameters:
 #   $1 - result_array_name: Name of array to populate (nameref)
-#   $2 - toolchain_prefix: Target toolchain prefix (e.g., "aarch64-conda-linux-gnu")
+#   $2 - target_prefix: Target toolchain prefix (e.g., "aarch64-conda-linux-gnu")
+#   $3 - host_prefix (optional): Host toolchain prefix for STAGE0 tools
+#   $4 - options (optional): Space-separated options:
+#        --sysroot    Add CFLAGS/CPPFLAGS/CXXFLAGS with sysroot
+#        --gcc        Use gcc/g++ instead of clang/clang++
 #
 # Usage:
 #   local -a extra_args
 #   cross_build_toolchain_args extra_args "${conda_target}"
+#   cross_build_toolchain_args extra_args "${conda_target}" "${conda_host}"
+#   cross_build_toolchain_args extra_args "${conda_target}" "${conda_host}" "--sysroot"
 #   ./configure "${extra_args[@]}"
 #
 cross_build_toolchain_args() {
   local -n _result="$1"
-  local prefix="$2"
+  local target_prefix="$2"
+  local host_prefix="${3:-}"
+  local options="${4:-}"
 
-  echo "  Building toolchain args for: ${prefix}"
+  echo "  Building toolchain args for target: ${target_prefix}"
+  [[ -n "${host_prefix}" ]] && echo "  STAGE0 host: ${host_prefix}"
 
-  # Standard toolchain tools with their ac_cv_path names
-  local -a tools=(AR AS CC CXX LD NM OBJDUMP RANLIB)
+  # Determine compiler names based on options
+  local cc_name="clang"
+  local cxx_name="clang++"
+  if [[ "${options}" == *"--gcc"* ]]; then
+    cc_name="gcc"
+    cxx_name="g++"
+  fi
 
+  # Target tools - direct variable assignment (official autoconf API)
+  local -a tools=(AR AS LD NM OBJDUMP RANLIB STRIP)
   for tool in "${tools[@]}"; do
-    local tool_lower="${tool,,}"  # lowercase
-    local tool_path="${BUILD_PREFIX}/bin/${prefix}-${tool_lower}"
-
-    # Handle clang naming (CC -> clang, CXX -> clang++)
-    if [[ "${tool}" == "CC" ]]; then
-      tool_path="${BUILD_PREFIX}/bin/${prefix}-clang"
-    elif [[ "${tool}" == "CXX" ]]; then
-      tool_path="${BUILD_PREFIX}/bin/${prefix}-clang++"
-    fi
-
+    local tool_lower="${tool,,}"
+    local tool_path="${BUILD_PREFIX}/bin/${target_prefix}-${tool_lower}"
     if [[ -f "${tool_path}" ]] || [[ -L "${tool_path}" ]]; then
-      _result+=("ac_cv_path_${tool}=${tool_path}")
+      _result+=("${tool}=${tool_path}")
     fi
   done
 
-  # LLVM tools
-  _result+=("ac_cv_path_LLC=${BUILD_PREFIX}/bin/${prefix}-llc")
-  _result+=("ac_cv_path_OPT=${BUILD_PREFIX}/bin/${prefix}-opt")
+  # Compilers (CC, CXX) - handle clang vs gcc naming
+  local cc_path="${BUILD_PREFIX}/bin/${target_prefix}-${cc_name}"
+  local cxx_path="${BUILD_PREFIX}/bin/${target_prefix}-${cxx_name}"
+  [[ -f "${cc_path}" || -L "${cc_path}" ]] && _result+=("CC=${cc_path}")
+  [[ -f "${cxx_path}" || -L "${cxx_path}" ]] && _result+=("CXX=${cxx_path}")
+
+  # LLVM tools (always use target prefix)
+  local llc_path="${BUILD_PREFIX}/bin/${target_prefix}-llc"
+  local opt_path="${BUILD_PREFIX}/bin/${target_prefix}-opt"
+  [[ -f "${llc_path}" || -L "${llc_path}" ]] && _result+=("LLC=${llc_path}")
+  [[ -f "${opt_path}" || -L "${opt_path}" ]] && _result+=("OPT=${opt_path}")
+
+  # STAGE0 tools (bootstrap stage - run on build host)
+  if [[ -n "${host_prefix}" ]]; then
+    _result+=("CC_STAGE0=${CC_FOR_BUILD:-${BUILD_PREFIX}/bin/${host_prefix}-${cc_name}}")
+    _result+=("LD_STAGE0=${BUILD_PREFIX}/bin/${host_prefix}-ld")
+    _result+=("AR_STAGE0=${BUILD_PREFIX}/bin/${host_prefix}-ar")
+  fi
+
+  # Sysroot flags (for cross-compilation)
+  if [[ "${options}" == *"--sysroot"* ]] && [[ -n "${CONDA_BUILD_SYSROOT:-}" ]]; then
+    _result+=("CFLAGS=--sysroot=${CONDA_BUILD_SYSROOT} ${CFLAGS:-}")
+    _result+=("CPPFLAGS=--sysroot=${CONDA_BUILD_SYSROOT} ${CPPFLAGS:-}")
+    _result+=("CXXFLAGS=--sysroot=${CONDA_BUILD_SYSROOT} ${CXXFLAGS:-}")
+  fi
 }
 
 # ==============================================================================

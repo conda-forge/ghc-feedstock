@@ -83,24 +83,9 @@ platform_configure_ghc() {
   # Set autoconf variables (macOS + cross-compile LLVM tools)
   set_autoconf_toolchain_vars --macos --cross
 
-  # Add cross-compilation specific toolchain paths
-  configure_args+=(
-    CC_STAGE0="${CC_FOR_BUILD}"
-    LD_STAGE0="${BUILD_PREFIX}/bin/${conda_host}-ld"
-
-    AR="${BUILD_PREFIX}/bin/${conda_target}-ar"
-    AS="${BUILD_PREFIX}/bin/${conda_target}-as"
-    CC="${BUILD_PREFIX}/bin/${conda_target}-clang"
-    CXX="${BUILD_PREFIX}/bin/${conda_target}-clang++"
-    LD="${BUILD_PREFIX}/bin/${conda_target}-ld"
-    NM="${BUILD_PREFIX}/bin/${conda_target}-nm"
-    OBJDUMP="${BUILD_PREFIX}/bin/${conda_target}-objdump"
-    RANLIB="${BUILD_PREFIX}/bin/${conda_target}-ranlib"
-
-    CFLAGS="--sysroot=${CONDA_BUILD_SYSROOT} ${CFLAGS:-}"
-    CPPFLAGS="--sysroot=${CONDA_BUILD_SYSROOT} ${CPPFLAGS:-}"
-    CXXFLAGS="--sysroot=${CONDA_BUILD_SYSROOT} ${CXXFLAGS:-}"
-  )
+  # Add cross-compilation toolchain args (target tools + STAGE0 tools + sysroot)
+  # Uses direct variable assignment (CC=, AR=, etc.) per configure.ac API
+  cross_build_toolchain_args configure_args "${conda_target}" "${conda_host}" "--sysroot"
 
   run_and_log "configure" ./configure -v "${system_config[@]}" "${configure_args[@]}" || {
     cat config.log
@@ -165,27 +150,21 @@ platform_build_stage1() {
   run_and_log "stage1-hsc2hs" "${HADRIAN_CMD[@]}" --flavour="${FLAVOUR}" \
     stage1:exe:hsc2hs ${HADRIAN_STAGE_OPTS}
 
+  # Update stage0 settings with llvm-ar before building libraries
+  local settings_file="${SRC_DIR}/_build/stage0/lib/settings"
+  [[ -f "${settings_file}" ]] && {
+    update_settings_link_flags "${settings_file}"
+    set_macos_conda_ar_ranlib "${settings_file}" "${CONDA_TOOLCHAIN_BUILD}"
+  }
+
   # Verify Stage0 GHC works
   "${SRC_DIR}/_build/stage0/bin/${ghc_target}-ghc" --version || {
     echo "WARNING: Stage0 GHC failed to report version"
   }
 
   # Build libraries with release flavour (for full ways: vanilla, profiling, dynamic)
-  # Retry logic for -dynamic-too race condition (parallel .dyn_hi file access)
-  local max_retries=3
-  local retry=0
-  while (( retry < max_retries )); do
-    if run_and_log "stage1-lib" "${HADRIAN_CMD[@]}" --flavour="${FLAVOUR}" \
-        stage1:lib:ghc ${HADRIAN_STAGE_OPTS}; then
-      break
-    fi
-    ((retry++))
-    echo "  Retry $retry/$max_retries for stage1-lib (dynamic interface race condition)"
-  done
-  if (( retry == max_retries )); then
-    echo "ERROR: stage1-lib failed after $max_retries retries"
-    exit 1
-  fi
+  # Note: build_stage_libraries has built-in retry logic for -dynamic-too race conditions
+  build_stage_libraries 1
 
   echo "  ✓ Stage 1 cross-compiler built"
 }
@@ -199,6 +178,13 @@ platform_build_stage2() {
 
   run_and_log "stage2-exe" "${HADRIAN_CMD[@]}" --flavour="${FLAVOUR}" \
     stage2:exe:ghc-bin --freeze1 ${HADRIAN_STAGE_OPTS}
+
+  # Update stage1 settings with llvm-ar before building libraries
+  local settings_file="${SRC_DIR}/_build/stage1/lib/settings"
+  [[ -f "${settings_file}" ]] && {
+    update_settings_link_flags "${settings_file}"
+    set_macos_conda_ar_ranlib "${settings_file}" "${CONDA_TOOLCHAIN_BUILD}"
+  }
 
   run_and_log "build-all" "${HADRIAN_CMD[@]}" --flavour="${FLAVOUR}" \
     --freeze1 --freeze2 --docs=no-sphinx-pdfs --progress-info=none
@@ -223,6 +209,10 @@ platform_install_ghc() {
 platform_post_install() {
   # Use shared cross-compile post-install (macOS doesn't need wrapper fixes)
   cross_post_install "${conda_target}" "no-wrapper-fix"
+
+  # Update installed settings with llvm-ar (required for Apple ld64)
+  local settings_file=$(find "${PREFIX}/lib" -name settings | head -n 1)
+  [[ -f "${settings_file}" ]] && set_macos_conda_ar_ranlib "${settings_file}" "${CONDA_TOOLCHAIN_BUILD}"
 
   # Verify installation (may fail for cross-compiled binary - that's expected)
   echo "  Verifying GHC installation..."

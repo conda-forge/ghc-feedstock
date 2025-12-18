@@ -259,16 +259,24 @@ build_stage_executables() {
   call_hook "post_stage${stage}_executables"
 }
 
-# Build stage libraries
+# Build stage libraries with retry logic
+#
+# The -dynamic-too flag can cause race conditions where one module tries
+# to load .dyn_hi before it's fully written. Retry logic handles this.
 #
 # Parameters:
 #   $1 - stage: Stage number (1 or 2)
 #   $@ - extra_opts: Additional Hadrian options (e.g., --freeze1)
 #
+# Environment:
+#   STAGE_LIB_RETRIES: Max retry attempts (default: 3)
+#
 build_stage_libraries() {
   local stage="$1"
   shift
   local -a extra_opts=("$@")
+  local max_retries="${STAGE_LIB_RETRIES:-3}"
+  local retry=0
 
   call_hook "pre_stage${stage}_libraries"
 
@@ -276,7 +284,22 @@ build_stage_libraries() {
 
   local -a base_opts=(--flavour="${FLAVOUR}" ${HADRIAN_STAGE_OPTS} "${extra_opts[@]}")
 
-  run_and_log "stage${stage}-lib" "${HADRIAN_CMD[@]}" "${base_opts[@]}" "stage${stage}:lib:ghc"
+  # Retry loop for race condition with -dynamic-too
+  while (( retry < max_retries )); do
+    if run_and_log "stage${stage}-lib" "${HADRIAN_CMD[@]}" "${base_opts[@]}" "stage${stage}:lib:ghc"; then
+      break
+    fi
+    ((retry++)) || true  # Prevent set -e exit when retry=0
+    if (( retry < max_retries )); then
+      echo "  Retry ${retry}/${max_retries} for stage${stage}:lib:ghc"
+      sleep 2  # Brief pause before retry
+    fi
+  done
+
+  if (( retry >= max_retries )); then
+    echo "ERROR: stage${stage}:lib:ghc failed after ${max_retries} attempts"
+    return 1
+  fi
 
   echo "  ✓ Stage ${stage} libraries built"
 
