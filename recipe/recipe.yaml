@@ -90,6 +90,11 @@ source:
           # Hadrian includes it in stage0Packages for Windows. This causes builds
           # to fail when querying stagePackages because timeout.cabal doesn't exist.
           - patches/${{ ghc_major }}/disable-testsuite-timeout-windows.patch
+          # Fix deriveConstants for GHC 9.6+ bootstrap compatibility
+          # GHC 9.6 added USE_INLINE_SRT_FIELD to platform constants. When using
+          # GHC 9.6.7 as bootstrap, its parser expects this constant in the
+          # HS_CONSTANTS define. Without this patch: "Invalid platform constants"
+          - patches/${{ ghc_major }}/fix-deriveconstants-bootstrap-compat.patch
 
       # macOS-specific patches
       - if: osx
