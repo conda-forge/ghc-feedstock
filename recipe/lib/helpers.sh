@@ -48,7 +48,7 @@ bindist_install() {
     --prefix="${PREFIX}" \
     --flavour="${FLAVOUR}" \
     --freeze1 --freeze2 \
-    --docs=none --progress-info=none
+    ${HADRIAN_STAGE_OPTS}
 
   # Find bindist directory
   local bindist_pattern="ghc-${PKG_VERSION}-*"
@@ -244,15 +244,19 @@ build_stage_executables() {
   shift
   local -a extra_opts=("$@")
 
+  call_hook "pre_stage${stage}_executables"
+
   echo "  Building Stage ${stage} executables..."
 
-  local -a base_opts=(--flavour="${FLAVOUR}" --docs=none --progress-info=none "${extra_opts[@]}")
+  local -a base_opts=(--flavour="${FLAVOUR}" ${HADRIAN_STAGE_OPTS} "${extra_opts[@]}")
 
   run_and_log "stage${stage}-ghc"    "${HADRIAN_CMD[@]}" "${base_opts[@]}" "stage${stage}:exe:ghc-bin"
   run_and_log "stage${stage}-pkg"    "${HADRIAN_CMD[@]}" "${base_opts[@]}" "stage${stage}:exe:ghc-pkg"
   run_and_log "stage${stage}-hsc2hs" "${HADRIAN_CMD[@]}" "${base_opts[@]}" "stage${stage}:exe:hsc2hs"
 
   echo "  ✓ Stage ${stage} executables built"
+
+  call_hook "post_stage${stage}_executables"
 }
 
 # Build stage libraries
@@ -266,13 +270,17 @@ build_stage_libraries() {
   shift
   local -a extra_opts=("$@")
 
+  call_hook "pre_stage${stage}_libraries"
+
   echo "  Building Stage ${stage} libraries..."
 
-  local -a base_opts=(--flavour="${FLAVOUR}" --docs=none --progress-info=none "${extra_opts[@]}")
+  local -a base_opts=(--flavour="${FLAVOUR}" ${HADRIAN_STAGE_OPTS} "${extra_opts[@]}")
 
   run_and_log "stage${stage}-lib" "${HADRIAN_CMD[@]}" "${base_opts[@]}" "stage${stage}:lib:ghc"
 
   echo "  ✓ Stage ${stage} libraries built"
+
+  call_hook "post_stage${stage}_libraries"
 }
 
 # ==============================================================================
@@ -357,283 +365,11 @@ set_autoconf_toolchain_vars() {
 }
 
 # ==============================================================================
-# Settings Update Helpers
+# Settings Patch Functions
 # ==============================================================================
+# Consolidated settings patching - see lib/settings-patch.sh for implementation
 
-# Patch hadrian/cfg/system.config with library paths and rpaths
-# This is the common pattern used by all platforms after ./configure
-#
-# Usage:
-#   patch_system_config_linker_flags
-#   patch_system_config_linker_flags "${custom_prefix}"
-#
-# Parameters:
-#   $1 - prefix: Library prefix path (optional, defaults to $PREFIX)
-#
-patch_system_config_linker_flags() {
-  local prefix="${1:-${PREFIX}}"
-  local settings_file="${SRC_DIR}/hadrian/cfg/system.config"
-
-  if [[ ! -f "${settings_file}" ]]; then
-    echo "  WARNING: system.config not found at ${settings_file}, skipping patch"
-    return 0
-  fi
-
-  echo "  Patching system.config with library paths..."
-
-  # Add -Wno-deprecated-non-prototype to suppress old-style C prototype warnings
-  # Required for hp2ps utility which has: extern void* malloc();
-  perl -pi -e "s#(conf-cc-args-stage[012].*?= )#\$1-Wno-deprecated-non-prototype #" "${settings_file}"
-
-  # Add library paths and rpath to GCC linker flags (stage 1 and 2)
-  perl -pi -e "s#(conf-gcc-linker-args-stage[12].*?= )#\$1-Wl,-L${prefix}/lib -Wl,-rpath,${prefix}/lib #" "${settings_file}"
-
-  # Add library paths and rpath to LD linker flags (stage 1 and 2)
-  perl -pi -e "s#(conf-ld-linker-args-stage[12].*?= )#\$1-L${prefix}/lib -rpath ${prefix}/lib #" "${settings_file}"
-
-  # Add library paths to settings (for installed GHC)
-  perl -pi -e "s#(settings-c-compiler-link-flags.*?= )#\$1-Wl,-L${prefix}/lib -Wl,-rpath,${prefix}/lib #" "${settings_file}"
-  perl -pi -e "s#(settings-ld-flags.*?= )#\$1-L${prefix}/lib -rpath ${prefix}/lib #" "${settings_file}"
-
-  # Add doc tool placeholders - Hadrian validates these even with --docs=none
-  # system.config.in has "xelatex = @XELATEX@" which becomes "xelatex = " if not found
-  # Replace empty values with /bin/true placeholder
-  if ! grep -qE "^xelatex\s*=\s*\S" "${settings_file}"; then
-    perl -pi -e 's/^xelatex\s*=.*/xelatex = \/bin\/true/' "${settings_file}"
-    grep -qE "^xelatex\s*=\s*\S" "${settings_file}" || echo "xelatex = /bin/true" >> "${settings_file}"
-  fi
-
-  if ! grep -qE "^sphinx-build\s*=\s*\S" "${settings_file}"; then
-    perl -pi -e 's/^sphinx-build\s*=.*/sphinx-build = \/bin\/true/' "${settings_file}"
-    grep -qE "^sphinx-build\s*=\s*\S" "${settings_file}" || echo "sphinx-build = /bin/true" >> "${settings_file}"
-  fi
-
-  if ! grep -qE "^makeindex\s*=\s*\S" "${settings_file}"; then
-    perl -pi -e 's/^makeindex\s*=.*/makeindex = \/bin\/true/' "${settings_file}"
-    grep -qE "^makeindex\s*=\s*\S" "${settings_file}" || echo "makeindex = /bin/true" >> "${settings_file}"
-  fi
-
-  echo "  ✓ system.config linker flags patched"
-}
-
-# Strip BUILD_PREFIX from tool paths in system.config
-# Commonly needed for cross-compilation and some native builds
-#
-# Usage:
-#   strip_build_prefix_from_tools
-#   strip_build_prefix_from_tools "python"  # Exclude python from stripping
-#
-# Parameters:
-#   $1 - exclude_pattern: Regex pattern to exclude from stripping (optional)
-#
-strip_build_prefix_from_tools() {
-  local exclude_pattern="${1:-}"
-  local settings_file="${SRC_DIR}/hadrian/cfg/system.config"
-
-  if [[ ! -f "${settings_file}" ]]; then
-    echo "  WARNING: system.config not found, skipping strip"
-    return 0
-  fi
-
-  echo "  Stripping BUILD_PREFIX from tool paths..."
-
-  if [[ -n "${exclude_pattern}" ]]; then
-    # Use negative lookahead to exclude pattern
-    perl -pi -e "s#${BUILD_PREFIX}/bin/(?!${exclude_pattern})##" "${settings_file}"
-  else
-    perl -pi -e "s#${BUILD_PREFIX}/bin/##" "${settings_file}"
-  fi
-
-  echo "  ✓ BUILD_PREFIX stripped from tool paths"
-}
-
-# Add toolchain prefix to tools in system.config
-# Used for cross-compilation where tools need target prefix
-#
-# Usage:
-#   add_toolchain_prefix_to_tools "aarch64-conda-linux-gnu"
-#
-# Parameters:
-#   $1 - toolchain_prefix: The prefix to add (e.g., "aarch64-conda-linux-gnu")
-#   $2 - tools: Space-separated list of tools (optional, defaults to common set)
-#
-add_toolchain_prefix_to_tools() {
-  local toolchain_prefix="$1"
-  local tools="${2:-ar clang clang++ llc nm opt ranlib}"
-  local settings_file="${SRC_DIR}/hadrian/cfg/system.config"
-
-  if [[ ! -f "${settings_file}" ]]; then
-    echo "  WARNING: system.config not found, skipping prefix"
-    return 0
-  fi
-
-  echo "  Adding toolchain prefix '${toolchain_prefix}' to tools..."
-
-  # Build regex pattern from tools list
-  local tool_pattern=$(echo "${tools}" | tr ' ' '|')
-
-  perl -pi -e "s#(=\\s+)(${tool_pattern})\$#\$1${toolchain_prefix}-\$2#" "${settings_file}"
-
-  echo "  ✓ Toolchain prefix added to tools"
-}
-
-# Fix Python path in system.config for cross-compilation
-# Configure sets python = $PREFIX/bin/python but Python runs on build host
-#
-# Usage:
-#   fix_python_path_for_cross
-#
-fix_python_path_for_cross() {
-  local settings_file="${SRC_DIR}/hadrian/cfg/system.config"
-
-  if [[ ! -f "${settings_file}" ]]; then
-    echo "  WARNING: system.config not found, skipping python fix"
-    return 0
-  fi
-
-  echo "  Fixing Python path for cross-compilation..."
-
-  perl -pi -e "s#(^python\\s*=).*#\$1 ${BUILD_PREFIX}/bin/python#" "${settings_file}"
-
-  echo "  ✓ Python path fixed to BUILD_PREFIX"
-}
-
-# Update stage settings file with library paths and rpaths
-# This is commonly needed between build phases to ensure proper linking
-#
-# Usage:
-#   update_stage_settings "stage0"
-#   update_stage_settings "stage1"
-#
-# Parameters:
-#   $1 - stage: Which stage settings to update (stage0, stage1)
-#
-update_stage_settings() {
-  local stage="$1"
-  local settings_file="${SRC_DIR}/_build/${stage}/lib/settings"
-
-  if [[ ! -f "${settings_file}" ]]; then
-    echo "  WARNING: ${stage} settings file not found at ${settings_file}"
-    return 0
-  fi
-
-  # Check if flags are already present (idempotent operation)
-  if grep -q "Wl,-L\${PREFIX}/lib" "${settings_file}" 2>/dev/null || \
-     grep -q "Wl,-L${PREFIX}/lib" "${settings_file}" 2>/dev/null; then
-    return 0  # Already patched
-  fi
-
-  # Add library paths and rpath
-  perl -pi -e "s#(C compiler link flags\", \"[^\"]*)#\$1 -Wl,-L${PREFIX}/lib -Wl,-rpath,${PREFIX}/lib#" "${settings_file}"
-  perl -pi -e "s#(ld flags\", \"[^\"]*)#\$1 -L${PREFIX}/lib -rpath ${PREFIX}/lib#" "${settings_file}"
-}
-
-# Update settings file with platform-specific link flags
-# Used by platform scripts to patch GHC settings during build
-#
-# Usage:
-#   update_settings_link_flags "${settings_file}"
-#
-# Parameters:
-#   $1 - settings_file: Path to GHC settings file
-#   $2 - toolchain: Toolchain prefix (optional, defaults to $CONDA_TOOLCHAIN_HOST)
-#   $3 - prefix: Install prefix (optional, defaults to $PREFIX)
-#
-update_settings_link_flags() {
-  local settings_file="$1"
-  local toolchain="${2:-$CONDA_TOOLCHAIN_HOST}"
-  local prefix="${3:-$PREFIX}"
-
-  if [[ "${target_platform}" == "linux-"* ]]; then
-    perl -pi -e 's#(C compiler flags", "[^"]*)#$1 -Wno-strict-prototypes#' "${settings_file}"
-    perl -pi -e 's#(C\+\+ compiler flags", "[^"]*)#$1 -Wno-strict-prototypes#' "${settings_file}"
-
-    perl -pi -e "s#(C compiler link flags\", \"[^\"]*)#\$1 -Wl,-L${BUILD_PREFIX}/lib -Wl,-L${prefix}/lib -Wl,-rpath,${BUILD_PREFIX}/lib -Wl,-rpath,${prefix}/lib#" "${settings_file}"
-    perl -pi -e "s#(ld flags\", \"[^\"]*)#\$1 -L${BUILD_PREFIX}/lib -L${prefix}/lib -rpath ${BUILD_PREFIX}/lib -rpath ${prefix}/lib#" "${settings_file}"
-
-  elif [[ "${target_platform}" == "osx-64" ]]; then
-    # Add -fno-lto DURING build to prevent ABI mismatches and runtime crashes
-    perl -pi -e 's#(C compiler flags", "[^"]*)#$1 -fno-lto#' "${settings_file}"
-    perl -pi -e 's#(C\+\+ compiler flags", "[^"]*)#$1 -fno-lto#' "${settings_file}"
-    perl -pi -e "s#(C compiler link flags\", \"[^\"]*)#\$1 -fno-lto -Wl,-L${prefix}/lib -Wl,-liconv -Wl,-L${prefix}/lib/ghc-${PKG_VERSION}/lib -Wl,-liconv_compat#" "${settings_file}"
-    perl -pi -e "s#(ld flags\", \"[^\"]*)#\$1 -L${prefix}/lib -liconv -L${prefix}/lib/ghc-${PKG_VERSION}/lib -liconv_compat#" "${settings_file}"
-
-  elif [[ "${target_platform}" == "osx-arm64" ]]; then
-    # Add -fno-lto DURING build to prevent ABI mismatches and runtime crashes
-    perl -pi -e 's#(C compiler flags", "[^"]*)#$1 -fno-lto#' "${settings_file}"
-    perl -pi -e 's#(C\+\+ compiler flags", "[^"]*)#$1 -fno-lto#' "${settings_file}"
-    perl -pi -e "s#(C compiler link flags\", \"[^\"]*)#\$1 -fuse-ld=lld -fno-lto -Wl,-L${prefix}/lib -Wl,-liconv -Wl,-L${prefix}/lib/ghc-${PKG_VERSION}/lib -Wl,-liconv_compat#" "${settings_file}"
-    perl -pi -e "s#(ld flags\", \"[^\"]*)#\$1 -L${prefix}/lib -liconv -L${prefix}/lib/ghc-${PKG_VERSION}/lib -liconv_compat#" "${settings_file}"
-  fi
-
-  # Update toolchain paths
-  perl -pi -e "s#\"[/\w]*?(ar|clang|clang\+\+|ld|ranlib|llc|objdump|opt)\"#\"${toolchain}-\$1\"#" "${settings_file}"
-}
-
-# Set macOS-specific ar and ranlib settings for LLVM toolchain
-# Apple ld64 requires LLVM ar instead of GNU ar
-#
-# Usage:
-#   set_macos_conda_ar_ranlib "${settings_file}"
-#
-# Parameters:
-#   $1 - settings_file: Path to GHC settings file
-#   $2 - toolchain: Toolchain prefix (optional, defaults to x86_64-apple-darwin13.4.0)
-#
-set_macos_conda_ar_ranlib() {
-  local settings_file="$1"
-  local toolchain="${2:-x86_64-apple-darwin13.4.0}"
-
-  if [[ -f "$settings_file" ]]; then
-    if [[ "$(basename "${settings_file}")" == "default."* ]]; then
-      # Use LLVM ar instead of GNU ar for compatibility with Apple ld64
-      perl -i -pe 's#(arMkArchive\s*=\s*).*#$1Program {prgPath = "llvm-ar", prgFlags = ["qcs"]}#g' "${settings_file}"
-      perl -i -pe 's#((arIsGnu|arSupportsAtFile)\s*=\s*).*#$1False#g' "${settings_file}"
-      perl -i -pe 's#(arNeedsRanlib\s*=\s*).*#$1False#g' "${settings_file}"
-      perl -i -pe 's#(tgtRanlib\s*=\s*).*#$1Nothing#g' "${settings_file}"
-    else
-      # Use LLVM ar instead of GNU ar for compatibility with Apple ld64
-      perl -i -pe 's#("ar command", ")[^"]*#$1llvm-ar#g' "${settings_file}"
-      perl -i -pe 's#("ar flags", ")[^"]*#$1qcs#g' "${settings_file}"
-      perl -i -pe "s#(\"(clang|llc|opt|ranlib) command\", \")[^\"]*#\$1${toolchain}-\$2#g" "${settings_file}"
-    fi
-  else
-    echo "Error: $settings_file not found!"
-    exit 1
-  fi
-}
-
-# Update installed GHC settings with final link flags and toolchain paths
-# Called after GHC is installed to PREFIX
-#
-# Usage:
-#   update_installed_settings
-#   update_installed_settings "x86_64-apple-darwin13.4.0"
-#
-# Parameters:
-#   $1 - toolchain: Toolchain prefix (optional, defaults to $CONDA_TOOLCHAIN_HOST)
-#
-update_installed_settings() {
-  local toolchain="${1:-$CONDA_TOOLCHAIN_HOST}"
-
-  local settings_file=$(find "${PREFIX}/lib" -name settings | head -n 1)
-  if [[ "${target_platform}" == "linux-"* ]]; then
-    perl -pi -e "s#(C compiler link flags\", \"[^\"]*)#\$1 -Wl,-L\\\$topdir/x86_64-linux-ghc-${PKG_VERSION} -Wl,-rpath,\\\$topdir/x86_64-linux-ghc-${PKG_VERSION} -Wl,-L\\\$topdir/../../../lib -Wl,-rpath,\\\$topdir/../../../lib#" "${settings_file}"
-    perl -pi -e "s#(ld flags\", \")#\$1-L\\\$topdir/x86_64-linux-ghc-${PKG_VERSION} -rpath \\\$topdir/x86_64-linux-ghc-${PKG_VERSION} -L\\\$topdir/../../../lib -rpath \\\$topdir/../../../lib#" "${settings_file}"
-
-  elif [[ "${target_platform}" == "osx-"* ]]; then
-    perl -i -pe "s#(C compiler flags\", \")([^\"]*)#\1\2 -fno-lto#" "${settings_file}"
-    perl -i -pe "s#(C\\+\\+ compiler flags\", \")([^\"]*)#\1\2 -fno-lto#" "${settings_file}"
-    perl -i -pe "s#(C compiler link flags\", \")([^\"]*)#\1\2 -v -fuse-ld=lld -fno-lto -fno-use-linker-plugin -Wl,-L\\\$topdir/../../../lib -Wl,-rpath,\\\$topdir/../../../lib -liconv -Wl,-L\\\$topdir/../lib -Wl,-rpath,\\\$topdir/../lib -liconv_compat#" "${settings_file}"
-  fi
-
-  # Remove build-time paths
-  perl -pi -e "s#(-Wl,-L${BUILD_PREFIX}/lib|-Wl,-L${PREFIX}/lib|-Wl,-rpath,${BUILD_PREFIX}/lib|-Wl,-rpath,${PREFIX}/lib)##g" "${settings_file}"
-  perl -pi -e "s#(-L${BUILD_PREFIX}/lib|-L${PREFIX}/lib|-rpath ${PREFIX}/lib|-rpath ${BUILD_PREFIX}/lib)##g" "${settings_file}"
-
-  # Update toolchain paths
-  perl -pi -e "s#\"[/\w]*?(ar|clang|clang\+\+|ld|ranlib|llc|objdump|opt)\"#\"${toolchain}-\$1\"#" "${settings_file}"
-}
+source "${RECIPE_DIR}/lib/settings-patch.sh"
 
 # ==============================================================================
 # Cross-Compilation Helpers

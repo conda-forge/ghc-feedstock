@@ -1,6 +1,8 @@
 context:
   version: "9.6.7"
   bootstrap_version: "9.2.8"
+  m2: ${{ "m2-" if not unix }}
+  dot: ${{ "./" if unix }}
 
 package:
   name: ghc
@@ -27,12 +29,13 @@ source:
           - patches/w64-format-specifier-PEi386.c.patch
           - patches/w64-format-specifier-MMap.c.patch
           - patches/w64-stdlib-include-Utilities.c.patch
-      - if: osx and arm64
+      - if: arm64
         then:
           - patches/oar-osname-darwin-rts-configure.patch
       - if: osx
         then:
           - patches/osx-disable-dead-strip-dylibs-Dynamic.hs.patch
+          - patches/osx-disable-dead-strip-dylibs-Static.hs.patch
 
 build:
   number: 0
@@ -56,15 +59,15 @@ requirements:
     - ${{ compiler('cxx') }}
     - ${{ stdlib('c') }}
     
-    - ${{ "m2-" if not unix }}autoconf
-    - ${{ "m2-" if not unix }}automake${{ "-wrapper" if not unix }}
-    - ${{ "m2-" if not unix }}bash >=5.2
-    - ${{ "m2-" if not unix }}file
-    - ${{ "m2-" if not unix }}findutils
-    - ${{ "m2-" if not unix }}grep
-    - ${{ "m2-" if not unix }}m4
-    - ${{ "m2-" if not unix }}make
-    - ${{ "m2-" if not unix }}tar
+    - ${{ m2 }}autoconf
+    - ${{ m2 }}automake${{ "-wrapper" if not unix }}
+    - ${{ m2 }}bash >=5.2
+    - ${{ m2 }}file
+    - ${{ m2 }}findutils
+    - ${{ m2 }}grep
+    - ${{ m2 }}m4
+    - ${{ m2 }}make
+    - ${{ m2 }}tar
     
     - binutils >=${{ binutils_version }}
     - cabal ==3.10.3.0
@@ -78,8 +81,8 @@ requirements:
     - if: not unix
       then:
         - libgcc-devel_win-64
-        - m2-coreutils
-        - m2-which
+        - ${{ m2 }}coreutils
+        - ${{ m2 }}which
 
     - if: build_platform != target_platform
       then:
@@ -94,6 +97,15 @@ requirements:
       then:
         - libiconv
         - ncurses
+  run_constraints:
+    - ${{ c_compiler }}_impl_${{ target_platform }} >=${{ c_compiler_version }}
+    - ${{ cxx_compiler }}_impl_${{ target_platform }} >=${{ cxx_compiler_version }}
+    - if: linux
+      then:
+        - ld_impl_${{ target_platform }} >=${{ binutils_version }}
+    - if: osx or not unix
+      then:
+        - lld >=${{ c_compiler_version }}
     
 tests:
   - package_contents:
@@ -152,84 +164,37 @@ tests:
           - runhaskell --version
 
   - script:
-      - printf 'main = putStrLn "Hello conda-forge"\n' > hello.hs && ghc hello.hs
-      - ${{ "./" if unix }}hello
+      - printf 'main = putStrLn "Hi CF"\n' > Hi.hs && ghc Hi.hs && ${{ dot }}Hi && rm ${{ dot }}Hi
+      - printf 'main = putStrLn "Hi TH CF"\n' > Hi.hs && ghc -threaded Hi.hs && ${{ dot }}Hi && rm ${{ dot }}Hi
     requirements:
       run:
         - ${{ compiler('c') }}
-        - if: unix
-          then:
-            - ${{ stdlib('c') }}
+        - ${{ stdlib('c') }}
         - if: linux
           then:
             - ld_impl_${{ target_platform }} ${{ binutils_version }}
-        - if: osx or not unix
-          then:
-            - lld ${{ c_compiler_version }}.*
-
-  - script:
-      - printf 'main = putStrLn "Hello threaded conda-forge"\n' > hello.hs && ghc -threaded hello.hs
-      - ${{ "./" if unix }}hello
-      - if: unix
-        then:
-          - printf 'main = putStrLn "Hello profiled conda-forge"\n' > hello.hs && ghc -prof hello.hs && ./hello
-        else:
-          - echo "No profiling on non-unix"
-    requirements:
-      run:
-        - ${{ compiler('c') }}
-        - if: unix
-          then:
-            - ${{ stdlib('c') }}
-        - if: linux
-          then:
-            - ld_impl_${{ target_platform }} ${{ binutils_version }}
-        - if: osx or not unix
-          then:
+          else:
             - lld ${{ c_compiler_version }}.*
 
   - script:
       - if: unix
         then:
-          - printf 'main = putStrLn "Hello conda-forge"\n' > hello.hs && ghc -dynamic hello.hs && ./hello
-          - printf 'main = putStrLn "Hello threaded conda-forge"\n' > hello_t.hs
-          - ghc -dynamic -threaded hello_t.hs && ./hello_t
+          - printf 'main = putStrLn "Hi P CF"\n' > Hi.hs && ghc -prof Hi.hs && ${{ dot }}Hi && rm ${{ dot }}Hi
+          - printf 'main = putStrLn "Hi CF"\n' > Hi.hs && ghc -dynamic Hi.hs && ${{ dot }}Hi && rm ${{ dot }}Hi
+          - printf 'main = putStrLn "Hi TH CF"\n' > Hi.hs && ghc -dynamic -threaded Hi.hs && ${{ dot }}Hi && rm ${{ dot }}Hi
+          - printf 'import System.Posix.Signals\nmain = installHandler sigTERM Default Nothing >> putStrLn "Signal test"\n' > signal_test.hs
+          - ghc signal_test.hs && ${{ dot }}signal_test
         else:
-          - echo "No dyn on non-unix"
+          - echo "Skipped test due to 32bit relocation issue with large GHC"
     requirements:
       run:
         - ${{ compiler('c') }}
-        - if: unix
-          then:
-            - ${{ stdlib('c') }}
+        - ${{ stdlib('c') }}
         - if: linux
           then:
             - ld_impl_${{ target_platform }} ${{ binutils_version }}
-        - if: osx
-          then:
+          else:
             - lld ${{ c_compiler_version }}.*
-
-  - script:
-      - printf 'import System.Posix.Signals\nmain = installHandler sigTERM Default Nothing >> putStrLn "Signal test"\n' > signal_test.hs
-      - if: unix
-        then: |
-          ghc signal_test.hs
-          ./signal_test
-        else: |
-          echo Skipping signal test on Windows
-    requirements:
-      run:
-        - ${{ compiler('c') }}
-        - if: unix
-          then:
-            - ${{ stdlib('c') }}
-        - if: linux
-          then:
-            - ld_impl_${{ target_platform }} ${{ binutils_version }}
-        - if: osx
-          then:
-            - lld ${{ c_compiler_version }}.*
-
 
 about:
   homepage: https://haskell.org/ghc/

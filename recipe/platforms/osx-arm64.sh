@@ -157,13 +157,13 @@ platform_build_stage1() {
 
   # Build Stage 1 GHC compiler
   run_and_log "stage1-ghc" "${HADRIAN_CMD[@]}" --flavour="${FLAVOUR}" \
-    stage1:exe:ghc-bin --docs=none --progress-info=none
+    stage1:exe:ghc-bin ${HADRIAN_STAGE_OPTS}
 
   # Build Stage 1 supporting tools
   run_and_log "stage1-pkg" "${HADRIAN_CMD[@]}" --flavour="${FLAVOUR}" \
-    stage1:exe:ghc-pkg --docs=none --progress-info=none
+    stage1:exe:ghc-pkg ${HADRIAN_STAGE_OPTS}
   run_and_log "stage1-hsc2hs" "${HADRIAN_CMD[@]}" --flavour="${FLAVOUR}" \
-    stage1:exe:hsc2hs --docs=none --progress-info=none
+    stage1:exe:hsc2hs ${HADRIAN_STAGE_OPTS}
 
   # Verify Stage0 GHC works
   "${SRC_DIR}/_build/stage0/bin/${ghc_target}-ghc" --version || {
@@ -176,7 +176,7 @@ platform_build_stage1() {
   local retry=0
   while (( retry < max_retries )); do
     if run_and_log "stage1-lib" "${HADRIAN_CMD[@]}" --flavour="${FLAVOUR}" \
-        stage1:lib:ghc --docs=none --progress-info=none; then
+        stage1:lib:ghc ${HADRIAN_STAGE_OPTS}; then
       break
     fi
     ((retry++))
@@ -198,7 +198,7 @@ platform_build_stage2() {
   echo "  Building Stage 2 cross-compiled binaries..."
 
   run_and_log "stage2-exe" "${HADRIAN_CMD[@]}" --flavour="${FLAVOUR}" \
-    stage2:exe:ghc-bin --freeze1 --docs=none --progress-info=none
+    stage2:exe:ghc-bin --freeze1 ${HADRIAN_STAGE_OPTS}
 
   run_and_log "build-all" "${HADRIAN_CMD[@]}" --flavour="${FLAVOUR}" \
     --freeze1 --freeze2 --docs=no-sphinx-pdfs --progress-info=none

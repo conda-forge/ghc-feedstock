@@ -31,145 +31,47 @@ FLAVOUR="release+omit_pragmas"
 configure_native_triple
 
 # ==============================================================================
-# Phase 1: Environment Setup
+# Platform Hooks
 # ==============================================================================
 
 platform_setup_environment() {
-  echo "  Configuring macOS native environment..."
-
-  # This is needed as it seems to interfere with configure scripts
-  unset build_alias
-  unset host_alias
-
-  # Use shared macOS setup (creates iconv compat, sets AR, DYLD env, patches bootstrap)
-  macos_complete_setup
-
-  # Add BUILD_PREFIX/bin to PATH (ghc-bootstrap/bin already added by common_setup_environment)
+  unset build_alias host_alias  # Interferes with configure scripts
+  macos_complete_setup          # Creates iconv compat, sets AR, DYLD env, patches bootstrap
   export PATH="${BUILD_PREFIX}/bin:${PATH}"
-
-  echo "  ✓ macOS environment configured"
 }
 
-# ==============================================================================
-# Phase 2: Bootstrap Setup
-# ==============================================================================
-
-# ==============================================================================
-# Phase 3: Cabal Setup
-# ==============================================================================
-
-# ==============================================================================
-# Phase 4: Configure GHC
-# ==============================================================================
-
 platform_configure_ghc() {
-  echo "  Configuring GHC for macOS x86_64..."
-
-  # Build system config using nameref helper (native build: same triple for build/host)
-  # Uses ${ghc_triple} from configure_native_triple() called at top level
-  local -a system_config
+  local -a system_config configure_args
   build_system_config system_config "${ghc_triple}" "${ghc_triple}" ""
-
-  # Build standard configure args using nameref helper (--with-gmp, --with-ffi, etc.)
-  local -a configure_args
   build_configure_args configure_args
-
-  # Use unified helper for ac_cv_* variables
   set_autoconf_toolchain_vars --macos
-
   run_and_log "configure" ./configure "${system_config[@]}" "${configure_args[@]}" || {
-    cat config.log
-    return 1
+    cat config.log; return 1
   }
-
-  echo "  ✓ GHC configured"
 }
 
 platform_post_configure_ghc() {
-  # Use unified macOS system.config patching helper
-  # Uses ${ghc_triple} from configure_native_triple() called at top level
   macos_patch_system_config "${ghc_triple}"
 }
 
-# ==============================================================================
-# Phase 5: Build Hadrian - uses default (cabal v2-build)
-# ==============================================================================
-
-# ==============================================================================
-# Phase 6: Build Stage 1
-# ==============================================================================
-
-platform_build_stage1() {
-  echo "  Building Stage 1 GHC for macOS..."
-
-  run_and_log "stage1-exe" "${HADRIAN_CMD[@]}" stage1:exe:ghc-bin \
-    --flavour="${FLAVOUR}" --docs=none --progress-info=none
-
-  # Update stage0 settings with link flags (once after exe build)
+# Stage build hooks - update settings after executables are built
+platform_post_stage1_executables() {
   local settings_file="${SRC_DIR}/_build/stage0/lib/settings"
-  if [[ -f "${settings_file}" ]]; then
+  [[ -f "${settings_file}" ]] && {
     update_settings_link_flags "${settings_file}"
     set_macos_conda_ar_ranlib "${settings_file}" "${CONDA_TOOLCHAIN_BUILD}"
-    echo "  Updated stage0 settings"
-  fi
-
-  # Build Stage 1 libraries
-  run_and_log "stage1-lib" "${HADRIAN_CMD[@]}" stage1:lib:ghc \
-    --flavour="${FLAVOUR}" --docs=none --progress-info=none
-
-  echo "  ✓ Stage 1 GHC built"
+  }
 }
 
-# ==============================================================================
-# Phase 7: Build Stage 2
-# ==============================================================================
-
-platform_build_stage2() {
-  echo "  Building Stage 2 GHC for macOS..."
-
-  run_and_log "stage2-exe" "${HADRIAN_CMD[@]}" stage2:exe:ghc-bin \
-    --flavour="${FLAVOUR}" --freeze1 --docs=none --progress-info=none
-
-  # Update stage1 settings
+platform_post_stage2_executables() {
   local settings_file="${SRC_DIR}/_build/stage1/lib/settings"
-  if [[ -f "${settings_file}" ]]; then
-    update_settings_link_flags "${settings_file}"
-  fi
-
-  run_and_log "stage2-lib" "${HADRIAN_CMD[@]}" stage2:lib:ghc \
-    --flavour="${FLAVOUR}" --freeze1 --docs=none --progress-info=none
-
-  echo "  ✓ Stage 2 GHC built"
+  [[ -f "${settings_file}" ]] && update_settings_link_flags "${settings_file}"
 }
-
-# ==============================================================================
-# Phase 8: Install GHC - uses default (bindist_install)
-# ==============================================================================
-
-# ==============================================================================
-# Phase 9: Post-Install
-# ==============================================================================
 
 platform_post_install() {
-  echo "  Running macOS post-install..."
-
-  # Update installed settings with relocatable paths
-  # Uses ${ghc_triple} from configure_native_triple() called at top level
   update_installed_settings "${ghc_triple}"
-
   local settings_file=$(find "${PREFIX}/lib" -name settings | head -n 1)
-  if [[ -f "${settings_file}" ]]; then
-    set_macos_conda_ar_ranlib "${settings_file}" "${CONDA_TOOLCHAIN_BUILD}"
-  fi
-
+  [[ -f "${settings_file}" ]] && set_macos_conda_ar_ranlib "${settings_file}" "${CONDA_TOOLCHAIN_BUILD}"
   install_bash_completion
-
-  # Verify installation
-  echo "  Verifying GHC installation..."
-  "${PREFIX}/bin/ghc" --version || {
-    echo "ERROR: Installed GHC failed to run"
-    exit 1
-  }
-
-  echo "  ✓ macOS post-install complete"
+  "${PREFIX}/bin/ghc" --version || { echo "ERROR: Installed GHC failed"; exit 1; }
 }
