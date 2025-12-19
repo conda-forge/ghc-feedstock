@@ -372,6 +372,7 @@ uses_ghc_toolchain() {
 relax_bootstrap_version_bounds() {
   local src_dir="${1:-${SRC_DIR:-$(pwd)}}"
   local libraries_dir="${src_dir}/libraries"
+  local utils_dir="${src_dir}/utils"
 
   if [[ ! -d "${libraries_dir}" ]]; then
     echo "WARNING: Cannot relax version bounds - libraries dir not found: ${libraries_dir}"
@@ -380,7 +381,8 @@ relax_bootstrap_version_bounds() {
 
   echo "  Relaxing library version bounds for GHC 9.6.7 bootstrap..."
 
-  # Find ALL .cabal and .cabal.in files in libraries/ and patch them
+  # Find ALL .cabal and .cabal.in files in libraries/ AND utils/ and patch them
+  # utils/ contains hsc2hs and other tools that also have version bounds
   # This is more robust than maintaining a manual list
   local count=0
   while IFS= read -r -d '' cabal_file; do
@@ -414,7 +416,7 @@ relax_bootstrap_version_bounds() {
       echo "    ✓ Patched: $(basename ${cabal_file})"
       ((++count))  # Use pre-increment to avoid exit code 1 when count=0
     fi
-  done < <(find "${libraries_dir}" \( -name "*.cabal" -o -name "*.cabal.in" \) -print0 2>/dev/null)
+  done < <(find "${libraries_dir}" "${utils_dir}" \( -name "*.cabal" -o -name "*.cabal.in" \) -print0 2>/dev/null)
 
   echo "  ✓ Version bounds relaxed in ${count} files for 9.6.7 bootstrap compatibility"
 }
