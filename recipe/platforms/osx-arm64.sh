@@ -124,37 +124,30 @@ platform_pre_build_stage1() {
   # Note: Symlinks for host tools created in platform_setup_environment
 }
 
-platform_build_stage1() {
-  echo "  Building Stage 1 cross-compiler..."
-
-  # Build Stage 1 GHC compiler
-  run_and_log "stage1-ghc" "${HADRIAN_CMD[@]}" --flavour="${FLAVOUR}" \
-    stage1:exe:ghc-bin ${HADRIAN_STAGE_OPTS}
-
-  # Build Stage 1 supporting tools
-  run_and_log "stage1-pkg" "${HADRIAN_CMD[@]}" --flavour="${FLAVOUR}" \
-    stage1:exe:ghc-pkg ${HADRIAN_STAGE_OPTS}
-  run_and_log "stage1-hsc2hs" "${HADRIAN_CMD[@]}" --flavour="${FLAVOUR}" \
-    stage1:exe:hsc2hs ${HADRIAN_STAGE_OPTS}
-
-  # Update stage0 settings with llvm-ar before building libraries
-  local settings_file="${SRC_DIR}/_build/stage0/lib/settings"
+# Update stage settings with llvm-ar and library paths
+# Called by default_build_stage1/2 between executables and libraries build
+update_stage_settings() {
+  local stage="${1}"
+  local settings_file="${SRC_DIR}/_build/${stage}/lib/settings"
   [[ -f "${settings_file}" ]] && {
+    echo "  Updating ${stage} settings with llvm-ar..."
     update_settings_link_flags "${settings_file}"
     set_macos_conda_ar_ranlib "${settings_file}" "${CONDA_TOOLCHAIN_BUILD}"
   }
+}
 
-  # Verify Stage0 GHC works
+# Hook called after building stage executables (ghc-bin, ghc-pkg, hsc2hs)
+platform_post_stage1_executables() {
+  # Verify Stage0 GHC works (optional - doesn't block build)
   "${SRC_DIR}/_build/stage0/bin/${ghc_target}-ghc" --version || {
     echo "WARNING: Stage0 GHC failed to report version"
   }
-
-  # Build libraries with release flavour (for full ways: vanilla, profiling, dynamic)
-  # Note: build_stage_libraries has built-in retry logic for -dynamic-too race conditions
-  build_stage_libraries 1
-
-  echo "  ✓ Stage 1 cross-compiler built"
 }
+
+# Uses default_build_stage1 which:
+# 1. Calls build_stage_executables(1) -> fires platform_post_stage1_executables
+# 2. Calls update_stage_settings("stage0") for llvm-ar patching
+# 3. Calls build_stage_libraries(1)
 
 # ==============================================================================
 # Phase 7: Build Stage 2
@@ -163,18 +156,16 @@ platform_build_stage1() {
 platform_build_stage2() {
   echo "  Building Stage 2 cross-compiled binaries..."
 
+  # Build stage2 GHC executable only (build-all handles the rest)
   run_and_log "stage2-exe" "${HADRIAN_CMD[@]}" --flavour="${FLAVOUR}" \
     stage2:exe:ghc-bin --freeze1 ${HADRIAN_STAGE_OPTS}
 
-  # Update stage1 settings with llvm-ar before building libraries
-  local settings_file="${SRC_DIR}/_build/stage1/lib/settings"
-  [[ -f "${settings_file}" ]] && {
-    update_settings_link_flags "${settings_file}"
-    set_macos_conda_ar_ranlib "${settings_file}" "${CONDA_TOOLCHAIN_BUILD}"
-  }
+  # Update stage1 settings with llvm-ar (uses shared update_stage_settings)
+  update_stage_settings "stage1"
 
+  # Build everything with custom docs flag (osx-arm64 specific: no-sphinx-pdfs)
   run_and_log "build-all" "${HADRIAN_CMD[@]}" --flavour="${FLAVOUR}" \
-    --freeze1 --freeze2 --docs=no-sphinx-pdfs --progress-info=none
+    --freeze1 --freeze2 --docs=no-sphinx-pdfs ${HADRIAN_STAGE_OPTS}
 
   echo "  ✓ Stage 2 cross-compiled binaries built"
 }
@@ -201,11 +192,8 @@ platform_post_install() {
   local settings_file=$(find "${PREFIX}/lib" -name settings | head -n 1)
   [[ -f "${settings_file}" ]] && set_macos_conda_ar_ranlib "${settings_file}" "${CONDA_TOOLCHAIN_BUILD}"
 
-  # Verify installation (may fail for cross-compiled binary - that's expected)
-  echo "  Verifying GHC installation..."
-  "${PREFIX}/bin/ghc" --version || {
-    echo "WARNING: Installed GHC failed to run (expected for cross-compiled binary)"
-  }
+  # Verify installation (cross-compiled binary may fail to run - that's expected)
+  verify_installed_ghc "true"
 
   echo "  ✓ macOS arm64 post-install complete"
 }
