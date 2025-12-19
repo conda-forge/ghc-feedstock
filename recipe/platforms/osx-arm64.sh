@@ -95,20 +95,8 @@ platform_configure_ghc() {
 }
 
 platform_post_configure_ghc() {
-  echo "  Patching system.config for cross-compilation..."
-
-  # Use standardized cross-compile patching from cross-helpers.sh
-  # This handles: strip BUILD_PREFIX, fix python path, add toolchain prefix, linker flags
-  cross_patch_system_config "${conda_target}" "ar clang clang++ llc nm objdump opt ranlib"
-
-  # Apply macOS-specific cross-compile patches from macos-common.sh
-  # This handles: system-ar, ffi/iconv lib dirs, stage0 flags, ar command, objdump fix
-  macos_cross_system_config_patches "${conda_host}" "${conda_target}"
-
-  # Use shared helper for bootstrap settings (cross-compile mode)
-  macos_patch_bootstrap_settings "${conda_host}" "cross"
-
-  echo "  ✓ System config patched"
+  # Use orchestrator for all post-configure patches (cross + macOS-specific + bootstrap)
+  macos_cross_post_configure "${conda_host}" "${conda_target}"
 }
 
 # ==============================================================================

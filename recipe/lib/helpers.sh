@@ -472,6 +472,34 @@ install_bash_completion() {
   fi
 }
 
+# Verify installed GHC works
+# Common verification helper that handles cross-compiled binaries gracefully.
+#
+# Parameters:
+#   $1 - expect_failure: "true" if cross-compiled binary may fail (optional)
+#
+# Usage:
+#   verify_installed_ghc                  # Native - fail on error
+#   verify_installed_ghc "true"           # Cross-compile - warning only
+#
+verify_installed_ghc() {
+  local expect_failure="${1:-false}"
+
+  echo "  Verifying GHC installation..."
+  if "${PREFIX}/bin/ghc" --version; then
+    echo "  ✓ GHC runs successfully"
+    return 0
+  else
+    if [[ "${expect_failure}" == "true" ]]; then
+      echo "  WARNING: Installed GHC failed (expected for cross-compiled binary)"
+      return 0
+    else
+      echo "  ERROR: Installed GHC failed to run"
+      return 1
+    fi
+  fi
+}
+
 # ==============================================================================
 # Platform Utility Helpers
 # ==============================================================================

@@ -171,6 +171,42 @@ macos_cross_system_config_patches() {
 }
 
 # ==============================================================================
+# Complete Cross-Compile Post-Configure Orchestrator
+# ==============================================================================
+# Single-call orchestrator for all macOS cross-compile post-configure patches.
+# Replaces 3-step manual calls in osx-arm64.sh platform_post_configure_ghc().
+#
+# Parameters:
+#   $1 - host: Build host triple (e.g., "x86_64-apple-darwin13.4.0")
+#   $2 - target: Target triple (e.g., "arm64-apple-darwin20.0.0")
+#   $3 - tools: Space-separated tool list (optional, defaults to common set)
+#
+# Usage:
+#   macos_cross_post_configure "${conda_host}" "${conda_target}"
+#
+macos_cross_post_configure() {
+  local host="${1}"
+  local target="${2}"
+  local tools="${3:-ar clang clang++ llc nm objdump opt ranlib}"
+
+  echo "  Applying macOS cross-compile post-configure patches..."
+
+  # Step 1: Standard cross-compile patches (from cross-helpers.sh)
+  # Handles: strip BUILD_PREFIX, fix python path, add toolchain prefix, linker flags
+  cross_patch_system_config "${target}" "${tools}"
+
+  # Step 2: macOS-specific cross-compile patches
+  # Handles: system-ar, ffi/iconv lib dirs, stage0 flags, ar command, objdump fix
+  macos_cross_system_config_patches "${host}" "${target}"
+
+  # Step 3: Bootstrap settings for cross mode
+  # Handles: -fno-lto, BUILD_PREFIX paths, ar/ranlib commands
+  macos_patch_bootstrap_settings "${host}" "cross"
+
+  echo "  ✓ Post-configure patches complete"
+}
+
+# ==============================================================================
 # Bootstrap Settings Patching
 # ==============================================================================
 # Patches bootstrap GHC settings for macOS builds.
