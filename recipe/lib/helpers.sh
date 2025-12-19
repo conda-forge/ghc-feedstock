@@ -390,14 +390,36 @@ set_autoconf_toolchain_vars() {
 # ==============================================================================
 # Settings Patch Functions
 # ==============================================================================
-# Consolidated settings patching - see lib/settings-patch.sh for implementation
+# Consolidated settings patching - provides:
+#   - patch_settings() - unified dispatcher with option flags
+#   - patch_system_config_linker_flags() - add -L and -rpath for library paths
+#   - strip_build_prefix_from_tools() - remove BUILD_PREFIX from tool paths
+#   - add_toolchain_prefix_to_tools() - add target prefix to tools
+#   - fix_python_path_for_cross() - fix Python path for cross-compile
+#   - update_settings_link_flags() - update stage settings with library paths
+#   - set_macos_conda_ar_ranlib() - set macOS llvm-ar for Apple ld64
+#   - update_installed_settings() - patch installed GHC settings
+#
+# NOTE: This is sourced by helpers.sh, not by platform scripts directly.
+# Platforms should use the wrapper functions or call patch_settings() with options.
 
 source "${RECIPE_DIR}/lib/settings-patch.sh"
 
 # ==============================================================================
 # Triple Configuration
 # ==============================================================================
-# Centralized GHC triple mappings - see lib/triple-helpers.sh for implementation
+# Centralized GHC triple mappings - provides:
+#   - configure_triples() - main function to set all triple variables
+#   - _ghc_triple_for_platform() - internal mapping from platform to GHC triple
+#
+# Sets global variables:
+#   - ghc_build, ghc_host, ghc_target - GHC-style triples
+#   - conda_host, conda_target - Conda toolchain triples
+#   - build_alias, host_alias, target_alias - Autoconf aliases
+#   - host_platform - For cross-compile detection
+#
+# NOTE: This is sourced by helpers.sh. Platform scripts call configure_triples()
+# early in their initialization to set up triple configuration.
 
 source "${RECIPE_DIR}/lib/triple-helpers.sh"
 

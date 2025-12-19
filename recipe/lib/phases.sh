@@ -428,11 +428,15 @@ phase_activation() {
   echo "  Phase 10: Activation"
   echo "===================================================================="
 
+  call_hook "pre_activation"
+
   if type -t platform_activation >/dev/null 2>&1; then
     platform_activation
   else
     default_activation
   fi
+
+  call_hook "post_activation"
 
   echo "  ✓ Activation complete"
   echo ""

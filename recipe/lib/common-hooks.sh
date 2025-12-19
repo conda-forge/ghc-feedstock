@@ -225,11 +225,21 @@ platform_post_post_install() {
 # PHASE 10: ACTIVATION HOOKS
 # ==============================================================================
 
+# Called before activation
+platform_pre_activation() {
+  : # No-op
+}
+
 # Override to customize activation script installation
 # If defined, replaces default_activation()
 # platform_activation() {
 #   cp "${RECIPE_DIR}/activate.sh" "${PREFIX}/etc/conda/activate.d/"
 # }
+
+# Called after activation
+platform_post_activation() {
+  : # No-op
+}
 
 # ==============================================================================
 # METADATA VARIABLES (optional, for documentation)
