@@ -24,7 +24,8 @@ This patch makes three changes:
 3. In copyConf: When copying a package from bootstrap, also fix the
    dependency versions in the .conf file content. Uses ghc-pkg describe
    to get the package info, patches the depends: field to use source
-   versions, then registers the fixed .conf file.
+   versions, then updates the package database (using 'update' instead
+   of 'register' for idempotency in parallel builds).
 
 --- a/hadrian/src/Rules/Register.hs
 +++ b/hadrian/src/Rules/Register.hs
@@ -57,7 +58,7 @@ This patch makes three changes:
 
          let ctx = Context stage pkg vanilla
          case stage of
-@@ -164,7 +184,25 @@ registerPackageRules rs stage = do
+@@ -164,7 +184,26 @@ registerPackageRules rs stage = do
  copyConf rs context@Context {..} conf = do
      depPkgIds <- fmap stdOutToPkgIds . askWithResources rs $
          target context (GhcPkg Dependencies stage) [pkgName package] []
@@ -81,10 +82,11 @@ This patch makes three changes:
 +        srcPkgId <- pkgIdentifier srcPkg
 +        let srcName = pkgName srcPkg
 +        return [(srcName, srcPkgId)]
++
      -- We should unregister if the file exists since @ghc-pkg@ will complain
      -- about existing package: https://github.com/snowleopard/hadrian/issues/543.
      -- Also, we don't always do the unregistration + registration to avoid
-@@ -175,12 +213,42 @@ copyConf rs context@Context {..} conf = do
+@@ -175,12 +214,45 @@ copyConf rs context@Context {..} conf = do
      unlessM (liftIO $ IO.doesFileExist conf) $ do
          buildWithResources rs $
              target context (GhcPkg Unregister stage) [pkgName package] []
@@ -97,10 +99,13 @@ This patch makes three changes:
 +        Stdout pkgDesc <- cmd [ghcPkgPath] ["describe", pkgName package]
 +        -- Fix dependency versions in the description
 +        let fixedPkgDesc = fixDependencyVersions versionRemappings pkgDesc
-+        -- Write fixed description to conf file and register
++        -- Write fixed description to conf file and update package database.
++        -- NOTE: Use 'update' instead of 'register' to make this idempotent.
++        -- Multiple parallel tasks may try to register the same boot package
++        -- (race condition). 'update' will succeed even if package exists.
 +        liftIO $ writeFile conf fixedPkgDesc
 +        cmd_ [ghcPkgPath] ["--no-user-package-db", "--global-package-db", pkgDbPath
-+                          , "register", conf, "-v0", "--force"]
++                          , "update", conf, "-v0", "--force"]
    where
      stdOutToPkgIds :: String -> [String]
      stdOutToPkgIds = drop 1 . concatMap words . lines
