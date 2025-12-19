@@ -21,9 +21,9 @@ FLAVOUR="release"
 # Platform Triple Configuration
 # ==============================================================================
 
-# Use standardized native triple configuration
-# Sets: ghc_triple, build_alias, host_alias
-configure_native_triple
+# Configure all triple variables (auto-detects native mode)
+# Sets: ghc_build, ghc_host, ghc_target, ghc_triple, conda_*, *_arch
+configure_triples
 
 # ==============================================================================
 # Phase 4b: Post-Configure (patch Hadrian system.config)

@@ -32,10 +32,9 @@ FLAVOUR="release"
 # Architecture Configuration
 # ==============================================================================
 
-# Use standardized cross-compilation triple configuration
-# Sets: conda_host, conda_target, host_arch, target_arch, ghc_host, ghc_target
-# Exports: build_alias, host_alias, target_alias, host_platform
-configure_cross_triples
+# Configure all triple variables (auto-detects cross mode)
+# Sets: ghc_build, ghc_host, ghc_target, ghc_triple, conda_*, *_arch
+configure_triples
 
 # ==============================================================================
 # Phase 1: Environment Setup

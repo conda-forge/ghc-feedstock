@@ -395,115 +395,11 @@ set_autoconf_toolchain_vars() {
 source "${RECIPE_DIR}/lib/settings-patch.sh"
 
 # ==============================================================================
-# Cross-Compilation Helpers
+# Triple Configuration
 # ==============================================================================
+# Centralized GHC triple mappings - see lib/triple-helpers.sh for implementation
 
-# Configure native build triple for GHC
-# Sets the GHC triple for native (non-cross) builds where build == host == target
-#
-# This function sets:
-#   ghc_triple    - GHC-style triple for the native platform
-#
-# Environment exports:
-#   build_alias   - Set to ghc_triple
-#   host_alias    - Set to ghc_triple
-#
-# Usage:
-#   configure_native_triple
-#   echo "Native triple: ${ghc_triple}"
-#
-configure_native_triple() {
-  case "${target_platform}" in
-    linux-64)
-      # Bootstrap GHC 9.2.8 uses 'x86_64-unknown-linux-gnu' but conda toolchain
-      # uses 'x86_64-conda-linux-gnu'. Override to match bootstrap GHC.
-      ghc_triple="x86_64-unknown-linux-gnu"
-      ;;
-    osx-64)
-      ghc_triple="x86_64-apple-darwin13.4.0"
-      ;;
-    *)
-      # Fallback: use conda's build_alias
-      ghc_triple="${build_alias:-}"
-      ;;
-  esac
-
-  export build_alias="${ghc_triple}"
-  export host_alias="${ghc_triple}"
-
-  echo "Native triple configuration:"
-  echo "  GHC triple: ${ghc_triple}"
-  echo "  build_alias: ${build_alias}"
-  echo "  host_alias: ${host_alias}"
-}
-
-# Configure cross-compilation triples for GHC
-# Maps conda arch names to GHC arch names and exports environment variables
-#
-# This function sets:
-#   conda_host    - Conda's build triple (from build_alias)
-#   conda_target  - Conda's host triple (from host_alias)
-#   host_arch     - Architecture portion of conda_host (e.g., x86_64, aarch64)
-#   target_arch   - Architecture portion of conda_target
-#   ghc_host      - GHC-style host triple
-#   ghc_target    - GHC-style target triple
-#
-# Environment exports:
-#   build_alias   - Set to conda_host (or ghc_host for Linux)
-#   host_alias    - Set to conda_host (or ghc_host for Linux)
-#   target_alias  - Set to conda_target (or ghc_target for Linux)
-#   host_platform - Set to build_platform
-#
-# Usage:
-#   configure_cross_triples
-#   echo "Building ${host_arch} -> ${target_arch}"
-#
-configure_cross_triples() {
-  # Map conda arch names to GHC arch names
-  conda_host="${build_alias}"
-  conda_target="${host_alias}"
-
-  host_arch="${conda_host%%-*}"
-  target_arch="${conda_target%%-*}"
-
-  # Generate GHC-style triples (platform-specific)
-  case "${target_platform}" in
-    linux-*)
-      # Linux uses *-unknown-linux-gnu format
-      ghc_host="${host_arch}-unknown-linux-gnu"
-      ghc_target="${target_arch}-unknown-linux-gnu"
-      # Linux GHC configure wants the ghc-style triples
-      export build_alias="${ghc_host}"
-      export host_alias="${ghc_host}"
-      export target_alias="${ghc_target}"
-      ;;
-    osx-*)
-      # macOS uses condensed darwin format
-      ghc_host="${conda_host/darwin*/darwin}"
-      ghc_target="${conda_target/darwin*/darwin}"
-      # macOS keeps conda-style triples
-      export build_alias="${conda_host}"
-      export host_alias="${conda_host}"
-      export target_alias="${conda_target}"
-      ;;
-    *)
-      # Fallback for other platforms
-      ghc_host="${conda_host}"
-      ghc_target="${conda_target}"
-      export build_alias="${conda_host}"
-      export host_alias="${conda_host}"
-      export target_alias="${conda_target}"
-      ;;
-  esac
-
-  export host_platform="${build_platform}"
-
-  echo "Cross-compilation configuration:"
-  echo "  Build arch: ${host_arch} (${conda_host})"
-  echo "  Target arch: ${target_arch} (${conda_target})"
-  echo "  GHC host: ${ghc_host}"
-  echo "  GHC target: ${ghc_target}"
-}
+source "${RECIPE_DIR}/lib/triple-helpers.sh"
 
 # Disable Hadrian's copy optimization for cross-compilation
 # By default, Hadrian tries to copy the bootstrap GHC binary instead of building

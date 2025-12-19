@@ -26,9 +26,9 @@ FLAVOUR="release+omit_pragmas"
 # Platform Triple Configuration
 # ==============================================================================
 
-# Use standardized native triple configuration (sets ghc_triple)
-# This enables consistent usage of ${ghc_triple} in configure phases
-configure_native_triple
+# Configure all triple variables (auto-detects native mode)
+# Sets: ghc_build, ghc_host, ghc_target, ghc_triple, conda_*, *_arch
+configure_triples
 
 # ==============================================================================
 # Platform Hooks
