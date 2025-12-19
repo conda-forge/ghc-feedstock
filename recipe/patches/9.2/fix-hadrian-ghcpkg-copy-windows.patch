@@ -27,6 +27,13 @@ This patch makes three changes:
    versions, then updates the package database (using 'update' instead
    of 'register' for idempotency in parallel builds).
 
+4. CRITICAL: Use --expand-pkgroot when running ghc-pkg describe.
+   This converts ${pkgroot} references to absolute paths pointing to
+   the bootstrap GHC installation. Without this, Stage0's package
+   database would contain ${pkgroot} references that resolve to
+   _build/stage0/lib/... where the files don't exist (we only copied
+   the .conf metadata, not the library files).
+
 --- a/hadrian/src/Rules/Register.hs
 +++ b/hadrian/src/Rules/Register.hs
 @@ -107,7 +107,27 @@ registerPackageRules rs stage = do
@@ -86,7 +93,7 @@ This patch makes three changes:
      -- We should unregister if the file exists since @ghc-pkg@ will complain
      -- about existing package: https://github.com/snowleopard/hadrian/issues/543.
      -- Also, we don't always do the unregistration + registration to avoid
-@@ -175,12 +214,45 @@ copyConf rs context@Context {..} conf = do
+@@ -175,12 +214,49 @@ copyConf rs context@Context {..} conf = do
      unlessM (liftIO $ IO.doesFileExist conf) $ do
          buildWithResources rs $
              target context (GhcPkg Unregister stage) [pkgName package] []
@@ -95,8 +102,13 @@ This patch makes three changes:
 +        -- Get package description from bootstrap, fix dependency versions, register
 +        pkgDbPath <- packageDbPath stage
 +        ghcPkgPath <- builderPath (GhcPkg Init stage)
-+        -- Get the package description from bootstrap
-+        Stdout pkgDesc <- cmd [ghcPkgPath] ["describe", pkgName package]
++        -- Get the package description from bootstrap.
++        -- CRITICAL: Use --expand-pkgroot to convert ${pkgroot} to absolute paths
++        -- pointing to the bootstrap GHC installation. Without this, the paths
++        -- would resolve relative to Stage0's package database, where the files
++        -- don't exist.
++        Stdout pkgDesc <- cmd [ghcPkgPath] ["--expand-pkgroot", "--no-user-package-db"
++                                           , "describe", pkgName package]
 +        -- Fix dependency versions in the description
 +        let fixedPkgDesc = fixDependencyVersions versionRemappings pkgDesc
 +        -- Write fixed description to conf file and update package database.
