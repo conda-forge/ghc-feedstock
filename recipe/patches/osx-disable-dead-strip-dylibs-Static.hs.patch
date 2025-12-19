@@ -1,7 +1,24 @@
 diff --git a/compiler/GHC/Linker/Static.hs b/compiler/GHC/Linker/Static.hs
 --- a/compiler/GHC/Linker/Static.hs
 +++ b/compiler/GHC/Linker/Static.hs
-@@ -256,14 +256,14 @@
+@@ -133,11 +133,12 @@ linkBinary' logger tmpfs dflags unit_env dep_units o_files = do
+       else pure pkg_lib_path_opts
+
+     let
++      -- NOTE: Do NOT use -dead_strip on conda-forge builds!
++      -- It removes RTS symbols needed at runtime, causing
++      -- "evacuate: strange closure type 0" GC crashes.
+       dead_strip
+-        | gopt Opt_WholeArchiveHsLibs dflags = []
+-        | otherwise = if osSubsectionsViaSymbols (platformOS platform)
+-                        then ["-Wl,-dead_strip"]
+-                        else []
++        = []
++
+     let lib_paths = libraryPaths dflags
+     let lib_path_opts = map ("-L"++) lib_paths
+
+@@ -256,14 +257,14 @@
                        ++ pkg_link_opts
                        ++ pkg_framework_opts
                        ++ (if platformOS platform == OSDarwin
@@ -19,3 +36,4 @@ diff --git a/compiler/GHC/Linker/Static.hs b/compiler/GHC/Linker/Static.hs
 +                          then [ "-Wl,-headerpad,8000" ]
                            else [])
                      ))
+
