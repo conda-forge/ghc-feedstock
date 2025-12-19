@@ -114,10 +114,28 @@ cross_build_toolchain_args() {
   fi
 
   # Sysroot flags (for cross-compilation)
-  if [[ "${options}" == *"--sysroot"* ]] && [[ -n "${CONDA_BUILD_SYSROOT:-}" ]]; then
-    _result+=("CFLAGS=--sysroot=${CONDA_BUILD_SYSROOT} ${CFLAGS:-}")
-    _result+=("CPPFLAGS=--sysroot=${CONDA_BUILD_SYSROOT} ${CPPFLAGS:-}")
-    _result+=("CXXFLAGS=--sysroot=${CONDA_BUILD_SYSROOT} ${CXXFLAGS:-}")
+  # Linux: Use target-specific sysroot at $BUILD_PREFIX/${target}/sysroot
+  # macOS: Use SDK sysroot from CONDA_BUILD_SYSROOT
+  if [[ "${options}" == *"--sysroot"* ]]; then
+    local sysroot=""
+    local target_sysroot="${BUILD_PREFIX}/${target_prefix}/sysroot"
+
+    if [[ -d "${target_sysroot}" ]]; then
+      # Linux cross-compile: target-specific sysroot
+      sysroot="${target_sysroot}"
+    elif [[ -n "${CONDA_BUILD_SYSROOT:-}" ]] && [[ -d "${CONDA_BUILD_SYSROOT}" ]]; then
+      # macOS cross-compile: SDK sysroot
+      sysroot="${CONDA_BUILD_SYSROOT}"
+    fi
+
+    if [[ -n "${sysroot}" ]]; then
+      _result+=("CFLAGS=--sysroot=${sysroot} ${CFLAGS:-}")
+      _result+=("CPPFLAGS=--sysroot=${sysroot} ${CPPFLAGS:-}")
+      _result+=("CXXFLAGS=--sysroot=${sysroot} ${CXXFLAGS:-}")
+      echo "  Using sysroot: ${sysroot}"
+    else
+      echo "  WARNING: No sysroot found (checked ${target_sysroot} and CONDA_BUILD_SYSROOT)"
+    fi
   fi
 }
 
