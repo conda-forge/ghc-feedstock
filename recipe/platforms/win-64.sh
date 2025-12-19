@@ -64,10 +64,10 @@ platform_setup_environment() {
   export LIBRARY_PATH="${_BUILD_PREFIX}/Library/lib${LIBRARY_PATH:+:}${LIBRARY_PATH:-}"
 
   # Expand conda variables in flags
-  expand_conda_variables
+  windows_expand_conda_variables
 
   # Remove problematic flags
-  remove_problematic_flags
+  windows_remove_problematic_flags
 
   export CFLAGS="-I${_BUILD_PREFIX}/Library/include ${CFLAGS:-}"
   export CXXFLAGS="-I${_BUILD_PREFIX}/Library/include ${CXXFLAGS:-}"

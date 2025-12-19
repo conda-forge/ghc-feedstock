@@ -22,7 +22,7 @@
 
 # Expand conda placeholder variables in flags
 # Replaces %VAR% and $ENV{VAR} patterns with actual paths
-expand_conda_variables() {
+windows_expand_conda_variables() {
   # Replace conda variables with Unix paths (backslash escape prevention)
   # Use :- default to handle unset variables (set -eu safe)
   CFLAGS=$(echo "${CFLAGS:-}" | perl -pe "s|%BUILD_PREFIX%|${_BUILD_PREFIX}|g; s|%PREFIX%|${_PREFIX}|g; s|%SRC_DIR%|${_SRC_DIR}|g")
@@ -35,7 +35,7 @@ expand_conda_variables() {
 }
 
 # Remove flags that are incompatible with MinGW-w64 GCC toolchain
-remove_problematic_flags() {
+windows_remove_problematic_flags() {
   # Initialize if unset (set -eu safe)
   CFLAGS="${CFLAGS:-}"
   CXXFLAGS="${CXXFLAGS:-}"
