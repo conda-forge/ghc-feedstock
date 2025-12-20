@@ -92,6 +92,7 @@ source:
           # Explicitly pass --package-db to Cabal.registerPackage
           # Ensures package registration goes to Stage0 database, not bootstrap's
           - patches/${{ ghc_major }}/fix-cabal-register-package-db.patch
+          - patches/${{ ghc_major }}/fix-hadrian-rts-stage0-copy.patch
           # Disable testsuite timeout utility on Windows
           # The testsuite/timeout directory is not in the source tarball, but
           # Hadrian includes it in stage0Packages for Windows. This causes builds
