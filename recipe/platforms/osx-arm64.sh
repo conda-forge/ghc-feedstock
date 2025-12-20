@@ -69,29 +69,7 @@ platform_setup_environment() {
 # ==============================================================================
 
 platform_configure_ghc() {
-  echo "  Configuring GHC for cross-compilation..."
-
-  # Build system config using nameref helper (cross-compile: only target, no build/host)
-  local -a system_config
-  build_system_config system_config "" "" "${target_alias}"
-
-  # Build standard configure args using nameref helper (--with-gmp, --with-ffi, etc.)
-  local -a configure_args
-  build_configure_args configure_args "-L${PREFIX}/lib ${LDFLAGS:-}"
-
-  # Set autoconf variables (macOS + cross-compile LLVM tools)
-  set_autoconf_toolchain_vars --macos --cross
-
-  # Add cross-compilation toolchain args (target tools + STAGE0 tools + sysroot)
-  # Uses direct variable assignment (CC=, AR=, etc.) per configure.ac API
-  cross_build_toolchain_args configure_args "${conda_target}" "${conda_host}" "--sysroot"
-
-  run_and_log "configure" ./configure -v "${system_config[@]}" "${configure_args[@]}" || {
-    cat config.log
-    return 1
-  }
-
-  echo "  ✓ GHC configured"
+  shared_cross_configure_ghc "-L${PREFIX}/lib ${LDFLAGS:-}"
 }
 
 platform_post_configure_ghc() {
@@ -124,16 +102,10 @@ platform_pre_build_stage1() {
   # Note: Symlinks for host tools created in platform_setup_environment
 }
 
-# Update stage settings with llvm-ar and library paths
-# Called by default_build_stage1/2 between executables and libraries build
-update_stage_settings() {
-  local stage="${1}"
-  local settings_file="${SRC_DIR}/_build/${stage}/lib/settings"
-  [[ -f "${settings_file}" ]] && {
-    echo "  Updating ${stage} settings with llvm-ar..."
-    update_settings_link_flags "${settings_file}"
-    set_macos_conda_ar_ranlib "${settings_file}" "${CONDA_TOOLCHAIN_BUILD}"
-  }
+# Platform hook for stage settings patches (llvm-ar, library paths)
+# Called by default_build_stage1/2 via call_hook "patch_stage_settings" <stage>
+platform_patch_stage_settings() {
+  macos_update_stage_settings "$1"
 }
 
 # Hook called after building stage executables (ghc-bin, ghc-pkg, hsc2hs)
@@ -146,29 +118,11 @@ platform_post_stage1_executables() {
 
 # Uses default_build_stage1 which:
 # 1. Calls build_stage_executables(1) -> fires platform_post_stage1_executables
-# 2. Calls update_stage_settings("stage0") for llvm-ar patching
+# 2. Calls platform_patch_stage_settings("stage0") for llvm-ar patching
 # 3. Calls build_stage_libraries(1)
 
-# ==============================================================================
-# Phase 7: Build Stage 2
-# ==============================================================================
-
-platform_build_stage2() {
-  echo "  Building Stage 2 cross-compiled binaries..."
-
-  # Build stage2 GHC executable only (build-all handles the rest)
-  run_and_log "stage2-exe" "${HADRIAN_CMD[@]}" --flavour="${FLAVOUR}" \
-    stage2:exe:ghc-bin --freeze1 ${HADRIAN_STAGE_OPTS}
-
-  # Update stage1 settings with llvm-ar (uses shared update_stage_settings)
-  update_stage_settings "stage1"
-
-  # Build everything with custom docs flag (osx-arm64 specific: no-sphinx-pdfs)
-  run_and_log "build-all" "${HADRIAN_CMD[@]}" --flavour="${FLAVOUR}" \
-    --freeze1 --freeze2 --docs=no-sphinx-pdfs ${HADRIAN_STAGE_OPTS}
-
-  echo "  ✓ Stage 2 cross-compiled binaries built"
-}
+# Phase 7: Build Stage 2 - uses default_build_stage2 with hook pattern
+# The platform_patch_stage_settings hook handles llvm-ar patching for stage1
 
 # ==============================================================================
 # Phase 8: Install GHC
@@ -190,7 +144,7 @@ platform_post_install() {
 
   # Update installed settings with llvm-ar (required for Apple ld64)
   local settings_file=$(find "${PREFIX}/lib" -name settings | head -n 1)
-  [[ -f "${settings_file}" ]] && set_macos_conda_ar_ranlib "${settings_file}" "${CONDA_TOOLCHAIN_BUILD}"
+  [[ -f "${settings_file}" ]] && patch_settings "${settings_file}" --macos-ar-ranlib="${CONDA_TOOLCHAIN_BUILD}"
 
   # Verify installation (cross-compiled binary may fail to run - that's expected)
   verify_installed_ghc "true"

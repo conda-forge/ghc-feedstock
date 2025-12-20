@@ -30,6 +30,6 @@ configure_triples
 # ==============================================================================
 
 platform_post_configure_ghc() {
-  # Use standardized system.config patching
-  patch_system_config_linker_flags
+  # Patch Hadrian system.config with library paths and doc placeholders
+  patch_settings "${SRC_DIR}/hadrian/cfg/system.config" --linker-flags --doc-placeholders
 }

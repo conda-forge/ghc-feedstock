@@ -41,40 +41,17 @@ platform_setup_environment() {
 }
 
 platform_configure_ghc() {
-  local -a system_config configure_args
-  build_system_config system_config "${ghc_triple}" "${ghc_triple}" ""
-  build_configure_args configure_args
-  set_autoconf_toolchain_vars --macos
-  run_and_log "configure" ./configure "${system_config[@]}" "${configure_args[@]}" || {
-    cat config.log; return 1
-  }
+  shared_configure_ghc "${ghc_triple}" "${ghc_triple}"
 }
 
 platform_post_configure_ghc() {
-  macos_patch_system_config "${ghc_triple}"
+  shared_post_configure_ghc "${ghc_triple}"
 }
 
 # Stage build hooks - update settings after executables are built
-platform_post_stage1_executables() {
-  local settings_file="${SRC_DIR}/_build/stage0/lib/settings"
-  [[ -f "${settings_file}" ]] && {
-    update_settings_link_flags "${settings_file}"
-    set_macos_conda_ar_ranlib "${settings_file}" "${CONDA_TOOLCHAIN_BUILD}"
-  }
-}
-
-platform_post_stage2_executables() {
-  local settings_file="${SRC_DIR}/_build/stage1/lib/settings"
-  [[ -f "${settings_file}" ]] && {
-    update_settings_link_flags "${settings_file}"
-    set_macos_conda_ar_ranlib "${settings_file}" "${CONDA_TOOLCHAIN_BUILD}"
-  }
-}
+platform_post_stage1_executables() { macos_update_stage_settings "stage0"; }
+platform_post_stage2_executables() { macos_update_stage_settings "stage1"; }
 
 platform_post_install() {
-  update_installed_settings "${ghc_triple}"
-  local settings_file=$(find "${PREFIX}/lib" -name settings | head -n 1)
-  [[ -f "${settings_file}" ]] && set_macos_conda_ar_ranlib "${settings_file}" "${CONDA_TOOLCHAIN_BUILD}"
-  install_bash_completion
-  "${PREFIX}/bin/ghc" --version || { echo "ERROR: Installed GHC failed"; exit 1; }
+  shared_post_install_ghc "${ghc_triple}"
 }

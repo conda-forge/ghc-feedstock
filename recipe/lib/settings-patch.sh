@@ -68,6 +68,23 @@ patch_settings() {
 # Internal Implementation Functions
 # ==============================================================================
 
+# Helper for replacing values in GHC settings files
+# Abstracts the repeated perl -pi -e pattern for tool/value replacements.
+#
+# Parameters:
+#   $1 - file: Path to settings file
+#   $2 - key: The settings key to match (e.g., "C compiler command")
+#   $3 - value: The replacement value
+#
+# Usage:
+#   _replace_settings_value "${file}" "C compiler command" "${CC}"
+#   _replace_settings_value "${file}" "ar command" "llvm-ar"
+#
+_replace_settings_value() {
+  local file="$1" key="$2" value="$3"
+  perl -pi -e "s#(${key}\", \")[^\"]*#\$1${value}#" "${file}"
+}
+
 # Add linker flags to system.config
 _patch_linker_flags() {
   local file="$1" prefix="$2"
@@ -180,58 +197,14 @@ _patch_installed_settings() {
 }
 
 # ==============================================================================
-# Backwards-Compatible Wrapper Functions
+# NOTE: Wrapper functions removed - use patch_settings() directly:
+#
+#   patch_system_config_linker_flags()   → patch_settings "$file" --linker-flags --doc-placeholders
+#   strip_build_prefix_from_tools()      → patch_settings "$file" --strip-build-prefix[=exclude]
+#   add_toolchain_prefix_to_tools()      → patch_settings "$file" --toolchain-prefix="$prefix"
+#   fix_python_path_for_cross()          → patch_settings "$file" --fix-python
+#   update_stage_settings()              → patch_settings "$file" (use idempotent stage patching)
+#   update_settings_link_flags()         → patch_settings "$file" --platform-link-flags
+#   set_macos_conda_ar_ranlib()          → patch_settings "$file" --macos-ar-ranlib
+#   update_installed_settings()          → patch_settings "$file" --installed
 # ==============================================================================
-# These wrappers maintain compatibility with existing code.
-
-patch_system_config_linker_flags() {
-  local prefix="${1:-${PREFIX}}"
-  patch_settings "${SRC_DIR}/hadrian/cfg/system.config" --linker-flags="${prefix}" --doc-placeholders
-}
-
-strip_build_prefix_from_tools() {
-  local exclude="${1:-}"
-  if [[ -n "${exclude}" ]]; then
-    patch_settings "${SRC_DIR}/hadrian/cfg/system.config" --strip-build-prefix="${exclude}"
-  else
-    patch_settings "${SRC_DIR}/hadrian/cfg/system.config" --strip-build-prefix
-  fi
-}
-
-add_toolchain_prefix_to_tools() {
-  local prefix="$1"
-  local tools="${2:-ar clang clang++ llc nm opt ranlib}"
-  patch_settings "${SRC_DIR}/hadrian/cfg/system.config" --tools="${tools}" --toolchain-prefix="${prefix}"
-}
-
-fix_python_path_for_cross() {
-  patch_settings "${SRC_DIR}/hadrian/cfg/system.config" --fix-python
-}
-
-update_stage_settings() {
-  local stage="$1"
-  local file="${SRC_DIR}/_build/${stage}/lib/settings"
-  [[ ! -f "${file}" ]] && { echo "  WARNING: ${stage} settings not found"; return 0; }
-  # Check idempotency
-  grep -q "Wl,-L${PREFIX}/lib" "${file}" 2>/dev/null && return 0
-  perl -pi -e "s#(C compiler link flags\", \"[^\"]*)#\$1 -Wl,-L${PREFIX}/lib -Wl,-rpath,${PREFIX}/lib#" "${file}"
-  perl -pi -e "s#(ld flags\", \"[^\"]*)#\$1 -L${PREFIX}/lib -rpath ${PREFIX}/lib#" "${file}"
-}
-
-update_settings_link_flags() {
-  local file="$1"
-  local toolchain="${2:-$CONDA_TOOLCHAIN_HOST}"
-  patch_settings "${file}" --platform-link-flags="${toolchain}"
-}
-
-set_macos_conda_ar_ranlib() {
-  local file="$1"
-  local toolchain="${2:-x86_64-apple-darwin13.4.0}"
-  [[ ! -f "${file}" ]] && { echo "Error: ${file} not found!"; exit 1; }
-  patch_settings "${file}" --macos-ar-ranlib="${toolchain}"
-}
-
-update_installed_settings() {
-  local toolchain="${1:-$CONDA_TOOLCHAIN_HOST}"
-  _patch_installed_settings "${toolchain}"
-}

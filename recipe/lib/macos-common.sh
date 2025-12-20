@@ -92,17 +92,17 @@ macos_patch_system_config() {
 
   echo "  Patching system.config for native macOS..."
 
-  # Strip BUILD_PREFIX from tool paths (uses helper from helpers.sh)
-  strip_build_prefix_from_tools
+  # Strip BUILD_PREFIX from tool paths
+  patch_settings "${settings_file}" --strip-build-prefix
 
   # macOS-specific: Use llvm-ar instead of GNU ar (Apple ld64 compatibility)
   perl -pi -e 's#(=\s+)(ar)$#$1llvm-$2#' "${settings_file}"
 
-  # Add toolchain prefix to tools (uses helper from helpers.sh)
-  add_toolchain_prefix_to_tools "${toolchain}"
+  # Add toolchain prefix to tools
+  patch_settings "${settings_file}" --toolchain-prefix="${toolchain}"
 
-  # Add library paths and rpath (uses helper from helpers.sh)
-  patch_system_config_linker_flags
+  # Add library paths and rpath
+  patch_settings "${settings_file}" --linker-flags --doc-placeholders
 
   echo "  ✓ system.config patched for native macOS"
 }
@@ -262,14 +262,9 @@ macos_patch_bootstrap_settings() {
     # Fix tool commands with host prefix
     perl -pi -e "s#((llc|opt|clang) command\", \")[^\"]*#\$1${toolchain}-\$2#" "${settings_file}"
   else
-    # Native mode: use helpers from helpers.sh
-    if type -t update_settings_link_flags >/dev/null 2>&1; then
-      update_settings_link_flags "${settings_file}"
-    fi
-
-    if type -t set_macos_conda_ar_ranlib >/dev/null 2>&1; then
-      set_macos_conda_ar_ranlib "${settings_file}" "${toolchain}"
-    fi
+    # Native mode: use patch_settings() directly
+    patch_settings "${settings_file}" --platform-link-flags="${toolchain}"
+    patch_settings "${settings_file}" --macos-ar-ranlib="${toolchain}"
   fi
 
   echo "  ✓ Bootstrap settings patched"
@@ -313,6 +308,31 @@ macos_setup_dyld_env() {
 #   macos_complete_setup
 #   macos_complete_setup "false"  # Skip iconv creation (for cross-compile)
 #
+# ==============================================================================
+# Stage Settings Update Helper
+# ==============================================================================
+# Updates stage settings with platform-specific link flags and ar/ranlib.
+# Consolidates duplicate patterns in platform_post_stage{1,2}_executables().
+#
+# Parameters:
+#   $1 - stage_dir: Stage directory name ("stage0" or "stage1")
+#   $2 - toolchain: Toolchain prefix (optional, defaults to CONDA_TOOLCHAIN_BUILD)
+#
+# Usage:
+#   macos_update_stage_settings "stage0"
+#   macos_update_stage_settings "stage1" "${CONDA_TOOLCHAIN_BUILD}"
+#
+macos_update_stage_settings() {
+  local stage_dir="$1"
+  local toolchain="${2:-${CONDA_TOOLCHAIN_BUILD:-}}"
+  local settings_file="${SRC_DIR}/_build/${stage_dir}/lib/settings"
+
+  [[ -f "${settings_file}" ]] || return 0
+
+  patch_settings "${settings_file}" --platform-link-flags="${toolchain}"
+  patch_settings "${settings_file}" --macos-ar-ranlib="${toolchain}"
+}
+
 macos_complete_setup() {
   local create_iconv="${1:-true}"
 

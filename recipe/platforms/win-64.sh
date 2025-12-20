@@ -143,10 +143,8 @@ platform_pre_configure_ghc() {
 }
 
 platform_post_configure_ghc() {
-  # Patch Hadrian's system.config file
-  patch_windows_system_config
-
-  echo "  Post-configure patches applied"
+  # Use unified post-configure orchestrator (auto-detects Windows)
+  shared_post_configure_ghc
 }
 
 # ==============================================================================
@@ -161,48 +159,40 @@ platform_build_hadrian() {
   run_and_log "build-hadrian" "${CABAL}" v2-build -j${CPU_COUNT} hadrian
   popd >/dev/null
 
-  # Find Hadrian binary (Windows uses .exe extension)
-  local hadrian_bin=$(find "${_SRC_DIR}"/hadrian/dist-newstyle -name hadrian.exe -type f | head -1)
-
-  if [[ ! -f "${hadrian_bin}" ]]; then
-    echo "ERROR: Hadrian binary not found after build"
-    exit 1
-  fi
-
-  # Set up Hadrian command array (uses Windows path format _SRC_DIR)
-  HADRIAN_CMD=("${hadrian_bin}" "-j${CPU_COUNT}" "--directory" "${_SRC_DIR}")
-
-  echo "  Hadrian binary: ${hadrian_bin}"
+  # Find and set up Hadrian binary (searches in dist-newstyle, not /build subdir)
+  update_hadrian_cmd_after_build "${_SRC_DIR}/hadrian/dist-newstyle"
 }
 
 # ==============================================================================
-# Phase 6: Build Stage 1
+# Phase 6: Build Stage 1 (uses default_build_stage1 with hooks)
 # ==============================================================================
+# Windows uses the standard stage build pattern with granular hooks:
+#   1. ghc-bin → platform_post_stage1_ghc_bin (patch include paths)
+#   2. ghc-pkg, hsc2hs
+#   3. platform_build_stage1_libraries (Windows-specific library build)
 
-platform_build_stage1() {
-  echo "  Building Stage 1 GHC (Windows)..."
-
-  # Build Stage 1 GHC compiler
-  run_and_log "stage1-ghc" "${HADRIAN_CMD[@]}" --flavour="${FLAVOUR}" stage1:exe:ghc-bin
-
+# Hook: Called after stage1:exe:ghc-bin, before ghc-pkg/hsc2hs
+# Patches settings with include paths for ffi.h, gmp.h, etc.
+platform_post_stage1_ghc_bin() {
   # CRITICAL: After stage1:exe:ghc-bin creates _build/stage0/lib/settings,
   # patch it with include paths BEFORE building libraries that need ffi.h
   # NOTE: Do NOT add link flags here - Stage0 must use normal MinGW linking.
   patch_windows_settings "${_SRC_DIR}/_build/stage0/lib/settings" --include-paths
+}
 
-  # Build Stage 1 supporting tools
-  run_and_log "stage1-pkg" "${HADRIAN_CMD[@]}" --flavour="${FLAVOUR}" stage1:exe:ghc-pkg
-  run_and_log "stage1-hsc2hs" "${HADRIAN_CMD[@]}" --flavour="${FLAVOUR}" stage1:exe:hsc2hs
-
-  # CRITICAL: Build Stage 1 libraries BEFORE Stage 2
-  run_and_log "stage1-lib" "${HADRIAN_CMD[@]}" --flavour="${FLAVOUR}" stage1:lib:ghc
-
-  echo "  ✓ Stage 1 GHC built"
+# Hook: Override library build for Windows-specific behavior
+platform_build_stage1_libraries() {
+  windows_build_stage_libraries 1
 }
 
 # ==============================================================================
-# Phase 7: Build Stage 2
+# Phase 7: Build Stage 2 (uses default_build_stage2 with hooks)
 # ==============================================================================
+# Windows uses the standard stage build pattern with granular hooks:
+#   1. ghc-bin → platform_post_stage2_ghc_bin (patch link flags)
+#   2. ghc-pkg, hsc2hs
+#   3. platform_pre_stage2_libraries (rebuild touchy)
+#   4. platform_build_stage2_libraries (Windows-specific library build)
 
 platform_pre_build_stage2() {
   echo "  Running Windows-specific Stage2 pre-build..."
@@ -213,29 +203,27 @@ platform_pre_build_stage2() {
   echo "  ✓ Windows Stage2 pre-build complete"
 }
 
-platform_build_stage2() {
-  echo "  Building Stage 2 GHC (Windows)..."
-
-  # NOTE: Do NOT patch stage0 settings here - the bootstrap GHC must use
-  # normal MinGW linking. Custom link flags are only for Stage1 settings.
-
-  # CRITICAL: Build stage2:exe:ghc-bin FIRST to generate _build/stage1/lib/settings
-  # This creates _build/stage1/bin/ghc.exe (NOT stage1:exe:ghc-bin which creates stage0!)
-  run_and_log "stage2-exe" "${HADRIAN_CMD[@]}" stage2:exe:ghc-bin --flavour="${FLAVOUR}" --freeze1 ${HADRIAN_STAGE_OPTS}
-
+# Hook: Called after stage2:exe:ghc-bin, before ghc-pkg/hsc2hs
+# Patches settings with link flags for final binary
+platform_post_stage2_ghc_bin() {
   # Patch Stage1 settings (used by Stage2 build) with tool paths AND link flags.
   # Link flags are added here because Stage2 produces the final GHC binary.
   patch_windows_settings "${_SRC_DIR}/_build/stage1/lib/settings" --link-flags
+}
 
-  # Build Stage 2 supporting tools
-  run_and_log "stage2-pkg" "${HADRIAN_CMD[@]}" --flavour="${FLAVOUR}" stage2:exe:ghc-pkg --freeze1 ${HADRIAN_STAGE_OPTS}
-  run_and_log "stage2-hsc2hs" "${HADRIAN_CMD[@]}" --flavour="${FLAVOUR}" stage2:exe:hsc2hs --freeze1 ${HADRIAN_STAGE_OPTS}
-
+# Hook: Called before library build, after all executables
+# Rebuilds touchy.exe with correct linker flags
+platform_pre_stage2_libraries() {
   # CRITICAL: Rebuild touchy.exe with correct linker flags BEFORE stage2:lib:ghc
   # touchy.exe was built during stage1:exe:ghc-bin with Stage0 settings (no --enable-auto-import)
   # Stage1 ghc.exe (in _build/stage1/bin/) needs touchy.exe (in _build/stage1/lib/bin/)
   # to work correctly when compiling Stage2 libraries.
   rebuild_touchy_with_correct_linker_flags
+}
+
+# Hook: Override library build for Windows-specific behavior
+platform_build_stage2_libraries() {
+  local -a extra_opts=("$@")
 
   # Build Stage 2 GHC libraries
   # NOTE: Do NOT add Stage1 bin to PATH - Hadrian handles this internally.
@@ -244,12 +232,12 @@ platform_build_stage2() {
   echo "  Command: ${HADRIAN_CMD[*]} stage2:lib:ghc --flavour=${FLAVOUR} --freeze1 ${HADRIAN_STAGE_OPTS}"
 
   run_and_log "stage2-lib" "${HADRIAN_CMD[@]}" stage2:lib:ghc --flavour="${FLAVOUR}" --freeze1 ${HADRIAN_STAGE_OPTS} || {
-    stage2_exit=$?
+    local stage2_exit=$?
     echo "ERROR: stage2:lib:ghc failed with exit code ${stage2_exit}"
     exit ${stage2_exit}
   }
 
-  echo "  ✓ Stage 2 GHC built"
+  echo "  ✓ Stage 2 libraries built"
 }
 
 # ==============================================================================
@@ -300,26 +288,8 @@ platform_install_ghc() {
 platform_post_install() {
   echo "  Running Windows-specific post-install verification..."
 
-  # Verify expected GHC binaries exist
-  echo "  Checking GHC binaries in ${_PREFIX}/bin:"
-  local -a expected_bins=(ghc.exe ghc-pkg.exe hsc2hs.exe runghc.exe hp2ps.exe hpc.exe)
-  local missing=0
-  for bin in "${expected_bins[@]}"; do
-    if [[ -f "${_PREFIX}/bin/${bin}" ]]; then
-      echo "    ✓ ${bin}"
-    else
-      echo "    ✗ ${bin} MISSING"
-      ((missing++)) || true
-    fi
-  done
-
-  # Show total file count
-  local file_count=$(ls -1 "${_PREFIX}/bin" 2>/dev/null | wc -l)
-  echo "  Total files in bin/: ${file_count}"
-
-  if [[ ${missing} -gt 0 ]]; then
-    echo "WARNING: ${missing} expected binaries missing"
-  fi
+  # Verify expected GHC binaries exist (error on missing)
+  verify_installed_binaries || exit 1
 
   echo "  ✓ Windows post-install complete"
 }

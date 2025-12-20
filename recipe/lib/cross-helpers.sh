@@ -46,6 +46,64 @@ cross_setup_hadrian_flags() {
 }
 
 # ==============================================================================
+# Unified Cross-Compile Configure
+# ==============================================================================
+# Runs ./configure with cross-compilation settings for both Linux and macOS.
+# Unifies the configure patterns from linux-cross.sh and osx-arm64.sh.
+#
+# Parameters:
+#   $1 - extra_ldflags: Additional LDFLAGS (e.g., "-L${PREFIX}/lib ${LDFLAGS:-}")
+#
+# Required variables:
+#   - ghc_host, ghc_target: GHC triples (set by configure_triples)
+#   - conda_host, conda_target: Conda toolchain triples (set by configure_triples)
+#   - target_alias: Autoconf target alias (set by configure_triples)
+#
+# Usage:
+#   # In linux-cross.sh or osx-arm64.sh:
+#   platform_configure_ghc() {
+#     shared_cross_configure_ghc "-L${PREFIX}/lib ${LDFLAGS:-}"
+#   }
+#
+shared_cross_configure_ghc() {
+  local extra_ldflags="${1:-}"
+
+  echo "  Configuring GHC for ${target_arch:-cross} cross-compilation..."
+
+  # Build system config - platform-specific triple handling
+  local -a system_config
+  if is_linux; then
+    # Linux cross: use full triple set (build=host for cross-compile to target)
+    build_system_config system_config "${ghc_host}" "${ghc_host}" "${ghc_target}"
+  else
+    # macOS cross: use only target (build/host inferred from environment)
+    build_system_config system_config "" "" "${target_alias}"
+  fi
+
+  # Build standard configure args (--with-gmp, --with-ffi, etc.)
+  local -a configure_args
+  build_configure_args configure_args "${extra_ldflags}"
+
+  # Set platform-specific autoconf cache variables
+  if is_linux; then
+    set_autoconf_toolchain_vars --linux --cross
+  else
+    set_autoconf_toolchain_vars --macos --cross
+  fi
+
+  # Add cross-compile toolchain args (CC=, AR=, STAGE0 tools, sysroot)
+  cross_build_toolchain_args configure_args "${conda_target}" "${conda_host}" "--sysroot"
+
+  # Run configure with verbose flag for debugging
+  run_and_log "configure" ./configure -v "${system_config[@]}" "${configure_args[@]}" || {
+    cat config.log
+    return 1
+  }
+
+  echo "  ✓ GHC configured for cross-compilation"
+}
+
+# ==============================================================================
 # Cross-Compile Configure Arguments Builder
 # ==============================================================================
 # Builds an array of toolchain arguments for cross-compilation configure.
@@ -308,21 +366,23 @@ cross_patch_system_config() {
 
   echo "  Patching system.config for cross-compilation..."
 
+  local settings_file="${SRC_DIR}/hadrian/cfg/system.config"
+
   # Strip BUILD_PREFIX from tool paths (exclude python - it runs on build host)
-  strip_build_prefix_from_tools "python"
+  patch_settings "${settings_file}" --strip-build-prefix=python
 
   # Fix Python path for cross-compile
-  fix_python_path_for_cross
+  patch_settings "${settings_file}" --fix-python
 
   # Add toolchain prefix to tools
   if [[ -n "${tools}" ]]; then
-    add_toolchain_prefix_to_tools "${target}" "${tools}"
+    patch_settings "${settings_file}" --tools="${tools}" --toolchain-prefix="${target}"
   else
-    add_toolchain_prefix_to_tools "${target}"
+    patch_settings "${settings_file}" --toolchain-prefix="${target}"
   fi
 
   # Add library paths and rpath
-  patch_system_config_linker_flags
+  patch_settings "${settings_file}" --linker-flags --doc-placeholders
 
   echo "  ✓ System config patched for cross-compilation"
 }

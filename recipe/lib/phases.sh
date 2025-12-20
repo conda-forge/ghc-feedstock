@@ -10,42 +10,97 @@
 #   5. Build Hadrian       10. Activation
 #
 # Each phase follows the hook pattern:
-#   1. platform_pre_xxx()  - Hook before phase
-#   2. platform_xxx() OR default_xxx() - Implementation
-#   3. platform_post_xxx() - Hook after phase
+#   1. call_hook "pre_xxx"       - Pre-phase hook
+#   2. common_xxx() if exists    - Common setup (always runs)
+#   3. platform_xxx() OR default_xxx() - Implementation
+#   4. call_hook "post_xxx"      - Post-phase hook
 #
+# The generic run_phase() executor handles all phases uniformly.
 # Requires: helpers.sh (for run_and_log, build_*, call_hook)
 # ==============================================================================
 
 set -eu
 
 # ==============================================================================
+# Internal Helpers
+# ==============================================================================
+
+# Patch stage settings with linker flags for library paths
+# Called by default_build_stage1/2 to add -L and -rpath for PREFIX/lib
+#
+# Parameters:
+#   $1 - settings_file: Path to stage settings file
+#
+_patch_stage_linker_flags() {
+  local settings_file="$1"
+  [[ -f "${settings_file}" ]] || return 0
+  # Only patch if not already present
+  grep -q "Wl,-L${PREFIX}/lib" "${settings_file}" 2>/dev/null && return 0
+
+  perl -pi -e "s#(C compiler link flags\", \"[^\"]*)#\$1 -Wl,-L${PREFIX}/lib -Wl,-rpath,${PREFIX}/lib#" "${settings_file}"
+  perl -pi -e "s#(ld flags\", \"[^\"]*)#\$1 -L${PREFIX}/lib -rpath ${PREFIX}/lib#" "${settings_file}"
+}
+
+# ==============================================================================
+# Generic Phase Executor
+# ==============================================================================
+# Executes a build phase using the standard hook pattern.
+# Reduces 10 nearly-identical phase functions to a single generic executor.
+#
+# Parameters:
+#   $1 - phase_num: Phase number for display (1-10)
+#   $2 - phase_name: Phase name (e.g., "setup_environment", "configure_ghc")
+#   $3 - display_name: Human-readable name for output (optional)
+#
+# Flow:
+#   1. call_hook "pre_${phase_name}"
+#   2. common_${phase_name}() if exists
+#   3. platform_${phase_name}() OR default_${phase_name}()
+#   4. call_hook "post_${phase_name}"
+#
+# Usage:
+#   run_phase 1 "setup_environment" "Environment Setup"
+#
+run_phase() {
+  local phase_num="$1"
+  local phase_name="$2"
+  local display_name="${3:-${phase_name//_/ }}"
+
+  echo ""
+  echo "===================================================================="
+  echo "  Phase ${phase_num}: ${display_name}"
+  echo "===================================================================="
+
+  # Pre-phase hook
+  call_hook "pre_${phase_name}"
+
+  # Run common setup if it exists (e.g., common_setup_environment)
+  local common_func="common_${phase_name}"
+  if type -t "${common_func}" >/dev/null 2>&1; then
+    "${common_func}"
+  fi
+
+  # Run platform override or default
+  local platform_func="platform_${phase_name}"
+  local default_func="default_${phase_name}"
+  if type -t "${platform_func}" >/dev/null 2>&1; then
+    "${platform_func}"
+  elif type -t "${default_func}" >/dev/null 2>&1; then
+    "${default_func}"
+  fi
+
+  # Post-phase hook
+  call_hook "post_${phase_name}"
+
+  echo "  ✓ ${display_name} complete"
+  echo ""
+}
+
+# ==============================================================================
 # Phase 1: Environment Setup
 # ==============================================================================
 
-phase_setup_environment() {
-  echo ""
-  echo "===================================================================="
-  echo "  Phase 1: Environment Setup"
-  echo "===================================================================="
-
-  call_hook "pre_setup_environment"
-
-  # Always set common environment first
-  common_setup_environment
-
-  # Platform can override/extend, otherwise use default
-  if type -t platform_setup_environment >/dev/null 2>&1; then
-    platform_setup_environment
-  else
-    default_setup_environment
-  fi
-
-  call_hook "post_setup_environment"
-
-  echo "  ✓ Environment setup complete"
-  echo ""
-}
+phase_setup_environment() { run_phase 1 "setup_environment" "Environment Setup"; }
 
 # Common environment variables - always runs before platform-specific setup
 common_setup_environment() {
@@ -79,34 +134,7 @@ default_setup_environment() {
 # Phase 2: Bootstrap Setup
 # ==============================================================================
 
-phase_setup_bootstrap() {
-  echo ""
-  echo "===================================================================="
-  echo "  Phase 2: Bootstrap Setup"
-  echo "===================================================================="
-
-  call_hook "pre_setup_bootstrap"
-
-  if type -t platform_setup_bootstrap >/dev/null 2>&1; then
-    platform_setup_bootstrap
-  else
-    default_setup_bootstrap
-  fi
-
-  call_hook "post_setup_bootstrap"
-
-  # Verify bootstrap GHC
-  if [[ -n "${GHC:-}" ]]; then
-    echo "  Bootstrap GHC: ${GHC}"
-    "${GHC}" --version || {
-      echo "ERROR: Bootstrap GHC failed"
-      exit 1
-    }
-  fi
-
-  echo "  ✓ Bootstrap setup complete"
-  echo ""
-}
+phase_setup_bootstrap() { run_phase 2 "setup_bootstrap" "Bootstrap Setup"; }
 
 default_setup_bootstrap() {
   # Find bootstrap GHC
@@ -117,35 +145,19 @@ default_setup_bootstrap() {
   fi
 
   echo "  Bootstrap GHC found: ${GHC}"
+
+  # Verify bootstrap GHC works
+  "${GHC}" --version || {
+    echo "ERROR: Bootstrap GHC failed"
+    exit 1
+  }
 }
 
 # ==============================================================================
 # Phase 3: Cabal Setup
 # ==============================================================================
 
-phase_setup_cabal() {
-  echo ""
-  echo "===================================================================="
-  echo "  Phase 3: Cabal Setup"
-  echo "===================================================================="
-
-  call_hook "pre_setup_cabal"
-
-  # Always set common cabal environment first
-  common_setup_cabal
-
-  # Platform can override/extend, otherwise use default
-  if type -t platform_setup_cabal >/dev/null 2>&1; then
-    platform_setup_cabal
-  else
-    default_setup_cabal
-  fi
-
-  call_hook "post_setup_cabal"
-
-  echo "  ✓ Cabal setup complete"
-  echo ""
-}
+phase_setup_cabal() { run_phase 3 "setup_cabal" "Cabal Setup"; }
 
 # Common Cabal variables - always runs before platform-specific setup
 common_setup_cabal() {
@@ -174,25 +186,7 @@ default_setup_cabal() {
 # Phase 4: Configure GHC
 # ==============================================================================
 
-phase_configure_ghc() {
-  echo ""
-  echo "===================================================================="
-  echo "  Phase 4: Configure GHC"
-  echo "===================================================================="
-
-  call_hook "pre_configure_ghc"
-
-  if type -t platform_configure_ghc >/dev/null 2>&1; then
-    platform_configure_ghc
-  else
-    default_configure_ghc
-  fi
-
-  call_hook "post_configure_ghc"
-
-  echo "  ✓ GHC configure complete"
-  echo ""
-}
+phase_configure_ghc() { run_phase 4 "configure_ghc" "Configure GHC"; }
 
 default_configure_ghc() {
   # Build system config using nameref helper (native build: no target triple)
@@ -225,24 +219,9 @@ default_configure_ghc() {
 # ==============================================================================
 
 phase_build_hadrian() {
-  echo ""
-  echo "===================================================================="
-  echo "  Phase 5: Build Hadrian"
-  echo "===================================================================="
-
-  call_hook "pre_build_hadrian"
-
-  if type -t platform_build_hadrian >/dev/null 2>&1; then
-    platform_build_hadrian
-  else
-    default_build_hadrian
-  fi
-
-  call_hook "post_build_hadrian"
-
+  run_phase 5 "build_hadrian" "Build Hadrian"
+  # Display Hadrian command after phase completes (useful for debugging)
   echo "  Hadrian command: ${HADRIAN_CMD[*]}"
-  echo "  ✓ Hadrian build complete"
-  echo ""
 }
 
 default_build_hadrian() {
@@ -281,34 +260,17 @@ default_build_hadrian() {
 # Phase 6: Build Stage 1
 # ==============================================================================
 
-phase_build_stage1() {
-  echo ""
-  echo "===================================================================="
-  echo "  Phase 6: Build Stage 1"
-  echo "===================================================================="
-
-  call_hook "pre_build_stage1"
-
-  if type -t platform_build_stage1 >/dev/null 2>&1; then
-    platform_build_stage1
-  else
-    default_build_stage1
-  fi
-
-  call_hook "post_build_stage1"
-
-  echo "  ✓ Stage 1 build complete"
-  echo ""
-}
+phase_build_stage1() { run_phase 6 "build_stage1" "Build Stage 1"; }
 
 default_build_stage1() {
   # Build Stage 1 GHC executables (ghc-bin, ghc-pkg, hsc2hs)
   build_stage_executables 1
 
-  # Update stage0 settings before building libraries
-  if type -t update_stage_settings >/dev/null 2>&1; then
-    update_stage_settings "stage0"
-  fi
+  # Platform hook for custom settings patches (e.g., macOS llvm-ar, Windows paths)
+  call_hook "patch_stage_settings" "stage0"
+
+  # Default: Add library paths to stage0 settings
+  _patch_stage_linker_flags "${SRC_DIR}/_build/stage0/lib/settings"
 
   # Build Stage 1 libraries (Hadrian handles dependency order internally)
   build_stage_libraries 1
@@ -318,34 +280,17 @@ default_build_stage1() {
 # Phase 7: Build Stage 2
 # ==============================================================================
 
-phase_build_stage2() {
-  echo ""
-  echo "===================================================================="
-  echo "  Phase 7: Build Stage 2"
-  echo "===================================================================="
-
-  call_hook "pre_build_stage2"
-
-  if type -t platform_build_stage2 >/dev/null 2>&1; then
-    platform_build_stage2
-  else
-    default_build_stage2
-  fi
-
-  call_hook "post_build_stage2"
-
-  echo "  ✓ Stage 2 build complete"
-  echo ""
-}
+phase_build_stage2() { run_phase 7 "build_stage2" "Build Stage 2"; }
 
 default_build_stage2() {
   # Build Stage 2 GHC executables (--freeze1 ensures Stage 1 is not rebuilt)
   build_stage_executables 2 --freeze1
 
-  # Update stage1 settings before building libraries
-  if type -t update_stage_settings >/dev/null 2>&1; then
-    update_stage_settings "stage1"
-  fi
+  # Platform hook for custom settings patches (e.g., macOS llvm-ar, Windows paths)
+  call_hook "patch_stage_settings" "stage1"
+
+  # Default: Add library paths to stage1 settings
+  _patch_stage_linker_flags "${SRC_DIR}/_build/stage1/lib/settings"
 
   # Build Stage 2 libraries (Hadrian handles dependency order internally)
   build_stage_libraries 2 --freeze1
@@ -355,25 +300,7 @@ default_build_stage2() {
 # Phase 8: Install GHC
 # ==============================================================================
 
-phase_install_ghc() {
-  echo ""
-  echo "===================================================================="
-  echo "  Phase 8: Install GHC"
-  echo "===================================================================="
-
-  call_hook "pre_install_ghc"
-
-  if type -t platform_install_ghc >/dev/null 2>&1; then
-    platform_install_ghc
-  else
-    default_install_ghc
-  fi
-
-  call_hook "post_install_ghc"
-
-  echo "  ✓ GHC installation complete"
-  echo ""
-}
+phase_install_ghc() { run_phase 8 "install_ghc" "Install GHC"; }
 
 default_install_ghc() {
   # Use shared bindist_install helper (native build - no target triple)
@@ -384,25 +311,7 @@ default_install_ghc() {
 # Phase 9: Post-Install
 # ==============================================================================
 
-phase_post_install() {
-  echo ""
-  echo "===================================================================="
-  echo "  Phase 9: Post-Install"
-  echo "===================================================================="
-
-  call_hook "pre_post_install"
-
-  if type -t platform_post_install >/dev/null 2>&1; then
-    platform_post_install
-  else
-    default_post_install
-  fi
-
-  call_hook "post_post_install"
-
-  echo "  ✓ Post-install complete"
-  echo ""
-}
+phase_post_install() { run_phase 9 "post_install" "Post-Install"; }
 
 default_post_install() {
   # Verify installation
@@ -422,25 +331,7 @@ default_post_install() {
 # Phase 10: Activation
 # ==============================================================================
 
-phase_activation() {
-  echo ""
-  echo "===================================================================="
-  echo "  Phase 10: Activation"
-  echo "===================================================================="
-
-  call_hook "pre_activation"
-
-  if type -t platform_activation >/dev/null 2>&1; then
-    platform_activation
-  else
-    default_activation
-  fi
-
-  call_hook "post_activation"
-
-  echo "  ✓ Activation complete"
-  echo ""
-}
+phase_activation() { run_phase 10 "activation" "Activation"; }
 
 default_activation() {
   echo "  Setting up activation scripts..."

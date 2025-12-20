@@ -2,15 +2,16 @@
 # ==============================================================================
 # GHC Conda-Forge Build: Common Hook Defaults
 # ==============================================================================
-# Purpose: Provide no-op default implementations for all platform hooks
+# Purpose: Provide no-op default implementations for platform hooks that need
+# defaults. Hooks that are never overridden have been removed - call_hook()
+# safely handles missing hooks.
 #
 # Platform configs can source this file and override only the hooks they need.
-# All hooks have no-op defaults so platforms only implement what's necessary.
 #
-# Hook Categories:
-#   1. Pre/Post hooks  - Called before/after each phase (via call_hook)
-#   2. Main hooks      - Override default_xxx() behavior
-#   3. Callback hooks  - Called by default implementations for customization
+# Hook Pattern:
+#   - platform_xxx() overrides default_xxx() completely
+#   - platform_pre_xxx() runs before the phase (via call_hook "pre_xxx")
+#   - platform_post_xxx() runs after the phase (via call_hook "post_xxx")
 #
 # Usage:
 #   source "${RECIPE_DIR}/lib/common-hooks.sh"
@@ -19,227 +20,95 @@
 #   platform_setup_environment() {
 #     export MY_VAR="value"
 #   }
+#
+# HOOK INVENTORY:
+#   Defined here (with no-op defaults):
+#     - Environment, Configure, Hadrian, Stage1, Stage2, Install, Post-Install
+#   Not defined (never overridden, call_hook handles gracefully):
+#     - Bootstrap, Cabal pre/post, Activation
 # ==============================================================================
 
 set -eu
 
 # ==============================================================================
-# PHASE 1: ENVIRONMENT SETUP HOOKS
+# PHASE 1: ENVIRONMENT SETUP
 # ==============================================================================
-
-# Called before default environment setup
-platform_pre_setup_environment() {
-  : # No-op
-}
-
-# Override to customize environment setup
-# If defined, replaces default_setup_environment()
-# platform_setup_environment() {
-#   export PATH="${BUILD_PREFIX}/bin:${PATH}"
-# }
-
-# Called after environment setup
-platform_post_setup_environment() {
-  : # No-op
-}
+# Used by: linux-64 (default), linux-cross, osx-64, osx-arm64, win-64
+# Overrides: platform_setup_environment()
 
 # ==============================================================================
-# PHASE 2: BOOTSTRAP SETUP HOOKS
+# PHASE 4: CONFIGURE GHC
 # ==============================================================================
+# Used by: linux-cross (configure + post), osx-64 (configure + post),
+#          osx-arm64 (configure + post), win-64 (pre + default)
+# Overrides: platform_pre_configure_ghc(), platform_configure_ghc(),
+#            platform_post_configure_ghc()
 
-# Called before bootstrap setup
-platform_pre_setup_bootstrap() {
-  : # No-op
-}
-
-# Override to customize bootstrap GHC/Cabal setup
-# If defined, replaces default_setup_bootstrap()
-# platform_setup_bootstrap() {
-#   export GHC="${BUILD_PREFIX}/ghc-bootstrap/bin/ghc"
-# }
-
-# Called after bootstrap setup
-platform_post_setup_bootstrap() {
-  : # No-op
+platform_post_configure_ghc() {
+  : # No-op - override in platform script to patch system.config
 }
 
 # ==============================================================================
-# PHASE 3: CABAL SETUP HOOKS
+# PHASE 5: BUILD HADRIAN
 # ==============================================================================
-
-# Called before cabal setup
-platform_pre_setup_cabal() {
-  : # No-op
-}
-
-# Override to customize Cabal configuration
-# If defined, replaces default_setup_cabal()
-# platform_setup_cabal() {
-#   export CABAL="${BUILD_PREFIX}/bin/cabal"
-#   export CABAL_DIR="${SRC_DIR}/.cabal"
-# }
-
-# Called after cabal setup
-platform_post_setup_cabal() {
-  : # No-op
-}
+# Used by: linux-cross (pre), osx-arm64 (pre), win-64 (build)
+# Overrides: platform_pre_build_hadrian(), platform_build_hadrian()
 
 # ==============================================================================
-# PHASE 4: CONFIGURE GHC HOOKS
+# PHASE 6-7: STAGE BUILD HOOKS
 # ==============================================================================
-
-# Called before GHC configure
-platform_pre_configure_ghc() {
-  : # No-op
-}
-
-# Override to completely customize GHC configure
-# If defined, replaces default_configure_ghc()
-# platform_configure_ghc() {
-#   ./configure --prefix="${PREFIX}" "${MY_ARGS[@]}"
-# }
-
-# Callback: Add extra arguments to default configure
-# Called by default_configure_ghc() to extend configure_args array
-# Uses nameref pattern - receives array name as $1
+# Used by: All platforms for unified exe→patch→lib build flow
 #
-# Example:
-#   platform_add_configure_args() {
-#     local -n args="$1"
-#     args+=(--with-intree-gmp=yes)
+# Hook Sequence for Stage Builds:
+#   1. platform_pre_stage{1,2}_executables() - Before any executables
+#   2. build ghc-bin
+#   3. platform_post_stage{1,2}_ghc_bin() - After ghc-bin, before pkg/hsc2hs
+#   4. build ghc-pkg, hsc2hs
+#   5. platform_post_stage{1,2}_executables() - After all executables
+#   6. platform_patch_stage_settings() - Between exe and lib builds
+#   7. platform_pre_stage{1,2}_libraries() - Before libraries
+#   8. build libraries (or platform_build_stage{1,2}_libraries() if defined)
+#   9. platform_post_stage{1,2}_libraries() - After libraries
+#
+# Granular Hook (after ghc-bin):
+#   platform_post_stage{1,2}_ghc_bin() - Called after ghc-bin build, before ghc-pkg
+#   Use this for Windows settings patching between executable builds.
+#
+# Libraries Override Hook:
+#   platform_build_stage{1,2}_libraries() - Completely replace library build
+#   Use this for Windows which has different error handling.
+#
+# Example (Windows):
+#   platform_post_stage1_ghc_bin() {
+#     patch_windows_settings "${_SRC_DIR}/_build/stage0/lib/settings" --include-paths
 #   }
 #
-# platform_add_configure_args() {
-#   : # No-op - use default args only
-# }
-
-# Called after GHC configure
-platform_post_configure_ghc() {
-  : # No-op
+# Stage settings patch hook - called between executables and libraries build
+# Override to apply platform-specific settings patches (linker flags, llvm-ar, etc.)
+#
+# Parameters:
+#   $1 - stage: "stage0" (during stage1 build) or "stage1" (during stage2 build)
+#
+# Example:
+#   platform_patch_stage_settings() {
+#     _patch_stage_linker_flags "${SRC_DIR}/_build/$1/lib/settings"
+#   }
+#
+platform_patch_stage_settings() {
+  : # No-op default - platforms override to add custom patches
 }
 
 # ==============================================================================
-# PHASE 5: BUILD HADRIAN HOOKS
+# PHASE 8: INSTALL GHC
 # ==============================================================================
-
-# Called before Hadrian build
-platform_pre_build_hadrian() {
-  : # No-op
-}
-
-# Override to customize Hadrian build
-# If defined, replaces default_build_hadrian()
-# Must set HADRIAN_CMD array and FLAVOUR
-# platform_build_hadrian() {
-#   "${CABAL}" v2-build hadrian
-#   build_hadrian_cmd HADRIAN_CMD "${hadrian_bin}"
-# }
-
-# Called after Hadrian build
-platform_post_build_hadrian() {
-  : # No-op
-}
+# Used by: linux-cross, osx-arm64, win-64
+# Overrides: platform_install_ghc()
 
 # ==============================================================================
-# PHASE 6: BUILD STAGE 1 HOOKS
+# PHASE 9: POST-INSTALL
 # ==============================================================================
-
-# Called before Stage 1 build
-platform_pre_build_stage1() {
-  : # No-op
-}
-
-# Override to customize Stage 1 build
-# If defined, replaces default_build_stage1()
-# platform_build_stage1() {
-#   "${HADRIAN_CMD[@]}" stage1:exe:ghc-bin --flavour="${FLAVOUR}"
-# }
-
-# Called after Stage 1 build
-platform_post_build_stage1() {
-  : # No-op
-}
-
-# ==============================================================================
-# PHASE 7: BUILD STAGE 2 HOOKS
-# ==============================================================================
-
-# Called before Stage 2 build
-platform_pre_build_stage2() {
-  : # No-op
-}
-
-# Override to customize Stage 2 build
-# If defined, replaces default_build_stage2()
-# platform_build_stage2() {
-#   "${HADRIAN_CMD[@]}" stage2:exe:ghc-bin --flavour="${FLAVOUR}"
-# }
-
-# Called after Stage 2 build
-platform_post_build_stage2() {
-  : # No-op
-}
-
-# ==============================================================================
-# PHASE 8: INSTALL GHC HOOKS
-# ==============================================================================
-
-# Called before GHC install
-platform_pre_install_ghc() {
-  : # No-op
-}
-
-# Override to customize GHC installation
-# If defined, replaces default_install_ghc()
-# platform_install_ghc() {
-#   "${HADRIAN_CMD[@]}" binary-dist --prefix="${PREFIX}"
-#   # ... install from bindist
-# }
-
-# Called after GHC install
-platform_post_install_ghc() {
-  : # No-op
-}
-
-# ==============================================================================
-# PHASE 9: POST-INSTALL HOOKS
-# ==============================================================================
-
-# Called before post-install
-platform_pre_post_install() {
-  : # No-op
-}
-
-# Override to customize post-installation
-# If defined, replaces default_post_install()
-# platform_post_install() {
-#   "${PREFIX}/bin/ghc" --version
-# }
-
-# Called after post-install
-platform_post_post_install() {
-  : # No-op
-}
-
-# ==============================================================================
-# PHASE 10: ACTIVATION HOOKS
-# ==============================================================================
-
-# Called before activation
-platform_pre_activation() {
-  : # No-op
-}
-
-# Override to customize activation script installation
-# If defined, replaces default_activation()
-# platform_activation() {
-#   cp "${RECIPE_DIR}/activate.sh" "${PREFIX}/etc/conda/activate.d/"
-# }
-
-# Called after activation
-platform_post_activation() {
-  : # No-op
-}
+# Used by: linux-cross, osx-64, osx-arm64, win-64
+# Overrides: platform_post_install()
 
 # ==============================================================================
 # METADATA VARIABLES (optional, for documentation)

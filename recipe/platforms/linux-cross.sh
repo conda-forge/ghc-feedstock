@@ -60,26 +60,7 @@ platform_setup_environment() {
 # ==============================================================================
 
 platform_configure_ghc() {
-  echo "  Configuring GHC for ${target_arch} cross-compilation..."
-
-  # Build system config using nameref helper
-  local -a system_config
-  build_system_config system_config "${ghc_host}" "${ghc_host}" "${ghc_target}"
-
-  # Build standard configure args using nameref helper (--with-gmp, --with-ffi, etc.)
-  local -a configure_args
-  build_configure_args configure_args "-L${PREFIX}/lib ${LDFLAGS:-}"
-
-  # Add cross-compilation toolchain args (target tools + STAGE0 tools + sysroot)
-  # Uses direct variable assignment (CC=, AR=, etc.) per configure.ac API
-  cross_build_toolchain_args configure_args "${conda_target}" "${conda_host}" "--sysroot"
-
-  run_and_log "configure" ./configure -v "${system_config[@]}" "${configure_args[@]}" || {
-    cat config.log
-    return 1
-  }
-
-  echo "  ✓ GHC configured"
+  shared_cross_configure_ghc "-L${PREFIX}/lib ${LDFLAGS:-}"
 }
 
 # ==============================================================================

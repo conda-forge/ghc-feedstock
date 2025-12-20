@@ -15,6 +15,163 @@
 set -eu
 
 # ==============================================================================
+# Platform Detection Helpers
+# ==============================================================================
+# Standardized platform checks to replace scattered conditionals.
+# Use these instead of inline [[ "${target_platform}" == ... ]] checks.
+
+is_windows() { [[ "${target_platform:-}" == "win-64" ]]; }
+is_linux() { [[ "${target_platform:-}" == linux-* ]]; }
+is_macos() { [[ "${target_platform:-}" == osx-* ]]; }
+is_unix() { ! is_windows; }
+is_cross_compile() { [[ "${build_platform:-${target_platform}}" != "${target_platform}" ]]; }
+
+# File existence guard - replaces repeated file check patterns
+# Usage: file_exists_or_warn "${file}" || return 0
+file_exists_or_warn() {
+  [[ -f "$1" ]] && return 0
+  echo "  WARNING: $1 not found, skipping"
+  return 1
+}
+
+# ==============================================================================
+# Shared Configure Orchestrators
+# ==============================================================================
+# These unified functions reduce code duplication across platforms by providing
+# a single configure/post-configure implementation that auto-detects platform
+# and cross-compile status. Platform scripts can use these directly or override
+# for full custom behavior.
+
+# Unified configure phase with auto-detection for platform and cross-compile
+#
+# This orchestrator:
+#   1. Builds system config args (--prefix, --build, --host, --target)
+#   2. Builds library configure args (--with-gmp-includes, etc.)
+#   3. Sets platform-specific autoconf cache variables
+#   4. Adds cross-compile toolchain args if needed
+#   5. Runs ./configure with all assembled arguments
+#
+# Parameters:
+#   $1 - build_triple: Build machine triple (e.g., "x86_64-unknown-linux-gnu")
+#   $2 - host_triple: Host machine triple (empty for native = same as build)
+#   $3 - target_triple: Target machine triple (optional, for 3-way cross)
+#
+# Usage:
+#   # Native builds (linux-64, osx-64):
+#   shared_configure_ghc "${ghc_triple}" "${ghc_triple}"
+#
+#   # Cross-compile (linux-cross, osx-arm64):
+#   shared_configure_ghc "${ghc_build}" "${ghc_host}" "${ghc_target}"
+#
+# Notes:
+#   - Auto-detects platform via is_linux/is_macos helpers
+#   - Auto-detects cross-compile via build_platform != target_platform
+#   - Requires conda_host/conda_target vars for cross-compile toolchain args
+#
+shared_configure_ghc() {
+  local build_triple="$1"
+  local host_triple="$2"
+  local target_triple="${3:-}"
+
+  echo "  Unified configure orchestrator:"
+  echo "    build:  ${build_triple}"
+  echo "    host:   ${host_triple}"
+  [[ -n "${target_triple}" ]] && echo "    target: ${target_triple}"
+
+  # Step 1: Build configure argument arrays
+  local -a system_config configure_args
+
+  build_system_config system_config "${build_triple}" "${host_triple}" "${target_triple}"
+  build_configure_args configure_args
+
+  # Step 2: Platform-specific autoconf cache variables
+  if is_linux; then
+    if is_cross_compile; then
+      set_autoconf_toolchain_vars --linux --cross
+    else
+      set_autoconf_toolchain_vars --linux
+    fi
+  elif is_macos; then
+    if is_cross_compile; then
+      set_autoconf_toolchain_vars --macos --cross
+    else
+      set_autoconf_toolchain_vars --macos
+    fi
+  fi
+
+  # Step 3: Cross-compile toolchain args (CC=, AR=, STAGE0 tools, sysroot)
+  if is_cross_compile && [[ -n "${conda_target:-}" ]]; then
+    local sysroot_opt=""
+    is_linux && sysroot_opt="--sysroot"
+    cross_build_toolchain_args configure_args "${conda_target}" "${conda_host:-}" "${sysroot_opt}"
+  fi
+
+  # Step 4: Run configure
+  run_and_log "configure" ./configure "${system_config[@]}" "${configure_args[@]}"
+}
+
+# Unified post-configure patching with auto-detection
+#
+# This orchestrator handles platform-specific system.config patching after
+# ./configure completes. It auto-detects the platform and cross-compile
+# status to apply the correct patch sequence.
+#
+# Parameters:
+#   $1 - toolchain_prefix: Toolchain prefix for settings patching
+#        - Native Linux: GHC triple (e.g., "x86_64-unknown-linux-gnu")
+#        - Native macOS: GHC triple (e.g., "x86_64-apple-darwin13.4.0")
+#        - Cross-compile: Target triple (e.g., "aarch64-conda-linux-gnu")
+#
+# Usage:
+#   # Native builds:
+#   shared_post_configure_ghc "${ghc_triple}"
+#
+#   # Cross-compile:
+#   shared_post_configure_ghc "${conda_target}"
+#
+# Notes:
+#   - For macOS cross-compile, requires conda_host and conda_target vars
+#   - Auto-detects platform via is_linux/is_macos helpers
+#   - Auto-detects cross-compile via build_platform != target_platform
+#
+shared_post_configure_ghc() {
+  local toolchain_prefix="${1:-}"
+  local settings_file="${SRC_DIR}/hadrian/cfg/system.config"
+
+  echo "  Unified post-configure orchestrator:"
+  echo "    toolchain: ${toolchain_prefix}"
+
+  # Platform-specific patching logic
+  if is_windows; then
+    # Windows: Custom patching (uses _SRC_DIR paths)
+    patch_windows_system_config
+  elif is_linux; then
+    if is_cross_compile; then
+      # Linux cross-compile: strip BUILD_PREFIX, fix python, add prefix, linker flags
+      cross_patch_system_config "${toolchain_prefix}"
+    else
+      # Native Linux: just linker flags and doc placeholders
+      patch_settings "${settings_file}" --linker-flags --doc-placeholders
+    fi
+  elif is_macos; then
+    if is_cross_compile; then
+      # macOS cross-compile: all-in-one orchestrator
+      # Requires conda_host and conda_target to be set by platform script
+      if [[ -z "${conda_host:-}" ]] || [[ -z "${conda_target:-}" ]]; then
+        echo "  ERROR: conda_host and conda_target required for macOS cross-compile"
+        return 1
+      fi
+      macos_cross_post_configure "${conda_host}" "${conda_target}"
+    else
+      # Native macOS: strip, llvm-ar, prefix, linker flags, doc placeholders
+      macos_patch_system_config "${toolchain_prefix}"
+    fi
+  fi
+
+  echo "  ✓ Post-configure patches applied"
+}
+
+# ==============================================================================
 # Common Hadrian Options
 # ==============================================================================
 # These options are used consistently across all stage builds.
@@ -223,6 +380,54 @@ build_hadrian_cmd() {
 }
 
 # ==============================================================================
+# Hadrian Binary Update
+# ==============================================================================
+# Updates HADRIAN_CMD after Stage1 build when a new Hadrian binary may exist.
+# Cross-compile builds create a native Hadrian during Stage1 that should be
+# used for Stage2 instead of the bootstrap-built version.
+#
+# Parameters:
+#   $1 - search_dir: Directory to search (default: SRC_DIR/hadrian/dist-newstyle/build)
+#
+# Globals Modified:
+#   HADRIAN_CMD - Updated to point to the found Hadrian binary
+#
+# Returns:
+#   0 on success, exits with 1 if Hadrian not found
+#
+# Usage:
+#   update_hadrian_cmd_after_build                    # Use defaults
+#   update_hadrian_cmd_after_build "${custom_dir}"    # Custom search dir
+#
+update_hadrian_cmd_after_build() {
+  local search_dir="${1:-${SRC_DIR}/hadrian/dist-newstyle/build}"
+  local hadrian_name="hadrian"
+  is_windows && hadrian_name="hadrian.exe"
+
+  echo "  Updating Hadrian binary reference..."
+
+  local hadrian_bin
+  hadrian_bin=$(find "${search_dir}" -name "${hadrian_name}" -type f 2>/dev/null | head -1)
+
+  # On Unix, also check for executable permission
+  if is_unix && [[ -n "${hadrian_bin}" ]] && [[ ! -x "${hadrian_bin}" ]]; then
+    hadrian_bin=""
+  fi
+
+  if [[ ! -f "${hadrian_bin}" ]]; then
+    echo "ERROR: Hadrian binary not found in ${search_dir}"
+    exit 1
+  fi
+
+  # Use appropriate source directory (Windows uses _SRC_DIR)
+  local src_dir="${SRC_DIR}"
+  is_windows && src_dir="${_SRC_DIR}"
+
+  HADRIAN_CMD=("${hadrian_bin}" "-j${CPU_COUNT}" "--directory" "${src_dir}")
+  echo "  Updated HADRIAN_CMD: ${hadrian_bin}"
+}
+
+# ==============================================================================
 # Stage Build Helper
 # ==============================================================================
 # Builds standard stage components (ghc-bin, ghc-pkg, hsc2hs) in sequence.
@@ -251,6 +456,11 @@ build_stage_executables() {
   local -a base_opts=(--flavour="${FLAVOUR}" ${HADRIAN_STAGE_OPTS} "${extra_opts[@]}")
 
   run_and_log "stage${stage}-ghc"    "${HADRIAN_CMD[@]}" "${base_opts[@]}" "stage${stage}:exe:ghc-bin"
+
+  # Granular hook after ghc-bin build - allows Windows to patch settings
+  # before building other executables that depend on them
+  call_hook "post_stage${stage}_ghc_bin"
+
   run_and_log "stage${stage}-pkg"    "${HADRIAN_CMD[@]}" "${base_opts[@]}" "stage${stage}:exe:ghc-pkg"
   run_and_log "stage${stage}-hsc2hs" "${HADRIAN_CMD[@]}" "${base_opts[@]}" "stage${stage}:exe:hsc2hs"
 
@@ -281,6 +491,13 @@ build_stage_libraries() {
   call_hook "pre_stage${stage}_libraries"
 
   echo "  Building Stage ${stage} libraries..."
+
+  # Allow platforms to override the entire library build (e.g., Windows)
+  if type -t "platform_build_stage${stage}_libraries" >/dev/null 2>&1; then
+    "platform_build_stage${stage}_libraries" "${extra_opts[@]}"
+    call_hook "post_stage${stage}_libraries"
+    return $?
+  fi
 
   local -a base_opts=(--flavour="${FLAVOUR}" ${HADRIAN_STAGE_OPTS} "${extra_opts[@]}")
 
@@ -390,18 +607,17 @@ set_autoconf_toolchain_vars() {
 # ==============================================================================
 # Settings Patch Functions
 # ==============================================================================
-# Consolidated settings patching - provides:
-#   - patch_settings() - unified dispatcher with option flags
-#   - patch_system_config_linker_flags() - add -L and -rpath for library paths
-#   - strip_build_prefix_from_tools() - remove BUILD_PREFIX from tool paths
-#   - add_toolchain_prefix_to_tools() - add target prefix to tools
-#   - fix_python_path_for_cross() - fix Python path for cross-compile
-#   - update_settings_link_flags() - update stage settings with library paths
-#   - set_macos_conda_ar_ranlib() - set macOS llvm-ar for Apple ld64
-#   - update_installed_settings() - patch installed GHC settings
+# Consolidated settings patching via patch_settings() with option flags:
+#   --linker-flags[=PREFIX]     Add library paths and rpaths
+#   --doc-placeholders          Add xelatex/sphinx-build/makeindex placeholders
+#   --strip-build-prefix[=EXC]  Strip BUILD_PREFIX from tools
+#   --toolchain-prefix=PREFIX   Add toolchain prefix to tools
+#   --fix-python                Fix Python path for cross-compilation
+#   --platform-link-flags       Add platform-specific link flags
+#   --macos-ar-ranlib[=TC]      Set macOS LLVM ar/ranlib config
+#   --installed                 Apply installed GHC settings transformations
 #
-# NOTE: This is sourced by helpers.sh, not by platform scripts directly.
-# Platforms should use the wrapper functions or call patch_settings() with options.
+# NOTE: Call patch_settings() directly with options (wrapper functions removed).
 
 source "${RECIPE_DIR}/lib/settings-patch.sh"
 
@@ -446,8 +662,9 @@ disable_copy_optimization() {
 
 call_hook() {
   local hook_name="platform_$1"
+  shift  # Remove hook name, remaining args passed to hook
   if type -t "${hook_name}" >/dev/null 2>&1; then
-    "${hook_name}"
+    "${hook_name}" "$@"
   fi
 }
 
@@ -498,6 +715,124 @@ verify_installed_ghc() {
       return 1
     fi
   fi
+}
+
+# Verify all expected GHC binaries exist
+# Complements verify_installed_ghc() which tests that ghc runs.
+#
+# Parameters:
+#   $1 - expect_failure: "true" to allow missing binaries (warning only)
+#
+# Returns:
+#   0 if all binaries found, 1 if any missing (unless expect_failure=true)
+#
+# Usage:
+#   verify_installed_binaries                  # Error on missing
+#   verify_installed_binaries "true"           # Warning only
+#
+verify_installed_binaries() {
+  local expect_failure="${1:-false}"
+
+  local bin_dir="${PREFIX}/bin"
+  is_windows && bin_dir="${_PREFIX}/bin"
+
+  local -a expected_bins
+  if is_windows; then
+    expected_bins=(ghc.exe ghc-pkg.exe hsc2hs.exe runghc.exe hp2ps.exe hpc.exe)
+  else
+    expected_bins=(ghc ghc-pkg hsc2hs runghc hp2ps hpc)
+  fi
+
+  echo "  Verifying installed binaries in ${bin_dir}:"
+  local missing=0
+  for bin in "${expected_bins[@]}"; do
+    if [[ -f "${bin_dir}/${bin}" ]]; then
+      echo "    ✓ ${bin}"
+    else
+      echo "    ✗ ${bin} MISSING"
+      ((missing++)) || true
+    fi
+  done
+
+  # Show total file count
+  local file_count
+  file_count=$(ls -1 "${bin_dir}" 2>/dev/null | wc -l)
+  echo "  Total files in bin/: ${file_count}"
+
+  if [[ ${missing} -gt 0 ]]; then
+    if [[ "${expect_failure}" == "true" ]]; then
+      echo "  WARNING: ${missing} expected binaries missing"
+      return 0
+    else
+      echo "  ERROR: ${missing} expected binaries missing"
+      return 1
+    fi
+  fi
+
+  echo "  ✓ All expected binaries present"
+  return 0
+}
+
+# Unified install orchestrator - auto-detects native vs cross-compile
+# Delegates to bindist_install or cross_bindist_install based on build type.
+#
+# Parameters:
+#   $1 - target: Target triple (optional, defaults to ghc_target)
+#   $2 - extra_args: Additional configure arguments (optional)
+#
+# Usage:
+#   shared_install_ghc                           # Auto-detect, use defaults
+#   shared_install_ghc "${ghc_target}"           # Explicit target
+#   shared_install_ghc "${target}" "CFLAGS=-O2"  # With extra args
+#
+shared_install_ghc() {
+  local target="${1:-${ghc_target:-}}"
+  local extra_args="${2:-}"
+
+  if is_cross_compile; then
+    cross_bindist_install "${target}" "${extra_args}"
+  else
+    bindist_install "${target}" "${extra_args}"
+  fi
+}
+
+# Unified post-install verification and setup
+# Handles cross-compile patches, macOS settings, verification, and completion.
+#
+# Parameters:
+#   $1 - target: Target triple (optional, defaults to ghc_target)
+#   $2 - expect_failure: "true" to allow GHC verification failure (optional)
+#
+# Usage:
+#   shared_post_install_ghc                      # Native build
+#   shared_post_install_ghc "${ghc_target}"      # Cross-compile (auto-detects)
+#   shared_post_install_ghc "${target}" "true"   # Explicit expect_failure
+#
+shared_post_install_ghc() {
+  local target="${1:-${ghc_target:-}}"
+  local expect_failure="${2:-false}"
+
+  # Cross-compile specific patches
+  if is_cross_compile && type -t patch_final_settings >/dev/null 2>&1; then
+    patch_final_settings
+  fi
+
+  # macOS-specific installed settings
+  if is_macos; then
+    patch_settings "" --installed="${target}"
+    local settings_file
+    settings_file=$(find "${PREFIX}/lib" -name settings | head -n 1)
+    if [[ -f "${settings_file}" ]]; then
+      patch_settings "${settings_file}" --macos-ar-ranlib="${CONDA_TOOLCHAIN_BUILD:-}"
+    fi
+  fi
+
+  # Verify and install completion
+  if is_cross_compile; then
+    expect_failure="true"
+  fi
+  verify_installed_ghc "${expect_failure}"
+  install_bash_completion
 }
 
 # ==============================================================================
