@@ -236,6 +236,18 @@ default_configure_ghc() {
   popd >/dev/null
 }
 
+# Smart default: Auto-detect toolchain prefix for post-configure patching
+# Eliminates platform_post_configure_ghc() from linux-64, linux-cross, osx-64, osx-arm64
+default_post_configure_ghc() {
+  local toolchain_prefix
+  if is_cross_compile; then
+    toolchain_prefix="${conda_target:-${ghc_target}}"
+  else
+    toolchain_prefix="${ghc_triple}"
+  fi
+  shared_post_configure_ghc "${toolchain_prefix}"
+}
+
 # ==============================================================================
 # Phase 5: Build Hadrian
 # ==============================================================================
@@ -284,15 +296,25 @@ default_build_hadrian() {
 
 phase_build_stage1() { run_phase 6 "build_stage1" "Build Stage 1"; }
 
+# Smart default: Auto-detect cross-compile for pre-stage1 setup
+# Eliminates platform_pre_build_stage1() from linux-cross, osx-arm64
+default_pre_build_stage1() {
+  if is_cross_compile; then
+    cross_pre_stage1_standard
+  fi
+  # Native builds: no-op
+}
+
 default_build_stage1() {
   # Build Stage 1 GHC executables (ghc-bin, ghc-pkg, hsc2hs)
   build_stage_executables 1
 
-  # Platform hook for custom settings patches (e.g., macOS llvm-ar, Windows paths)
+  # Platform hook for custom settings patches (macOS uses macos_update_stage_settings)
   call_hook "patch_stage_settings" "stage0"
 
-  # Default: Add library paths to stage0 settings
-  _patch_stage_linker_flags "${SRC_DIR}/_build/stage0/lib/settings"
+  # Default: Add library paths to stage0 settings (idempotent - skips if already present)
+  # Windows uses granular hooks instead (post_stage1_ghc_bin etc.)
+  is_windows || _patch_stage_linker_flags "${SRC_DIR}/_build/stage0/lib/settings"
 
   # Build Stage 1 libraries (Hadrian handles dependency order internally)
   build_stage_libraries 1
@@ -308,11 +330,12 @@ default_build_stage2() {
   # Build Stage 2 GHC executables (--freeze1 ensures Stage 1 is not rebuilt)
   build_stage_executables 2 --freeze1
 
-  # Platform hook for custom settings patches (e.g., macOS llvm-ar, Windows paths)
+  # Platform hook for custom settings patches (macOS uses macos_update_stage_settings)
   call_hook "patch_stage_settings" "stage1"
 
-  # Default: Add library paths to stage1 settings
-  _patch_stage_linker_flags "${SRC_DIR}/_build/stage1/lib/settings"
+  # Default: Add library paths to stage1 settings (idempotent - skips if already present)
+  # Windows uses granular hooks instead (post_stage2_ghc_bin etc.)
+  is_windows || _patch_stage_linker_flags "${SRC_DIR}/_build/stage1/lib/settings"
 
   # Build Stage 2 libraries (Hadrian handles dependency order internally)
   build_stage_libraries 2 --freeze1

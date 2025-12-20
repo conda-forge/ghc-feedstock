@@ -44,11 +44,11 @@ platform_configure_ghc() {
   shared_configure_ghc "${ghc_triple}" "${ghc_triple}"
 }
 
-platform_post_configure_ghc() {
-  shared_post_configure_ghc "${ghc_triple}"
-}
+# Hooks using smart defaults (phases.sh):
+#   post_configure_ghc    → default_post_configure_ghc() auto-detects native
 
-# Unified stage settings patch hook (replaces deprecated post_stage*_executables)
+# Stage settings patch - macOS native requires llvm-ar for Apple ld64 compatibility
+# Cannot use default because CONDA_TOOLCHAIN_BUILD may be empty for native builds
 platform_patch_stage_settings() {
   macos_update_stage_settings "$1"
 }

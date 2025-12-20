@@ -26,21 +26,12 @@ FLAVOUR="release"
 configure_triples
 
 # ==============================================================================
-# Phase 4b: Post-Configure (uses shared orchestrator for consistency)
+# Hooks Using Smart Defaults
 # ==============================================================================
-
-platform_post_configure_ghc() {
-  # Use shared orchestrator (auto-detects native Linux and applies linker-flags + doc-placeholders)
-  shared_post_configure_ghc "${ghc_triple}"
-}
-
+# The following hooks are handled by smart defaults in phases.sh:
+#
+#   post_configure_ghc    → default_post_configure_ghc() auto-detects native
+#   patch_stage_settings  → default_build_stage1/2() uses patch_settings dispatcher
+#
+# No platform overrides needed - Linux native uses all defaults.
 # ==============================================================================
-# Stage Settings Hook (exe→patch→lib pattern)
-# ==============================================================================
-
-# Unified stage settings patch hook for consistent build flow
-platform_patch_stage_settings() {
-  local stage="$1"
-  local settings_file="${SRC_DIR}/_build/${stage}/lib/settings"
-  _patch_stage_linker_flags "${settings_file}"
-}

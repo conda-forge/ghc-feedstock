@@ -65,17 +65,14 @@ platform_setup_environment() {
 # ==============================================================================
 
 # ==============================================================================
-# Phase 4: Configure GHC
+# Hooks Using Smart Defaults (cross-helpers.sh, phases.sh)
 # ==============================================================================
-
-platform_configure_ghc() {
-  shared_cross_configure_ghc "-L${PREFIX}/lib ${LDFLAGS:-}"
-}
-
-platform_post_configure_ghc() {
-  # Use unified post-configure orchestrator (auto-detects macOS cross-compile)
-  shared_post_configure_ghc "${conda_target}"
-}
+# The following hooks are handled by smart defaults:
+#
+#   configure_ghc         → default_cross_configure_ghc() (shared_cross_configure_ghc)
+#   post_configure_ghc    → default_post_configure_ghc() auto-detects cross
+#   pre_build_stage1      → default_pre_build_stage1() calls cross_pre_stage1_standard
+# ==============================================================================
 
 # ==============================================================================
 # Phase 5: Build Hadrian - uses default with cross-compile flags
@@ -87,16 +84,10 @@ platform_pre_build_hadrian() {
 }
 
 # ==============================================================================
-# Phase 6: Build Stage 1
+# Phase 6-7: Stage Builds
 # ==============================================================================
 
-platform_pre_build_stage1() {
-  # Use shared cross-compile pre-Stage1 setup (disables copy optimization, macOS toolchain)
-  cross_pre_stage1_standard
-}
-
-# Platform hook for stage settings patches (llvm-ar, library paths)
-# Called by default_build_stage1/2 via call_hook "patch_stage_settings" <stage>
+# Stage settings patch - macOS requires llvm-ar for Apple ld64 compatibility
 platform_patch_stage_settings() {
   macos_update_stage_settings "$1"
 }
@@ -108,14 +99,6 @@ platform_post_stage1_executables() {
     echo "WARNING: Stage0 GHC failed to report version"
   }
 }
-
-# Uses default_build_stage1 which:
-# 1. Calls build_stage_executables(1) -> fires platform_post_stage1_executables
-# 2. Calls platform_patch_stage_settings("stage0") for llvm-ar patching
-# 3. Calls build_stage_libraries(1)
-
-# Phase 7: Build Stage 2 - uses default_build_stage2 with hook pattern
-# The platform_patch_stage_settings hook handles llvm-ar patching for stage1
 
 # ==============================================================================
 # Phase 8: Install GHC

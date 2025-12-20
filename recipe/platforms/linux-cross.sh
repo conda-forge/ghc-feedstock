@@ -56,21 +56,15 @@ platform_setup_environment() {
 # ==============================================================================
 
 # ==============================================================================
-# Phase 4: Configure GHC
+# Hooks Using Smart Defaults (cross-helpers.sh, phases.sh)
 # ==============================================================================
-
-platform_configure_ghc() {
-  shared_cross_configure_ghc "-L${PREFIX}/lib ${LDFLAGS:-}"
-}
-
+# The following hooks are handled by smart defaults:
+#
+#   configure_ghc         → default_cross_configure_ghc() (shared_cross_configure_ghc)
+#   post_configure_ghc    → default_post_configure_ghc() auto-detects cross
+#   pre_build_stage1      → default_pre_build_stage1() calls cross_pre_stage1_standard
+#   patch_stage_settings  → default_build_stage1/2() uses patch_settings dispatcher
 # ==============================================================================
-# Phase 5: Patch System Config - uses shared cross_patch_system_config()
-# ==============================================================================
-
-platform_post_configure_ghc() {
-  # Use unified post-configure orchestrator (auto-detects Linux cross-compile)
-  shared_post_configure_ghc "${conda_target}"
-}
 
 # ==============================================================================
 # Phase 6: Build Hadrian - uses default with cross-compile flags
@@ -84,22 +78,6 @@ platform_pre_build_hadrian() {
 
   # Set up Hadrian cabal flags using cross-compile helper
   cross_setup_hadrian_flags
-}
-
-# ==============================================================================
-# Phase 6: Build Stage 1
-# ==============================================================================
-
-platform_pre_build_stage1() {
-  # Use shared cross-compile pre-Stage1 setup (disables copy optimization)
-  cross_pre_stage1_standard
-}
-
-# Unified stage settings patch hook for consistent exe→patch→lib flow
-platform_patch_stage_settings() {
-  local stage="$1"
-  local settings_file="${SRC_DIR}/_build/${stage}/lib/settings"
-  _patch_stage_linker_flags "${settings_file}"
 }
 
 # ==============================================================================

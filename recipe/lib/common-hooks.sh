@@ -26,6 +26,31 @@
 #     - Environment, Configure, Hadrian, Stage1, Stage2, Install, Post-Install
 #   Not defined (never overridden, call_hook handles gracefully):
 #     - Bootstrap, Cabal pre/post, Activation
+#
+# ==============================================================================
+# VARIABLE NAMING CONVENTIONS
+# ==============================================================================
+# Both sets populated by configure_triples() from triple-helpers.sh:
+#
+# ghc_* variables (GHC format):
+#   ghc_build, ghc_host, ghc_target, ghc_triple
+#   Use for: ./configure arguments, display
+#
+# conda_* variables (Conda format):
+#   conda_build, conda_host, conda_target
+#   Use for: Toolchain paths (CC=../${conda_target}-clang), sysroots
+#
+# ==============================================================================
+# SMART DEFAULTS (phases.sh, cross-helpers.sh)
+# ==============================================================================
+# The following hooks now have smart defaults that auto-detect platform:
+#
+#   default_post_configure_ghc()     - Auto-detects native/cross toolchain prefix
+#   default_pre_build_stage1()       - Calls cross_pre_stage1_standard() for cross
+#   default_build_stage1/2()         - Uses patch_settings dispatcher for Linux/macOS
+#   default_cross_configure_ghc()    - Standard cross-compile configure
+#
+# Platforms only need to override if they have genuinely different behavior.
 # ==============================================================================
 
 set -eu

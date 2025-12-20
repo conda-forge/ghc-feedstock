@@ -176,6 +176,13 @@ shared_cross_configure_ghc() {
   echo "  ✓ GHC configured for cross-compilation"
 }
 
+# Smart default: Standard cross-compile configure with common ldflags
+# Platforms can override platform_configure_ghc() if they need different ldflags
+# Eliminates platform_configure_ghc() from linux-cross, osx-arm64
+default_cross_configure_ghc() {
+  shared_cross_configure_ghc "-L${PREFIX}/lib ${LDFLAGS:-}"
+}
+
 # ==============================================================================
 # Cross-Compile Configure Arguments Builder
 # ==============================================================================
