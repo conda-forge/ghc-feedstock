@@ -29,6 +29,10 @@ PLATFORM_TYPE="native"
 INSTALL_METHOD="bindist"
 FLAVOUR="quickest"
 
+# Configure triples for native Windows build
+# Sets: ghc_build, ghc_host, ghc_target, ghc_triple, conda_*
+configure_triples
+
 # ==============================================================================
 # Phase 1: Environment Setup
 # ==============================================================================
