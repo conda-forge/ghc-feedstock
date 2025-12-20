@@ -181,6 +181,9 @@ platform_post_stage1_ghc_bin() {
 }
 
 # Hook: Override library build for Windows-specific behavior
+# NOTE: Windows uses windows_build_stage_libraries() instead of build_stage_libraries()
+# because Windows builds have different failure modes (no retry logic needed) and
+# don't use HADRIAN_STAGE_OPTS. This separation is intentional for maintainability.
 platform_build_stage1_libraries() {
   windows_build_stage_libraries 1
 }

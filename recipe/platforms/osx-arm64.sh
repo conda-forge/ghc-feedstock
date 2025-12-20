@@ -86,11 +86,8 @@ platform_pre_build_hadrian() {
 # ==============================================================================
 # Phase 6-7: Stage Builds
 # ==============================================================================
-
-# Stage settings patch - macOS requires llvm-ar for Apple ld64 compatibility
-platform_patch_stage_settings() {
-  macos_update_stage_settings "$1"
-}
+# Stage settings patching is now handled by shared_patch_stage_settings() which
+# auto-detects macOS and calls macos_update_stage_settings(). No override needed.
 
 # Hook called after building stage executables (ghc-bin, ghc-pkg, hsc2hs)
 platform_post_stage1_executables() {

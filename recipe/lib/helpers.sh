@@ -836,6 +836,42 @@ shared_post_install_ghc() {
 }
 
 # ==============================================================================
+# Unified Stage Settings Patching
+# ==============================================================================
+# Single dispatch function for patching stage settings after building ghc-bin.
+# Consolidates the three different mechanisms:
+#   - Linux: patch_settings with --linker-flags
+#   - macOS: macos_update_stage_settings (llvm-ar, link flags)
+#   - Windows: granular hooks (handled separately, this is a no-op)
+#
+# Parameters:
+#   $1 - stage_dir: Stage directory name ("stage0" or "stage1")
+#
+# Usage:
+#   shared_patch_stage_settings "stage0"  # After Stage 1 ghc-bin
+#   shared_patch_stage_settings "stage1"  # After Stage 2 ghc-bin
+#
+shared_patch_stage_settings() {
+  local stage_dir="$1"
+  local settings_file="${SRC_DIR}/_build/${stage_dir}/lib/settings"
+
+  [[ -f "${settings_file}" ]] || return 0
+
+  if is_macos; then
+    # macOS: uses llvm-ar and platform-specific link flags
+    macos_update_stage_settings "${stage_dir}"
+  elif is_windows; then
+    # Windows uses granular hooks (platform_post_stage{N}_ghc_bin)
+    # which are called by build_stage_executables() - no-op here
+    return 0
+  else
+    # Linux: Add library paths and rpath (idempotent - skips if already present)
+    grep -q "Wl,-L${PREFIX}/lib" "${settings_file}" 2>/dev/null && return 0
+    patch_settings "${settings_file}" --linker-flags
+  fi
+}
+
+# ==============================================================================
 # Platform Utility Helpers
 # ==============================================================================
 

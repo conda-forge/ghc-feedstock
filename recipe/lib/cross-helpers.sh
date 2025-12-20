@@ -24,6 +24,17 @@ _get_target_triple() {
 # Sets HADRIAN_CABAL_FLAGS for cross-compilation builds.
 # Call this before phase_build_hadrian() to use default_build_hadrian().
 #
+# IMPORTANT: Platform-specific pre-build setup differences:
+#   - Linux cross-compile: Requires explicit CFLAGS/LDFLAGS with --sysroot
+#     BEFORE calling this function. Linux GCC toolchain doesn't automatically
+#     find sysroot libraries. See linux-cross.sh:platform_pre_build_hadrian().
+#
+#   - macOS cross-compile: Only needs to call this function. macOS Clang
+#     handles sysroot/SDK paths automatically via CONDA_BUILD_SYSROOT.
+#     See osx-arm64.sh:platform_pre_build_hadrian().
+#
+# This difference is intentional - do not attempt to unify.
+#
 # Usage:
 #   cross_setup_hadrian_flags
 #
@@ -496,6 +507,9 @@ cross_post_install() {
 
   # Create symlinks
   cross_create_symlinks "${target}"
+
+  # Verify binaries exist (cross-compiled may fail to run, but should exist)
+  verify_installed_binaries "true"
 
   # Install bash completion
   install_bash_completion

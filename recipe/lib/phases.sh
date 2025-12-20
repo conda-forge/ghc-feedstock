@@ -46,22 +46,8 @@ set -eu
 # ==============================================================================
 # Internal Helpers
 # ==============================================================================
-
-# Patch stage settings with linker flags for library paths
-# Called by default_build_stage1/2 to add -L and -rpath for PREFIX/lib
-#
-# Parameters:
-#   $1 - settings_file: Path to stage settings file
-#
-_patch_stage_linker_flags() {
-  local settings_file="$1"
-  [[ -f "${settings_file}" ]] || return 0
-  # Only patch if not already present
-  grep -q "Wl,-L${PREFIX}/lib" "${settings_file}" 2>/dev/null && return 0
-
-  perl -pi -e "s#(C compiler link flags\", \"[^\"]*)#\$1 -Wl,-L${PREFIX}/lib -Wl,-rpath,${PREFIX}/lib#" "${settings_file}"
-  perl -pi -e "s#(ld flags\", \"[^\"]*)#\$1 -L${PREFIX}/lib -rpath ${PREFIX}/lib#" "${settings_file}"
-}
+# (Previously contained _patch_stage_linker_flags - now unified in helpers.sh
+# as shared_patch_stage_settings() which auto-detects platform)
 
 # ==============================================================================
 # Generic Phase Executor
@@ -211,29 +197,9 @@ default_setup_cabal() {
 phase_configure_ghc() { run_phase 4 "configure_ghc" "Configure GHC"; }
 
 default_configure_ghc() {
-  # Build system config using nameref helper (native build: no target triple)
-  local -a system_config
-  build_system_config system_config "" "" ""
-
-  # Build configure arguments using nameref helper
-  local -a configure_args=(
-    --enable-distro-toolchain
-    --with-intree-gmp=no
-  )
-
-  # Add standard library paths (--with-gmp, --with-ffi, etc.)
-  # build_configure_args handles Windows vs Unix path differences automatically
-  build_configure_args configure_args
-
-  # Add platform-specific args if provided (for any extra platform-specific flags)
-  if type -t platform_add_configure_args >/dev/null 2>&1; then
-    platform_add_configure_args configure_args
-  fi
-
-  # Run configure
-  pushd "${SRC_DIR}" >/dev/null
-  run_and_log "configure" ./configure "${system_config[@]}" "${configure_args[@]}"
-  popd >/dev/null
+  # Delegate to unified configure orchestrator (helpers.sh)
+  # Native builds use ghc_triple for both build and host
+  shared_configure_ghc "${ghc_triple}" "${ghc_triple}"
 }
 
 # Smart default: Auto-detect toolchain prefix for post-configure patching
@@ -309,12 +275,11 @@ default_build_stage1() {
   # Build Stage 1 GHC executables (ghc-bin, ghc-pkg, hsc2hs)
   build_stage_executables 1
 
-  # Platform hook for custom settings patches (macOS uses macos_update_stage_settings)
-  call_hook "patch_stage_settings" "stage0"
-
-  # Default: Add library paths to stage0 settings (idempotent - skips if already present)
-  # Windows uses granular hooks instead (post_stage1_ghc_bin etc.)
-  is_windows || _patch_stage_linker_flags "${SRC_DIR}/_build/stage0/lib/settings"
+  # Unified stage settings patching (auto-detects platform)
+  # - Linux: adds library paths and rpath
+  # - macOS: uses llvm-ar and platform link flags
+  # - Windows: no-op (uses granular hooks via build_stage_executables)
+  shared_patch_stage_settings "stage0"
 
   # Build Stage 1 libraries (Hadrian handles dependency order internally)
   build_stage_libraries 1
@@ -330,12 +295,11 @@ default_build_stage2() {
   # Build Stage 2 GHC executables (--freeze1 ensures Stage 1 is not rebuilt)
   build_stage_executables 2 --freeze1
 
-  # Platform hook for custom settings patches (macOS uses macos_update_stage_settings)
-  call_hook "patch_stage_settings" "stage1"
-
-  # Default: Add library paths to stage1 settings (idempotent - skips if already present)
-  # Windows uses granular hooks instead (post_stage2_ghc_bin etc.)
-  is_windows || _patch_stage_linker_flags "${SRC_DIR}/_build/stage1/lib/settings"
+  # Unified stage settings patching (auto-detects platform)
+  # - Linux: adds library paths and rpath
+  # - macOS: uses llvm-ar and platform link flags
+  # - Windows: no-op (uses granular hooks via build_stage_executables)
+  shared_patch_stage_settings "stage1"
 
   # Build Stage 2 libraries (Hadrian handles dependency order internally)
   build_stage_libraries 2 --freeze1

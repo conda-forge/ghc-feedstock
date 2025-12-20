@@ -40,18 +40,16 @@ platform_setup_environment() {
   export PATH="${BUILD_PREFIX}/bin:${PATH}"
 }
 
-platform_configure_ghc() {
-  shared_configure_ghc "${ghc_triple}" "${ghc_triple}"
-}
-
-# Hooks using smart defaults (phases.sh):
-#   post_configure_ghc    → default_post_configure_ghc() auto-detects native
-
-# Stage settings patch - macOS native requires llvm-ar for Apple ld64 compatibility
-# Cannot use default because CONDA_TOOLCHAIN_BUILD may be empty for native builds
-platform_patch_stage_settings() {
-  macos_update_stage_settings "$1"
-}
+# ==============================================================================
+# Hooks Using Smart Defaults
+# ==============================================================================
+# The following hooks are now handled by smart defaults:
+#
+#   configure_ghc         → default_configure_ghc() delegates to shared_configure_ghc()
+#   post_configure_ghc    → default_post_configure_ghc() auto-detects native macOS
+#   patch_stage_settings  → shared_patch_stage_settings() auto-detects macOS
+#
+# No platform overrides needed - macOS native uses all defaults except environment.
 
 platform_post_install() {
   shared_post_install_ghc "${ghc_triple}"
