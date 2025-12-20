@@ -197,9 +197,12 @@ default_setup_cabal() {
 phase_configure_ghc() { run_phase 4 "configure_ghc" "Configure GHC"; }
 
 default_configure_ghc() {
-  # Delegate to unified configure orchestrator (helpers.sh)
-  # Native builds use ghc_triple for both build and host
-  shared_configure_ghc "${ghc_triple}" "${ghc_triple}"
+  # Auto-detect native vs cross-compile and delegate appropriately
+  if is_cross_compile; then
+    default_cross_configure_ghc
+  else
+    shared_configure_ghc "${ghc_triple}" "${ghc_triple}"
+  fi
 }
 
 # Smart default: Auto-detect toolchain prefix for post-configure patching
