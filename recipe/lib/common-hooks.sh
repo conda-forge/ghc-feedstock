@@ -70,7 +70,8 @@ set -eu
 #            platform_post_configure_ghc()
 
 platform_post_configure_ghc() {
-  : # No-op - override in platform script to patch system.config
+  # Call smart default which auto-detects platform and applies appropriate patches
+  default_post_configure_ghc
 }
 
 # ==============================================================================
