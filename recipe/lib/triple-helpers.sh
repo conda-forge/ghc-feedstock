@@ -36,11 +36,13 @@ configure_triples() {
     local triple
     triple=$(_ghc_triple_for_platform "${target_platform}")
 
+    # Set GHC triples
     ghc_build="${triple}"; ghc_host="${triple}"; ghc_target="${triple}"
-    conda_build="${build_alias:-}"; conda_host="${build_alias:-}"; conda_target="${build_alias:-}"
     build_arch="${triple%%-*}"; host_arch="${build_arch}"; target_arch="${build_arch}"
 
+    # Export build_alias BEFORE using it for conda_* variables
     export build_alias="${triple}" host_alias="${triple}"
+    conda_build="${triple}"; conda_host="${triple}"; conda_target="${triple}"
   else
     build_arch="${build_alias%%-*}"; target_arch="${host_alias%%-*}"; host_arch="${build_arch}"
     conda_build="${build_alias}"; conda_host="${build_alias}"; conda_target="${host_alias}"
