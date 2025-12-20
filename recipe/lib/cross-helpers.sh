@@ -46,6 +46,79 @@ cross_setup_hadrian_flags() {
 }
 
 # ==============================================================================
+# Cross-Compile Toolchain Environment Setup
+# ==============================================================================
+# Sets up toolchain environment variables for cross-compilation stages.
+# Consolidates toolchain exports from platform scripts.
+#
+# Parameters:
+#   $1 - stage: "stage0" (build-host tools) or "stage1" (target tools) [default: stage0]
+#
+# Required variables:
+#   - conda_host: Conda toolchain triple for build host
+#   - conda_target: Conda toolchain triple for target
+#   - BUILD_PREFIX: Build prefix path
+#   - AR_STAGE0: Archive tool for Stage0 (usually set by macos_setup_llvm_ar)
+#
+# Usage:
+#   setup_cross_toolchain_environment            # Uses stage0 (build-host) tools
+#   setup_cross_toolchain_environment "stage0"   # Explicit stage0
+#
+setup_cross_toolchain_environment() {
+  local stage="${1:-stage0}"
+
+  echo "  Setting up cross-compile toolchain for ${stage}..."
+
+  if [[ "${stage}" == "stage0" ]]; then
+    # Stage0 uses build-host tools (conda_host)
+    export AR="${AR_STAGE0:-${BUILD_PREFIX}/bin/${conda_host}-ar}"
+    export AS="${BUILD_PREFIX}/bin/${conda_host}-as"
+    export CC="${CC_FOR_BUILD:-${BUILD_PREFIX}/bin/${conda_host}-clang}"
+    export CXX="${BUILD_PREFIX}/bin/${conda_host}-clang++"
+    export LD="${BUILD_PREFIX}/bin/${conda_host}-ld"
+  else
+    # Later stages use target tools (conda_target)
+    export AR="${BUILD_PREFIX}/bin/${conda_target}-ar"
+    export AS="${BUILD_PREFIX}/bin/${conda_target}-as"
+    export CC="${BUILD_PREFIX}/bin/${conda_target}-clang"
+    export CXX="${BUILD_PREFIX}/bin/${conda_target}-clang++"
+    export LD="${BUILD_PREFIX}/bin/${conda_target}-ld"
+  fi
+
+  echo "    AR=${AR}"
+  echo "    CC=${CC}"
+}
+
+# ==============================================================================
+# Unified Pre-Stage1 Setup for Cross-Compilation
+# ==============================================================================
+# Standard pre-Stage1 setup shared by all cross-compile platforms.
+# Disables copy optimization and handles platform-specific toolchain setup.
+#
+# Usage:
+#   # In platform script:
+#   platform_pre_build_stage1() {
+#     cross_pre_stage1_standard
+#   }
+#
+cross_pre_stage1_standard() {
+  echo "  Running cross-compile pre-Stage1 setup..."
+
+  # CRITICAL: Disable Hadrian's copy optimization for cross-compilation.
+  # Without this, Hadrian would copy the bootstrap GHC binary instead of
+  # building a new cross-compiled binary.
+  disable_copy_optimization
+
+  # macOS requires explicit toolchain setup for Stage0 (clang paths).
+  # Linux cross-compile sets this via configure args instead.
+  if is_macos; then
+    setup_cross_toolchain_environment "stage0"
+  fi
+
+  echo "  ✓ Pre-Stage1 setup complete"
+}
+
+# ==============================================================================
 # Unified Cross-Compile Configure
 # ==============================================================================
 # Runs ./configure with cross-compilation settings for both Linux and macOS.

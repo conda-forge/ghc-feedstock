@@ -13,7 +13,8 @@ source:
     sha256: d053bf6ce1d588a75cfe8c9316269486e9d8fb89dcdf6fd92836fa2e3df61305
     patches:
       - if: aarch64 or ppc64le or arm64
-        then: patches/xcc-skip-ghcpkg-recache-BinaryDist.hs.patch
+        then:
+          - patches/xcc-skip-ghcpkg-recache-BinaryDist.hs.patch
       - if: not unix
         then:
           - patches/w64-use-conda-toolchain-Builder.hs.patch

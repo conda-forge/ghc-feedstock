@@ -48,9 +48,10 @@ platform_post_configure_ghc() {
   shared_post_configure_ghc "${ghc_triple}"
 }
 
-# Stage build hooks - update settings after executables are built
-platform_post_stage1_executables() { macos_update_stage_settings "stage0"; }
-platform_post_stage2_executables() { macos_update_stage_settings "stage1"; }
+# Unified stage settings patch hook (replaces deprecated post_stage*_executables)
+platform_patch_stage_settings() {
+  macos_update_stage_settings "$1"
+}
 
 platform_post_install() {
   shared_post_install_ghc "${ghc_triple}"

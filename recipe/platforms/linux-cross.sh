@@ -68,7 +68,8 @@ platform_configure_ghc() {
 # ==============================================================================
 
 platform_post_configure_ghc() {
-  cross_patch_system_config "${conda_target}"
+  # Use unified post-configure orchestrator (auto-detects Linux cross-compile)
+  shared_post_configure_ghc "${conda_target}"
 }
 
 # ==============================================================================
@@ -76,7 +77,8 @@ platform_post_configure_ghc() {
 # ==============================================================================
 
 platform_pre_build_hadrian() {
-  # Set CFLAGS and LDFLAGS for hadrian build
+  # Linux cross-compile needs explicit sysroot and library paths for GCC toolchain.
+  # (macOS Clang handles this automatically via SDK - see osx-arm64.sh for contrast)
   export CFLAGS="--sysroot=${CONDA_BUILD_SYSROOT} -march=nocona -mtune=haswell -ftree-vectorize -fPIC -fstack-protector-strong -fno-plt -O2 -ffunction-sections -pipe -isystem ${PREFIX}/include -fdebug-prefix-map=${SRC_DIR}=/usr/local/src/conda/ghc-${PKG_VERSION} -fdebug-prefix-map=${PREFIX}=/usr/local/src/conda-prefix"
   export LDFLAGS="-L${BUILD_PREFIX}/${conda_host}/lib -L${BUILD_PREFIX}/${conda_host}/sysroot/usr/lib ${LDFLAGS:-}"
 
@@ -85,29 +87,19 @@ platform_pre_build_hadrian() {
 }
 
 # ==============================================================================
-# Phase 7: Build Stage 1
+# Phase 6: Build Stage 1
 # ==============================================================================
 
 platform_pre_build_stage1() {
-  disable_copy_optimization
+  # Use shared cross-compile pre-Stage1 setup (disables copy optimization)
+  cross_pre_stage1_standard
 }
 
-platform_post_build_stage1() {
-  echo "  Updating Hadrian binary reference..."
-
-  # Find executable hadrian (after Stage1 build may have created new one)
-  local hadrian_bin=$(find "${SRC_DIR}/hadrian/dist-newstyle/build" -name hadrian -type f -executable | head -1)
-
-  if [[ -f "${hadrian_bin}" ]]; then
-    HADRIAN_CMD=("${hadrian_bin}" "-j${CPU_COUNT}" "--directory" "${SRC_DIR}")
-    echo "  Updated HADRIAN_CMD to: ${hadrian_bin}"
-  fi
-
-  # Update GHC to Stage1 for Stage2 build
-  export GHC="${SRC_DIR}/_build/ghc-stage1"
-  echo "  GHC for Stage2: ${GHC}"
-
-  echo "  ✓ Stage1 post-build complete"
+# Unified stage settings patch hook for consistent exe→patch→lib flow
+platform_patch_stage_settings() {
+  local stage="$1"
+  local settings_file="${SRC_DIR}/_build/${stage}/lib/settings"
+  _patch_stage_linker_flags "${settings_file}"
 }
 
 # ==============================================================================

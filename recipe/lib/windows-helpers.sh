@@ -334,6 +334,91 @@ patch_windows_system_config() {
 }
 
 # ==============================================================================
+# Stage Build Helpers
+# ==============================================================================
+
+# Build stage executables (ghc-bin, ghc-pkg, hsc2hs) for Windows
+# This is a helper - the caller controls patching order between calls.
+#
+# Parameters:
+#   $1 - stage: Stage number (1 or 2)
+#   $@ - extra_opts: Additional Hadrian options (e.g., --freeze1)
+#
+# Usage:
+#   windows_build_stage_executables 1                # Stage 1
+#   windows_build_stage_executables 2 --freeze1      # Stage 2 with freeze
+#
+windows_build_stage_executables() {
+  local stage="$1"
+  shift
+  local extra_opts="$*"
+
+  echo "  Building Stage ${stage} executables (Windows)..."
+
+  run_and_log "stage${stage}-ghc" "${HADRIAN_CMD[@]}" --flavour="${FLAVOUR}" "stage${stage}:exe:ghc-bin" ${extra_opts}
+  run_and_log "stage${stage}-pkg" "${HADRIAN_CMD[@]}" --flavour="${FLAVOUR}" "stage${stage}:exe:ghc-pkg" ${extra_opts}
+  run_and_log "stage${stage}-hsc2hs" "${HADRIAN_CMD[@]}" --flavour="${FLAVOUR}" "stage${stage}:exe:hsc2hs" ${extra_opts}
+
+  echo "  ✓ Stage ${stage} executables built"
+}
+
+# Build stage libraries for Windows
+#
+# Parameters:
+#   $1 - stage: Stage number (1 or 2)
+#   $@ - extra_opts: Additional Hadrian options (e.g., --freeze1)
+#
+windows_build_stage_libraries() {
+  local stage="$1"
+  shift
+  local extra_opts="$*"
+
+  echo "  Building Stage ${stage} libraries (Windows)..."
+
+  run_and_log "stage${stage}-lib" "${HADRIAN_CMD[@]}" --flavour="${FLAVOUR}" "stage${stage}:lib:ghc" ${extra_opts} || {
+    local exit_code=$?
+    echo "ERROR: stage${stage}:lib:ghc failed with exit code ${exit_code}"
+    exit ${exit_code}
+  }
+
+  echo "  ✓ Stage ${stage} libraries built"
+}
+
+# Install GHC from binary distribution (Windows copy method)
+# Creates binary-dist-dir and copies to PREFIX.
+#
+# Returns:
+#   0 on success, exits on failure
+#
+windows_bindist_install() {
+  echo "  Installing GHC from binary distribution (Windows)..."
+
+  # Create binary distribution directory
+  run_and_log "bindist" "${HADRIAN_CMD[@]}" binary-dist-dir \
+    --prefix="${_PREFIX}" --flavour="${FLAVOUR}" --freeze1 --freeze2 ${HADRIAN_STAGE_OPTS}
+
+  # Find and copy bindist
+  local ghc_target="x86_64-unknown-mingw32"
+  local bindist_dir
+  bindist_dir=$(find "${_SRC_DIR}/_build/bindist" -name "ghc-${PKG_VERSION}-${ghc_target}" -type d | head -1)
+
+  if [[ -z "${bindist_dir}" ]]; then
+    echo "ERROR: Could not find binary distribution directory"
+    echo "Looking for: ghc-${PKG_VERSION}-${ghc_target}"
+    ls -la "${_SRC_DIR}/_build/bindist/" || true
+    exit 1
+  fi
+
+  echo "  Copying from: ${bindist_dir}"
+  cp -r "${bindist_dir}"/* "${_PREFIX}"/
+
+  # Install windres wrapper
+  cp "${_BUILD_PREFIX}/Library/bin/windres.bat" "${_PREFIX}/bin/ghc_windres.bat"
+
+  echo "  ✓ Binary distribution installed"
+}
+
+# ==============================================================================
 # Post-Install Helpers
 # ==============================================================================
 

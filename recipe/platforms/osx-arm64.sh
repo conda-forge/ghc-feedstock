@@ -73,8 +73,8 @@ platform_configure_ghc() {
 }
 
 platform_post_configure_ghc() {
-  # Use orchestrator for all post-configure patches (cross + macOS-specific + bootstrap)
-  macos_cross_post_configure "${conda_host}" "${conda_target}"
+  # Use unified post-configure orchestrator (auto-detects macOS cross-compile)
+  shared_post_configure_ghc "${conda_target}"
 }
 
 # ==============================================================================
@@ -91,15 +91,8 @@ platform_pre_build_hadrian() {
 # ==============================================================================
 
 platform_pre_build_stage1() {
-  disable_copy_optimization
-
-  # Set up build environment for stage1 (using build-host tools)
-  export AR="${AR_STAGE0}"
-  export AS="${BUILD_PREFIX}/bin/${conda_host}-as"
-  export CC="${BUILD_PREFIX}/bin/${conda_host}-clang"
-  export CXX="${BUILD_PREFIX}/bin/${conda_host}-clang++"
-  export LD="${BUILD_PREFIX}/bin/${conda_host}-ld"
-  # Note: Symlinks for host tools created in platform_setup_environment
+  # Use shared cross-compile pre-Stage1 setup (disables copy optimization, macOS toolchain)
+  cross_pre_stage1_standard
 }
 
 # Platform hook for stage settings patches (llvm-ar, library paths)

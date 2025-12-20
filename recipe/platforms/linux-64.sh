@@ -26,10 +26,21 @@ FLAVOUR="release"
 configure_triples
 
 # ==============================================================================
-# Phase 4b: Post-Configure (patch Hadrian system.config)
+# Phase 4b: Post-Configure (uses shared orchestrator for consistency)
 # ==============================================================================
 
 platform_post_configure_ghc() {
-  # Patch Hadrian system.config with library paths and doc placeholders
-  patch_settings "${SRC_DIR}/hadrian/cfg/system.config" --linker-flags --doc-placeholders
+  # Use shared orchestrator (auto-detects native Linux and applies linker-flags + doc-placeholders)
+  shared_post_configure_ghc "${ghc_triple}"
+}
+
+# ==============================================================================
+# Stage Settings Hook (exe→patch→lib pattern)
+# ==============================================================================
+
+# Unified stage settings patch hook for consistent build flow
+platform_patch_stage_settings() {
+  local stage="$1"
+  local settings_file="${SRC_DIR}/_build/${stage}/lib/settings"
+  _patch_stage_linker_flags "${settings_file}"
 }

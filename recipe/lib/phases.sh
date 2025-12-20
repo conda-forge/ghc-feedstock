@@ -17,6 +17,28 @@
 #
 # The generic run_phase() executor handles all phases uniformly.
 # Requires: helpers.sh (for run_and_log, build_*, call_hook)
+#
+# ==============================================================================
+# SHARED ORCHESTRATORS (helpers.sh)
+# ==============================================================================
+# Use these unified orchestrators in platform scripts for consistency:
+#
+# Configure Phase:
+#   shared_configure_ghc(build, host, [target])    - Native builds
+#   shared_cross_configure_ghc(extra_ldflags)      - Cross-compile
+#   shared_post_configure_ghc(toolchain_prefix)    - Post-configure patching
+#
+# Stage Build Phase:
+#   cross_pre_stage1_standard()                    - Cross-compile pre-Stage1
+#   build_stage_executables(stage, [extra_opts])   - Build exe targets
+#   build_stage_libraries(stage, [extra_opts])     - Build lib targets
+#
+# Install Phase:
+#   shared_install_ghc([target], [extra_args])     - Auto-detects native/cross
+#   shared_post_install_ghc([target], [expect_fail]) - Post-install validation
+#
+# Platform scripts should prefer orchestrators over inline implementations.
+# This ensures consistent behavior and simplifies maintenance.
 # ==============================================================================
 
 set -eu
@@ -314,12 +336,11 @@ default_install_ghc() {
 phase_post_install() { run_phase 9 "post_install" "Post-Install"; }
 
 default_post_install() {
-  # Verify installation
-  echo "  Verifying GHC installation..."
-  "${PREFIX}/bin/ghc" --version || {
-    echo "ERROR: Installed GHC failed to run"
-    exit 1
-  }
+  # Verify all expected binaries exist
+  verify_installed_binaries || exit 1
+
+  # Verify GHC runs (uses helper from helpers.sh)
+  verify_installed_ghc || exit 1
 
   # Install bash completion (uses helper from helpers.sh)
   install_bash_completion
