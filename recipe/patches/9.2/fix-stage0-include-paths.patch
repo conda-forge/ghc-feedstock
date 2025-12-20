@@ -1,0 +1,34 @@
+From: conda-forge
+Subject: [PATCH] Add source tree include paths for Stage0 C compilation
+
+When cross-version bootstrapping (e.g., using GHC 9.6.7 to build GHC 9.2.8),
+Stage0 utilities like hsc2hs have C sources (cbits/utils.c) that include
+GHC headers like HsBase.h and HsFFI.h.
+
+The original code only adds -Iincludes for notStage0 builds, assuming
+Stage0 would use bootstrap headers. But when compiling source tree code
+at Stage0, we need access to the source tree's headers.
+
+Without this patch, the build fails with:
+  Error, file does not exist and no rule available:
+    HsFFI.h
+
+This patch:
+- Adds -Iincludes for all stages (not just notStage0)
+- Adds -Ilibraries/base/include for packages that need base's C headers
+
+--- a/hadrian/src/Settings/Builders/Common.hs
++++ b/hadrian/src/Settings/Builders/Common.hs
+@@ -27,7 +27,11 @@ cIncludeArgs = do
+     depDirs <- getContextData depIncludeDirs
+     stage <- getStage
+     libPath <- expr $ stageLibPath stage
+-    mconcat [ notStage0 ||^ package compiler ? arg "-Iincludes"
++    -- Always add source tree includes for packages with C sources needing
++    -- GHC headers. This is essential for cross-version bootstrap where
++    -- Stage0 utilities like hsc2hs need HsFFI.h and HsBase.h.
++    mconcat [ arg "-Iincludes"
++            , arg "-Ilibraries/base/include"
+             , arg $ "-I" ++ libPath
+             , arg $ "-I" ++ path
+             -- Add @incDirs@ in the build directory, since some files generated

@@ -82,6 +82,9 @@ source:
           # When we skip RTS registration at Stage0, hackRtsPackage must not error
           # if no RTS is found - bootstrap GHC uses its global DB's RTS instead.
           - patches/${{ ghc_major }}/fix-hadrian-missing-rts-stage0.patch
+          # Add source tree include paths for Stage0 C compilation
+          # Stage0 utilities like hsc2hs have C sources needing HsFFI.h/HsBase.h
+          - patches/${{ ghc_major }}/fix-stage0-include-paths.patch
           # Fix Hadrian configurePackageRules to need .conf files before configure
           # Cabal.configurePackage needs dependencies registered in package database
           # Without this: "missing dependencies: ghc-boot-th ==9.2.8"
