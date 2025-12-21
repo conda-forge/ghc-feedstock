@@ -33,21 +33,31 @@ This patch:
  
  import Hadrian.Haskell.Cabal.Type
  import qualified Text.Parsec      as Parsec
-@@ -105,6 +107,13 @@
+@@ -105,6 +107,22 @@
          pkgName <- getPackageNameFromConfFile conf
          let pkg = unsafeFindPackageByName pkgName
  
-+        -- Skip RTS registration at Stage0 for cross-version bootstrap.
++        -- Copy bootstrap's RTS at Stage0 for cross-version bootstrap.
 +        -- Stage0 utilities link against bootstrap libs expecting bootstrap's
-+        -- RTS symbols. By not registering our RTS, ghc falls back to global DB.
++        -- RTS symbols. We copy bootstrap's RTS with --expand-pkgroot to get
++        -- absolute paths, so the linker can find the compatible RTS library.
 +        when (stage == Stage0 && pkg == rts) $ do
-+            writeFileLines conf []
++            liftIO $ putStrLn "# Copying bootstrap RTS to Stage0 (cross-version bootstrap)"
++            pkgDbPath <- packageDbPath stage
++            ghcPkgPath <- builderPath (GhcPkg Init stage)
++            -- Get bootstrap's RTS with expanded absolute paths
++            Stdout rtsDesc <- cmd [ghcPkgPath]
++                ["--expand-pkgroot", "--no-user-package-db", "describe", "rts"]
++            liftIO $ writeFile conf rtsDesc
++            cmd_ [ghcPkgPath]
++                ["--no-user-package-db", "--global-package-db", pkgDbPath
++                , "update", conf, "-v0", "--force"]
 +            return ()
 +
          when (pkg == compiler) $ need =<< ghcLibDeps stage
  
          isBoot <- (pkg `notElem`) <$> stagePackages Stage0
-@@ -164,7 +173,27 @@
+@@ -164,7 +182,27 @@
  copyConf rs context@Context {..} conf = do
      depPkgIds <- fmap stdOutToPkgIds . askWithResources rs $
          target context (GhcPkg Dependencies stage) [pkgName package] []
@@ -76,7 +86,7 @@ This patch:
      -- We should unregister if the file exists since @ghc-pkg@ will complain
      -- about existing package: https://github.com/snowleopard/hadrian/issues/543.
      -- Also, we don't always do the unregistration + registration to avoid
-@@ -175,11 +204,42 @@
+@@ -175,11 +213,42 @@
      unlessM (liftIO $ IO.doesFileExist conf) $ do
          buildWithResources rs $
              target context (GhcPkg Unregister stage) [pkgName package] []
