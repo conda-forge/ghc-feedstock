@@ -1,5 +1,5 @@
 From: conda-forge
-Subject: [PATCH] Fix ghc-pkg copy for cross-version bootstrap on Windows
+Subject: [PATCH] Fix ghc-pkg copy for cross-version bootstrap on Windows (Fix #17)
 
 When using GHC 9.6.7 to build GHC 9.2.8 on Windows, several issues arise:
 
@@ -15,13 +15,19 @@ When using GHC 9.6.7 to build GHC 9.2.8 on Windows, several issues arise:
 4. Stdin piping issues on Windows/MSYS2 with ghc-pkg register.
 
 This patch:
-- Skips RTS registration at Stage0 (use bootstrap's RTS from global DB)
+- Skips RTS registration at Stage0 entirely (writes empty .conf to satisfy Shake)
+- Let bootstrap GHC fall back to its global package database for RTS
 - Guards case statement to prevent copyConf/buildConf for RTS at Stage0
 - Remaps dependency versions from bootstrap to source before calling need
 - Filters RTS from dependencies in copyConf
 - Uses --expand-pkgroot to get absolute paths
 - Uses ghc-pkg update (file-based) instead of register (stdin-based)
 - Rewrites depends: field in .conf files with correct source versions
+
+Fix #17: Removed RTS copy logic that used --expand-pkgroot. The expanded
+paths on Windows/MSYS2 may be in the wrong format for the MinGW linker.
+Instead, we skip RTS registration entirely and let GHC's linker driver
+fall back to the bootstrap's global package database.
 
 --- a/hadrian/src/Rules/Register.hs
 +++ b/hadrian/src/Rules/Register.hs
@@ -34,26 +40,20 @@ This patch:
 
  import Hadrian.Haskell.Cabal.Type
  import qualified Text.Parsec      as Parsec
-@@ -105,14 +107,31 @@
+@@ -105,14 +107,26 @@
          pkgName <- getPackageNameFromConfFile conf
          let pkg = unsafeFindPackageByName pkgName
 
-+        -- Copy bootstrap's RTS at Stage0 for cross-version bootstrap.
++        -- Skip RTS registration at Stage0 for cross-version bootstrap.
 +        -- Stage0 utilities link against bootstrap libs expecting bootstrap's
-+        -- RTS symbols. We copy bootstrap's RTS with --expand-pkgroot to get
-+        -- absolute paths, so the linker can find the compatible RTS library.
++        -- RTS symbols. We do NOT register RTS in Stage0 package database.
++        -- GHC's linker driver will fall back to bootstrap's global package
++        -- database which has the compatible RTS with correct library paths.
 +        let skipRtsAtStage0 = stage == Stage0 && pkg == rts
 +        when skipRtsAtStage0 $ do
-+            liftIO $ putStrLn "# Copying bootstrap RTS to Stage0 (cross-version bootstrap)"
-+            pkgDbPath <- packageDbPath stage
-+            ghcPkgPath <- builderPath (GhcPkg Init stage)
-+            -- Get bootstrap's RTS with expanded absolute paths
-+            Stdout rtsDesc <- cmd [ghcPkgPath]
-+                ["--expand-pkgroot", "--no-user-package-db", "describe", "rts"]
-+            liftIO $ writeFile conf rtsDesc
-+            cmd_ [ghcPkgPath]
-+                ["--no-user-package-db", "--global-package-db", pkgDbPath
-+                , "update", conf, "-v0", "--force"]
++            liftIO $ putStrLn "# Skipping RTS at Stage0 (using bootstrap's RTS from global DB)"
++            -- Write empty conf file to satisfy Shake dependency tracking
++            writeFileLines conf []
 +
          when (pkg == compiler) $ need =<< ghcLibDeps stage
 
@@ -63,13 +63,14 @@ This patch:
          case stage of
 -            Stage0 | isBoot -> copyConf  rs ctx conf
 -            _               -> buildConf rs ctx conf
-+            Stage0 | isBoot && not skipRtsAtStage0 -> copyConf rs ctx conf
-+            _ | not skipRtsAtStage0 -> buildConf rs ctx conf
-+            _ -> return ()  -- RTS at Stage0: already handled above
++            -- Skip RTS at Stage0 - don't copyConf or buildConf
++            _ | skipRtsAtStage0 -> return ()
++            Stage0 | isBoot -> copyConf rs ctx conf
++            _ -> buildConf rs ctx conf
 
  buildConf :: [(Resource, Int)] -> Context -> FilePath -> Action ()
  buildConf _ context@Context {..} _conf = do
-@@ -164,7 +183,26 @@
+@@ -164,7 +178,26 @@
  copyConf rs context@Context {..} conf = do
      depPkgIds <- fmap stdOutToPkgIds . askWithResources rs $
          target context (GhcPkg Dependencies stage) [pkgName package] []
@@ -97,7 +98,7 @@ This patch:
      -- We should unregister if the file exists since @ghc-pkg@ will complain
      -- about existing package: https://github.com/snowleopard/hadrian/issues/543.
      -- Also, we don't always do the unregistration + registration to avoid
-@@ -175,11 +213,42 @@
+@@ -175,11 +208,42 @@
      unlessM (liftIO $ IO.doesFileExist conf) $ do
          buildWithResources rs $
              target context (GhcPkg Unregister stage) [pkgName package] []
