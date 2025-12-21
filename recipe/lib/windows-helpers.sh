@@ -440,7 +440,7 @@ post_install_cleanup() {
   done
 
   # Update settings file to use conda-forge toolchain
-  local settings_file=$(find "${_PREFIX}"/lib/ -name settings | head -1)
+  local settings_file=$(get_installed_settings_file "${_PREFIX}")
   if [[ -f "${settings_file}" ]]; then
     echo "  Updating installed settings file..."
 

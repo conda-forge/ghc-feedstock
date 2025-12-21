@@ -8,7 +8,7 @@
 # Usage:
 #   patch_settings <file> [options...]
 #
-# Options:
+# Atomic Options:
 #   --linker-flags[=PREFIX]     Add library paths and rpaths (default: $PREFIX)
 #   --doc-placeholders          Add xelatex/sphinx-build/makeindex placeholders
 #   --strip-build-prefix[=EXC]  Strip BUILD_PREFIX from tools (optional exclude pattern)
@@ -19,10 +19,19 @@
 #   --macos-ar-ranlib[=TC]      Set macOS LLVM ar/ranlib config
 #   --installed                 Apply installed GHC settings transformations
 #
+# Compound Options (combine multiple atomic options):
+#   --linux-cross=TARGET        Cross-compile configure: strip-build-prefix=python + fix-python
+#                               + toolchain-prefix=TARGET + linker-flags + doc-placeholders
+#   --macos-native=TC           Native macOS configure: strip-build-prefix + toolchain-prefix=TC
+#                               + linker-flags + doc-placeholders
+#   --macos-stage=TC            macOS stage settings: platform-link-flags + macos-ar-ranlib
+#   --macos-bootstrap-cross=HOST  macOS bootstrap cross-compile: verbose + BUILD_PREFIX paths
+#                               + llvm-ar/ranlib + host tool prefixes
+#
 # Examples:
 #   patch_settings "${SRC_DIR}/hadrian/cfg/system.config" --linker-flags --doc-placeholders
-#   patch_settings "${settings_file}" --strip-build-prefix=python --fix-python --toolchain-prefix=aarch64-conda-linux-gnu
-#   patch_settings "${settings_file}" --platform-link-flags --macos-ar-ranlib
+#   patch_settings "${settings_file}" --linux-cross=aarch64-conda-linux-gnu
+#   patch_settings "${settings_file}" --macos-stage="${CONDA_TOOLCHAIN_HOST}"
 #
 # ==============================================================================
 
@@ -59,6 +68,35 @@ patch_settings() {
 
       --installed=*) toolchain="${1#*=}"; _patch_installed_settings "${toolchain}" ;;
       --installed)   _patch_installed_settings "${toolchain}" ;;
+
+      # Compound modes (combine multiple atomic operations)
+      --linux-cross=*)
+        local target="${1#*=}"
+        _patch_strip_build_prefix "${file}" "python"
+        _patch_fix_python "${file}"
+        _patch_toolchain_prefix "${file}" "${target}" "${tools}"
+        _patch_linker_flags "${file}" "${prefix}"
+        _patch_doc_placeholders "${file}"
+        ;;
+
+      --macos-native=*)
+        local tc="${1#*=}"
+        _patch_strip_build_prefix "${file}" ""
+        _patch_toolchain_prefix "${file}" "${tc}" "${tools}"
+        _patch_linker_flags "${file}" "${prefix}"
+        _patch_doc_placeholders "${file}"
+        ;;
+
+      --macos-stage=*)
+        local tc="${1#*=}"
+        _patch_platform_link_flags "${file}" "${tc}" "${prefix}"
+        _patch_macos_ar_ranlib "${file}" "${tc}"
+        ;;
+
+      --macos-bootstrap-cross=*)
+        local host="${1#*=}"
+        _patch_macos_bootstrap_cross "${file}" "${host}"
+        ;;
     esac
     shift
   done
@@ -157,6 +195,33 @@ _patch_platform_link_flags() {
   perl -pi -e "s#\"[/\w]*?(ar|clang|clang\+\+|ld|ranlib|llc|objdump|opt)\"#\"${toolchain}-\$1\"#" "${file}"
 }
 
+# macOS bootstrap cross-compile settings
+# Patches the bootstrap GHC settings for cross-compilation from x86_64 to arm64.
+# This ensures Stage0 (which runs on the build machine) has correct paths/tools.
+#
+# Parameters:
+#   $1 - file: Path to bootstrap settings file
+#   $2 - host: Host toolchain triple (e.g., x86_64-apple-darwin13.4.0)
+#
+_patch_macos_bootstrap_cross() {
+  local file="$1" host="$2"
+
+  # Add verbose flag to help debug cross-compile issues
+  perl -pi -e 's#(C compiler flags", "[^"]*)#$1 -v#' "${file}"
+
+  # Add BUILD_PREFIX library paths for stage0 linking (x86_64 libs)
+  # Stage0 runs on x86_64, so it needs x86_64 libffi/libiconv from BUILD_PREFIX
+  perl -pi -e "s#(C compiler link flags\", \"[^\"]*)#\$1 -fno-lto -Wl,-L${BUILD_PREFIX}/lib -Wl,-rpath,${BUILD_PREFIX}/lib#" "${file}"
+  perl -pi -e "s#(ld flags\", \"[^\"]*)#\$1 -L${BUILD_PREFIX}/lib -rpath ${BUILD_PREFIX}/lib#" "${file}"
+
+  # Fix ar and ranlib commands for cross (use llvm tools)
+  perl -pi -e 's#(ar command", ")[^"]*#$1llvm-ar#' "${file}"
+  perl -pi -e 's#(ranlib command", ")[^"]*#$1llvm-ranlib#' "${file}"
+
+  # Fix tool commands with host prefix (clang, llc, opt need x86_64 versions)
+  perl -pi -e "s#((llc|opt|clang) command\", \")[^\"]*#\$1${host}-\$2#" "${file}"
+}
+
 # macOS LLVM ar/ranlib configuration
 _patch_macos_ar_ranlib() {
   local file="$1" toolchain="${2:-x86_64-apple-darwin13.4.0}"
@@ -176,7 +241,7 @@ _patch_macos_ar_ranlib() {
 # Installed GHC settings transformations
 _patch_installed_settings() {
   local toolchain="${1:-$CONDA_TOOLCHAIN_HOST}"
-  local file=$(find "${PREFIX}/lib" -name settings | head -n 1)
+  local file=$(get_installed_settings_file)
 
   case "${target_platform}" in
     linux-*)

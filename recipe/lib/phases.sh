@@ -259,6 +259,52 @@ default_build_hadrian() {
   echo "  Hadrian binary: ${hadrian_bin}"
 }
 
+# Smart default: Set up cross-compile environment before building Hadrian
+# Auto-detects cross-compile mode and calls cross_setup_hadrian_environment.
+# Eliminates platform_pre_build_hadrian() from linux-cross, osx-arm64.
+#
+# For native builds: no-op (Hadrian build handles everything)
+# For cross builds: Sets up CFLAGS/LDFLAGS (Linux) and Hadrian cabal flags
+#
+default_pre_build_hadrian() {
+  if is_cross_compile; then
+    cross_setup_hadrian_environment
+  fi
+}
+
+# ==============================================================================
+# 3-STEP STAGE BUILD PATTERN (All Platforms)
+# ==============================================================================
+# Both Stage 1 and Stage 2 builds follow a consistent 3-step pattern:
+#
+#   Step 1: BUILD EXECUTABLES
+#           build_stage_executables N → ghc-bin, ghc-pkg, hsc2hs
+#           Hooks: pre_stageN_executables, post_stageN_ghc_bin, post_stageN_executables
+#
+#   Step 2: PATCH STAGE SETTINGS
+#           shared_patch_stage_settings "stageN-1" → platform-specific patching
+#           - Linux: adds library paths (-L$topdir/../../../lib) and rpath
+#           - macOS: uses llvm-ar and platform link flags
+#           - Windows: handled via granular hooks (post_stageN_ghc_bin) instead
+#
+#   Step 3: BUILD LIBRARIES
+#           build_stage_libraries N → stage{N}:lib:ghc
+#           Hooks: pre_stageN_libraries, post_stageN_libraries
+#           Override: platform_build_stageN_libraries() for full control
+#
+# This pattern is implemented in default_build_stage1() and default_build_stage2().
+#
+# Cross-Compile Note:
+#   Before Stage 1, cross-compile builds run cross_pre_stage1_standard() which:
+#   - Disables Hadrian's copy optimization (critical for cross-compile)
+#   - Sets up toolchain environment for macOS
+#
+# Windows Note:
+#   Windows uses additional granular hooks between exe and lib steps for
+#   settings patching (include paths for Stage 1, link flags for Stage 2).
+#   The pattern is the same: exe → patch → lib.
+# ==============================================================================
+
 # ==============================================================================
 # Phase 6: Build Stage 1
 # ==============================================================================
@@ -315,8 +361,8 @@ default_build_stage2() {
 phase_install_ghc() { run_phase 8 "install_ghc" "Install GHC"; }
 
 default_install_ghc() {
-  # Use shared bindist_install helper (native build - no target triple)
-  bindist_install
+  # Use shared helper which auto-detects native vs cross-compile
+  shared_install_ghc
 }
 
 # ==============================================================================
@@ -326,16 +372,9 @@ default_install_ghc() {
 phase_post_install() { run_phase 9 "post_install" "Post-Install"; }
 
 default_post_install() {
-  # Verify all expected binaries exist
-  verify_installed_binaries || exit 1
-
-  # Verify GHC runs (uses helper from helpers.sh)
-  verify_installed_ghc || exit 1
-
-  # Install bash completion (uses helper from helpers.sh)
-  install_bash_completion
-
-  echo "  GHC installed successfully"
+  # Use auto-detecting post-install orchestrator
+  # Handles both native and cross-compile scenarios with appropriate options
+  shared_post_install_ghc_auto
 }
 
 # ==============================================================================

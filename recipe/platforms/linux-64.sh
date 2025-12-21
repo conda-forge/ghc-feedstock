@@ -3,13 +3,10 @@
 # Platform Configuration: Linux x86_64 (Native)
 # ==============================================================================
 # Linux-specific build behavior.
-# Most phases use defaults from common-functions.sh
+# Most phases use defaults from phases.sh (call_hook falls back to default_*)
 # ==============================================================================
 
 set -eu
-
-# Source common hook defaults (provides no-op implementations)
-source "${RECIPE_DIR}/lib/common-hooks.sh"
 
 # Platform metadata
 PLATFORM_NAME="Linux x86_64 (native)"

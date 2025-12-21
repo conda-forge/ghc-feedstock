@@ -15,7 +15,6 @@
 
 set -eu
 
-source "${RECIPE_DIR}/lib/common-hooks.sh"
 source "${RECIPE_DIR}/lib/cross-helpers.sh"
 
 # Platform metadata
@@ -62,60 +61,9 @@ platform_setup_environment() {
 #
 #   configure_ghc         → default_cross_configure_ghc() (shared_cross_configure_ghc)
 #   post_configure_ghc    → default_post_configure_ghc() auto-detects cross
+#   pre_build_hadrian     → default_pre_build_hadrian() calls cross_setup_hadrian_environment
 #   pre_build_stage1      → default_pre_build_stage1() calls cross_pre_stage1_standard
 #   patch_stage_settings  → default_build_stage1/2() uses patch_settings dispatcher
+#   install_ghc           → default_install_ghc() uses shared_install_ghc() (auto-detects cross)
+#   post_install          → default_post_install() uses shared_post_install_ghc_auto()
 # ==============================================================================
-
-# ==============================================================================
-# Phase 6: Build Hadrian - uses default with cross-compile flags
-# ==============================================================================
-
-platform_pre_build_hadrian() {
-  # Linux cross-compile needs explicit sysroot and library paths for GCC toolchain.
-  # (macOS Clang handles this automatically via SDK - see osx-arm64.sh for contrast)
-  export CFLAGS="--sysroot=${CONDA_BUILD_SYSROOT} -march=nocona -mtune=haswell -ftree-vectorize -fPIC -fstack-protector-strong -fno-plt -O2 -ffunction-sections -pipe -isystem ${PREFIX}/include -fdebug-prefix-map=${SRC_DIR}=/usr/local/src/conda/ghc-${PKG_VERSION} -fdebug-prefix-map=${PREFIX}=/usr/local/src/conda-prefix"
-  export LDFLAGS="-L${BUILD_PREFIX}/${conda_host}/lib -L${BUILD_PREFIX}/${conda_host}/sysroot/usr/lib ${LDFLAGS:-}"
-
-  # Set up Hadrian cabal flags using cross-compile helper
-  cross_setup_hadrian_flags
-}
-
-# ==============================================================================
-# Phase 9: Install
-# ==============================================================================
-
-patch_final_settings() {
-  echo "  Patching final settings file..."
-
-  local settings_file=$(find "${PREFIX}/lib/" -name settings | head -1)
-
-  if [[ ! -f "${settings_file}" ]]; then
-    echo "ERROR: Could not find settings file in ${PREFIX}/lib/"
-    return 1
-  fi
-
-  # Fix architecture references
-  perl -pi -e "s#${host_arch}(-[^ \"]*)#${target_arch}\$1#g" "${settings_file}"
-
-  # Add relocatable library paths
-  perl -pi -e "s#(C compiler link flags\", \"[^\"]*)#\$1 -Wl,-L\\\$topdir/../../../lib -Wl,-rpath,\\\$topdir/../../../lib#" "${settings_file}"
-  perl -pi -e "s#(ld flags\", \"[^\"]*)#\$1 -L\\\$topdir/../../../lib -rpath \\\$topdir/../../../lib#" "${settings_file}"
-
-  # Fix tool paths to use target prefix (strip absolute BUILD_PREFIX paths)
-  # Pattern: Match full quoted path, capture the target prefix (e.g., aarch64-conda-linux-gnu-)
-  # and tool name, then replace with just prefix+tool (no absolute path)
-  perl -pi -e "s#\"[^\"]*/([^/]*-)(ar|as|clang|clang\+\+|ld|nm|objdump|ranlib|llc|opt)\"#\"\$1\$2\"#g" "${settings_file}"
-
-  echo "  ✓ Final settings patched"
-}
-
-platform_install_ghc() {
-  # Use shared cross-compile bindist install helper
-  cross_bindist_install "${ghc_target}"
-}
-
-platform_post_install() {
-  patch_final_settings
-  # Use shared cross-compile post-install (wrapper fixes, ghci fix, symlinks, bash completion)
-  cross_post_install "${ghc_target}"
-}

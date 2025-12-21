@@ -665,9 +665,12 @@ disable_copy_optimization() {
 
 call_hook() {
   local hook_name="platform_$1"
+  local default_name="default_$1"
   shift  # Remove hook name, remaining args passed to hook
   if type -t "${hook_name}" >/dev/null 2>&1; then
     "${hook_name}" "$@"
+  elif type -t "${default_name}" >/dev/null 2>&1; then
+    "${default_name}" "$@"
   fi
 }
 
@@ -800,42 +803,133 @@ shared_install_ghc() {
 }
 
 # Unified post-install verification and setup
-# Handles cross-compile patches, macOS settings, verification, and completion.
+# Handles cross-compile and native builds with auto-detection.
+#
+# Cross-compile builds:
+#   - Calls cross_patch_installed_settings() for arch fixes, relocatable paths
+#   - Delegates to cross_post_install() for wrapper fixes, symlinks, verification
+#
+# Native builds:
+#   - Handles macOS-specific patches (llvm-ar settings)
+#   - Verifies GHC and installs bash completion
 #
 # Parameters:
 #   $1 - target: Target triple (optional, defaults to ghc_target)
-#   $2 - expect_failure: "true" to allow GHC verification failure (optional)
+#   $2 - options: Space-separated options (optional):
+#        --no-arch-patch   : Skip cross_patch_installed_settings (macOS arm64)
+#        --llvm-ar         : Apply llvm-ar patching (macOS cross-compile)
+#        --no-wrapper-fix  : Skip wrapper fixes (passed to cross_post_install)
+#        --expect-failure  : Expect verify_installed_ghc to fail (cross-compile)
 #
 # Usage:
-#   shared_post_install_ghc                      # Native build
-#   shared_post_install_ghc "${ghc_target}"      # Cross-compile (auto-detects)
-#   shared_post_install_ghc "${target}" "true"   # Explicit expect_failure
+#   shared_post_install_ghc                          # Native build
+#   shared_post_install_ghc "${ghc_target}"          # Cross-compile (Linux)
+#   shared_post_install_ghc "${target}" "--no-arch-patch --llvm-ar --no-wrapper-fix --expect-failure"
 #
 shared_post_install_ghc() {
-  local target="${1:-${ghc_target:-}}"
-  local expect_failure="${2:-false}"
+  local target="${1:-${ghc_target:-${conda_target:-}}}"
+  local options="${2:-}"
 
-  # Cross-compile specific patches
-  if is_cross_compile && type -t patch_final_settings >/dev/null 2>&1; then
-    patch_final_settings
+  # Parse options
+  local skip_arch_patch=false
+  local apply_llvm_ar=false
+  local expect_failure=false
+  local no_wrapper_fix=""
+
+  [[ "${options}" == *"--no-arch-patch"* ]] && skip_arch_patch=true
+  [[ "${options}" == *"--llvm-ar"* ]] && apply_llvm_ar=true
+  [[ "${options}" == *"--expect-failure"* ]] && expect_failure=true
+  [[ "${options}" == *"--no-wrapper-fix"* ]] && no_wrapper_fix="no-wrapper-fix"
+
+  # Cross-compile: delegate to cross-helpers.sh functions
+  if is_cross_compile; then
+    # Patch installed settings (arch fixes, relocatable paths, tool path cleanup)
+    # Skip for macOS arm64 which doesn't need arch substitution (Mach-O triples)
+    if [[ "${skip_arch_patch}" != "true" ]]; then
+      cross_patch_installed_settings "${target}"
+    fi
+
+    # Apply llvm-ar patching if requested (required for macOS/Apple ld64)
+    if [[ "${apply_llvm_ar}" == "true" ]]; then
+      local settings_file
+      settings_file=$(get_installed_settings_file)
+      if [[ -f "${settings_file}" ]]; then
+        patch_settings "${settings_file}" --macos-ar-ranlib="${CONDA_TOOLCHAIN_BUILD:-}"
+      fi
+    fi
+
+    # Full cross-compile post-install (wrappers, symlinks, verification, completion)
+    cross_post_install "${target}" "${no_wrapper_fix}"
+
+    # Verify GHC runs (optional - cross-compiled binary may fail, that's expected)
+    if [[ "${expect_failure}" == "true" ]]; then
+      verify_installed_ghc "true"
+    fi
+
+    return
   fi
+
+  # Native build handling
 
   # macOS-specific installed settings
   if is_macos; then
     patch_settings "" --installed="${target}"
     local settings_file
-    settings_file=$(find "${PREFIX}/lib" -name settings | head -n 1)
+    settings_file=$(get_installed_settings_file)
     if [[ -f "${settings_file}" ]]; then
       patch_settings "${settings_file}" --macos-ar-ranlib="${CONDA_TOOLCHAIN_BUILD:-}"
     fi
   fi
 
   # Verify and install completion
-  if is_cross_compile; then
-    expect_failure="true"
-  fi
-  verify_installed_ghc "${expect_failure}"
+  verify_installed_ghc
   install_bash_completion
+}
+
+# Auto-detecting post-install wrapper
+# Determines options from platform characteristics, eliminating manual option passing.
+#
+# Parameters:
+#   $1 - target: Target triple (optional, auto-detected from ghc_target/conda_target/ghc_triple)
+#
+# Auto-detected options based on platform:
+#   - macOS (all): --llvm-ar (Apple ld64 requires BSD ar format)
+#   - Cross-compile: --expect-failure
+#   - macOS cross-compile: --no-arch-patch --no-wrapper-fix (in addition to above)
+#
+# Usage:
+#   shared_post_install_ghc_auto                    # Full auto-detection
+#   shared_post_install_ghc_auto "${ghc_target}"    # Explicit target
+#
+shared_post_install_ghc_auto() {
+  local target="${1:-}"
+  local options=""
+
+  # Auto-detect target if not provided
+  if [[ -z "${target}" ]]; then
+    if is_cross_compile; then
+      target="${ghc_target:-${conda_target:-}}"
+    else
+      target="${ghc_triple:-}"
+    fi
+  fi
+
+  # Build options based on platform characteristics
+  if is_macos; then
+    # macOS: Always use llvm-ar (Apple ld64 requires BSD ar format, not GNU ar)
+    options+=" --llvm-ar"
+  fi
+
+  if is_cross_compile; then
+    options+=" --expect-failure"
+    if is_macos; then
+      # macOS arm64: no arch substitution needed for Mach-O,
+      # no "./" prefix bug, cross-compiled binary won't run on build host
+      options+=" --no-arch-patch --no-wrapper-fix"
+    fi
+  fi
+
+  shared_post_install_ghc "${target}" "${options}"
 }
 
 # ==============================================================================
@@ -877,6 +971,23 @@ shared_patch_stage_settings() {
 # ==============================================================================
 # Platform Utility Helpers
 # ==============================================================================
+
+# Find the installed GHC settings file
+# Searches PREFIX/lib/ for the settings file created during installation.
+#
+# Parameters:
+#   $1 - prefix: Installation prefix (optional, defaults to PREFIX)
+#
+# Returns: Path to settings file, or empty string if not found
+#
+# Usage:
+#   local settings=$(get_installed_settings_file)
+#   local settings=$(get_installed_settings_file "${BUILD_PREFIX}")
+#
+get_installed_settings_file() {
+  local prefix="${1:-${PREFIX}}"
+  find "${prefix}/lib" -name settings 2>/dev/null | head -1
+}
 
 # Get the script file extension for the current platform
 # Returns "sh" for Unix platforms, "bat" for Windows

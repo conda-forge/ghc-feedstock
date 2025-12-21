@@ -49,7 +49,7 @@ mkdir -p _logs
 # Load framework modules
 source "${RECIPE_DIR}/lib/helpers.sh"         # Utility functions (logging, nameref, settings)
 source "${RECIPE_DIR}/lib/phases.sh"          # Build phases (phase_xxx, default_xxx)
-source "${RECIPE_DIR}/lib/platform-detect.sh" # Platform detection and routing
+source "${RECIPE_DIR}/lib/detect-platform.sh" # Platform detection and routing
 
 # Detect platform and load configuration
 # This sets PLATFORM_NAME and sources platforms/xxx.sh

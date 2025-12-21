@@ -12,7 +12,7 @@ _ghc_triple_for_platform() {
     linux-64)       echo "x86_64-unknown-linux-gnu" ;;
     linux-aarch64)  echo "aarch64-unknown-linux-gnu" ;;
     linux-ppc64le)  echo "powerpc64le-unknown-linux-gnu" ;;
-    osx-64)         echo "x86_64-apple-darwin13.4.0" ;;  # GHC 9.6.x specific
+    osx-64)         echo "x86_64-apple-darwin13.4.0" ;;
     osx-arm64)      echo "aarch64-apple-darwin" ;;
     win-64)         echo "x86_64-unknown-mingw32" ;;
     *)              echo "${build_alias:-unknown}" ;;

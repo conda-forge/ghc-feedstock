@@ -13,7 +13,6 @@
 
 set -eu
 
-source "${RECIPE_DIR}/lib/common-hooks.sh"
 source "${RECIPE_DIR}/lib/macos-common.sh"
 
 # Platform metadata
@@ -48,9 +47,7 @@ platform_setup_environment() {
 #   configure_ghc         → default_configure_ghc() delegates to shared_configure_ghc()
 #   post_configure_ghc    → default_post_configure_ghc() auto-detects native macOS
 #   patch_stage_settings  → shared_patch_stage_settings() auto-detects macOS
+#   install_ghc           → default_install_ghc() uses shared_install_ghc()
+#   post_install          → default_post_install() uses shared_post_install_ghc_auto()
 #
 # No platform overrides needed - macOS native uses all defaults except environment.
-
-platform_post_install() {
-  shared_post_install_ghc "${ghc_triple}"
-}

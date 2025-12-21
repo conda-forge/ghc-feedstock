@@ -70,6 +70,29 @@ macos_setup_llvm_ar() {
 }
 
 # ==============================================================================
+# Create Host Tool Symlinks for Cross-Compilation
+# ==============================================================================
+# Creates symlinks for ar, as, ld pointing to the host toolchain versions.
+# Needed for Stage 1 build on macOS cross-compilation (osx-arm64).
+#
+# Parameters:
+#   $1 - host_prefix (optional): Toolchain prefix, defaults to conda_host
+#
+# Usage:
+#   macos_create_host_tool_symlinks
+#   macos_create_host_tool_symlinks "x86_64-apple-darwin13.4.0"
+#
+macos_create_host_tool_symlinks() {
+  local host_prefix="${1:-${conda_host}}"
+
+  echo "  Creating host tool symlinks..."
+  for tool in ar as ld; do
+    ln -sf "${BUILD_PREFIX}/bin/${host_prefix}-${tool}" "${BUILD_PREFIX}/bin/${tool}" 2>/dev/null || true
+  done
+  echo "  ✓ Host tool symlinks created: ar, as, ld"
+}
+
+# ==============================================================================
 # system.config Patching for Native macOS (osx-64)
 # ==============================================================================
 # Patches hadrian/cfg/system.config for native macOS builds.
@@ -236,6 +259,7 @@ macos_patch_bootstrap_settings() {
 
   echo "  Found: ${settings_file}"
 
+  # Common operations for both modes:
   # Remove problematic libiconv2 reference (if present)
   perl -pi -e "s#[^ ]+/usr/lib/libiconv2.tbd##" "${settings_file}"
 
@@ -243,26 +267,12 @@ macos_patch_bootstrap_settings() {
   perl -pi -e 's#(C compiler flags", "[^"]*)#$1 -fno-lto#' "${settings_file}"
   perl -pi -e 's#(C\+\+ compiler flags", "[^"]*)#$1 -fno-lto#' "${settings_file}"
 
-  # Cross-compilation needs additional patching
+  # Mode-specific patching via unified patch_settings()
   if [[ "${cross_mode}" == "cross" ]]; then
-    # Add verbose flag to help debug cross-compile issues
-    perl -pi -e 's#(C compiler flags", "[^"]*)#$1 -v#' "${settings_file}"
-
-    # Add BUILD_PREFIX library paths for stage0 linking (x86_64 libs)
-    # Stage0 runs on x86_64, so it needs x86_64 libffi/libiconv from BUILD_PREFIX
-    perl -pi -e "s#(C compiler link flags\", \"[^\"]*)#\$1 -fno-lto -Wl,-L${BUILD_PREFIX}/lib -Wl,-rpath,${BUILD_PREFIX}/lib#" "${settings_file}"
-    perl -pi -e "s#(ld flags\", \"[^\"]*)#\$1 -L${BUILD_PREFIX}/lib -rpath ${BUILD_PREFIX}/lib#" "${settings_file}"
-
-    # Fix ar and ranlib commands for cross
-    if [[ -n "${AR_STAGE0:-}" ]]; then
-      perl -pi -e "s#(ar command\", \")[^\"]*#\$1${AR_STAGE0}#" "${settings_file}"
-    fi
-    perl -pi -e "s#(ranlib command\", \")[^\"]*#\$1llvm-ranlib#" "${settings_file}"
-
-    # Fix tool commands with host prefix
-    perl -pi -e "s#((llc|opt|clang) command\", \")[^\"]*#\$1${toolchain}-\$2#" "${settings_file}"
+    # Cross-compile: verbose flag, BUILD_PREFIX paths, llvm-ar/ranlib, host tool prefixes
+    patch_settings "${settings_file}" --macos-bootstrap-cross="${toolchain}"
   else
-    # Native mode: use patch_settings() directly
+    # Native mode: platform-specific link flags and llvm ar/ranlib
     patch_settings "${settings_file}" --platform-link-flags="${toolchain}"
     patch_settings "${settings_file}" --macos-ar-ranlib="${toolchain}"
   fi
@@ -329,8 +339,8 @@ macos_update_stage_settings() {
 
   [[ -f "${settings_file}" ]] || return 0
 
-  patch_settings "${settings_file}" --platform-link-flags="${toolchain}"
-  patch_settings "${settings_file}" --macos-ar-ranlib="${toolchain}"
+  # Compound mode: platform-link-flags + macos-ar-ranlib in one call
+  patch_settings "${settings_file}" --macos-stage="${toolchain}"
 }
 
 macos_complete_setup() {

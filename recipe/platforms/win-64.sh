@@ -17,9 +17,6 @@
 
 set -eu
 
-# Source common hook defaults (provides no-op implementations)
-source "${RECIPE_DIR}/lib/common-hooks.sh"
-
 # Source Windows-specific helper functions
 source "${RECIPE_DIR}/lib/windows-helpers.sh"
 

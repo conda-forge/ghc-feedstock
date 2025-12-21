@@ -17,8 +17,6 @@
 
 set -eu
 
-# Source common hook defaults (provides no-op implementations)
-source "${RECIPE_DIR}/lib/common-hooks.sh"
 source "${RECIPE_DIR}/lib/cross-helpers.sh"
 source "${RECIPE_DIR}/lib/macos-common.sh"
 
@@ -49,9 +47,7 @@ platform_setup_environment() {
   macos_setup_llvm_ar
 
   # Create symlinks for host tools (needed for stage1 build)
-  ln -sf "${BUILD_PREFIX}/bin/${conda_host}-ar" "${BUILD_PREFIX}/bin/ar" 2>/dev/null || true
-  ln -sf "${BUILD_PREFIX}/bin/${conda_host}-as" "${BUILD_PREFIX}/bin/as" 2>/dev/null || true
-  ln -sf "${BUILD_PREFIX}/bin/${conda_host}-ld" "${BUILD_PREFIX}/bin/ld" 2>/dev/null || true
+  macos_create_host_tool_symlinks
 
   echo "  ✓ macOS cross-compilation environment ready"
 }
@@ -71,17 +67,9 @@ platform_setup_environment() {
 #
 #   configure_ghc         → default_cross_configure_ghc() (shared_cross_configure_ghc)
 #   post_configure_ghc    → default_post_configure_ghc() auto-detects cross
+#   pre_build_hadrian     → default_pre_build_hadrian() calls cross_setup_hadrian_environment
 #   pre_build_stage1      → default_pre_build_stage1() calls cross_pre_stage1_standard
 # ==============================================================================
-
-# ==============================================================================
-# Phase 5: Build Hadrian - uses default with cross-compile flags
-# ==============================================================================
-
-platform_pre_build_hadrian() {
-  # Set up Hadrian cabal flags using cross-compile helper
-  cross_setup_hadrian_flags
-}
 
 # ==============================================================================
 # Phase 6-7: Stage Builds
@@ -104,23 +92,13 @@ platform_post_stage1_executables() {
 platform_install_ghc() {
   # Use shared cross-compile bindist install with macOS-specific C++ std lib skip
   # (avoids configure failing on libc++ link test which runs x86_64 tests)
+  # NOTE: This override is required - CXX_STD_LIB_LIBS cannot be auto-detected
   cross_bindist_install "${conda_target}" "CXX_STD_LIB_LIBS='c++ c++abi'"
 }
 
 # ==============================================================================
-# Phase 9: Post-Install
+# Phase 9: Post-Install - Now handled by smart defaults
 # ==============================================================================
-
-platform_post_install() {
-  # Use shared cross-compile post-install (macOS doesn't need wrapper fixes)
-  cross_post_install "${conda_target}" "no-wrapper-fix"
-
-  # Update installed settings with llvm-ar (required for Apple ld64)
-  local settings_file=$(find "${PREFIX}/lib" -name settings | head -n 1)
-  [[ -f "${settings_file}" ]] && patch_settings "${settings_file}" --macos-ar-ranlib="${CONDA_TOOLCHAIN_BUILD}"
-
-  # Verify installation (cross-compiled binary may fail to run - that's expected)
-  verify_installed_ghc "true"
-
-  echo "  ✓ macOS arm64 post-install complete"
-}
+# default_post_install() uses shared_post_install_ghc_auto() which auto-detects:
+#   - macOS cross-compile: --no-arch-patch --llvm-ar --no-wrapper-fix --expect-failure
+# No platform override needed.

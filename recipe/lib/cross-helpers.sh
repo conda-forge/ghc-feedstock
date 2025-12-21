@@ -25,18 +25,19 @@ _get_target_triple() {
 # Call this before phase_build_hadrian() to use default_build_hadrian().
 #
 # IMPORTANT: Platform-specific pre-build setup differences:
-#   - Linux cross-compile: Requires explicit CFLAGS/LDFLAGS with --sysroot
-#     BEFORE calling this function. Linux GCC toolchain doesn't automatically
-#     find sysroot libraries. See linux-cross.sh:platform_pre_build_hadrian().
+#   - Linux cross-compile: Requires explicit CFLAGS/LDFLAGS with --sysroot.
+#     Linux GCC toolchain doesn't automatically find sysroot libraries.
 #
-#   - macOS cross-compile: Only needs to call this function. macOS Clang
-#     handles sysroot/SDK paths automatically via CONDA_BUILD_SYSROOT.
-#     See osx-arm64.sh:platform_pre_build_hadrian().
+#   - macOS cross-compile: No explicit flags needed. macOS Clang handles
+#     sysroot/SDK paths automatically via CONDA_BUILD_SYSROOT.
 #
-# This difference is intentional - do not attempt to unify.
+# These differences are intentional and are now encapsulated in the unified
+# cross_setup_hadrian_environment() function below. Platform scripts should
+# call that function instead of duplicating the platform-specific logic.
 #
 # Usage:
-#   cross_setup_hadrian_flags
+#   cross_setup_hadrian_flags       # Low-level: just sets HADRIAN_CABAL_FLAGS
+#   cross_setup_hadrian_environment # High-level: handles CFLAGS/LDFLAGS + flags
 #
 cross_setup_hadrian_flags() {
   echo "  Setting up Hadrian cabal flags for cross-compilation..."
@@ -54,6 +55,42 @@ cross_setup_hadrian_flags() {
   fi
 
   echo "  HADRIAN_CABAL_FLAGS: ${HADRIAN_CABAL_FLAGS[*]}"
+}
+
+# ==============================================================================
+# Cross-Compile Hadrian Environment Setup (Unified Interface)
+# ==============================================================================
+# Sets up complete Hadrian build environment for cross-compilation.
+# Unifies the interface while preserving platform-specific behavior:
+#   - Linux: exports CFLAGS/LDFLAGS with sysroot (GCC needs explicit paths)
+#   - macOS: relies on Clang's automatic SDK handling (no flags needed)
+# Then calls cross_setup_hadrian_flags for both platforms.
+#
+# This function consolidates the logic that was previously duplicated in:
+#   - linux-cross.sh:platform_pre_build_hadrian()
+#   - osx-arm64.sh:platform_pre_build_hadrian()
+#
+# Usage:
+#   platform_pre_build_hadrian() {
+#     cross_setup_hadrian_environment
+#   }
+#
+cross_setup_hadrian_environment() {
+  echo "  Setting up Hadrian cross-compile environment..."
+
+  if is_linux; then
+    # Linux GCC needs explicit sysroot and library paths.
+    # Without these, GCC cannot find headers and libraries in the cross-sysroot.
+    # (macOS Clang handles this automatically via CONDA_BUILD_SYSROOT)
+    export CFLAGS="--sysroot=${CONDA_BUILD_SYSROOT} -march=nocona -mtune=haswell -ftree-vectorize -fPIC -fstack-protector-strong -fno-plt -O2 -ffunction-sections -pipe -isystem ${PREFIX}/include -fdebug-prefix-map=${SRC_DIR}=/usr/local/src/conda/ghc-${PKG_VERSION} -fdebug-prefix-map=${PREFIX}=/usr/local/src/conda-prefix"
+    export LDFLAGS="-L${BUILD_PREFIX}/${conda_host}/lib -L${BUILD_PREFIX}/${conda_host}/sysroot/usr/lib ${LDFLAGS:-}"
+    echo "  ✓ Linux sysroot flags set for GCC toolchain"
+  else
+    echo "  ℹ macOS Clang uses automatic SDK handling (no explicit flags needed)"
+  fi
+
+  # Both platforms: set Hadrian cabal flags (--with-ghc, --with-ar, etc.)
+  cross_setup_hadrian_flags
 }
 
 # ==============================================================================
@@ -437,6 +474,29 @@ GHCI_EOF
 }
 
 # ==============================================================================
+# Combined Wrapper Fixes for Cross-Compiled GHC
+# ==============================================================================
+# Applies all wrapper fixes in one call: fixes "./" prefix in wrapper scripts
+# and replaces broken ghci wrapper with correct ghc --interactive script.
+#
+# Parameters:
+#   $1 - target_triple (optional, uses ghc_target/conda_target if not provided)
+#
+cross_fix_all_wrappers() {
+  local target="${1:-$(_get_target_triple)}"
+
+  if [[ -z "${target}" ]]; then
+    echo "ERROR: cross_fix_all_wrappers requires target triple"
+    return 1
+  fi
+
+  echo "  Applying all wrapper fixes..."
+  cross_fix_wrapper_scripts "${target}"
+  cross_fix_ghci_wrapper "${target}"
+  echo "  ✓ All wrapper fixes applied"
+}
+
+# ==============================================================================
 # Common Post-Configure for Cross-Compilation
 # ==============================================================================
 # Standard system.config patching for cross-compile builds.
@@ -459,21 +519,17 @@ cross_patch_system_config() {
 
   local settings_file="${SRC_DIR}/hadrian/cfg/system.config"
 
-  # Strip BUILD_PREFIX from tool paths (exclude python - it runs on build host)
-  patch_settings "${settings_file}" --strip-build-prefix=python
-
-  # Fix Python path for cross-compile
-  patch_settings "${settings_file}" --fix-python
-
-  # Add toolchain prefix to tools
-  if [[ -n "${tools}" ]]; then
-    patch_settings "${settings_file}" --tools="${tools}" --toolchain-prefix="${target}"
+  # Use compound mode for standard case, atomic options for custom tools
+  if [[ -z "${tools}" ]]; then
+    # Compound mode: strip-build-prefix=python + fix-python + toolchain-prefix + linker-flags + doc-placeholders
+    patch_settings "${settings_file}" --linux-cross="${target}"
   else
-    patch_settings "${settings_file}" --toolchain-prefix="${target}"
+    # Custom tools: use atomic options
+    patch_settings "${settings_file}" --strip-build-prefix=python
+    patch_settings "${settings_file}" --fix-python
+    patch_settings "${settings_file}" --tools="${tools}" --toolchain-prefix="${target}"
+    patch_settings "${settings_file}" --linker-flags --doc-placeholders
   fi
-
-  # Add library paths and rpath
-  patch_settings "${settings_file}" --linker-flags --doc-placeholders
 
   echo "  ✓ System config patched for cross-compilation"
 }
@@ -497,13 +553,14 @@ cross_post_install() {
     return 1
   fi
 
-  # Fix wrapper scripts (Linux needs this, macOS may not)
+  # Apply wrapper fixes (combined function handles both script fixes and ghci)
+  # Use "no-wrapper-fix" to skip only the "./" prefix fixes but still fix ghci
   if [[ "${options}" != *"no-wrapper-fix"* ]]; then
-    cross_fix_wrapper_scripts "${target}"
+    cross_fix_all_wrappers "${target}"
+  else
+    # Skip script fixes but still fix ghci wrapper
+    cross_fix_ghci_wrapper "${target}"
   fi
-
-  # Fix ghci wrapper
-  cross_fix_ghci_wrapper "${target}"
 
   # Create symlinks
   cross_create_symlinks "${target}"
@@ -549,4 +606,55 @@ cross_bindist_install() {
   [[ -n "${platform_extra}" ]] && extra_args+=" ${platform_extra}"
 
   bindist_install "${target}" "${extra_args}"
+}
+
+# ==============================================================================
+# Patch Installed Settings for Cross-Compiled GHC
+# ==============================================================================
+# Patches the installed settings file for cross-compiled GHC to:
+#   1. Fix architecture references (host_arch → target_arch)
+#   2. Add relocatable library paths (-L$topdir/../../../lib -rpath...)
+#   3. Strip absolute BUILD_PREFIX paths from tool names
+#
+# This function handles the final settings patching that must happen after
+# installation when host and target architectures differ.
+#
+# Parameters:
+#   $1 - target (optional): Target triple, defaults to ghc_target/conda_target
+#
+# Required Variables:
+#   - host_arch: Build host architecture (e.g., "x86_64")
+#   - target_arch: Target architecture (e.g., "aarch64", "ppc64le")
+#
+# Usage:
+#   cross_patch_installed_settings
+#   cross_patch_installed_settings "${ghc_target}"
+#
+cross_patch_installed_settings() {
+  local target="${1:-$(_get_target_triple)}"
+
+  echo "  Patching installed settings for cross-compile..."
+
+  local settings_file
+  settings_file=$(get_installed_settings_file)
+
+  if [[ ! -f "${settings_file}" ]]; then
+    echo "  WARNING: Could not find settings file in ${PREFIX}/lib/"
+    return 0
+  fi
+
+  # Fix architecture references (e.g., x86_64 → aarch64)
+  # This handles tool paths and other arch-specific strings
+  perl -pi -e "s#${host_arch}(-[^ \"]*)#${target_arch}\$1#g" "${settings_file}"
+
+  # Add relocatable library paths for conda prefix
+  # These ensure the installed GHC can find conda-forge libraries at runtime
+  perl -pi -e "s#(C compiler link flags\", \"[^\"]*)#\$1 -Wl,-L\\\$topdir/../../../lib -Wl,-rpath,\\\$topdir/../../../lib#" "${settings_file}"
+  perl -pi -e "s#(ld flags\", \"[^\"]*)#\$1 -L\\\$topdir/../../../lib -rpath \\\$topdir/../../../lib#" "${settings_file}"
+
+  # Strip absolute tool paths - keep just the target prefix and tool name
+  # Pattern: "/full/path/to/aarch64-conda-linux-gnu-ar" → "aarch64-conda-linux-gnu-ar"
+  perl -pi -e "s#\"[^\"]*/([^/]*-)(ar|as|clang|clang\+\+|ld|nm|objdump|ranlib|llc|opt)\"#\"\$1\$2\"#g" "${settings_file}"
+
+  echo "  ✓ Installed settings patched for ${target_arch}"
 }
