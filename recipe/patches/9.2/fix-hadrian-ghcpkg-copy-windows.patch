@@ -1,5 +1,5 @@
 From: conda-forge
-Subject: [PATCH] Fix ghc-pkg copy for cross-version bootstrap on Windows (Fix #17)
+Subject: [PATCH] Fix ghc-pkg copy for cross-version bootstrap on Windows (Fix #18)
 
 When using GHC 9.6.7 to build GHC 9.2.8 on Windows, several issues arise:
 
@@ -15,19 +15,17 @@ When using GHC 9.6.7 to build GHC 9.2.8 on Windows, several issues arise:
 4. Stdin piping issues on Windows/MSYS2 with ghc-pkg register.
 
 This patch:
-- Skips RTS registration at Stage0 entirely (writes empty .conf to satisfy Shake)
-- Let bootstrap GHC fall back to its global package database for RTS
-- Guards case statement to prevent copyConf/buildConf for RTS at Stage0
+- Copies bootstrap's RTS to Stage0 package database with absolute paths
 - Remaps dependency versions from bootstrap to source before calling need
-- Filters RTS from dependencies in copyConf
-- Uses --expand-pkgroot to get absolute paths
+- Filters RTS from dependencies in other packages (they get it via inheritance)
+- Uses --expand-pkgroot to get absolute paths for all copied packages
 - Uses ghc-pkg update (file-based) instead of register (stdin-based)
 - Rewrites depends: field in .conf files with correct source versions
 
-Fix #17: Removed RTS copy logic that used --expand-pkgroot. The expanded
-paths on Windows/MSYS2 may be in the wrong format for the MinGW linker.
-Instead, we skip RTS registration entirely and let GHC's linker driver
-fall back to the bootstrap's global package database.
+Fix #18: The linker needs RTS symbols when linking Stage0 utilities. GHC
+does NOT automatically fall back to its global package database for library
+resolution. We must copy bootstrap's RTS (with expanded absolute paths) into
+Stage0's package database so the linker can find libHSrts.a.
 
 --- a/hadrian/src/Rules/Register.hs
 +++ b/hadrian/src/Rules/Register.hs
@@ -44,16 +42,25 @@ fall back to the bootstrap's global package database.
          pkgName <- getPackageNameFromConfFile conf
          let pkg = unsafeFindPackageByName pkgName
 
-+        -- Skip RTS registration at Stage0 for cross-version bootstrap.
++        -- Handle RTS specially at Stage0 for cross-version bootstrap.
 +        -- Stage0 utilities link against bootstrap libs expecting bootstrap's
-+        -- RTS symbols. We do NOT register RTS in Stage0 package database.
-+        -- GHC's linker driver will fall back to bootstrap's global package
-+        -- database which has the compatible RTS with correct library paths.
-+        let skipRtsAtStage0 = stage == Stage0 && pkg == rts
-+        when skipRtsAtStage0 $ do
-+            liftIO $ putStrLn "# Skipping RTS at Stage0 (using bootstrap's RTS from global DB)"
-+            -- Write empty conf file to satisfy Shake dependency tracking
-+            writeFileLines conf []
++        -- RTS symbols. We must copy bootstrap's RTS (with absolute paths) to
++        -- Stage0 package database so the linker can find libHSrts.a.
++        -- GHC does NOT fall back to global DB for library resolution.
++        let copyRtsAtStage0 = stage == Stage0 && pkg == rts
++        when copyRtsAtStage0 $ do
++            liftIO $ putStrLn "# Copying bootstrap RTS to Stage0 (for linker compatibility)"
++            pkgDbPath <- packageDbPath stage
++            ghcPkgPath <- builderPath (GhcPkg Init stage)
++            -- Get bootstrap's RTS description with absolute paths
++            Stdout rtsDesc <- cmd [ghcPkgPath]
++                ["--expand-pkgroot", "--no-user-package-db", "describe", "rts"]
++            liftIO $ writeFile conf rtsDesc
++            -- Register in Stage0 package database
++            cmd_ [ghcPkgPath]
++                ["--no-user-package-db", "--global-package-db", pkgDbPath
++                , "update", conf, "-v0", "--force"]
++            liftIO $ putStrLn $ "# Registered bootstrap RTS at " ++ conf
 +
          when (pkg == compiler) $ need =<< ghcLibDeps stage
 
@@ -63,8 +70,8 @@ fall back to the bootstrap's global package database.
          case stage of
 -            Stage0 | isBoot -> copyConf  rs ctx conf
 -            _               -> buildConf rs ctx conf
-+            -- Skip RTS at Stage0 - don't copyConf or buildConf
-+            _ | skipRtsAtStage0 -> return ()
++            -- RTS at Stage0 is handled above (copy bootstrap's RTS)
++            _ | copyRtsAtStage0 -> return ()
 +            Stage0 | isBoot -> copyConf rs ctx conf
 +            _ -> buildConf rs ctx conf
 
@@ -84,7 +91,7 @@ fall back to the bootstrap's global package database.
 +        let depName = case parseCabalName depPkgId of
 +                Left _ -> depPkgId  -- Fallback to original if parse fails
 +                Right (name, _) -> name
-+        -- Filter out RTS at Stage0 (not registered, use bootstrap's)
++        -- Filter RTS from Shake dependencies (handled specially, not via copyConf)
 +        if depName == "rts" || "rts-" `isPrefixOf` depPkgId
 +            then return Nothing
 +            else case filter (\p -> pkgName p == depName) srcPackages of
@@ -135,7 +142,8 @@ fall back to the bootstrap's global package database.
 +        fixDependsLine line =
 +            let (prefix, rest) = break (== ':') line
 +                deps = drop 1 rest
-+                fixed = filter (not . ("rts-" `isPrefixOf`)) $ map fixDep $ words deps
++                -- Keep rts in depends (bootstrap's RTS is now registered in Stage0)
++                fixed = map fixDep $ words deps
 +            in prefix ++ ": " ++ unwords fixed
 +        fixDep dep = case parseCabalName dep of
 +            Right (name, _) -> maybe dep id $ lookup name remappings
