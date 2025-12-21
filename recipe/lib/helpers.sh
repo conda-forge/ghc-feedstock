@@ -326,6 +326,9 @@ build_configure_args() {
   # Platform-specific additions
   if [[ "${target_platform:-}" == linux-* ]]; then
     _result+=(--disable-numa)
+  elif [[ "${target_platform:-}" == "win-64" ]]; then
+    # Use conda-provided toolchain, don't download MSYS2 tarballs
+    _result+=(--enable-distro-toolchain)
   fi
 
   # Optional LDFLAGS
