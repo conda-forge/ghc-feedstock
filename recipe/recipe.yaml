@@ -78,10 +78,8 @@ source:
           # ghc-pkg describe | ghc-pkg register - fails randomly on Windows/MSYS2
           # This patch uses a temp file instead of stdin for package registration
           - patches/${{ ghc_major }}/fix-hadrian-ghcpkg-copy-windows.patch
-          # Handle missing RTS in Stage0 package database for cross-bootstrap
-          # When we skip RTS registration at Stage0, hackRtsPackage must not error
-          # if no RTS is found - bootstrap GHC uses its global DB's RTS instead.
-          - patches/${{ ghc_major }}/fix-hadrian-missing-rts-stage0.patch
+          # NOTE: fix-hadrian-missing-rts-stage0.patch removed - RTS now built
+          # from source normally (reverted to dfa7633 approach)
           # Add source tree include paths for Stage0 C compilation
           # Stage0 utilities like hsc2hs have C sources needing HsFFI.h/HsBase.h
           - patches/${{ ghc_major }}/fix-stage0-include-paths.patch
