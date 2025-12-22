@@ -118,16 +118,19 @@ macos_patch_system_config() {
   # Strip BUILD_PREFIX from tool paths
   patch_settings "${settings_file}" --strip-build-prefix
 
-  # macOS-specific: Use llvm-ar instead of GNU ar (Apple ld64 compatibility)
-  # - 'ar' line: used for stage builds
+  # macOS-specific: Use llvm-ar/llvm-ranlib instead of GNU ar (Apple ld64 compatibility)
+  # - 'ar' line: used for stage builds (may be full path like /path/to/ar)
+  # - 'ranlib' line: used for stage builds (llvm-ar with qcs doesn't need ranlib, but set anyway)
   # - 'system-ar' line: used by Hadrian for builds
   # - 'settings-ar-command' line: used for installed GHC (what ends up in package)
-  perl -pi -e 's#(=\s+)(ar)$#$1llvm-$2#' "${settings_file}"
-  perl -pi -e "s#(system-ar\\s*?=\\s).*#\$1${AR:-llvm-ar}#" "${settings_file}"
-  perl -pi -e 's#(settings-ar-command\s*?=\s).*#$1llvm-ar#' "${settings_file}"
+  # Match any value and replace with llvm-ar/llvm-ranlib
+  perl -pi -e 's#(^ar\s*=\s*).*#$1llvm-ar#' "${settings_file}"
+  perl -pi -e 's#(^ranlib\s*=\s*).*#$1llvm-ranlib#' "${settings_file}"
+  perl -pi -e "s#(system-ar\\s*=\\s*).*#\$1${AR:-llvm-ar}#" "${settings_file}"
+  perl -pi -e 's#(settings-ar-command\s*=\s*).*#$1llvm-ar#' "${settings_file}"
 
-  # Add toolchain prefix to tools
-  patch_settings "${settings_file}" --toolchain-prefix="${toolchain}"
+  # Add toolchain prefix to tools (exclude ar/ranlib - already set to llvm-*)
+  patch_settings "${settings_file}" --tools="clang clang++ llc nm opt" --toolchain-prefix="${toolchain}"
 
   # Add library paths and rpath
   patch_settings "${settings_file}" --linker-flags --doc-placeholders

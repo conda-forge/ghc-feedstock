@@ -908,9 +908,10 @@ shared_post_install_ghc_auto() {
   # Auto-detect target if not provided
   if [[ -z "${target}" ]]; then
     if is_cross_compile; then
-      # Use conda_target for file operations - matches installed file prefixes
-      # (e.g., arm64-apple-darwin20.0.0) not ghc_target (e.g., aarch64-apple-darwin)
-      target="${conda_target:-${ghc_target:-}}"
+      # Use target_alias for file operations - matches installed file prefixes
+      # Linux uses ghc_target (aarch64-unknown-linux-gnu), macOS uses conda_target (arm64-apple-darwin20.0.0)
+      # target_alias is exported by configure_triples() to match what bindist actually uses
+      target="${target_alias:-${conda_target:-${ghc_target:-}}}"
     else
       target="${ghc_triple:-}"
     fi
