@@ -111,6 +111,10 @@ source:
           # INFO_TABLE_FUN gained an extra SRT offset parameter in GHC 9.6+.
           # We need to add the extra 0 parameter for the bootstrap CMM parser.
           - patches/${{ ghc_major }}/fix-info-table-fun-bootstrap-compat.patch
+          # Fix RTS compilation with GCC 15 (conda-forge toolchain)
+          # GCC 15 has stricter warnings. Hadrian's rtsWarnings enables -Wredundant-decls
+          # which fails on duplicate ioManagerFinished declaration. Add -Wno-* flags after.
+          - patches/${{ ghc_major }}/fix-hadrian-rts-gcc15-warnings.patch
 
       # macOS-specific patches
       - if: osx
