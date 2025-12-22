@@ -908,7 +908,9 @@ shared_post_install_ghc_auto() {
   # Auto-detect target if not provided
   if [[ -z "${target}" ]]; then
     if is_cross_compile; then
-      target="${ghc_target:-${conda_target:-}}"
+      # Use conda_target for file operations - matches installed file prefixes
+      # (e.g., arm64-apple-darwin20.0.0) not ghc_target (e.g., aarch64-apple-darwin)
+      target="${conda_target:-${ghc_target:-}}"
     else
       target="${ghc_triple:-}"
     fi

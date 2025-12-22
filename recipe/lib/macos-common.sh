@@ -119,7 +119,12 @@ macos_patch_system_config() {
   patch_settings "${settings_file}" --strip-build-prefix
 
   # macOS-specific: Use llvm-ar instead of GNU ar (Apple ld64 compatibility)
+  # - 'ar' line: used for stage builds
+  # - 'system-ar' line: used by Hadrian for builds
+  # - 'settings-ar-command' line: used for installed GHC (what ends up in package)
   perl -pi -e 's#(=\s+)(ar)$#$1llvm-$2#' "${settings_file}"
+  perl -pi -e "s#(system-ar\\s*?=\\s).*#\$1${AR:-llvm-ar}#" "${settings_file}"
+  perl -pi -e 's#(settings-ar-command\s*?=\s).*#$1llvm-ar#' "${settings_file}"
 
   # Add toolchain prefix to tools
   patch_settings "${settings_file}" --toolchain-prefix="${toolchain}"
