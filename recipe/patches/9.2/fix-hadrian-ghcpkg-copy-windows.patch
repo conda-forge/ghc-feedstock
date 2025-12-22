@@ -1,5 +1,5 @@
 From: Claude <noreply@anthropic.com>
-Subject: [PATCH] Fix Stage0 package registration for mixed bootstrap/source deps
+Subject: [PATCH] Fix Stage0 package registration for mixed bootstrap/source deps (Fix #20)
 
 When using a newer bootstrap GHC (e.g., 9.6.7 to build 9.2.8), copyConf
 queries bootstrap's package database for dependencies. These dependencies
@@ -27,12 +27,16 @@ This patch makes three changes:
    versions, then updates the package database (using 'update' instead
    of 'register' for idempotency in parallel builds).
 
-Reverted from dfa7633 - removing --expand-pkgroot which caused regression.
-Let RTS be built from source normally instead of special handling.
+Fix #20: Check BOTH Stage0 AND Stage1 packages when determining if a
+package exists in source. Core libraries (base, ghc-prim, ghc-bignum,
+array, deepseq, pretty) are defined in Stage1 (see Settings/Default.hs
+lines 98-122), NOT Stage0. Without this fix, these packages are
+incorrectly classified as boot-only and the build tries to copy
+base-4.18.3.0 from bootstrap instead of building base-4.16.4.0 from source.
 
 --- a/hadrian/src/Rules/Register.hs
 +++ b/hadrian/src/Rules/Register.hs
-@@ -107,7 +107,27 @@ registerPackageRules rs stage = do
+@@ -107,7 +107,33 @@ registerPackageRules rs stage = do
 
          when (pkg == compiler) $ need =<< ghcLibDeps stage
 
@@ -43,9 +47,15 @@ Let RTS be built from source normally instead of special handling.
 +        -- copyConf unregisters by package NAME (not version), which would
 +        -- remove the source version and cause dependency resolution failures.
 +        --
++        -- FIX #20: Must check BOTH Stage0 AND Stage1 packages. Core libraries
++        -- (base, ghc-prim, ghc-bignum, array, deepseq, pretty) are defined in
++        -- Stage1 (Settings/Default.hs lines 98-122), NOT Stage0!
++        --
 +        -- SPECIAL CASE: RTS is not in stagePackages but MUST be built from
 +        -- source (it has its own build rules). Never use copyConf for RTS.
-+        notInSource <- (pkg `notElem`) <$> stagePackages Stage0
++        stage0Pkgs <- stagePackages Stage0
++        stage1Pkgs <- stagePackages Stage1
++        let notInSource = pkg `notElem` (stage0Pkgs ++ stage1Pkgs)
 +        -- Note: pkgName here is a local String variable from getPackageNameFromConfFile
 +        let isRts = pkgName == "rts"
 +        srcPkgId <- pkgIdentifier pkg
@@ -61,7 +71,7 @@ Let RTS be built from source normally instead of special handling.
 
          let ctx = Context stage pkg vanilla
          case stage of
-@@ -164,7 +184,26 @@ registerPackageRules rs stage = do
+@@ -164,7 +190,29 @@ registerPackageRules rs stage = do
  copyConf rs context@Context {..} conf = do
      depPkgIds <- fmap stdOutToPkgIds . askWithResources rs $
          target context (GhcPkg Dependencies stage) [pkgName package] []
@@ -70,7 +80,10 @@ Let RTS be built from source normally instead of special handling.
 +    -- in source. This is needed because bootstrap dependencies have bootstrap
 +    -- versions (e.g., template-haskell-2.20.0.0) but we need source versions
 +    -- (e.g., template-haskell-2.18.0.0).
-+    srcPackages <- stagePackages Stage0
++    -- FIX #20: Check BOTH Stage0 AND Stage1 (core libs are in Stage1).
++    stage0Pkgs <- stagePackages Stage0
++    stage1Pkgs <- stagePackages Stage1
++    let srcPackages = stage0Pkgs ++ stage1Pkgs
 +    remappedDepPkgIds <- forM depPkgIds $ \depPkgId -> do
 +        let depName = case parseCabalName depPkgId of
 +                        Left _ -> depPkgId  -- Fallback to original if parse fails
@@ -89,7 +102,7 @@ Let RTS be built from source normally instead of special handling.
      -- We should unregister if the file exists since @ghc-pkg@ will complain
      -- about existing package: https://github.com/snowleopard/hadrian/issues/543.
      -- Also, we don't always do the unregistration + registration to avoid
-@@ -175,12 +214,45 @@ copyConf rs context@Context {..} conf = do
+@@ -175,12 +223,45 @@ copyConf rs context@Context {..} conf = do
      unlessM (liftIO $ IO.doesFileExist conf) $ do
          buildWithResources rs $
              target context (GhcPkg Unregister stage) [pkgName package] []
