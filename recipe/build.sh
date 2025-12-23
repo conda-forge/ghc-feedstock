@@ -1,76 +1,109 @@
-#!/bin/bash
+#!/usr/bin/env bash
+# ==============================================================================
+# GHC Conda-Forge Build - Unified Build Script
+# ==============================================================================
+# This script orchestrates the complete GHC build process for all platforms.
+#
+# BUILD PHASES (in order):
+#   1. Environment Setup    - Paths, compilers, flags
+#   2. Bootstrap Setup      - Bootstrap GHC configuration
+#   3. Cabal Setup          - Cabal package manager
+#   4. Configure GHC        - GHC build system configuration
+#   5. Build Hadrian        - Build the Hadrian build tool
+#   6. Build Stage 1        - Build Stage 1 GHC compiler
+#   7. Build Stage 2        - Build Stage 2 GHC libraries
+#   8. Install GHC          - Install GHC to PREFIX
+#   9. Post-Install         - Verification and cleanup
+#
+# Platform-specific behavior is customized via functions in:
+#   platforms/xxx.sh
+#
+# Each platform can override any phase by defining:
+#   platform_xxx()          - Replace default implementation
+#   platform_pre_xxx()      - Hook before phase
+#   platform_post_xxx()     - Hook after phase
+# ==============================================================================
 
-set -exuo pipefail
+set -eu
 
-unset host_alias
-unset build_alias
-
-export GHC_BUILD=$(echo $BUILD | sed "s/conda/unknown/g")
-export GHC_HOST=$(echo $HOST | sed "s/conda/unknown/g")
-
-if [[ "${target_platform}" == linux-* ]]; then
-  # Make sure libraries for build are found without LDFLAGS
-  cp $BUILD_PREFIX/lib/libgmp.so $BUILD_PREFIX/$BUILD/sysroot/usr/lib/
-  cp $BUILD_PREFIX/lib/libncurses.so $BUILD_PREFIX/$BUILD/sysroot/usr/lib/
-  cp $BUILD_PREFIX/lib/libtinfo.so $BUILD_PREFIX/$BUILD/sysroot/usr/lib/
-
-  # Make sure libraries for host are found without LDFLAGS
-  cp $PREFIX/lib/libgmp.so $BUILD_PREFIX/$HOST/sysroot/usr/lib/
-  cp $PREFIX/lib/libncurses.so $BUILD_PREFIX/$HOST/sysroot/usr/lib/
-  cp $PREFIX/lib/libtinfo.so $BUILD_PREFIX/$HOST/sysroot/usr/lib/
-
-  # workaround some bugs in autoconf scripts
-  cp $(which $AR) $BUILD_PREFIX/bin/$GHC_HOST-ar
-  cp $(which $GCC) $BUILD_PREFIX/bin/$GHC_HOST-gcc
+# ==============================================================================
+# CRITICAL: Ensure we're using conda bash 5.2+, not system bash
+# ==============================================================================
+if [[ ${BASH_VERSINFO[0]} -lt 5 || (${BASH_VERSINFO[0]} -eq 5 && ${BASH_VERSINFO[1]} -lt 2) ]]; then
+  echo "re-exec with conda bash..."
+  if [[ -x "${BUILD_PREFIX}/bin/bash" ]]; then
+    exec "${BUILD_PREFIX}/bin/bash" "$0" "$@"
+  else
+    echo "ERROR: Could not find conda bash at ${BUILD_PREFIX}/bin/bash"
+    exit 1
+  fi
 fi
 
-mkdir stage0
-stage0="$( pwd )/stage0"
-pushd binary
-  cp $BUILD_PREFIX/share/gnuconfig/config.* .
-  # stage0 compiler: --build=$GHC_BUILD --host=$GHC_BUILD --target=$GHC_BUILD
-  (
-    unset CFLAGS
-    LDFLAGS=${LDFLAGS//$PREFIX/$BUILD_PREFIX}
-    CC=${CC_FOR_BUILD:-$CC}
-    AR=($CC -print-prog-name=ar)
-    NM=($CC -print-prog-name=nm)
-    if [[ "${build_platform}" == linux-* ]]; then
-      CPP=$BUILD-cpp
-    fi
-    LD=$BUILD-ld OBJDUMP=$BUILD-objdump RANLIB=$BUILD-ranlib STRIP=$BUILD-strip ./configure --prefix="${stage0}" --with-gmp-includes=$BUILD_PREFIX/include --with-gmp-libraries=$BUILD_PREFIX/lib --build=$GHC_BUILD --host=$GHC_BUILD --target=$GHC_BUILD || (cat config.log; exit 1)
-    make install -j${CPU_COUNT}
-  )
-popd
+# ==============================================================================
+# FRAMEWORK SETUP
+# ==============================================================================
 
-pushd source
-  # stage1 compiler: --build=$GHC_BUILD --host=$GHC_BUILD --target=$GHC_HOST
-  # stage2 compiler: --build=$GHC_BUILD --host=$GHC_HOST --target=$GHC_HOST
-  if [[ "${target_platform}" == linux-* ]]; then
-    export CC=$(basename $GCC)
-    export AR=$(basename $AR)
-    export LD=$(basename $LD)
-    export RANLIB=$(basename $RANLIB)
-  fi
-  cp $BUILD_PREFIX/share/gnuconfig/config.* .
-  (
-    PATH="${stage0}/bin:${PATH}"
-    ./configure --prefix=$PREFIX --with-gmp-includes=$PREFIX/include --with-gmp-libraries=$PREFIX/lib --with-ffi-includes=$PREFIX/include --with-ffi-libraries=$PREFIX/lib --target=$GHC_HOST
-    EXTRA_HC_OPTS=""
-    for flag in ${LDFLAGS}; do
-	EXTRA_HC_OPTS="${EXTRA_HC_OPTS} -optl${flag}"
-    done
-    make HADDOCK_DOCS=NO BUILD_SPHINX_HTML=NO BUILD_SPHINX_PDF=NO "EXTRA_HC_OPTS=${EXTRA_HC_OPTS}" -j${CPU_COUNT}
-    make HADDOCK_DOCS=NO BUILD_SPHINX_HTML=NO BUILD_SPHINX_PDF=NO "EXTRA_HC_OPTS=${EXTRA_HC_OPTS}" install -j${CPU_COUNT}
-  )
-  # Delete profile-enabled static libraries, other distributions don't seem to ship them either and they are very heavy.
-  find $PREFIX/lib/ghc-${PKG_VERSION} -name '*_p.a' -delete
-  find $PREFIX/lib/ghc-${PKG_VERSION} -name '*.p_o' -delete
-popd
+# Set up directories
+mkdir -p _logs
 
-# Delete package cache as it is invalid on installation.
-# This needs to be regenerated on activation.
-rm $PREFIX/lib/ghc-${PKG_VERSION}/package.conf.d/package.cache
+# Load framework modules
+source "${RECIPE_DIR}/lib/helpers.sh"         # Utility functions (logging, nameref, settings)
+source "${RECIPE_DIR}/lib/phases.sh"          # Build phases (phase_xxx, default_xxx)
+source "${RECIPE_DIR}/lib/detect-platform.sh" # Platform detection and routing
 
-mkdir -p "${PREFIX}/etc/conda/activate.d"
-cp "${RECIPE_DIR}/activate.sh" "${PREFIX}/etc/conda/activate.d/${PKG_NAME}_activate.sh"
+# Detect platform and load configuration
+# This sets PLATFORM_NAME and sources platforms/xxx.sh
+detect_platform
+
+# ==============================================================================
+# BUILD EXECUTION
+# ==============================================================================
+
+echo ""
+echo "===================================================================="
+echo "  GHC ${PKG_VERSION} Build"
+echo "  Platform: ${PLATFORM_NAME}"
+echo "===================================================================="
+echo ""
+
+# Phase 1: Environment Setup
+phase_setup_environment
+
+# Phase 2: Bootstrap Setup
+phase_setup_bootstrap
+
+# Phase 3: Cabal Setup
+phase_setup_cabal
+
+# Phase 4: Configure GHC
+phase_configure_ghc
+
+# Phase 5: Build Hadrian
+phase_build_hadrian
+
+# Phase 6: Build Stage 1
+phase_build_stage1
+
+# Phase 7: Build Stage 2
+phase_build_stage2
+
+# Phase 8: Install GHC
+phase_install_ghc
+
+# Phase 9: Post-Install
+phase_post_install
+
+# Phase 10: Activation
+phase_activation
+
+# ==============================================================================
+# BUILD COMPLETE
+# ==============================================================================
+
+echo ""
+echo "===================================================================="
+echo "  ✓ GHC ${PKG_VERSION} Build Complete"
+echo "  Platform: ${PLATFORM_NAME}"
+echo "  Installed to: ${PREFIX}"
+echo "===================================================================="
+echo ""

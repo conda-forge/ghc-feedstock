@@ -29,7 +29,7 @@ libiconv:
 ncurses:
 - '6'
 target_platform:
-- linux-aarch64
+- linux-ppc64le
 zip_keys:
 - - c_compiler_version
   - cxx_compiler_version

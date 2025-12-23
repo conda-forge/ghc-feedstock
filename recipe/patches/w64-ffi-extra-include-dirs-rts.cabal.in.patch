@@ -1,0 +1,23 @@
+Use extra-include-dirs for absolute FFI/Libdw paths.
+
+Cabal's include-dirs prepends the package directory to paths, breaking
+absolute paths. Use extra-include-dirs which preserves absolute paths.
+
+--- a/rts/rts.cabal.in
++++ b/rts/rts.cabal.in
+@@ -201,9 +201,13 @@
+       if !flag(smp)
+          cpp-options: -DNOSMP
+
++      -- Package-relative include dirs (prepended with rts/)
+       include-dirs: include
+-                    @FFIIncludeDir@
+-                    @LibdwIncludeDir@
++
++      -- Absolute include dirs from system dependencies (not prepended)
++      -- FFI and libdw from configure --with-ffi-includes
++      extra-include-dirs: @FFIIncludeDir@
++                          @LibdwIncludeDir@
+
+
+       includes: Rts.h
