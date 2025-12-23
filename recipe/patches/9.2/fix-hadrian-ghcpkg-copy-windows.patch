@@ -1,135 +1,133 @@
 From: Claude <noreply@anthropic.com>
-Subject: [PATCH] Fix Stage0 package registration for mixed bootstrap/source deps (Fix #20)
+Subject: [PATCH] Fix Stage0 package registration with static Stage1 core lib list (Fix #22)
 
-When using a newer bootstrap GHC (e.g., 9.6.7 to build 9.2.8), copyConf
-queries bootstrap's package database for dependencies. These dependencies
-have bootstrap version numbers (e.g., template-haskell-2.20.0.0).
+When cross-bootstrapping (e.g., GHC 9.6.7 building GHC 9.2.8), stagePackages
+Stage1 returns EMPTY during Stage0 build because Stage1 packages are not yet
+defined. This caused version remapping to fail for core libraries like base,
+ghc-prim, template-haskell, etc.
 
-If a dependency package exists in source with a different version (e.g.,
-template-haskell-2.18.0.0), we must use the source version, not the
-bootstrap version. Otherwise the build fails because there's no
-template-haskell-2.20.0.0.conf in our Stage0 package database.
+Fix #22 introduces a STATIC list of Stage1 core library names that enables
+proper version remapping without relying on dynamic stagePackages queries.
 
-This patch makes three changes:
+Key changes:
+- Add stage1CoreLibNames static list (base, ghc-prim, template-haskell, etc.)
+- Use static list in registerPackageRules to determine if package is in source
+- Use static list in buildConf for dependency version remapping
+- Use static list in copyConf for dependency version remapping
 
-1. In registerPackageRules: For packages in source, NEVER call copyConf.
-   If wrong version requested, error explicitly to help debug.
-   IMPORTANT: RTS is special - it's not in stagePackages but must be built
-   from source, so we never use copyConf for it.
-
-2. In copyConf: After getting dependencies from bootstrap, remap any
-   package that exists in source to use the source version instead.
-   This ensures copyConf needs the right .conf files.
-
-3. In copyConf: When copying a package from bootstrap, also fix the
-   dependency versions in the .conf file content. Uses ghc-pkg describe
-   to get the package info, patches the depends: field to use source
-   versions, then updates the package database (using 'update' instead
-   of 'register' for idempotency in parallel builds).
-
-Fix #20: Check BOTH Stage0 AND Stage1 packages when determining if a
-package exists in source. Core libraries (base, ghc-prim, ghc-bignum,
-array, deepseq, pretty) are defined in Stage1 (see Settings/Default.hs
-lines 98-122), NOT Stage0. Without this fix, these packages are
-incorrectly classified as boot-only and the build tries to copy
-base-4.18.3.0 from bootstrap instead of building base-4.16.4.0 from source.
-
---- a/hadrian/src/Rules/Register.hs
-+++ b/hadrian/src/Rules/Register.hs
-@@ -107,7 +107,33 @@ registerPackageRules rs stage = do
-
-         when (pkg == compiler) $ need =<< ghcLibDeps stage
-
--        isBoot <- (pkg `notElem`) <$> stagePackages Stage0
-+        -- Determine if this is a boot package (not in source).
-+        -- CRITICAL: For packages that exist in source, we must NEVER call
-+        -- copyConf, even if a different version is requested. This is because
-+        -- copyConf unregisters by package NAME (not version), which would
-+        -- remove the source version and cause dependency resolution failures.
-+        --
-+        -- FIX #20: Must check BOTH Stage0 AND Stage1 packages. Core libraries
-+        -- (base, ghc-prim, ghc-bignum, array, deepseq, pretty) are defined in
-+        -- Stage1 (Settings/Default.hs lines 98-122), NOT Stage0!
-+        --
-+        -- SPECIAL CASE: RTS is not in stagePackages but MUST be built from
-+        -- source (it has its own build rules). Never use copyConf for RTS.
-+        stage0Pkgs <- stagePackages Stage0
-+        stage1Pkgs <- stagePackages Stage1
-+        let notInSource = pkg `notElem` (stage0Pkgs ++ stage1Pkgs)
-+        -- Note: pkgName here is a local String variable from getPackageNameFromConfFile
-+        let isRts = pkgName == "rts"
-+        srcPkgId <- pkgIdentifier pkg
-+        let confPkgId = takeBaseName conf
-+            versionMismatch = confPkgId /= srcPkgId
-+            -- Only use copyConf for packages truly not in source AND not RTS
-+            isBoot = notInSource && not isRts
+--- a/hadrian/src/Rules/Register.hs	2025-12-23 09:17:32.116667281 -0600
++++ b/hadrian/src/Rules/Register.hs	2025-12-23 09:18:54.264462198 -0600
+@@ -27,6 +27,20 @@
+ import qualified Hadrian.Haskell.Cabal.Parse as Cabal
+ import qualified System.Directory            as IO
+ 
++-- | Stage1 core library names that exist in source but are NOT in stagePackages Stage0.
++-- These are defined in Settings/Default.hs (stage1Packages) and include core libraries
++-- that Stage0 utilities depend on. We use a static list because stagePackages Stage1
++-- returns empty during Stage0 build (the packages aren't defined yet).
++--
++-- FIX #22: This list enables version remapping from bootstrap to source versions
++-- when cross-bootstrapping (e.g., GHC 9.6.7 building GHC 9.2.8).
++stage1CoreLibNames :: [String]
++stage1CoreLibNames =
++    [ "base", "ghc-prim", "ghc-bignum", "integer-gmp"
++    , "array", "deepseq", "pretty", "template-haskell"
++    , "ghc-boot-th", "ghc-heap"
++    ]
 +
-+        -- If source package but wrong version requested, error explicitly
-+        -- (Skip this check for RTS since it is built separately)
-+        when (not notInSource && versionMismatch && not isRts) $
-+            error $ "Version mismatch: requested " ++ confPkgId ++ " but source has " ++ srcPkgId
-
+ -- * Configuring
+ 
+ -- | Configure a package and build its @setup-config@ file, as well as files in
+@@ -107,7 +121,16 @@
+ 
+         when (pkg == compiler) $ need =<< ghcLibDeps stage
+ 
+-        isBoot <- (pkg `notElem`) <$> stagePackages Stage0
++        -- FIX #22: Check if package is in source using STATIC list + Stage0.
++        -- We cannot use stagePackages Stage1 here because it returns empty
++        -- during Stage0 build (Stage1 packages not defined yet).
++        stage0Pkgs <- stagePackages Stage0
++        let inStage0 = pkg `elem` stage0Pkgs
++            inStage1Core = pkgName `elem` stage1CoreLibNames
++            isRts = pkgName == "rts"
++            -- Package is "boot" (not in source) only if not in Stage0, not in
++            -- Stage1 core libs, and not RTS
++            isBoot = not inStage0 && not inStage1Core && not isRts
+ 
          let ctx = Context stage pkg vanilla
          case stage of
-@@ -164,7 +190,29 @@ registerPackageRules rs stage = do
+@@ -118,7 +141,24 @@
+ buildConf _ context@Context {..} _conf = do
+     depPkgIds <- cabalDependencies context
+     ensureConfigured context
+-    need =<< mapM (\pkgId -> packageDbPath stage <&> (-/- pkgId <.> "conf")) depPkgIds
++    -- FIX #22: Remap dependency versions from bootstrap to source.
++    -- Use static stage1CoreLibNames since stagePackages Stage1 is empty at Stage0.
++    stage0Pkgs <- stagePackages Stage0
++    remappedDepPkgIds <- forM depPkgIds $ \depPkgId -> do
++        let depName = case parseCabalName depPkgId of
++                        Left _ -> depPkgId
++                        Right (name, _) -> name
++        -- Check Stage0 packages first (dynamic lookup works)
++        case filter (\p -> pkgName p == depName) stage0Pkgs of
++            (srcPkg:_) -> pkgIdentifier srcPkg
++            [] -> -- Not in Stage0, check Stage1 core libs (static list)
++                if depName `elem` stage1CoreLibNames
++                then do
++                    -- Find the package by name and get its source version
++                    let srcPkg = unsafeFindPackageByName depName
++                    pkgIdentifier srcPkg
++                else return depPkgId  -- Keep bootstrap version for true boot packages
++    need =<< mapM (\pkgId -> packageDbPath stage <&> (-/- pkgId <.> "conf")) remappedDepPkgIds
+ 
+     ways <- interpretInContext context (getLibraryWays <> if package == rts then getRtsWays else mempty)
+     need =<< concatMapM (libraryTargets True) [ context { way = w } | w <- ways ]
+@@ -164,7 +204,26 @@
  copyConf rs context@Context {..} conf = do
      depPkgIds <- fmap stdOutToPkgIds . askWithResources rs $
          target context (GhcPkg Dependencies stage) [pkgName package] []
 -    need =<< mapM (\pkgId -> packageDbPath stage <&> (-/- pkgId <.> "conf")) depPkgIds
-+    -- Remap dependency package-ids to source versions when the package exists
-+    -- in source. This is needed because bootstrap dependencies have bootstrap
-+    -- versions (e.g., template-haskell-2.20.0.0) but we need source versions
-+    -- (e.g., template-haskell-2.18.0.0).
-+    -- FIX #20: Check BOTH Stage0 AND Stage1 (core libs are in Stage1).
++    -- FIX #22: Remap dependency versions using static stage1CoreLibNames.
 +    stage0Pkgs <- stagePackages Stage0
-+    stage1Pkgs <- stagePackages Stage1
-+    let srcPackages = stage0Pkgs ++ stage1Pkgs
 +    remappedDepPkgIds <- forM depPkgIds $ \depPkgId -> do
 +        let depName = case parseCabalName depPkgId of
-+                        Left _ -> depPkgId  -- Fallback to original if parse fails
++                        Left _ -> depPkgId
 +                        Right (name, _) -> name
-+        case filter (\p -> pkgName p == depName) srcPackages of
-+            (srcPkg:_) -> pkgIdentifier srcPkg  -- Use source version
-+            []         -> return depPkgId       -- Keep bootstrap version
++        case filter (\p -> pkgName p == depName) stage0Pkgs of
++            (srcPkg:_) -> pkgIdentifier srcPkg
++            [] -> if depName `elem` stage1CoreLibNames
++                  then pkgIdentifier (unsafeFindPackageByName depName)
++                  else return depPkgId
 +    need =<< mapM (\pkgId -> packageDbPath stage <&> (-/- pkgId <.> "conf")) remappedDepPkgIds
-+
-+    -- Build version remapping table for fixing .conf file dependencies
-+    versionRemappings <- fmap concat . forM srcPackages $ \srcPkg -> do
++    -- Build version remapping table for fixing package descriptions
++    stage0Remappings <- forM stage0Pkgs $ \srcPkg -> do
 +        srcPkgId <- pkgIdentifier srcPkg
-+        let srcName = pkgName srcPkg
-+        return [(srcName, srcPkgId)]
-+
++        return (pkgName srcPkg, srcPkgId)
++    stage1Remappings <- forM stage1CoreLibNames $ \name -> do
++        srcPkgId <- pkgIdentifier (unsafeFindPackageByName name)
++        return (name, srcPkgId)
++    let versionRemappings = stage0Remappings ++ stage1Remappings
      -- We should unregister if the file exists since @ghc-pkg@ will complain
      -- about existing package: https://github.com/snowleopard/hadrian/issues/543.
      -- Also, we don't always do the unregistration + registration to avoid
-@@ -175,12 +223,45 @@ copyConf rs context@Context {..} conf = do
+@@ -175,12 +234,35 @@
      unlessM (liftIO $ IO.doesFileExist conf) $ do
          buildWithResources rs $
              target context (GhcPkg Unregister stage) [pkgName package] []
 -        buildWithResources rs $
 -            target context (GhcPkg Copy stage) [pkgName package] [conf]
-+        -- Get package description from bootstrap, fix dependency versions, register
 +        pkgDbPath <- packageDbPath stage
 +        ghcPkgPath <- builderPath (GhcPkg Init stage)
-+        -- Get the package description from bootstrap
 +        Stdout pkgDesc <- cmd [ghcPkgPath] ["describe", pkgName package]
-+        -- Fix dependency versions in the description
 +        let fixedPkgDesc = fixDependencyVersions versionRemappings pkgDesc
-+        -- Write fixed description to conf file and update package database.
-+        -- NOTE: Use 'update' instead of 'register' to make this idempotent.
-+        -- Multiple parallel tasks may try to register the same boot package
-+        -- (race condition). 'update' will succeed even if package exists.
 +        liftIO $ writeFile conf fixedPkgDesc
 +        cmd_ [ghcPkgPath] ["--no-user-package-db", "--global-package-db", pkgDbPath
 +                          , "update", conf, "-v0", "--force"]
    where
      stdOutToPkgIds :: String -> [String]
      stdOutToPkgIds = drop 1 . concatMap words . lines
-
+ 
 +-- | Fix dependency versions in a package description.
-+-- Replaces bootstrap package versions with source package versions in the
-+-- 'depends:' field. For example, 'template-haskell-2.20.0.0' becomes
-+-- 'template-haskell-2.18.0.0' if template-haskell is in source with that version.
 +fixDependencyVersions :: [(String, String)] -> String -> String
 +fixDependencyVersions remappings desc = unlines $ map fixLine $ lines desc
 +  where
@@ -138,13 +136,13 @@ base-4.18.3.0 from bootstrap instead of building base-4.16.4.0 from source.
 +        | otherwise = line
 +    fixDependsLine line =
 +        let (prefix, deps) = break (== ':') line
-+            depsAfterColon = drop 1 deps  -- Remove the ':'
++            depsAfterColon = drop 1 deps
 +        in prefix ++ ":" ++ unwords (map fixDep $ words depsAfterColon)
 +    fixDep dep = case parseCabalName dep of
-+        Left _ -> dep  -- Cannot parse, leave unchanged
++        Left _ -> dep
 +        Right (name, _) -> case lookup name remappings of
-+            Just srcPkgId -> srcPkgId  -- Replace with source version
-+            Nothing -> dep  -- Not in source, keep bootstrap version
++            Just srcPkgId -> srcPkgId
++            Nothing -> dep
 +    isPrefixOf needle haystack = take (length needle) haystack == needle
 +
  getPackageNameFromConfFile :: FilePath -> Action String
