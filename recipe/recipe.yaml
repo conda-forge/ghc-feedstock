@@ -107,6 +107,7 @@ requirements:
     - if: osx or not unix
       then:
         - lld >=${{ c_compiler_version }}
+        - llvm-tools >=${{ c_compiler_version }}
     
 tests:
   - package_contents:
@@ -169,13 +170,16 @@ tests:
       - printf 'main = putStrLn "Hi TH CF"\n' > Hi.hs && ghc -threaded Hi.hs && ${{ dot }}Hi && rm ${{ dot }}Hi
     requirements:
       run:
-        - ${{ compiler('c') }}
-        - ${{ stdlib('c') }}
+        - ${{ c_compiler }}_impl_${{ target_platform }} >=${{ c_compiler_version }}
+        - ${{ c_stdlib }}_${{ target_platform }} >=${{ c_stdlib_version }}
         - if: linux
           then:
-            - ld_impl_${{ target_platform }} ${{ binutils_version }}
+            - ld_impl_${{ target_platform }} >=${{ binutils_version }}
           else:
-            - lld ${{ c_compiler_version }}.*
+            - lld >=${{ c_compiler_version }}
+        - if: osx
+          then:
+            - llvm-tools >=${{ c_compiler_version }}
 
   - script:
       - if: unix
@@ -189,13 +193,16 @@ tests:
           - echo "Skipped test due to 32bit relocation issue with large GHC"
     requirements:
       run:
-        - ${{ compiler('c') }}
-        - ${{ stdlib('c') }}
+        - ${{ c_compiler }}_impl_${{ target_platform }} >=${{ c_compiler_version }}
+        - ${{ c_stdlib }}_${{ target_platform }} >=${{ c_stdlib_version }}
         - if: linux
           then:
-            - ld_impl_${{ target_platform }} ${{ binutils_version }}
+            - ld_impl_${{ target_platform }} >=${{ binutils_version }}
           else:
-            - lld ${{ c_compiler_version }}.*
+            - lld >=${{ c_compiler_version }}
+        - if: osx
+          then:
+            - llvm-tools >=${{ c_compiler_version }}
 
 about:
   homepage: https://haskell.org/ghc/
