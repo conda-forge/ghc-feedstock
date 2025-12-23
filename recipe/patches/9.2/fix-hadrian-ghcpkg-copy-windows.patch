@@ -11,7 +11,7 @@ use source package versions.
 
 Fix #23: Only remap dependency versions at Stage1, not Stage0.
 
---- a/b/hadrian/src/Rules/Register.hs	2025-12-23 10:57:32.489869887 -0600
+--- a/hadrian/src/Rules/Register.hs	2025-12-23 10:57:32.489869887 -0600
 +++ b/hadrian/src/Rules/Register.hs	2025-12-23 11:00:40.853416625 -0600
 @@ -27,6 +27,18 @@
  import qualified Hadrian.Haskell.Cabal.Parse as Cabal
