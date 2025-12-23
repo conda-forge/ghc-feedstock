@@ -1,33 +1,27 @@
 From: Claude <noreply@anthropic.com>
-Subject: [PATCH] Fix Stage0 package registration with static Stage1 core lib list (Fix #22)
+Subject: [PATCH] Stage-aware version remapping for cross-bootstrap (Fix #23)
 
-When cross-bootstrapping (e.g., GHC 9.6.7 building GHC 9.2.8), stagePackages
-Stage1 returns EMPTY during Stage0 build because Stage1 packages are not yet
-defined. This caused version remapping to fail for core libraries like base,
-ghc-prim, template-haskell, etc.
+Fix #22 incorrectly applied version remapping at Stage0, causing Stage0
+utilities (genprimopcode, hsc2hs) to fail linking with undefined symbols
+like `stg_unpack_cstring_info` and `ghczmprim_*_closure`.
 
-Fix #22 introduces a STATIC list of Stage1 core library names that enables
-proper version remapping without relying on dynamic stagePackages queries.
+Key insight: Stage0 utilities are CONSUMERS of bootstrap packages and must
+link against bootstrap's RTS/base/ghc-prim. Only Stage1 libraries should
+use source package versions.
 
-Key changes:
-- Add stage1CoreLibNames static list (base, ghc-prim, template-haskell, etc.)
-- Use static list in registerPackageRules to determine if package is in source
-- Use static list in buildConf for dependency version remapping
-- Use static list in copyConf for dependency version remapping
+Fix #23: Only remap dependency versions at Stage1, not Stage0.
 
---- a/hadrian/src/Rules/Register.hs	2025-12-23 09:17:32.116667281 -0600
-+++ b/hadrian/src/Rules/Register.hs	2025-12-23 09:18:54.264462198 -0600
-@@ -27,6 +27,20 @@
+--- a/b/hadrian/src/Rules/Register.hs	2025-12-23 10:57:32.489869887 -0600
++++ b/hadrian/src/Rules/Register.hs	2025-12-23 11:00:40.853416625 -0600
+@@ -27,6 +27,18 @@
  import qualified Hadrian.Haskell.Cabal.Parse as Cabal
  import qualified System.Directory            as IO
  
-+-- | Stage1 core library names that exist in source but are NOT in stagePackages Stage0.
-+-- These are defined in Settings/Default.hs (stage1Packages) and include core libraries
-+-- that Stage0 utilities depend on. We use a static list because stagePackages Stage1
-+-- returns empty during Stage0 build (the packages aren't defined yet).
++-- | Stage1 core library names for version remapping during cross-bootstrap.
++-- When bootstrapping with a newer GHC (e.g., 9.6.7 -> 9.2.8), dependency
++-- versions from cabalDependencies reflect bootstrap, not source.
 +--
-+-- FIX #22: This list enables version remapping from bootstrap to source versions
-+-- when cross-bootstrapping (e.g., GHC 9.6.7 building GHC 9.2.8).
++-- FIX #23: Only remap at Stage1. Stage0 utilities link against bootstrap.
 +stage1CoreLibNames :: [String]
 +stage1CoreLibNames =
 +    [ "base", "ghc-prim", "ghc-bignum", "integer-gmp"
@@ -38,113 +32,31 @@ Key changes:
  -- * Configuring
  
  -- | Configure a package and build its @setup-config@ file, as well as files in
-@@ -107,7 +121,16 @@
- 
-         when (pkg == compiler) $ need =<< ghcLibDeps stage
- 
--        isBoot <- (pkg `notElem`) <$> stagePackages Stage0
-+        -- FIX #22: Check if package is in source using STATIC list + Stage0.
-+        -- We cannot use stagePackages Stage1 here because it returns empty
-+        -- during Stage0 build (Stage1 packages not defined yet).
-+        stage0Pkgs <- stagePackages Stage0
-+        let inStage0 = pkg `elem` stage0Pkgs
-+            inStage1Core = pkgName `elem` stage1CoreLibNames
-+            isRts = pkgName == "rts"
-+            -- Package is "boot" (not in source) only if not in Stage0, not in
-+            -- Stage1 core libs, and not RTS
-+            isBoot = not inStage0 && not inStage1Core && not isRts
- 
-         let ctx = Context stage pkg vanilla
-         case stage of
-@@ -118,7 +141,24 @@
+@@ -118,7 +130,26 @@
  buildConf _ context@Context {..} _conf = do
      depPkgIds <- cabalDependencies context
      ensureConfigured context
 -    need =<< mapM (\pkgId -> packageDbPath stage <&> (-/- pkgId <.> "conf")) depPkgIds
-+    -- FIX #22: Remap dependency versions from bootstrap to source.
-+    -- Use static stage1CoreLibNames since stagePackages Stage1 is empty at Stage0.
-+    stage0Pkgs <- stagePackages Stage0
-+    remappedDepPkgIds <- forM depPkgIds $ \depPkgId -> do
-+        let depName = case parseCabalName depPkgId of
-+                        Left _ -> depPkgId
-+                        Right (name, _) -> name
-+        -- Check Stage0 packages first (dynamic lookup works)
-+        case filter (\p -> pkgName p == depName) stage0Pkgs of
-+            (srcPkg:_) -> pkgIdentifier srcPkg
-+            [] -> -- Not in Stage0, check Stage1 core libs (static list)
-+                if depName `elem` stage1CoreLibNames
-+                then do
-+                    -- Find the package by name and get its source version
-+                    let srcPkg = unsafeFindPackageByName depName
-+                    pkgIdentifier srcPkg
-+                else return depPkgId  -- Keep bootstrap version for true boot packages
++    -- FIX #23: Stage-aware version remapping for cross-bootstrap.
++    -- Stage0 utilities must use BOOTSTRAP package versions (they link against bootstrap).
++    -- Stage1 libraries use SOURCE package versions (they are built from source).
++    remappedDepPkgIds <- case stage of
++        Stage0 -> return depPkgIds  -- Keep bootstrap versions at Stage0
++        _ -> do
++            -- At Stage1+, remap dependency versions to source versions
++            stage0Pkgs <- stagePackages Stage0
++            forM depPkgIds $ \depPkgId -> do
++                let depName = case parseCabalName depPkgId of
++                                Left _ -> depPkgId
++                                Right (name, _) -> name
++                -- Check if package exists in Stage0 packages
++                case filter (\p -> pkgName p == depName) stage0Pkgs of
++                    (srcPkg:_) -> pkgIdentifier srcPkg
++                    [] -> -- Check Stage1 core libs (static list, since stagePackages Stage1 is empty here)
++                        if depName `elem` stage1CoreLibNames
++                        then pkgIdentifier (unsafeFindPackageByName depName)
++                        else return depPkgId  -- Keep bootstrap version for true boot packages
 +    need =<< mapM (\pkgId -> packageDbPath stage <&> (-/- pkgId <.> "conf")) remappedDepPkgIds
  
      ways <- interpretInContext context (getLibraryWays <> if package == rts then getRtsWays else mempty)
      need =<< concatMapM (libraryTargets True) [ context { way = w } | w <- ways ]
-@@ -164,7 +204,26 @@
- copyConf rs context@Context {..} conf = do
-     depPkgIds <- fmap stdOutToPkgIds . askWithResources rs $
-         target context (GhcPkg Dependencies stage) [pkgName package] []
--    need =<< mapM (\pkgId -> packageDbPath stage <&> (-/- pkgId <.> "conf")) depPkgIds
-+    -- FIX #22: Remap dependency versions using static stage1CoreLibNames.
-+    stage0Pkgs <- stagePackages Stage0
-+    remappedDepPkgIds <- forM depPkgIds $ \depPkgId -> do
-+        let depName = case parseCabalName depPkgId of
-+                        Left _ -> depPkgId
-+                        Right (name, _) -> name
-+        case filter (\p -> pkgName p == depName) stage0Pkgs of
-+            (srcPkg:_) -> pkgIdentifier srcPkg
-+            [] -> if depName `elem` stage1CoreLibNames
-+                  then pkgIdentifier (unsafeFindPackageByName depName)
-+                  else return depPkgId
-+    need =<< mapM (\pkgId -> packageDbPath stage <&> (-/- pkgId <.> "conf")) remappedDepPkgIds
-+    -- Build version remapping table for fixing package descriptions
-+    stage0Remappings <- forM stage0Pkgs $ \srcPkg -> do
-+        srcPkgId <- pkgIdentifier srcPkg
-+        return (pkgName srcPkg, srcPkgId)
-+    stage1Remappings <- forM stage1CoreLibNames $ \name -> do
-+        srcPkgId <- pkgIdentifier (unsafeFindPackageByName name)
-+        return (name, srcPkgId)
-+    let versionRemappings = stage0Remappings ++ stage1Remappings
-     -- We should unregister if the file exists since @ghc-pkg@ will complain
-     -- about existing package: https://github.com/snowleopard/hadrian/issues/543.
-     -- Also, we don't always do the unregistration + registration to avoid
-@@ -175,12 +234,35 @@
-     unlessM (liftIO $ IO.doesFileExist conf) $ do
-         buildWithResources rs $
-             target context (GhcPkg Unregister stage) [pkgName package] []
--        buildWithResources rs $
--            target context (GhcPkg Copy stage) [pkgName package] [conf]
-+        pkgDbPath <- packageDbPath stage
-+        ghcPkgPath <- builderPath (GhcPkg Init stage)
-+        Stdout pkgDesc <- cmd [ghcPkgPath] ["describe", pkgName package]
-+        let fixedPkgDesc = fixDependencyVersions versionRemappings pkgDesc
-+        liftIO $ writeFile conf fixedPkgDesc
-+        cmd_ [ghcPkgPath] ["--no-user-package-db", "--global-package-db", pkgDbPath
-+                          , "update", conf, "-v0", "--force"]
-   where
-     stdOutToPkgIds :: String -> [String]
-     stdOutToPkgIds = drop 1 . concatMap words . lines
- 
-+-- | Fix dependency versions in a package description.
-+fixDependencyVersions :: [(String, String)] -> String -> String
-+fixDependencyVersions remappings desc = unlines $ map fixLine $ lines desc
-+  where
-+    fixLine line
-+        | "depends:" `isPrefixOf` (dropWhile (== ' ') line) = fixDependsLine line
-+        | otherwise = line
-+    fixDependsLine line =
-+        let (prefix, deps) = break (== ':') line
-+            depsAfterColon = drop 1 deps
-+        in prefix ++ ":" ++ unwords (map fixDep $ words depsAfterColon)
-+    fixDep dep = case parseCabalName dep of
-+        Left _ -> dep
-+        Right (name, _) -> case lookup name remappings of
-+            Just srcPkgId -> srcPkgId
-+            Nothing -> dep
-+    isPrefixOf needle haystack = take (length needle) haystack == needle
-+
- getPackageNameFromConfFile :: FilePath -> Action String
- getPackageNameFromConfFile conf
-     | takeBaseName conf == "rts" = return "rts"
