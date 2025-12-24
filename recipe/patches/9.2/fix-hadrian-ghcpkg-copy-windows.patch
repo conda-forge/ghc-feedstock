@@ -1,5 +1,23 @@
---- a/b/hadrian/src/Rules/Register.hs	2025-12-23 21:24:03.140939958 -0600
-+++ b/hadrian/src/Rules/Register.hs	2025-12-24 00:24:33.546453757 -0600
+From: conda-forge
+Subject: [PATCH] Skip buildConf/copyConf for RTS at Stage0
+
+Fix #24b failed with "No (or multiple) GHC rts package is registered!"
+because after handling RTS at Stage0, code continued to call buildConf
+which tried to BUILD RTS from source instead of using bootstrap's RTS.
+
+Fix #25 changes:
+1. Add `unless` import from Control.Monad
+2. Wrap isBoot check and buildConf/copyConf in `unless (stage == Stage0 && pkg == rts)`
+3. RTS at Stage0 now ONLY copies bootstrap's RTS, skips build entirely
+
+The RTS handling flow is now:
+- Stage0 + RTS: copy bootstrap RTS with --expand-pkgroot, register, DONE
+- Stage0 + boot pkg: copyConf (copy from bootstrap)
+- Stage0 + source pkg: buildConf (build from source)
+- Other stages: buildConf
+
+--- a/hadrian/src/Rules/Register.hs
++++ b/hadrian/src/Rules/Register.hs
 @@ -15,6 +15,9 @@
  import Settings
  import Target
@@ -7,13 +25,13 @@
 +import Control.Monad (unless)
 +import Data.List (isPrefixOf)
 +import Data.Maybe (catMaybes)
- 
+
  import Hadrian.Haskell.Cabal.Type
  import qualified Text.Parsec      as Parsec
 @@ -105,20 +108,47 @@
          pkgName <- getPackageNameFromConfFile conf
          let pkg = unsafeFindPackageByName pkgName
- 
+
 -        when (pkg == compiler) $ need =<< ghcLibDeps stage
 -
 -        isBoot <- (pkg `notElem`) <$> stagePackages Stage0
@@ -47,7 +65,7 @@
 +            case stage of
 +                Stage0 | isBoot -> copyConf  rs ctx conf
 +                _               -> buildConf rs ctx conf
- 
+
  buildConf :: [(Resource, Int)] -> Context -> FilePath -> Action ()
  buildConf _ context@Context {..} _conf = do
      depPkgIds <- cabalDependencies context
@@ -64,7 +82,7 @@
 +            (srcPkg:_) -> pkgIdentifier srcPkg
 +            [] -> return depPkgId
 +    need =<< mapM (\pkgId -> packageDbPath stage <&> (-/- pkgId <.> "conf")) remappedDepPkgIds
- 
+
      ways <- interpretInContext context (getLibraryWays <> if package == rts then getRtsWays else mempty)
      need =<< concatMapM (libraryTargets True) [ context { way = w } | w <- ways ]
 @@ -164,7 +194,32 @@
@@ -139,6 +157,6 @@
 +        fixDep dep = case parseCabalName dep of
 +            Right (name, _) -> maybe dep id $ lookup name remappings
 +            Left _ -> dep
- 
+
  getPackageNameFromConfFile :: FilePath -> Action String
  getPackageNameFromConfFile conf
