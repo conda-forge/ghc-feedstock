@@ -1,16 +1,5 @@
-From: conda-forge
-Subject: [PATCH] Fix ghc-pkg stdin piping and version remapping on Windows
-
-Fix ghc-pkg stdin piping issue on Windows where `ghc-pkg describe | ghc-pkg register -`
-fails randomly on Windows/MSYS2. This patch uses a temp file instead of stdin for
-package registration.
-
-Also adds version remapping for cross-version bootstrap (9.6.7 → 9.2.8):
-- buildConf: Remap dependency versions from bootstrap to source
-- copyConf: Remap dependency versions + filter RTS dependencies + fix .conf file
-
---- a/hadrian/src/Rules/Register.hs
-+++ b/hadrian/src/Rules/Register.hs
+--- a/hadrian/src/Rules/Register.hs	2025-12-23 21:24:03.140939958 -0600
++++ b/hadrian/src/Rules/Register.hs	2025-12-23 21:25:28.776730170 -0600
 @@ -15,6 +15,8 @@
  import Settings
  import Target
@@ -20,8 +9,7 @@ Also adds version remapping for cross-version bootstrap (9.6.7 → 9.2.8):
 
  import Hadrian.Haskell.Cabal.Type
  import qualified Text.Parsec      as Parsec
-@@ -119,7 +121,18 @@ registerPackageRules rs stage = do
- buildConf :: [(Resource, Int)] -> Context -> FilePath -> Action ()
+@@ -118,7 +120,17 @@
  buildConf _ context@Context {..} _conf = do
      depPkgIds <- cabalDependencies context
      ensureConfigured context
@@ -40,7 +28,7 @@ Also adds version remapping for cross-version bootstrap (9.6.7 → 9.2.8):
 
      ways <- interpretInContext context (getLibraryWays <> if package == rts then getRtsWays else mempty)
      need =<< concatMapM (libraryTargets True) [ context { way = w } | w <- ways ]
-@@ -164,7 +177,32 @@
+@@ -164,7 +176,32 @@
  copyConf rs context@Context {..} conf = do
      depPkgIds <- fmap stdOutToPkgIds . askWithResources rs $
          target context (GhcPkg Dependencies stage) [pkgName package] []
@@ -74,7 +62,7 @@ Also adds version remapping for cross-version bootstrap (9.6.7 → 9.2.8):
      -- We should unregister if the file exists since @ghc-pkg@ will complain
      -- about existing package: https://github.com/snowleopard/hadrian/issues/543.
      -- Also, we don't always do the unregistration + registration to avoid
-@@ -175,11 +213,38 @@
+@@ -175,11 +212,38 @@
      unlessM (liftIO $ IO.doesFileExist conf) $ do
          buildWithResources rs $
              target context (GhcPkg Unregister stage) [pkgName package] []
