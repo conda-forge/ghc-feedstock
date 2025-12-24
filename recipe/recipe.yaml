@@ -74,6 +74,10 @@ source:
           # Disable job objects in process library C code (libraries/process)
           # Belt-and-suspenders: ensures Stage 1 GHC also has patched process library
           - patches/${{ ghc_major }}/disable-process-library-job-objects-windows.patch
+          # Fix ghc-pkg stdin piping issue on Windows
+          # ghc-pkg describe | ghc-pkg register - fails randomly on Windows/MSYS2
+          # This patch uses a temp file instead of stdin for package registration
+          - patches/${{ ghc_major }}/fix-hadrian-ghcpkg-copy-windows.patch
           # NOTE: fix-hadrian-missing-rts-stage0.patch removed - RTS now built
           # from source normally (reverted to dfa7633 approach)
           # Add source tree include paths for Stage0 C compilation
@@ -86,14 +90,8 @@ source:
           # Explicitly pass --package-db to Cabal.registerPackage
           # Ensures package registration goes to Stage0 database, not bootstrap's
           - patches/${{ ghc_major }}/fix-cabal-register-package-db.patch
-          # Copy bootstrap's RTS to Stage0 package database
-          # Stage0 utilities link against bootstrap RTS expecting bootstrap symbols
-          - patches/${{ ghc_major }}/fix-hadrian-rts-stage0-copy.patch
-          # Fix ghc-pkg stdin piping issue and version remapping on Windows
-          # ghc-pkg describe | ghc-pkg register - fails randomly on Windows/MSYS2
-          # This patch uses a temp file instead of stdin for package registration
-          # MUST BE AFTER fix-hadrian-rts-stage0-copy.patch (line numbers depend on it)
-          - patches/${{ ghc_major }}/fix-hadrian-ghcpkg-copy-windows.patch
+          # NOTE: fix-hadrian-rts-stage0-copy.patch removed - obsoleted by
+          # fix-hadrian-ghcpkg-copy-windows.patch which now handles RTS skipping
           # Disable testsuite timeout utility on Windows
           # The testsuite/timeout directory is not in the source tarball, but
           # Hadrian includes it in stage0Packages for Windows. This causes builds
@@ -113,10 +111,6 @@ source:
           # INFO_TABLE_FUN gained an extra SRT offset parameter in GHC 9.6+.
           # We need to add the extra 0 parameter for the bootstrap CMM parser.
           - patches/${{ ghc_major }}/fix-info-table-fun-bootstrap-compat.patch
-          # Fix RTS compilation with GCC 15 (conda-forge toolchain)
-          # GCC 15 has stricter warnings. Hadrian's rtsWarnings enables -Wredundant-decls
-          # which fails on duplicate ioManagerFinished declaration. Add -Wno-* flags after.
-          - patches/${{ ghc_major }}/fix-hadrian-rts-gcc15-warnings.patch
 
       # macOS-specific patches
       - if: osx
