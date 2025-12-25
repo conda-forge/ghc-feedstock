@@ -1,0 +1,25 @@
+From: conda-forge
+Subject: [PATCH] Disable -threaded for ghc.exe on Windows to avoid builderMainLoop error
+
+The bootstrap GHC on Windows triggers "builderMainLoop: invalid argument"
+errors when linking ghc.exe with -threaded. This happens because GHC spawns
+multiple processes during linking which fail on Azure CI Windows.
+
+This patch modifies ghc-bin.cabal.in to not use -threaded on Windows,
+regardless of the threaded flag setting.
+
+diff --git a/ghc/ghc-bin.cabal.in b/ghc/ghc-bin.cabal.in
+--- a/ghc/ghc-bin.cabal.in
++++ b/ghc/ghc-bin.cabal.in
+@@ -88,7 +88,10 @@ Executable ghc
+     -- mk/config.mk.in logic for GhcThreaded (which ends up
+     -- always being True as well). One can still opt out by
+     -- disabling this flag.
+-    if flag(threaded)
++    -- On Windows, -threaded causes "builderMainLoop: invalid argument" errors
++    -- when the bootstrap GHC spawns processes during linking on Azure CI.
++    -- Disable -threaded on Windows to work around this issue.
++    if flag(threaded) && !os(windows)
+       ghc-options: -threaded
+
+     ghc-options: -eventlog

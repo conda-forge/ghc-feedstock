@@ -1,0 +1,31 @@
+From: conda-forge
+Subject: [PATCH] Disable process jobs in Cabal library on Windows
+
+The Cabal library bundled with GHC 9.2.8 enables process jobs on Windows 8+
+via Distribution.Compat.Process.enableProcessJobs. This causes "Invalid argument"
+errors when building with Hadrian on Azure DevOps, which already runs builds
+inside a job object.
+
+This patch disables process jobs in Cabal's process wrappers to avoid
+nested job object conflicts.
+
+See also: disable-process-job-objects-windows.patch (for GHC's SysTools)
+
+diff --git a/libraries/Cabal/Cabal/src/Distribution/Compat/Process.hs b/libraries/Cabal/Cabal/src/Distribution/Compat/Process.hs
+--- a/libraries/Cabal/Cabal/src/Distribution/Compat/Process.hs
++++ b/libraries/Cabal/Cabal/src/Distribution/Compat/Process.hs
+@@ -53,9 +53,12 @@ isWindows8OrLater = unsafePerformIO $ do
+ -- automatically inherits the job. But at it also tries to assign a
+ -- new job J2 to C since it doesn't have access J1. This fails on
+ -- Windows 7 or before.
++--
++-- CONDA-FORGE: Disabled unconditionally to avoid conflicts with Azure DevOps
++-- job objects which cause "builderMainLoop: invalid argument" errors.
+ enableProcessJobs :: CreateProcess -> CreateProcess
+-#if defined(mingw32_HOST_OS) && MIN_VERSION_process(1,6,9)
+-enableProcessJobs cp = cp {Process.use_process_jobs = isWindows8OrLater}
++#if 0
++enableProcessJobs cp = cp {Process.use_process_jobs = False}
+ #else
+ enableProcessJobs cp = cp
+ #endif

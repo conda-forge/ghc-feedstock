@@ -1,0 +1,51 @@
+From: conda-forge
+Subject: [PATCH] Disable job objects in process library to fix builderMainLoop error
+
+GHC 9.2.8 bundles process-1.6.16.0 which has a bug in Windows job object
+handling that causes "builderMainLoop: invalid argument" errors. The bug
+was fixed in process-1.6.18.0 but we cannot easily upgrade the bundled library.
+
+This patch disables job object creation in c_runInteractiveProcess by treating
+useJobObject as always false. This is safe because job objects are an
+optimization for process management (tracking child process trees), not a
+required feature.
+
+IMPORTANT: The original patch that made createJob() return NULL immediately
+was WRONG because the calling code treats NULL as an error condition. This
+patch instead modifies the calling code to skip job object creation entirely.
+
+The Stage 1 GHC we build will contain this patched process library, so when
+it compiles Stage 2 GHC, the builderMainLoop error won't occur.
+
+See:
+- https://hackage.haskell.org/package/process-1.6.24.0/changelog
+- https://github.com/haskell/cabal/issues/7309
+- https://github.com/haskell/process/issues/273
+
+diff --git a/libraries/process/cbits/win32/runProcess.c b/libraries/process/cbits/win32/runProcess.c
+--- a/libraries/process/cbits/win32/runProcess.c
++++ b/libraries/process/cbits/win32/runProcess.c
+@@ -361,17 +361,12 @@ runInteractiveProcess (wchar_t *cmd, wchar_t *workingDirectory, wchar_t *environ
+     /* If we're going to use a job object, then we have to create
+        the thread suspended.
+        See Note [Windows exec interaction].  */
+-    if (useJobObject)
+-    {
+-        dwFlags |= CREATE_SUSPENDED;
+-        *hJob = createJob();
+-        if (!*hJob)
+-        {
+-            goto cleanup_err;
+-        }
+-    } else {
+-        *hJob = NULL;
+-    }
++    // CONDA-FORGE: Always disable job objects on Windows to avoid
++    // "builderMainLoop: invalid argument" errors caused by a bug in
++    // process-1.6.16.0 (bundled with GHC 9.2.8). Fixed in 1.6.18.0.
++    // See: https://github.com/haskell/process/issues/273
++    (void)useJobObject;  // Mark as intentionally unused
++    *hJob = NULL;
+
+     if (!CreateProcess(NULL, cmd, NULL, NULL, inherit, dwFlags, environment, workingDirectory, &sInfo, &pInfo))
+     {

@@ -1,0 +1,21 @@
+--- a/configure
++++ b/configure
+@@ -11267,6 +11267,11 @@ $as_echo "#define HAVE_VISIBILITY_HIDDEN 1" >>confdefs.h
+
+    { $as_echo "$as_me:${as_lineno-$LINENO}: checking whether CC supports -no-pie" >&5
+ $as_echo_n "checking whether CC supports -no-pie... " >&6; }
++   # Allow override via environment variable (for when test incorrectly fails)
++   if test -n "$CONF_GCC_SUPPORTS_NO_PIE"; then
++       { $as_echo "$as_me:${as_lineno-$LINENO}: result: $CONF_GCC_SUPPORTS_NO_PIE (cached)" >&5
++$as_echo "$CONF_GCC_SUPPORTS_NO_PIE (cached)" >&6; }
++   else
+    echo 'int main() { return 0; }' > conftest.c
+    # Some GCC versions only warn when passed an unrecognized flag.
+    if $CC -no-pie -Werror -x c conftest.c -o conftest > conftest.txt 2>&1 && ! grep -i unrecognized conftest.txt > /dev/null 2>&1; then
+@@ -11279,6 +11284,7 @@ $as_echo "no" >&6; }
+    fi
+    rm -f conftest.c conftest.o conftest
+
++   fi
+
+

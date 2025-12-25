@@ -1,0 +1,27 @@
+diff --git a/utils/deriveConstants/Main.hs b/utils/deriveConstants/Main.hs
+--- a/utils/deriveConstants/Main.hs
++++ b/utils/deriveConstants/Main.hs
+@@ -156,8 +156,11 @@ constantInt w name expr = [(w, GetInt name (Fst (CExpr expr)))]
+ constantNatural :: Where -> Name -> String -> Wanteds
+ constantNatural w name expr = [(w, GetNatural name (Fst (CExpr expr)))]
+
+--- constantBool :: Where -> Name -> String -> Wanteds
+--- constantBool w name expr = [(w, GetBool name (Fst (CPPExpr expr)))]
++-- Note: constantBool is enabled to support GHC 9.6+ bootstrap compatibility.
++-- The USE_INLINE_SRT_FIELD constant was added in GHC 9.6 and is expected
++-- by the bootstrap GHC's platform constants parser.
++constantBool :: Where -> Name -> String -> Wanteds
++constantBool w name expr = [(w, GetBool name (Fst (CPPExpr expr)))]
+
+ fieldOffset :: Where -> String -> String -> Wanteds
+ fieldOffset w theType theField = fieldOffset_ w nameBase theType theField
+@@ -662,6 +665,9 @@ wanteds os = concat
+           ,constantNatural Haskell "ILDV_CREATE_MASK"  "LDV_CREATE_MASK"
+           ,constantNatural Haskell "ILDV_STATE_CREATE" "LDV_STATE_CREATE"
+           ,constantNatural Haskell "ILDV_STATE_USE"    "LDV_STATE_USE"
++
++          -- GHC 9.6+ bootstrap compatibility constant
++          ,constantBool    Haskell "USE_INLINE_SRT_FIELD" "defined(USE_INLINE_SRT_FIELD)"
+           ]
+
+ getWanted :: Bool -> String -> FilePath -> FilePath -> [String] -> FilePath -> Maybe FilePath

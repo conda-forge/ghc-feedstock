@@ -1,0 +1,69 @@
+# GHC 9.6.7 Version Metadata
+# This file contains version-specific configuration for building GHC 9.6.7
+
+version: "9.6.7"
+bootstrap_version: "9.2.8"
+sha256: "7e102d8c920b7ea85b74a0dfefe1d66671a82f92b1ddf0a6c32a90bad4acc410"
+
+# Source URL pattern (version is substituted)
+source_url: "https://downloads.haskell.org/~ghc/${version}/ghc-${version}-src.tar.xz"
+
+# Hadrian build flavour by platform
+hadrian_flavour:
+  linux-64: "release"
+  linux-aarch64: "release"
+  linux-ppc64le: "release"
+  osx-64: "release"
+  osx-arm64: "release"
+  win-64: "release"
+
+# Bindist install targets (GHC 9.6.x has install_man)
+install_targets: "install_bin install_lib install_man"
+
+# Known bugs requiring runtime workarounds
+bugs:
+  # None - GHC 9.6.x has these bugs fixed
+  intree_gmp_bug: false
+  touchy_exe_cross_platform_bug: false
+  pie_relocation_error: false
+  mingw32_timezone_symbols: false
+
+# Patches to apply (relative to recipe/patches/)
+patches:
+  # Common patches (identical across versions)
+  common:
+    - common/add-threadlabels-include-consolehandler.patch
+    - common/fix-windows-reportmemorymap-format.patch
+    - common/fix-windows-utimbuf-type.patch
+    - common/patch-osname-macos.patch
+    - common/skip-mingw-copy-conda.patch
+
+  # Version-specific patches
+  version: []
+
+  # Platform-conditional patches
+  linux: []
+
+  osx:
+    - 9.6/patch-rpath-macos.patch
+
+  osx_arm64:
+    - common/patch-osname-macos.patch
+
+  windows:
+    - 9.6/disable-split-sections-windows.patch
+    - 9.6/fix-windows-mmap-format.patch
+    - 9.6/skip-mingw-copy-conda.patch
+    - 9.6/force-system-gmp-windows.patch
+    - 9.6/add-ffi-include-dir-substitution.patch
+    - 9.6/fix-windows-thriomanager-include.patch
+    - 9.6/fix-hp2ps-utilities-stdlib.patch
+    - 9.6/fix-windows-pei386-format.patch
+    - 9.6/skip-mingw-detection-error.patch
+
+# Compiler version requirements by platform
+compiler_versions:
+  c_compiler_version:
+    linux: "14"
+    osx: "19"
+  binutils_version: "2.40"

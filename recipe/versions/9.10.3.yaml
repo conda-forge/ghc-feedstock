@@ -1,0 +1,125 @@
+# GHC 9.10.3 Version Metadata
+# This file contains version-specific configuration for building GHC 9.10.3
+
+version: "9.10.3"
+bootstrap_version: "9.2.8"
+sha256: "d266864b9e0b7b741abe8c9d6a790d7c01c21cf43a1419839119255878ebc59a"
+
+# Source URL pattern (version is substituted)
+source_url: "https://downloads.haskell.org/~ghc/${version}/ghc-${version}-src.tar.xz"
+
+# Windows IS supported for GHC 9.10.3 (uses ghc-toolchain)
+windows_supported: true
+
+# Hadrian build flavour by platform
+hadrian_flavour:
+  linux-64: "release"
+  linux-aarch64: "release"
+  linux-ppc64le: "release"
+  osx-64: "release"
+  osx-arm64: "release"
+  win-64: "release"
+
+# Bindist install targets
+install_targets: "install_bin install_lib install_man"
+
+# Known bugs requiring runtime workarounds
+bugs:
+  # GHC 9.10.x has no intree-gmp bug
+  intree_gmp_bug: false
+
+  # No touchy.exe bug
+  touchy_exe_cross_platform_bug: false
+
+  # No PIE relocation issues (fixed in 9.6+)
+  pie_relocation_error: false
+
+  # Windows uses UCRT, needs timezone stubs for bootstrap
+  mingw32_timezone_symbols: false  # Bootstrap is 9.2.8 which needs stubs
+
+  # FFI_GO_CLOSURES macro conflict with conda libffi on macOS
+  # Requires remove-dangerous-macos-linker-flags.patch (different from 9.8)
+  ffi_go_closures_conflict:
+    platforms: [osx-64, osx-arm64]
+
+  # GHC 9.10+ uses ghc-toolchain for toolchain detection
+  # Requires patching output files for path format issues on Windows
+  ghc_toolchain_path_issues:
+    platforms: [win-64]
+
+# Patches to apply (relative to recipe/patches/)
+patches:
+  # Common patches (identical across versions)
+  common:
+    - common/skip-bindist-recache-crosscompile.patch
+    - common/patch-osname-macos.patch
+
+  # Version-specific patches
+  version:
+    - 9.10/remove-dangerous-macos-linker-flags.patch
+
+  # Platform-conditional patches
+  linux: []
+
+  linux_ppc64le:
+    - 9.10/fix-stgcrun-ppc64le-abi-v2.patch
+    - 9.10/fix-stgrun-visibility-ppc64le.patch
+    - 9.10/fix-stgrun-header-visibility-ppc64le.patch
+
+  osx:
+    - 9.10/remove-dangerous-macos-linker-flags.patch
+
+  osx_arm64:
+    - common/patch-osname-macos.patch
+    - 9.10/fix-regparm-arm64.patch
+    - 9.10/fix-smp-spinlock-arm64.patch
+    - 9.10/fix-stgcrun-x86-arm64.patch
+
+  linux_aarch64:
+    - 9.10/fix-regparm-arm64.patch
+    - 9.10/fix-smp-spinlock-arm64.patch
+    - 9.10/fix-stgcrun-x86-arm64.patch
+
+  windows:
+    - common/skip-mingw-copy-conda.patch
+    - common/add-threadlabels-include-consolehandler.patch
+    - 9.10/disable-split-sections-windows.patch
+    - 9.10/fix-js-cpp-test-windows-line-endings.patch
+    - 9.10/fix-process-signal-constants-windows.patch
+    - 9.10/add-ffi-include-to-rts-cdep-scanner.patch
+
+  cross_compile:
+    - common/skip-bindist-recache-crosscompile.patch
+
+# Compiler version requirements by platform
+compiler_versions:
+  c_compiler_version:
+    linux: "14"
+    osx: "17"
+  binutils_version: "2.40"
+
+# Build order notes
+# GHC 9.10.x requires building ghc-prim and ghc-bignum separately before full lib
+build_notes:
+  separate_prim_builds: true
+  # GHC 9.10+ uses ghc-toolchain for toolchain configuration
+  uses_ghc_toolchain: true
+  build_order:
+    - "stage1:exe:ghc-bin"
+    - "stage1:lib:ghc-prim"
+    - "stage1:lib:ghc-bignum"
+    - "stage1:lib:ghc"
+    - "stage2:lib:ghc-prim"
+    - "stage2:lib:ghc-bignum"
+    - "stage2:exe:ghc-bin"
+    - "stage2:lib:ghc"
+    - "install"
+
+# Special build notes
+notes:
+  - "Windows supported with GCC toolchain (MinGW-w64 UCRT)"
+  - "Bootstrap uses GHC 9.2.8 (standardized across all versions)"
+  - "Requires separate ghc-prim and ghc-bignum build steps"
+  - "Uses ghc-toolchain for toolchain detection (9.10+ feature)"
+  - "ghc-toolchain output files need path patching on Windows"
+  - "Uses hadrian/build script directly (not cabal v2-build hadrian)"

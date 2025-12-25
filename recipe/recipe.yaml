@@ -1,0 +1,347 @@
+context:
+  version: "9.2.8"
+  # Bootstrap version differs by platform:
+  # - Unix: 9.2.8 (most reliable)
+  # - Windows: 9.6.7 (has process-1.6.19.0 which fixes builderMainLoop job object bug)
+  bootstrap_version_unix: "9.2.8"
+  bootstrap_version_windows: "9.6.7"
+  # GHC major version for patch selection (e.g., "9.2" from "9.2.8")
+  ghc_major: "9.2"
+
+package:
+  name: ghc
+  version: ${{ version }}
+
+source:
+  - url: https://downloads.haskell.org/~ghc/${{ version }}/ghc-${{ version }}-src.tar.xz
+    sha256: 5f13d1786bf4fd12f4b45faa37abedb5bb3f36d5e58f7da5307e8bfe88a567a1
+    patches:
+      # ==== COMMON PATCHES (identical across GHC versions) ====
+      - patches/common/add-threadlabels-include-consolehandler.patch
+      - patches/common/fix-windows-reportmemorymap-format.patch
+      # NOTE: fix-windows-utimbuf-type.patch is NOT applied because UCRT uses
+      # the standard 'struct utimbuf' (POSIX), not MSVCRT's 'struct _utimbuf'
+
+      # ==== VERSION-SPECIFIC PATCHES (GHC 9.2.x) ====
+      # Make alex and happy optional since generated files are already in source tarball
+      - patches/${{ ghc_major }}/make-alex-happy-optional.patch
+      # Update hadrian cabal.project for newer dependencies and static-only build
+      - patches/${{ ghc_major }}/update-hadrian-cabal-project.patch
+
+      # ==== PLATFORM-CONDITIONAL PATCHES ====
+      # Linux: Fix -no-pie detection - allow env var override when test fails with clang
+      - if: linux
+        then: patches/${{ ghc_major }}/fix-no-pie-detection-configure.patch
+
+      # Cross-compile targets
+      - if: aarch64 or ppc64le or arm64
+        then: patches/common/skip-bindist-recache-crosscompile.patch
+
+      # Windows-specific patches
+      - if: not unix
+        then:
+          - patches/common/skip-mingw-copy-conda.patch
+          - patches/${{ ghc_major }}/force-system-gmp-windows.patch
+          - patches/${{ ghc_major }}/add-ffi-include-dir-substitution.patch
+          - patches/${{ ghc_major }}/fix-windows-thriomanager-include.patch
+          - patches/${{ ghc_major }}/skip-mingw-detection-error.patch
+          - patches/${{ ghc_major }}/fix-windows-pei386-format.patch
+          - patches/${{ ghc_major }}/fix-hp2ps-utilities-stdlib.patch
+          # Fix UCRT compatibility - remove MSVCRT __imp__environ symbol
+          - patches/${{ ghc_major }}/fix-windows-ucrt-environ.patch
+          # Fix Hadrian to recognize MinGW-w64 platform (w64 vendor)
+          # Without this, platformSupportsSharedLibs returns True for Windows
+          # causing Hadrian to request dynamic RTS builds that fail
+          - patches/${{ ghc_major }}/fix-hadrian-mingw-w64-platform-detection.patch
+          # Hadrian Cabal 3.10 compatibility - required when using GHC 9.6.7 bootstrap
+          # GHC 9.6.7 has Cabal 3.10 which removed readGenericPackageDescription API
+          # This patch adds conditional code to use parseGenericPackageDescription instead
+          - patches/${{ ghc_major }}/hadrian-cabal-3.10-compat.patch
+          # NOTE: Version bounds relaxation is done via sed in version-fixes.sh
+          # (relax_bootstrap_version_bounds function) instead of patches due to
+          # varying line numbers across library cabal files
+          # Disable -threaded for ghc.exe on Windows to avoid builderMainLoop errors
+          # The bootstrap GHC spawns processes during linking that fail on Azure CI
+          - patches/${{ ghc_major }}/disable-threaded-ghc-exe-windows.patch
+          # Disable process job objects on Windows - Azure DevOps runs builds in
+          # a job object, and nested job objects cause "Invalid argument" errors
+          - patches/${{ ghc_major }}/disable-process-job-objects-windows.patch
+          # Also disable in Cabal library (Hadrian uses Cabal's process wrappers)
+          - patches/${{ ghc_major }}/disable-cabal-process-jobs-windows.patch
+          # Disable ghcThreaded in Hadrian default flavour on Windows
+          # This prevents -threaded flag from being passed to ghc.exe builds
+          - patches/${{ ghc_major }}/disable-ghc-threaded-windows-hadrian.patch
+          # Disable job objects in process library C code (libraries/process)
+          # Belt-and-suspenders: ensures Stage 1 GHC also has patched process library
+          - patches/${{ ghc_major }}/disable-process-library-job-objects-windows.patch
+          # Fix ghc-pkg stdin piping issue on Windows
+          # ghc-pkg describe | ghc-pkg register - fails randomly on Windows/MSYS2
+          # This patch uses a temp file instead of stdin for package registration
+          - patches/${{ ghc_major }}/fix-hadrian-ghcpkg-copy-windows.patch
+          # NOTE: fix-hadrian-missing-rts-stage0.patch removed - RTS now built
+          # from source normally (reverted to dfa7633 approach)
+          # Add source tree include paths for Stage0 C compilation
+          # Stage0 utilities like hsc2hs have C sources needing HsFFI.h/HsBase.h
+          - patches/${{ ghc_major }}/fix-stage0-include-paths.patch
+          # Fix Hadrian configurePackageRules to need .conf files before configure
+          # Cabal.configurePackage needs dependencies registered in package database
+          # Without this: "missing dependencies: ghc-boot-th ==9.2.8"
+          - patches/${{ ghc_major }}/fix-hadrian-configure-needs-conf.patch
+          # Explicitly pass --package-db to Cabal.registerPackage
+          # Ensures package registration goes to Stage0 database, not bootstrap's
+          - patches/${{ ghc_major }}/fix-cabal-register-package-db.patch
+          # NOTE: fix-hadrian-rts-stage0-copy.patch removed - obsoleted by
+          # fix-hadrian-ghcpkg-copy-windows.patch which now handles RTS skipping
+          # Disable testsuite timeout utility on Windows
+          # The testsuite/timeout directory is not in the source tarball, but
+          # Hadrian includes it in stage0Packages for Windows. This causes builds
+          # to fail when querying stagePackages because timeout.cabal doesn't exist.
+          - patches/${{ ghc_major }}/disable-testsuite-timeout-windows.patch
+          # Fix deriveConstants for GHC 9.6+ bootstrap compatibility
+          # GHC 9.6 added USE_INLINE_SRT_FIELD to platform constants. When using
+          # GHC 9.6.7 as bootstrap, its parser expects this constant in the
+          # HS_CONSTANTS define. Without this patch: "Invalid platform constants"
+          - patches/${{ ghc_major }}/fix-deriveconstants-bootstrap-compat.patch
+          # Fix CMM macro compatibility for GHC 9.6+ bootstrap
+          # PUSH_TUPLE_REGS/POP_TUPLE_REGS were renamed to PUSH_ARG_REGS/POP_ARG_REGS
+          # in GHC 9.6+. Since the bootstrap compiler's CMM parser processes the RTS,
+          # we need to use the macro names that the bootstrap GHC understands.
+          - patches/${{ ghc_major }}/fix-cmm-tuple-regs-bootstrap-compat.patch
+          # Fix INFO_TABLE_FUN macro arity for GHC 9.6+ bootstrap
+          # INFO_TABLE_FUN gained an extra SRT offset parameter in GHC 9.6+.
+          # We need to add the extra 0 parameter for the bootstrap CMM parser.
+          - patches/${{ ghc_major }}/fix-info-table-fun-bootstrap-compat.patch
+
+      # macOS-specific patches
+      - if: osx
+        then:
+          - patches/${{ ghc_major }}/remove-dangerous-macos-linker-flags.patch
+      - if: osx and arm64
+        then:
+          - patches/common/patch-osname-macos.patch
+
+build:
+  number: 0
+  script:
+    env:
+      # BOOTSTRAP_VERSION is determined at runtime by get_bootstrap_version() in version-fixes.sh
+      # based on target platform (unix=9.2.8, windows=9.6.7)
+      BOOTSTRAP_VERSION_UNIX: ${{ bootstrap_version_unix }}
+      BOOTSTRAP_VERSION_WINDOWS: ${{ bootstrap_version_windows }}
+
+requirements:
+  build:
+    - ${{ compiler('c') }}
+    - ${{ compiler('cxx') }}
+    - ${{ stdlib('c') }}
+    - binutils >=${{ binutils_version }}
+    - cabal ==3.10.3.0
+    - curl
+    # Bootstrap GHC: use 9.2.8 on Unix, 9.6.7 on Windows
+    # Windows needs 9.6.7 because it has process-1.6.19.0 which fixes the
+    # builderMainLoop job object bug (GHC 9.2.8 has buggy process-1.6.16.0)
+    - if: unix
+      then: ghc-bootstrap ==${{ bootstrap_version_unix }}
+      else: ghc-bootstrap ==${{ bootstrap_version_windows }}
+    - llvm-tools ${{ c_compiler_version }}.*
+    - perl 5.32.*
+    - pkg-config
+    - python 3.10.*
+    - sphinx
+
+    - if: unix
+      then:
+        - autoconf
+        - automake
+        - bash >=5.2
+        - file
+        - findutils
+        - m4
+        - make
+        - sed
+      else:
+        - libgcc-devel_win-64
+        - m2-autoconf
+        - m2-automake-wrapper
+        - m2-bash >=5.2
+        - m2-coreutils
+        - m2-file
+        - m2-findutils
+        - m2-grep
+        - m2-m4
+        - m2-make
+        - m2-sed
+        - m2-tar
+        - m2-which
+
+    - if: build_platform != target_platform
+      then:
+        - gmp
+        - libffi
+        - libiconv
+        - if: unix
+          then: ncurses
+  host:
+    - gmp
+    - libiconv
+    - libffi
+    - if: unix
+      then: ncurses
+    
+tests:
+  - package_contents:
+      bin:
+        - ghc
+        - ghc-pkg
+        - ghci
+        - hp2ps
+        - hsc2hs
+        - if: build_platform == target_platform
+          then:
+            - haddock
+            - hpc
+            - runghc
+            - runhaskell
+      files:
+        - etc/conda/activate.d/ghc_activate.${{ "sh" if unix else "bat" }}
+        - if: unix
+          then:
+            - etc/bash_completion.d/ghc
+            - lib/ghc-${{ version }}/lib/llvm-passes
+            - lib/ghc-${{ version }}/lib/llvm-targets
+            - lib/ghc-${{ version }}/lib/package.conf.d/**
+            - lib/ghc-${{ version }}/lib/ghc-usage.txt
+            - lib/ghc-${{ version }}/lib/ghci-usage.txt
+            - lib/ghc-${{ version }}/lib/settings
+            - lib/ghc-${{ version }}/lib/template-hsc.h
+            - lib/ghc-${{ version }}/lib/*-ghc-${{ version }}/**
+          else:
+            - include/**
+            - lib/bin/ghc-iserv.exe
+            - lib/bin/touchy.exe
+            - lib/bin/unlit.exe
+            - lib/ghc-usage.txt
+            - lib/ghci-usage.txt
+            - lib/llvm-passes
+            - lib/llvm-targets
+            - lib/package.conf.d/**
+            - lib/settings
+            - lib/template-hsc.h
+            - lib/x86_64-windows-ghc-${{ version }}/**
+
+  - script:
+      - ghc --version
+      - ghc-pkg --version
+      - ghci --version
+      - hsc2hs --version
+      - if: build_platform == target_platform
+        then:
+          - haddock --version
+          - hpc help
+          - runghc --version
+          - runhaskell --version
+
+  - script:
+      - ghc --version
+      - printf 'main = putStrLn "Hello conda-forge"\n' > hello.hs
+      - ghc -v hello.hs
+      - if: unix
+        then:
+          - ${{ "./hello" if unix else "hello" }}
+    requirements:
+      run:
+        - ${{ compiler('c') }}
+        - libiconv
+        - if: unix
+          then:
+            - ${{ stdlib('c') }}
+        - if: linux
+          then:
+            - ld_impl_${{ target_platform }} ${{ binutils_version }}
+        - if: osx or not unix
+          then:
+            - lld ${{ c_compiler_version }}.*
+
+  - script:
+      - if: not osx
+        then:
+          - printf 'main = putStrLn "Hello threaded conda-forge"\n' > hello_t.hs
+          - ghc -threaded hello_t.hs
+          - if: unix
+            then: ./hello_t
+            else: hello_t
+          - echo "No profiling"
+        else:
+          - echo "Profiling fails on osx"
+    requirements:
+      run:
+        - ${{ compiler('c') }}
+        - libiconv
+        - if: unix
+          then:
+            - ${{ stdlib('c') }}
+        - if: linux
+          then:
+            - ld_impl_${{ target_platform }} ${{ binutils_version }}
+
+  - script:
+      - printf 'main = putStrLn "Hello conda-forge"\n' > hello.hs
+      - ghc -dynamic hello.hs && ./hello
+      - ${{ "./hello" if unix else "hello" }}
+      - printf 'main = putStrLn "Hello threaded conda-forge"\n' > hello_t.hs
+      - ghc -dynamic -threaded hello_t.hs && ./hello_t
+      - ${{ "./hello_t" if unix else "hello_t" }}
+    requirements:
+      run:
+        - ${{ compiler('c') }}
+        - libiconv
+        - if: unix
+          then:
+            - ${{ stdlib('c') }}
+        - if: linux
+          then:
+            - ld_impl_${{ target_platform }} ${{ binutils_version }}
+        - if: osx
+          then:
+            - lld ${{ c_compiler_version }}.*
+
+  - script:
+      - printf 'import System.Posix.Signals\nmain = installHandler sigTERM Default Nothing >> putStrLn "Signal test"\n' > signal_test.hs
+      - if: unix
+        then: |
+          ghc signal_test.hs
+          ./signal_test
+        else: |
+          echo Skipping signal test on Windows
+    requirements:
+      run:
+        - ${{ compiler('c') }}
+        - libiconv
+        - if: unix
+          then:
+            - ${{ stdlib('c') }}
+        - if: linux
+          then:
+            - ld_impl_${{ target_platform }} ${{ binutils_version }}
+        - if: osx
+          then:
+            - lld ${{ c_compiler_version }}.*
+
+
+about:
+  homepage: https://haskell.org/ghc/
+  license: BSD-3-Clause
+  license_file:
+    - LICENSE
+  summary: Glorious Glasgow Haskell Compilation System
+  description: |
+    GHC is a state-of-the-art, open source, compiler and interactive environment 
+    for the functional language Haskell.
+  documentation: https://www.haskell.org/ghc/documentation.html
+  repository: https://gitlab.haskell.org/ghc/ghc
+
+extra:
+  recipe-maintainers:
+    - eggzilla
+    - step21
+    - xhochy

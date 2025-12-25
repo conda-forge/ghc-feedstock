@@ -1,0 +1,56 @@
+From: Conda-forge <conda-forge@users.noreply.github.com>
+Subject: [PATCH] Fix environ declarations for UCRT compatibility
+
+UCRT (Universal C Runtime) doesn't provide __imp__environ like MSVCRT did.
+Instead, it provides __p__environ() function. This patch removes the MSVCRT-
+specific symbol references that cause compilation errors with modern MinGW-w64
+that uses UCRT.
+
+The environ declaration also conflicts with UCRT's __p__environ macro/function
+in both rts/RtsSymbols.c and libraries/base/include/HsBase.h.
+
+--- a/rts/RtsSymbols.c
++++ b/rts/RtsSymbols.c
+@@ -37,7 +37,11 @@
+ #include <unistd.h> /* environ */
+ #endif
+
+-#if !HAVE_DECL_ENVIRON
++/* Note: On Windows with UCRT, environ is accessed via __p__environ() function
++ * rather than as a direct symbol. The extern declaration conflicts with UCRT.
++ * We only declare environ on non-Windows or when using MSVCRT.
++ */
++#if !HAVE_DECL_ENVIRON && !defined(mingw32_HOST_OS)
+ /* We must provide a prototype for environ since depending upon the libc
+  * version it may or may not be provided by unistd.h. See #20577 and #20861.
+  */
+@@ -167,7 +171,10 @@
+       RTS_WIN32_ONLY(SymI_NeedsProto(___chkstk_ms))      \
+       RTS_WIN64_ONLY(SymI_NeedsProto(___chkstk_ms))      \
+       RTS_WIN32_ONLY(SymI_HasProto(_imp___environ))      \
+-      RTS_WIN64_ONLY(SymI_HasProto(__imp__environ))      \
++      /* Note: __imp__environ is an MSVCRT symbol not available in UCRT.
++       * UCRT uses __p__environ() function instead.
++       * RTS_WIN64_ONLY(SymI_HasProto(__imp__environ))
++       */      \
+       RTS_WIN32_ONLY(SymI_HasProto(_imp___iob))          \
+       RTS_WIN64_ONLY(SymI_HasProto(__iob_func))          \
+       /* see Note [Symbols for MinGW's printf] */        \
+--- a/libraries/base/include/HsBase.h
++++ b/libraries/base/include/HsBase.h
+@@ -551,7 +551,14 @@
+ // See #2458 and http://developer.apple.com/library/mac/#documentation/Darwin/Reference/ManPages/man7/environ.7.html
+ #include <crt_externs.h>
+ INLINE char **__hscore_environ(void) { return *(_NSGetEnviron()); }
+-#else
++#elif defined(mingw32_HOST_OS)
++/* On Windows with UCRT, environ is accessed via __p__environ() function.
++ * The 'extern char** environ' declaration conflicts with UCRT's definition
++ * which uses a macro/function approach. We use the proper UCRT interface.
++ */
++#include <stdlib.h>
++INLINE char **__hscore_environ(void) { return *__p__environ(); }
++#else /* Other Unix-like systems */
+ /* ToDo: write a feature test that doesn't assume 'environ' to
+  *    be in scope at link-time. */
+ extern char** environ;
