@@ -1,0 +1,20 @@
+c_compiler:
+- gcc
+c_compiler_version:
+- 15
+c_stdlib:
+- m2w64-sysroot
+channel_sources:
+- conda-forge
+channel_targets:
+- conda-forge main
+cxx_compiler:
+- gxx
+cxx_compiler_version:
+- 15
+gmp:
+- '6'
+libffi:
+- '3.5'
+target_platform:
+- win-64
