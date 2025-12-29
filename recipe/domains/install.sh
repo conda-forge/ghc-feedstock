@@ -83,6 +83,27 @@ _install_bindist() {
     run_and_log "install-bindist" make install_bin install_lib install_man
 
     popd >/dev/null
+
+    # Install conda activation scripts
+    _install_activation_scripts
+}
+
+_install_activation_scripts() {
+    log_info "  Installing conda activation scripts..."
+
+    mkdir -p "${PREFIX}/etc/conda/activate.d"
+
+    # Determine script extension
+    local sh_ext="sh"
+    if is_windows; then
+        sh_ext="bat"
+    fi
+
+    # Copy activation script
+    cp "${RECIPE_DIR}/scripts/activate.${sh_ext}" \
+       "${PREFIX}/etc/conda/activate.d/ghc_activate.${sh_ext}"
+
+    log_info "  ✓ Activation scripts installed"
 }
 
 _verify_install() {
