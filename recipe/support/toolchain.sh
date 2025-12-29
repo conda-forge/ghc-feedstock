@@ -42,7 +42,12 @@ build_toolchain_args() {
     _args+=("LD=${LD}")
     _args+=("NM=${NM}")
     _args+=("RANLIB=${RANLIB}")
-    _args+=("OBJDUMP=${OBJDUMP}")
+
+    # OBJDUMP: may not be set on all platforms (e.g., macOS)
+    if [[ -n "${OBJDUMP:-}" ]]; then
+        _args+=("OBJDUMP=${OBJDUMP}")
+    fi
+
     _args+=("STRIP=${STRIP}")
 
     # AR: platform-specific
