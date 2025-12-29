@@ -29,14 +29,36 @@ build_hadrian() {
     # Use cabal --with-* flags instead of env vars (more surgical, no downstream effects)
     if is_cross_compile; then
         log_info "  Building Hadrian with BUILD toolchain (cabal flags)"
-        cabal_flags+=(
-            "--with-gcc=${CC_FOR_BUILD:-${CC}}"
-            "--with-ar=${AR_FOR_BUILD:-${AR}}"
-        )
-        # Add LD if available
-        if [[ -n "${LD_FOR_BUILD:-}" ]]; then
-            cabal_flags+=("--with-ld=${LD_FOR_BUILD}")
+
+        # Linux cross-compile: Set CFLAGS/LDFLAGS with sysroot
+        # macOS Clang handles sysroot automatically via CONDA_BUILD_SYSROOT
+        if is_linux; then
+            # Get BUILD sysroot (not target sysroot!)
+            # For linux-aarch64 cross: BUILD is x86_64, TARGET is aarch64
+            local build_triple
+            build_triple=$(echo "${CC_FOR_BUILD}" | sed 's/-clang$//' | sed 's/-gcc$//')
+            export CFLAGS="--sysroot=${BUILD_PREFIX}/${build_triple}/sysroot -march=nocona -mtune=haswell -ftree-vectorize -fPIC -fstack-protector-strong -fno-plt -O2 -ffunction-sections -pipe -isystem ${PREFIX}/include"
+            export LDFLAGS="-L${BUILD_PREFIX}/${build_triple}/lib -L${BUILD_PREFIX}/${build_triple}/sysroot/usr/lib ${LDFLAGS:-}"
+            log_info "  ✓ Linux BUILD sysroot flags set: ${build_triple}/sysroot"
         fi
+
+        # Cabal toolchain flags
+        # Derive BUILD ar from CC_FOR_BUILD (no AR_FOR_BUILD in conda-forge)
+        local build_gcc="${CC_FOR_BUILD:-${CC}}"
+        local build_ar="${build_gcc/%-clang/-ar}"
+        build_ar="${build_ar/%-gcc/-ar}"
+
+        if is_macos; then
+            # macOS: Override with llvm-ar (Apple ld64 requires BSD archive format)
+            build_ar="${BUILD_PREFIX}/bin/llvm-ar"
+        fi
+
+        cabal_flags+=(
+            "--with-gcc=${build_gcc}"
+            "--with-ar=${build_ar}"
+        )
+
+        log_info "  BUILD toolchain: gcc=${build_gcc}, ar=${build_ar}"
     fi
 
     # Use v2-build (modern cabal command)
