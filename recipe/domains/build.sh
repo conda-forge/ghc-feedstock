@@ -19,13 +19,28 @@ build_hadrian() {
         "${CABAL}" v2-update || true  # Don't fail if offline
     fi
 
+    # Build cabal flags array
+    local -a cabal_flags=(
+        --with-compiler="${GHC}"
+        -j"${CPU_COUNT}"
+    )
+
+    # CRITICAL for cross-compile: Hadrian runs on BUILD machine, needs BUILD toolchain
+    # Use cabal --with-* flags instead of env vars (more surgical, no downstream effects)
+    if is_cross_compile; then
+        log_info "  Building Hadrian with BUILD toolchain (cabal flags)"
+        cabal_flags+=(
+            "--with-gcc=${CC_FOR_BUILD:-${CC}}"
+            "--with-ar=${AR_FOR_BUILD:-${AR}}"
+        )
+        # Add LD if available
+        if [[ -n "${LD_FOR_BUILD:-}" ]]; then
+            cabal_flags+=("--with-ld=${LD_FOR_BUILD}")
+        fi
+    fi
+
     # Use v2-build (modern cabal command)
-    # Note: In cross-compile, CONDA_BUILD_SYSROOT is unset in environment.sh,
-    # so compiler wrappers auto-detect BUILD sysroot for x86_64 builds
-    run_and_log "build-hadrian" "${CABAL}" v2-build \
-        --with-compiler="${GHC}" \
-        -j"${CPU_COUNT}" \
-        hadrian
+    run_and_log "build-hadrian" "${CABAL}" v2-build "${cabal_flags[@]}" hadrian
 
     popd >/dev/null
 
