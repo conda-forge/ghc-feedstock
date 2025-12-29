@@ -8,12 +8,35 @@
 source "${RECIPE_DIR}/support/utils.sh"
 source "${RECIPE_DIR}/support/toolchain.sh"
 
+# Source platform-specific helper libraries
+source "${RECIPE_DIR}/lib/helpers.sh"
+if [[ "${target_platform}" == "win-64" ]]; then
+    source "${RECIPE_DIR}/lib/windows-helpers.sh"
+fi
+
 #=============================================================================
 # PUBLIC API (called from build.sh)
 #=============================================================================
 
 configure_ghc() {
     log_info "Phase: Configure GHC"
+
+    # Windows: Pre-configure environment variables
+    if is_windows; then
+        log_info "  Setting Windows pre-configure variables..."
+        # Force use of conda-provided toolchain and libraries (not inplace MinGW)
+        export UseSystemMingw=YES
+        export WindowsToolchainAutoconf=NO
+        export WINDOWS_TOOLCHAIN_AUTOCONF=no
+        export UseSystemFfi=YES
+        export CXX_STD_LIB_LIBS="stdc++"
+
+        # Set autoconf variables (Windows-specific: ffi, DLLWRAP, WINDRES)
+        set_autoconf_toolchain_vars --windows
+
+        # Set up Windows SDK paths
+        setup_windows_sdk
+    fi
 
     # Build toolchain arguments (handles all platforms uniformly)
     local -a tc_args

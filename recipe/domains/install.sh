@@ -6,6 +6,12 @@ source "${RECIPE_DIR}/support/utils.sh"
 source "${RECIPE_DIR}/support/triples.sh"
 source "${RECIPE_DIR}/support/toolchain.sh"
 
+# Source platform-specific helper libraries
+source "${RECIPE_DIR}/lib/helpers.sh"
+if [[ "${target_platform}" == "win-64" ]]; then
+    source "${RECIPE_DIR}/lib/windows-helpers.sh"
+fi
+
 install_ghc() {
     log_info "Phase: Install GHC"
 
@@ -62,27 +68,48 @@ _install_bindist() {
     log_info "  Installing binary distribution..."
 
     # Find bindist directory
+    # Windows uses x86_64-unknown-mingw32 (not x86_64-w64-mingw32) for target triple
     local bindist_dir
-    bindist_dir=$(find "${SRC_DIR}/_build/bindist" -maxdepth 1 -name "ghc-${PKG_VERSION}-*" -type d | head -1)
+    if is_windows; then
+        local ghc_target="x86_64-unknown-mingw32"
+        bindist_dir=$(find "${_SRC_DIR}/_build/bindist" -name "ghc-${PKG_VERSION}-${ghc_target}" -type d | head -1)
+    else
+        bindist_dir=$(find "${SRC_DIR}/_build/bindist" -maxdepth 1 -name "ghc-${PKG_VERSION}-*" -type d | head -1)
+    fi
 
     if [[ -z "${bindist_dir}" ]]; then
         die "Binary distribution directory not found"
     fi
 
-    pushd "${bindist_dir}" >/dev/null
+    log_info "  Binary distribution: ${bindist_dir}"
 
-    # Configure bindist
-    local -a configure_args=(--prefix="${PREFIX}")
-    if is_cross_compile; then
-        configure_args+=(--target="${TARGET}")
+    # Windows: Just copy directly (bindists are relocatable)
+    if is_windows; then
+        log_info "  Installing to: ${_PREFIX}"
+        cp -r "${bindist_dir}"/* "${_PREFIX}"/
+
+        # Copy windres wrapper for installed package
+        cp "${_BUILD_PREFIX}/Library/bin/windres.bat" "${_PREFIX}/bin/ghc_windres.bat"
+
+        # Post-install cleanup (replace bundled mingw, update settings)
+        post_install_cleanup
+    else
+        # Unix: Run configure and make install
+        pushd "${bindist_dir}" >/dev/null
+
+        # Configure bindist
+        local -a configure_args=(--prefix="${PREFIX}")
+        if is_cross_compile; then
+            configure_args+=(--target="${TARGET}")
+        fi
+
+        run_and_log "configure-bindist" ./configure "${configure_args[@]}"
+
+        # Install (skip update_package_db for cross-compile - can fail)
+        run_and_log "install-bindist" make install_bin install_lib install_man
+
+        popd >/dev/null
     fi
-
-    run_and_log "configure-bindist" ./configure "${configure_args[@]}"
-
-    # Install (skip update_package_db for cross-compile - can fail)
-    run_and_log "install-bindist" make install_bin install_lib install_man
-
-    popd >/dev/null
 
     # Install conda activation scripts
     _install_activation_scripts
@@ -109,16 +136,21 @@ _install_activation_scripts() {
 _verify_install() {
     log_info "  Verifying installation..."
 
-    # Check GHC installed
-    if [[ ! -x "${PREFIX}/bin/ghc" ]]; then
-        die "GHC not found at ${PREFIX}/bin/ghc"
-    fi
+    # Windows: Use verify_installed_binaries from windows-helpers.sh
+    if is_windows; then
+        verify_installed_binaries || die "Windows binary verification failed"
+    else
+        # Check GHC installed
+        if [[ ! -x "${PREFIX}/bin/ghc" ]]; then
+            die "GHC not found at ${PREFIX}/bin/ghc"
+        fi
 
-    # Check settings file
-    local settings="${PREFIX}/lib/ghc-${PKG_VERSION}/lib/settings"
-    if [[ ! -f "${settings}" ]]; then
-        die "Settings file not found"
-    fi
+        # Check settings file
+        local settings="${PREFIX}/lib/ghc-${PKG_VERSION}/lib/settings"
+        if [[ ! -f "${settings}" ]]; then
+            die "Settings file not found"
+        fi
 
-    log_info "  GHC version: $(${PREFIX}/bin/ghc --version)"
+        log_info "  GHC version: $(${PREFIX}/bin/ghc --version)"
+    fi
 }

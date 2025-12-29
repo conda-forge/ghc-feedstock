@@ -5,13 +5,25 @@
 source "${RECIPE_DIR}/support/utils.sh"
 source "${RECIPE_DIR}/support/triples.sh"
 
+# Source platform-specific helper libraries
+source "${RECIPE_DIR}/lib/helpers.sh"
+if [[ "${target_platform}" == "win-64" ]]; then
+    source "${RECIPE_DIR}/lib/windows-helpers.sh"
+fi
+
 # Global for Hadrian path
 HADRIAN_EXE=""
 
 build_hadrian() {
     log_info "Phase: Build Hadrian"
 
-    pushd hadrian >/dev/null
+    # Windows uses _SRC_DIR path format
+    local hadrian_dir="hadrian"
+    if is_windows; then
+        hadrian_dir="${_SRC_DIR}/hadrian"
+    fi
+
+    pushd "${hadrian_dir}" >/dev/null
 
     # Update cabal package index if needed
     if [[ ! -f "${HOME}/.cabal/packages/hackage.haskell.org/01-index.tar" ]]; then
@@ -67,9 +79,14 @@ build_hadrian() {
     popd >/dev/null
 
     # Find the built executable (v2-build puts it in dist-newstyle)
-    HADRIAN_EXE=$(find hadrian/dist-newstyle -name hadrian -type f -executable 2>/dev/null | head -1)
-    if [[ -z "${HADRIAN_EXE}" ]]; then
-        die "Hadrian executable not found"
+    # Windows needs special handling via update_hadrian_cmd_after_build
+    if is_windows; then
+        update_hadrian_cmd_after_build "${_SRC_DIR}/hadrian/dist-newstyle"
+    else
+        HADRIAN_EXE=$(find hadrian/dist-newstyle -name hadrian -type f -executable 2>/dev/null | head -1)
+        if [[ -z "${HADRIAN_EXE}" ]]; then
+            die "Hadrian executable not found"
+        fi
     fi
 
     log_info "✓ Hadrian built: ${HADRIAN_EXE}"
@@ -107,22 +124,36 @@ build_stage1() {
 
     run_and_log "build-stage1" "${hadrian_cmd[@]}"
 
+    # Windows: Patch settings with include paths after ghc-bin built
+    if is_windows; then
+        log_info "  Patching Windows settings with include paths..."
+        patch_windows_settings "${_SRC_DIR}/_build/stage0/lib/settings" --include-paths
+    fi
+
+    # Windows: Use special library build function
+    if is_windows; then
+        log_info "  Building Stage 1 libraries (Windows-specific)..."
+        windows_build_stage_libraries 1
+    fi
+
     log_info "✓ Stage 1 built"
 }
 
 build_stage2() {
     log_info "Phase: Build Stage 2"
 
-    # Skip stage2 for Windows (quickest flavour)
-    if is_windows; then
-        log_info "  Skipping stage 2 (Windows uses quickest flavour)"
-        return 0
-    fi
-
     # Determine flavour
     local flavour="release"
-    if [[ "${target_platform}" == "osx-64" ]]; then
+    if is_windows; then
+        flavour="quickest"  # Windows needs quickest to avoid 32-bit relocation overflow
+    elif [[ "${target_platform}" == "osx-64" ]]; then
         flavour="release+omit_pragmas"
+    fi
+
+    # Windows: Pre-Stage2 setup
+    if is_windows; then
+        log_info "  Running Windows-specific Stage2 pre-build..."
+        create_fake_mingw_for_binary_dist
     fi
 
     # Cross-compile: only build stage 1 libraries
@@ -182,18 +213,34 @@ build_stage2() {
 
         run_and_log "build-stage2-exe" "${hadrian_cmd[@]}"
 
+        # Windows: Patch settings with link flags after ghc-bin built
+        if is_windows; then
+            log_info "  Patching Windows settings with link flags..."
+            patch_windows_settings "${_SRC_DIR}/_build/stage1/lib/settings" --link-flags
+        fi
+
+        # Windows: Rebuild touchy.exe before libraries
+        if is_windows; then
+            log_info "  Rebuilding touchy.exe with correct linker flags..."
+            rebuild_touchy_with_correct_linker_flags
+        fi
+
         log_info "  Building stage 2 libraries"
 
-        hadrian_cmd=(
-            "${HADRIAN_EXE}"
-            --flavour="${flavour}"
-            -j"${CPU_COUNT}"
-            --docs=no-sphinx
-            --freeze1
-            stage2:lib:ghc
-        )
-
-        run_and_log "build-stage2-lib" "${hadrian_cmd[@]}"
+        # Windows uses special library build function
+        if is_windows; then
+            windows_build_stage_libraries 2
+        else
+            hadrian_cmd=(
+                "${HADRIAN_EXE}"
+                --flavour="${flavour}"
+                -j"${CPU_COUNT}"
+                --docs=no-sphinx
+                --freeze1
+                stage2:lib:ghc
+            )
+            run_and_log "build-stage2-lib" "${hadrian_cmd[@]}"
+        fi
     fi
 
     log_info "✓ Stage 2 built"
