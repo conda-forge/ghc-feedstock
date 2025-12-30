@@ -117,13 +117,8 @@ _setup_macos_environment() {
 _setup_windows_environment() {
     log_info "  Windows-specific environment setup"
 
-    # Windows path variables (both Unix and Windows formats needed)
-    export _PREFIX_="${PREFIX}"
-    export _PREFIX="$(cygpath -u "${PREFIX}")"
-    export _BUILD_PREFIX_="${BUILD_PREFIX}"
-    export _BUILD_PREFIX="$(cygpath -u "${BUILD_PREFIX}")"
-    export _SRC_DIR="${SRC_DIR}"
-    export _RECIPE_DIR="${RECIPE_DIR}"
+    # NOTE: _BUILD_PREFIX_, _PREFIX_ etc are already set by conda-forge's build.bat
+    # in correct Windows format (C:/path/to/build). Do NOT redefine them.
 
     # Build clean PATH - don't append conda's bad PATH with unexpanded %BUILD_PREFIX% placeholders
     # Include MSYS2 tools (m2-coreutils, m2-bash, etc.) from Library/usr/bin
