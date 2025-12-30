@@ -80,15 +80,13 @@ _setup_linux_environment() {
         # 2. TARGET sysroot (e.g., aarch64): for GHC libraries (Stage2)
         #    → ${BUILD_PREFIX}/aarch64-conda-linux-gnu/sysroot
         #
-        # conda-build sets CONDA_BUILD_SYSROOT to TARGET sysroot by default.
-        # This breaks Stage0/Stage1 builds (they need BUILD sysroot).
+        # Strategy (matching working feedstock):
+        # 1. Set CONDA_BUILD_SYSROOT to BUILD sysroot for Hadrian/Stage0/Stage1
+        # 2. Later, explicitly override to TARGET sysroot for Stage2 libraries
         #
-        # Solution: UNSET it here, let conda compiler wrappers auto-detect:
-        #   - x86_64-conda-linux-gnu-clang → auto-uses x86_64 sysroot
-        #   - aarch64-conda-linux-gnu-clang → auto-uses aarch64 sysroot
-        #
-        # For Stage2 target libraries, we'll explicitly set it in build_stage2()
-        unset CONDA_BUILD_SYSROOT
+        # conda_host is set by detect_platform_triples() to build platform
+        export CONDA_BUILD_SYSROOT="${BUILD_PREFIX}/${conda_host}/sysroot"
+        log_info "  Set CONDA_BUILD_SYSROOT to BUILD platform: ${CONDA_BUILD_SYSROOT}"
     fi
 }
 

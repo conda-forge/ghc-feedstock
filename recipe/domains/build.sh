@@ -45,13 +45,11 @@ build_hadrian() {
         # Linux cross-compile: Set CFLAGS/LDFLAGS with sysroot
         # macOS Clang handles sysroot automatically via CONDA_BUILD_SYSROOT
         if is_linux; then
-            # Get BUILD sysroot (not target sysroot!)
-            # For linux-aarch64 cross: BUILD is x86_64, TARGET is aarch64
-            local build_triple
-            build_triple=$(echo "${CC_FOR_BUILD}" | sed 's/-clang$//' | sed 's/-gcc$//')
-            export CFLAGS="--sysroot=${BUILD_PREFIX}/${build_triple}/sysroot -march=nocona -mtune=haswell -ftree-vectorize -fPIC -fstack-protector-strong -fno-plt -O2 -ffunction-sections -pipe -isystem ${PREFIX}/include"
-            export LDFLAGS="-L${BUILD_PREFIX}/${build_triple}/lib -L${BUILD_PREFIX}/${build_triple}/sysroot/usr/lib ${LDFLAGS:-}"
-            log_info "  ✓ Linux BUILD sysroot flags set: ${build_triple}/sysroot"
+            # CONDA_BUILD_SYSROOT was set to BUILD sysroot in environment.sh
+            # conda_host was set by detect_platform_triples() to build platform triple
+            export CFLAGS="--sysroot=${CONDA_BUILD_SYSROOT} -march=nocona -mtune=haswell -ftree-vectorize -fPIC -fstack-protector-strong -fno-plt -O2 -ffunction-sections -pipe -isystem ${PREFIX}/include -fdebug-prefix-map=${SRC_DIR}=/usr/local/src/conda/ghc-${PKG_VERSION} -fdebug-prefix-map=${PREFIX}=/usr/local/src/conda-prefix"
+            export LDFLAGS="-L${BUILD_PREFIX}/${conda_host}/lib -L${BUILD_PREFIX}/${conda_host}/sysroot/usr/lib ${LDFLAGS:-}"
+            log_info "  ✓ Linux BUILD sysroot flags set: ${CONDA_BUILD_SYSROOT}"
         fi
 
         # Cabal toolchain flags
