@@ -105,19 +105,46 @@ build_toolchain_args() {
 post_configure_fixes() {
     local system_config="${SRC_DIR}/hadrian/cfg/system.config"
 
+    if [[ ! -f "${system_config}" ]]; then
+        echo "  WARNING: system.config not found, skipping post-configure"
+        return 0
+    fi
+
     # Cross-compile only: Python runs on build host
     if [[ "${build_platform:-${target_platform}}" != "${target_platform}" ]]; then
         echo "  Fixing Python path for cross-compile..."
         perl -i -pe "s|^(python =).*|\$1 ${BUILD_PREFIX}/bin/python3|" "${system_config}"
     fi
 
-    # macOS: ensure llvm-ar is used (in case configure picked wrong one)
+    # macOS: comprehensive system.config patching (matching modularization branch)
     case "${target_platform}" in
         osx-*)
-            echo "  Ensuring llvm-ar for macOS..."
-            perl -i -pe "s|^(ar =).*|\$1 ${BUILD_PREFIX}/bin/llvm-ar|" "${system_config}"
-            perl -i -pe "s|^(ranlib =).*|\$1 ${BUILD_PREFIX}/bin/llvm-ranlib|" "${system_config}"
-            perl -i -pe "s|^(system-ar =).*|\$1 ${BUILD_PREFIX}/bin/llvm-ar|" "${system_config}"
+            echo "  Patching system.config for macOS..."
+
+            # Strip BUILD_PREFIX from tool paths
+            perl -i -pe "s|${BUILD_PREFIX}/bin/||g" "${system_config}"
+
+            # Set llvm-ar/llvm-ranlib (Apple ld64 requires BSD archive format)
+            local llvm_ar="${BUILD_PREFIX}/bin/llvm-ar"
+            local llvm_ranlib="${BUILD_PREFIX}/bin/llvm-ranlib"
+            perl -i -pe "s|^(ar\\s*=\\s*).*|\$1${llvm_ar}|" "${system_config}"
+            perl -i -pe "s|^(ranlib\\s*=\\s*).*|\$1${llvm_ranlib}|" "${system_config}"
+            perl -i -pe "s|(system-ar\\s*=\\s*).*|\$1${llvm_ar}|" "${system_config}"
+            perl -i -pe "s|(settings-ar-command\\s*=\\s*).*|\$1llvm-ar|" "${system_config}"
+
+            # Add library paths and rpath to linker args
+            perl -i -pe "s|(conf-cc-args-stage[012].*?= )|\$1-Wno-deprecated-non-prototype |" "${system_config}"
+            perl -i -pe "s|(conf-gcc-linker-args-stage[12].*?= )|\$1-Wl,-L${PREFIX}/lib -Wl,-rpath,${PREFIX}/lib |" "${system_config}"
+            perl -i -pe "s|(conf-ld-linker-args-stage[12].*?= )|\$1-L${PREFIX}/lib -rpath ${PREFIX}/lib |" "${system_config}"
+            perl -i -pe "s|(settings-c-compiler-link-flags.*?= )|\$1-Wl,-L${PREFIX}/lib -Wl,-rpath,${PREFIX}/lib |" "${system_config}"
+            perl -i -pe "s|(settings-ld-flags.*?= )|\$1-L${PREFIX}/lib -rpath ${PREFIX}/lib |" "${system_config}"
+
+            # Add doc tool placeholders
+            for tool in xelatex sphinx-build makeindex; do
+                if ! grep -qE "^${tool}\\s*=\\s*\\S" "${system_config}"; then
+                    echo "${tool} = /bin/true" >> "${system_config}"
+                fi
+            done
             ;;
     esac
 
