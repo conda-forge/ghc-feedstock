@@ -21,6 +21,13 @@ fi
 configure_ghc() {
     log_info "Phase: Configure GHC"
 
+    # macOS: Rename VERSION file to avoid C++20 <version> header collision
+    # C++ configure tests try to include <version> but find ./VERSION instead
+    if is_macos && [[ -f "${SRC_DIR}/VERSION" ]]; then
+        log_info "  Renaming VERSION file to avoid C++20 header collision..."
+        mv "${SRC_DIR}/VERSION" "${SRC_DIR}/VERSION.ghc"
+    fi
+
     # Windows: Pre-configure environment variables
     if is_windows; then
         log_info "  Setting Windows pre-configure variables..."
@@ -74,6 +81,12 @@ configure_ghc() {
 
 post_configure_ghc() {
     log_info "Phase: Post-Configure"
+
+    # macOS: Restore VERSION file
+    if is_macos && [[ -f "${SRC_DIR}/VERSION.ghc" ]]; then
+        log_info "  Restoring VERSION file..."
+        mv "${SRC_DIR}/VERSION.ghc" "${SRC_DIR}/VERSION"
+    fi
 
     # Minimal fixes - configure handles most things correctly
     # See TOOLCHAIN-MINIMAL.md for why this is sufficient
