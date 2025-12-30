@@ -50,6 +50,11 @@ build_hadrian() {
             export CFLAGS="--sysroot=${CONDA_BUILD_SYSROOT} -march=nocona -mtune=haswell -ftree-vectorize -fPIC -fstack-protector-strong -fno-plt -O2 -ffunction-sections -pipe -isystem ${PREFIX}/include -fdebug-prefix-map=${SRC_DIR}=/usr/local/src/conda/ghc-${PKG_VERSION} -fdebug-prefix-map=${PREFIX}=/usr/local/src/conda-prefix"
             export LDFLAGS="-L${BUILD_PREFIX}/${conda_host}/lib -L${BUILD_PREFIX}/${conda_host}/sysroot/usr/lib ${LDFLAGS:-}"
             log_info "  ✓ Linux BUILD sysroot flags set: ${CONDA_BUILD_SYSROOT}"
+        elif is_macos; then
+            # macOS: Unset LDFLAGS to prevent Linux-specific flags like -fuse-ld=lld
+            # Clang uses automatic SDK handling and doesn't need (or support) these flags
+            unset LDFLAGS
+            log_info "  ✓ macOS: LDFLAGS unset (Clang automatic SDK handling)"
         fi
 
         # Cabal toolchain flags

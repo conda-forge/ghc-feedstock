@@ -87,7 +87,38 @@ _setup_linux_environment() {
         # conda_host is set by detect_platform_triples() to build platform
         export CONDA_BUILD_SYSROOT="${BUILD_PREFIX}/${conda_host}/sysroot"
         log_info "  Set CONDA_BUILD_SYSROOT to BUILD platform: ${CONDA_BUILD_SYSROOT}"
+
+        # CRITICAL: Patch bootstrap GHC settings for cross-compile
+        # Bootstrap GHC runs on BUILD machine but its default settings point to
+        # $BUILD_PREFIX/bin/ld which is a symlink to TARGET linker in cross-compile.
+        # Stage0 utilities must be built with BUILD toolchain.
+        _patch_bootstrap_settings_for_cross
     fi
+}
+
+_patch_bootstrap_settings_for_cross() {
+    local bootstrap_settings
+    bootstrap_settings=$(find "${BUILD_PREFIX}/ghc-bootstrap" -name settings -type f 2>/dev/null | head -1)
+
+    if [[ -z "${bootstrap_settings}" ]] || [[ ! -f "${bootstrap_settings}" ]]; then
+        log_info "  WARNING: Bootstrap GHC settings not found, skipping patch"
+        return 0
+    fi
+
+    log_info "  Patching bootstrap GHC settings for cross-compile..."
+    log_info "  Settings: ${bootstrap_settings}"
+
+    # Use BUILD platform toolchain for Stage0
+    local build_cc="${BUILD_PREFIX}/bin/${conda_host}-gcc"
+    local build_ld="${BUILD_PREFIX}/bin/${conda_host}-ld"
+    local build_ar="${BUILD_PREFIX}/bin/${conda_host}-ar"
+
+    # Patch C compiler, linker, and archiver
+    perl -i -pe "s|^(C compiler command: ).*|\$1${build_cc}|" "${bootstrap_settings}"
+    perl -i -pe "s|^(ld command: ).*|\$1${build_ld}|" "${bootstrap_settings}"
+    perl -i -pe "s|^(ar command: ).*|\$1${build_ar}|" "${bootstrap_settings}"
+
+    log_info "  ✓ Bootstrap settings patched (BUILD toolchain: ${conda_host})"
 }
 
 _setup_macos_environment() {
