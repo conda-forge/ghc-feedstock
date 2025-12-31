@@ -4,15 +4,18 @@
 
 set -eu
 
-# GHC triple format for each platform (with SDK versions for macOS)
-_ghc_triple_for_platform() {
+# Conda toolchain triple format for each platform
+# Linux: uses conda format (x86_64-conda-linux-gnu) for toolchain binaries
+# macOS: uses GHC format with SDK version (x86_64-apple-darwin13.4.0)
+# Windows: uses mingw format
+_conda_toolchain_triple() {
     case "$1" in
-        linux-64)       echo "x86_64-unknown-linux-gnu" ;;
-        linux-aarch64)  echo "aarch64-unknown-linux-gnu" ;;
-        linux-ppc64le)  echo "powerpc64le-unknown-linux-gnu" ;;
+        linux-64)       echo "x86_64-conda-linux-gnu" ;;
+        linux-aarch64)  echo "aarch64-conda-linux-gnu" ;;
+        linux-ppc64le)  echo "powerpc64le-conda-linux-gnu" ;;
         osx-64)         echo "x86_64-apple-darwin13.4.0" ;;
         osx-arm64)      echo "aarch64-apple-darwin20.0.0" ;;
-        win-64)         echo "x86_64-unknown-mingw32" ;;
+        win-64)         echo "x86_64-w64-mingw32" ;;
         *)              echo "unknown" ;;
     esac
 }
@@ -57,18 +60,18 @@ detect_platform_triples() {
     # Export GHC triples
     export BUILD HOST TARGET
 
-    # Conda toolchain triples (match modularization branch logic exactly)
+    # Conda toolchain triples (for creating symlinks, finding binaries)
     if [[ "${BUILD}" != "${TARGET}" ]]; then
         # Cross-compile: compute triples from platform names
-        local build_triple=$(_ghc_triple_for_platform "${build_plat}")
-        local target_triple=$(_ghc_triple_for_platform "${target_plat}")
+        local build_triple=$(_conda_toolchain_triple "${build_plat}")
+        local target_triple=$(_conda_toolchain_triple "${target_plat}")
 
         export conda_build="${build_triple}"
         export conda_host="${build_triple}"  # GHC HOST = BUILD in cross-compile
         export conda_target="${target_triple}"
     else
         # Native build: all three are the same
-        local triple=$(_ghc_triple_for_platform "${target_plat}")
+        local triple=$(_conda_toolchain_triple "${target_plat}")
         export conda_build="${triple}"
         export conda_host="${triple}"
         export conda_target="${triple}"
