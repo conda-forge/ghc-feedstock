@@ -124,9 +124,6 @@ _patch_bootstrap_settings_for_cross() {
 _setup_macos_environment() {
     log_info "  macOS-specific environment setup"
 
-    # Unset build_alias/host_alias - they interfere with configure scripts
-    unset build_alias host_alias
-
     # CRITICAL: Unset LDFLAGS to prevent Linux-specific flags like -fuse-ld=lld
     # macOS Clang doesn't support -fuse-ld=lld (ld64 linker, not GNU ld)
     # conda-forge sets LDFLAGS globally, must unset early before cabal/Hadrian

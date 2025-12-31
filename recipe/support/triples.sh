@@ -62,13 +62,11 @@ detect_platform_triples() {
 
     # Conda toolchain triples (for creating symlinks, finding binaries)
     if [[ "${BUILD}" != "${TARGET}" ]]; then
-        # Cross-compile: compute triples from platform names
-        local build_triple=$(_conda_toolchain_triple "${build_plat}")
-        local target_triple=$(_conda_toolchain_triple "${target_plat}")
-
-        export conda_build="${build_triple}"
-        export conda_host="${build_triple}"  # GHC HOST = BUILD in cross-compile
-        export conda_target="${target_triple}"
+        # Cross-compile: USE conda-forge's build_alias/host_alias (they have SDK versions)
+        # These are provided by conda-forge and include correct platform-specific details
+        export conda_build="${build_alias}"
+        export conda_host="${build_alias}"  # GHC HOST = BUILD in cross-compile
+        export conda_target="${host_alias}"
     else
         # Native build: all three are the same
         local triple=$(_conda_toolchain_triple "${target_plat}")
