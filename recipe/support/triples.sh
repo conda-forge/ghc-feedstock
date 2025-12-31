@@ -45,45 +45,35 @@ detect_platform_triples() {
     export BUILD HOST TARGET
 
     # Conda toolchain triples (compatibility with working feedstock lib/triple-helpers.sh)
-    # These use conda toolchain format: {arch}-conda-{os}
-    # In cross-compile: conda_host = conda_build (both are build platform)
+    # CRITICAL: For macOS, toolchain binaries include SDK version (x86_64-apple-darwin13.4.0-*)
+    # We must use conda-forge's build_alias/host_alias variables directly, not recompute them
     if [[ "${BUILD}" != "${TARGET}" ]]; then
-        # Cross-compile: build/host are build platform, target is cross target
-        export conda_build="${build_plat//-64/}"  # linux-64 → linux
-        export conda_host="${conda_build}"
-        case "${target_plat}" in
-            linux-64)       conda_target="x86_64-conda-linux-gnu" ;;
-            linux-aarch64)  conda_target="aarch64-conda-linux-gnu" ;;
-            linux-ppc64le)  conda_target="powerpc64le-conda-linux-gnu" ;;
-            osx-64)         conda_target="x86_64-apple-darwin" ;;
-            osx-arm64)      conda_target="aarch64-apple-darwin" ;;
-            win-64)         conda_target="x86_64-w64-mingw32" ;;
-        esac
-
-        # Convert conda_build/conda_host to full conda toolchain format
-        case "${build_plat}" in
-            linux-64)       conda_build="x86_64-conda-linux-gnu"; conda_host="${conda_build}" ;;
-            linux-aarch64)  conda_build="aarch64-conda-linux-gnu"; conda_host="${conda_build}" ;;
-            linux-ppc64le)  conda_build="powerpc64le-conda-linux-gnu"; conda_host="${conda_build}" ;;
-            osx-64)         conda_build="x86_64-apple-darwin"; conda_host="${conda_build}" ;;
-            osx-arm64)      conda_build="aarch64-apple-darwin"; conda_host="${conda_build}" ;;
-            win-64)         conda_build="x86_64-w64-mingw32"; conda_host="${conda_build}" ;;
-        esac
+        # Cross-compile: Use conda-forge's actual toolchain prefixes
+        # These are provided by conda-forge and include version suffixes where needed
+        export conda_build="${build_alias}"
+        export conda_host="${build_alias}"  # GHC HOST = BUILD in cross-compile
+        export conda_target="${host_alias}"  # host_alias is the target platform in conda terms
     else
-        # Native build: all three are the same
-        case "${target_plat}" in
-            linux-64)       conda_build="x86_64-conda-linux-gnu" ;;
-            linux-aarch64)  conda_build="aarch64-conda-linux-gnu" ;;
-            linux-ppc64le)  conda_build="powerpc64le-conda-linux-gnu" ;;
-            osx-64)         conda_build="x86_64-apple-darwin" ;;
-            osx-arm64)      conda_build="aarch64-apple-darwin" ;;
-            win-64)         conda_build="x86_64-w64-mingw32" ;;
-        esac
-        conda_host="${conda_build}"
-        conda_target="${conda_build}"
+        # Native build: Use build_alias for all three (if available)
+        if [[ -n "${build_alias:-}" ]]; then
+            export conda_build="${build_alias}"
+            export conda_host="${build_alias}"
+            export conda_target="${build_alias}"
+        else
+            # Fallback if build_alias not set (shouldn't happen in conda-forge)
+            case "${target_plat}" in
+                linux-64)       conda_build="x86_64-conda-linux-gnu" ;;
+                linux-aarch64)  conda_build="aarch64-conda-linux-gnu" ;;
+                linux-ppc64le)  conda_build="powerpc64le-conda-linux-gnu" ;;
+                osx-64)         conda_build="x86_64-apple-darwin" ;;
+                osx-arm64)      conda_build="aarch64-apple-darwin" ;;
+                win-64)         conda_build="x86_64-w64-mingw32" ;;
+            esac
+            conda_host="${conda_build}"
+            conda_target="${conda_build}"
+            export conda_build conda_host conda_target
+        fi
     fi
-
-    export conda_build conda_host conda_target
 }
 
 # Detect build type
