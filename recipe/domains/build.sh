@@ -85,11 +85,12 @@ build_hadrian() {
     popd >/dev/null
 
     # Find the built executable (v2-build puts it in dist-newstyle)
-    # Windows needs special handling via update_hadrian_cmd_after_build
     if is_windows; then
-        update_hadrian_cmd_after_build "${_SRC_DIR}/hadrian/dist-newstyle"
-        # Extract HADRIAN_EXE from HADRIAN_CMD array for consistency
-        HADRIAN_EXE="${HADRIAN_CMD[0]}"
+        # Windows: find hadrian.exe directly
+        HADRIAN_EXE=$(find "${_SRC_DIR}/hadrian/dist-newstyle" -name hadrian.exe -type f 2>/dev/null | head -1)
+        if [[ -z "${HADRIAN_EXE}" ]]; then
+            die "Hadrian executable not found"
+        fi
     else
         HADRIAN_EXE=$(find hadrian/dist-newstyle -name hadrian -type f -executable 2>/dev/null | head -1)
         if [[ -z "${HADRIAN_EXE}" ]]; then
