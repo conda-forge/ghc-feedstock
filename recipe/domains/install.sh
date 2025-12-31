@@ -61,6 +61,11 @@ _create_bindist() {
         hadrian_cmd+=(--freeze1 --freeze2)
     fi
 
+    # Windows: add --directory flag
+    if is_windows; then
+        hadrian_cmd+=(--directory "${_SRC_DIR}")
+    fi
+
     run_and_log "create-bindist" "${hadrian_cmd[@]}"
 }
 

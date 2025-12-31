@@ -14,6 +14,14 @@ fi
 # Global for Hadrian path
 HADRIAN_EXE=""
 
+# Helper: Add Windows-specific Hadrian flags to array
+_add_windows_hadrian_flags() {
+    local -n _cmd_array="$1"
+    if is_windows; then
+        _cmd_array+=(--directory "${_SRC_DIR}")
+    fi
+}
+
 build_hadrian() {
     log_info "Phase: Build Hadrian"
 
@@ -85,6 +93,8 @@ build_hadrian() {
     # Windows needs special handling via update_hadrian_cmd_after_build
     if is_windows; then
         update_hadrian_cmd_after_build "${_SRC_DIR}/hadrian/dist-newstyle"
+        # Extract HADRIAN_EXE from HADRIAN_CMD array for consistency
+        HADRIAN_EXE="${HADRIAN_CMD[0]}"
     else
         HADRIAN_EXE=$(find hadrian/dist-newstyle -name hadrian -type f -executable 2>/dev/null | head -1)
         if [[ -z "${HADRIAN_EXE}" ]]; then
@@ -113,6 +123,7 @@ build_stage1() {
         -j"${CPU_COUNT}"
         --docs=no-sphinx
     )
+    _add_windows_hadrian_flags hadrian_cmd
 
     # Build stage 1 executables
     if is_cross_compile; then
@@ -197,6 +208,7 @@ build_stage2() {
             --freeze2
             stage1:lib:ghc
         )
+        _add_windows_hadrian_flags hadrian_cmd
 
         run_and_log "build-stage2" "${hadrian_cmd[@]}"
     else
@@ -213,6 +225,7 @@ build_stage2() {
             stage2:exe:ghc-pkg
             stage2:exe:hsc2hs
         )
+        _add_windows_hadrian_flags hadrian_cmd
 
         run_and_log "build-stage2-exe" "${hadrian_cmd[@]}"
 
@@ -242,6 +255,7 @@ build_stage2() {
                 --freeze1
                 stage2:lib:ghc
             )
+            _add_windows_hadrian_flags hadrian_cmd
             run_and_log "build-stage2-lib" "${hadrian_cmd[@]}"
         fi
     fi
