@@ -127,6 +127,12 @@ _setup_macos_environment() {
     # Unset build_alias/host_alias - they interfere with configure scripts
     unset build_alias host_alias
 
+    # CRITICAL: Unset LDFLAGS to prevent Linux-specific flags like -fuse-ld=lld
+    # macOS Clang doesn't support -fuse-ld=lld (ld64 linker, not GNU ld)
+    # conda-forge sets LDFLAGS globally, must unset early before cabal/Hadrian
+    unset LDFLAGS
+    log_info "  Unset LDFLAGS (incompatible with macOS ld64)"
+
     # Complete macOS setup: llvm-ar, iconv_compat, DYLD env, bootstrap patches
     # For cross-compile, skip iconv creation (arm64 uses different approach)
     if is_cross_compile; then
