@@ -4,6 +4,19 @@
 
 set -eu
 
+# GHC triple format for each platform (with SDK versions for macOS)
+_ghc_triple_for_platform() {
+    case "$1" in
+        linux-64)       echo "x86_64-unknown-linux-gnu" ;;
+        linux-aarch64)  echo "aarch64-unknown-linux-gnu" ;;
+        linux-ppc64le)  echo "powerpc64le-unknown-linux-gnu" ;;
+        osx-64)         echo "x86_64-apple-darwin13.4.0" ;;
+        osx-arm64)      echo "aarch64-apple-darwin20.0.0" ;;
+        win-64)         echo "x86_64-unknown-mingw32" ;;
+        *)              echo "unknown" ;;
+    esac
+}
+
 # Platform triple detection
 # Sets BUILD, HOST, TARGET based on conda-forge environment vars
 # Also sets conda_build, conda_host, conda_target for compatibility with working feedstock
@@ -44,35 +57,21 @@ detect_platform_triples() {
     # Export GHC triples
     export BUILD HOST TARGET
 
-    # Conda toolchain triples (compatibility with working feedstock lib/triple-helpers.sh)
-    # CRITICAL: For macOS, toolchain binaries include SDK version (x86_64-apple-darwin13.4.0-*)
-    # We must use conda-forge's build_alias/host_alias variables directly, not recompute them
+    # Conda toolchain triples (match modularization branch logic exactly)
     if [[ "${BUILD}" != "${TARGET}" ]]; then
-        # Cross-compile: Use conda-forge's actual toolchain prefixes
-        # These are provided by conda-forge and include version suffixes where needed
-        export conda_build="${build_alias}"
-        export conda_host="${build_alias}"  # GHC HOST = BUILD in cross-compile
-        export conda_target="${host_alias}"  # host_alias is the target platform in conda terms
+        # Cross-compile: compute triples from platform names
+        local build_triple=$(_ghc_triple_for_platform "${build_plat}")
+        local target_triple=$(_ghc_triple_for_platform "${target_plat}")
+
+        export conda_build="${build_triple}"
+        export conda_host="${build_triple}"  # GHC HOST = BUILD in cross-compile
+        export conda_target="${target_triple}"
     else
-        # Native build: Use build_alias for all three (if available)
-        if [[ -n "${build_alias:-}" ]]; then
-            export conda_build="${build_alias}"
-            export conda_host="${build_alias}"
-            export conda_target="${build_alias}"
-        else
-            # Fallback if build_alias not set (shouldn't happen in conda-forge)
-            case "${target_plat}" in
-                linux-64)       conda_build="x86_64-conda-linux-gnu" ;;
-                linux-aarch64)  conda_build="aarch64-conda-linux-gnu" ;;
-                linux-ppc64le)  conda_build="powerpc64le-conda-linux-gnu" ;;
-                osx-64)         conda_build="x86_64-apple-darwin" ;;
-                osx-arm64)      conda_build="aarch64-apple-darwin" ;;
-                win-64)         conda_build="x86_64-w64-mingw32" ;;
-            esac
-            conda_host="${conda_build}"
-            conda_target="${conda_build}"
-            export conda_build conda_host conda_target
-        fi
+        # Native build: all three are the same
+        local triple=$(_ghc_triple_for_platform "${target_plat}")
+        export conda_build="${triple}"
+        export conda_host="${triple}"
+        export conda_target="${triple}"
     fi
 }
 
