@@ -137,6 +137,11 @@ _setup_macos_environment() {
     # For cross-compile, skip iconv creation (arm64 uses different approach)
     if is_cross_compile; then
         macos_complete_setup "false"  # Skip iconv creation for cross-compile
+
+        # Create host tool symlinks (ar, as, ld) for cross-compilation
+        # This is critical - configure expects to find these tools without the host prefix
+        macos_create_host_tool_symlinks
+
         export CXX_STD_LIB_LIBS='c++ c++abi'
     else
         macos_complete_setup "true"   # Create iconv_compat for native
