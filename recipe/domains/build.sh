@@ -79,14 +79,17 @@ build_hadrian() {
         log_info "  BUILD toolchain: gcc=${build_gcc}, ar=${build_ar}"
     fi
 
-    # macOS: Unset LDFLAGS immediately before cabal (incompatible with ld64)
+    # macOS: Strip LDFLAGS from environment (conda-forge sets -fuse-ld=lld globally)
+    local cabal_cmd=("${CABAL}" v2-build "${cabal_flags[@]}" hadrian)
     if is_macos; then
-        unset LDFLAGS
-        log_info "  macOS: Unset LDFLAGS before cabal (ld64 doesn't support -fuse-ld)"
+        # Use env -u to strip LDFLAGS from subprocess environment
+        # macOS ld64 doesn't support GNU ld flags like -fuse-ld=lld
+        cabal_cmd=(env -u LDFLAGS "${cabal_cmd[@]}")
+        log_info "  macOS: Running cabal without LDFLAGS (ld64 incompatible)"
     fi
 
     # Use v2-build (modern cabal command)
-    run_and_log "build-hadrian" "${CABAL}" v2-build "${cabal_flags[@]}" hadrian
+    run_and_log "build-hadrian" "${cabal_cmd[@]}"
 
     popd >/dev/null
 
