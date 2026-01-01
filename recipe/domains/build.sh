@@ -79,6 +79,12 @@ build_hadrian() {
         log_info "  BUILD toolchain: gcc=${build_gcc}, ar=${build_ar}"
     fi
 
+    # macOS: Unset LDFLAGS immediately before cabal (incompatible with ld64)
+    if is_macos; then
+        unset LDFLAGS
+        log_info "  macOS: Unset LDFLAGS before cabal (ld64 doesn't support -fuse-ld)"
+    fi
+
     # Use v2-build (modern cabal command)
     run_and_log "build-hadrian" "${CABAL}" v2-build "${cabal_flags[@]}" hadrian
 
