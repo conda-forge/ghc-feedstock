@@ -373,8 +373,12 @@ macos_complete_setup() {
   # Set up DYLD environment
   macos_setup_dyld_env
 
-  # Patch bootstrap settings
-  macos_patch_bootstrap_settings
+  # Patch bootstrap settings (detect cross-compile mode)
+  if is_cross_compile; then
+    macos_patch_bootstrap_settings "${conda_host:-x86_64-apple-darwin13.4.0}" "cross"
+  else
+    macos_patch_bootstrap_settings
+  fi
 
   echo "  ✓ macOS common setup complete"
 }
