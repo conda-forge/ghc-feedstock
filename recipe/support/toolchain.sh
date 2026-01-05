@@ -153,8 +153,35 @@ post_configure_fixes() {
 
     # Cross-compile only: Python runs on build host
     if [[ "${build_platform:-${target_platform}}" != "${target_platform}" ]]; then
-        echo "  Fixing Python path for cross-compile..."
+        echo "  Fixing cross-compile toolchain for target architecture..."
+
+        # Python runs on build host
         perl -i -pe "s|^(python =).*|\$1 ${BUILD_PREFIX}/bin/python3|" "${system_config}"
+
+        # CRITICAL: Ensure Stage 1/2 use TARGET linker, not BUILD linker
+        # The error "Relocations in generic ELF (EM: 183)" happens when x86_64 ld
+        # tries to link aarch64 object files. Stage 1 GHC must use target arch linker.
+        #
+        # Configure may have incorrectly set ld-command to BUILD linker.
+        # Force it to use the correct TARGET linker from $LD environment variable.
+        echo "    Setting TARGET linker: ${LD}"
+        perl -i -pe "s|^(ld-command\\s*=).*|\$1 ${LD}|" "${system_config}"
+        perl -i -pe "s|^(settings-ld-command\\s*=).*|\$1 ${LD}|" "${system_config}"
+
+        # Ensure linker args include target sysroot for Stage 1/2
+        # Stage 0 uses BUILD sysroot (set by CFLAGS/LDFLAGS during Hadrian build)
+        # Stage 1/2 must use TARGET sysroot
+        if [[ "${target_platform}" == linux-* ]]; then
+            local target_sysroot="${BUILD_PREFIX}/${conda_target}/sysroot"
+            echo "    Adding TARGET sysroot to linker args: ${target_sysroot}"
+
+            # Add --sysroot to Stage 1/2 linker arguments
+            # Match entire line and prepend sysroot flag to existing value
+            perl -i -pe 's|^(conf-gcc-linker-args-stage1\s*=\s*)(.*)$|\1--sysroot='"${target_sysroot}"' \2|' "${system_config}"
+            perl -i -pe 's|^(conf-gcc-linker-args-stage2\s*=\s*)(.*)$|\1--sysroot='"${target_sysroot}"' \2|' "${system_config}"
+            perl -i -pe 's|^(conf-ld-linker-args-stage1\s*=\s*)(.*)$|\1--sysroot='"${target_sysroot}"' \2|' "${system_config}"
+            perl -i -pe 's|^(conf-ld-linker-args-stage2\s*=\s*)(.*)$|\1--sysroot='"${target_sysroot}"' \2|' "${system_config}"
+        fi
     fi
 
     # macOS: comprehensive system.config patching (matching modularization branch)
