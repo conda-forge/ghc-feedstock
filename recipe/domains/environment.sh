@@ -27,6 +27,10 @@ setup_environment() {
     export GHC_PKG="${BUILD_PREFIX}/ghc-bootstrap/bin/ghc-pkg"
     export CABAL="${BUILD_PREFIX}/bin/cabal"
 
+    # GHC Hadrian build flavour (used by windows-helpers.sh and potentially others)
+    # "perf" = performance optimized build (standard for conda-forge releases)
+    export FLAVOUR="${FLAVOUR:-perf}"
+
     # Library search paths for build
     # LIBRARY_PATH: compile-time (where to find libs when linking)
     # LD_LIBRARY_PATH: runtime for Linux/Windows

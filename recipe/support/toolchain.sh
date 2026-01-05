@@ -97,38 +97,51 @@ build_toolchain_args() {
 # correctly. It expects compilers named ${triple}-gcc but conda provides
 # ${conda_triple}-clang. This causes configure to strip prefixes and fail.
 #
-# ROBUST FIX: Set autoconf cache variables to bypass compiler search entirely.
-# Conda-forge ALWAYS provides correct CC/CXX/AR/LD, so we don't need configure
-# to search for them.
+# ROBUST FIX: Create symlinks for bare compiler names (clang, clang++, etc.)
+# pointing to the full prefixed versions. This way, even when configure strips
+# prefixes, it still finds the correct compiler.
 #
 # This bypass will be removed in later GHC versions where the bug is fixed.
 #
 bypass_configure_compiler_search() {
-    log_info "  Bypassing configure compiler search (conda-forge provides correct toolchain)"
+    log_info "  Bypassing configure compiler search (using ac_cv_path cache variables)"
 
-    # Tell autoconf we already found these compilers (cache variables)
-    # This prevents AC_PROG_CC, AC_PROG_CXX from running their search logic
+    # Set autoconf cache variables to full paths
+    # This prevents AC_PROG_CC/AC_PROG_CXX from searching for compilers
+    # Note: ac_cv_path_ac_pt_* are already set in environment.sh to prevent fallback search
+
+    export ac_cv_path_CC="$(which ${CC})"
+    export ac_cv_path_CXX="$(which ${CXX})"
     export ac_cv_prog_CC="${CC}"
     export ac_cv_prog_CXX="${CXX}"
+
+    # Also set the executable check cache variables to prevent testing
+    export ac_cv_prog_cc_c89=""
+    export ac_cv_prog_cc_c99=""
+    export ac_cv_prog_cc_c11=""
+    export ac_cv_prog_cc_g=yes
+    export ac_cv_prog_cxx_g=yes
+
+    # Toolchain tools
+    export ac_cv_path_AR="$(which ${AR})"
+    export ac_cv_path_LD="$(which ${LD})"
     export ac_cv_prog_AR="${AR}"
     export ac_cv_prog_LD="${LD}"
     export ac_cv_prog_NM="${NM}"
     export ac_cv_prog_RANLIB="${RANLIB}"
     export ac_cv_prog_STRIP="${STRIP}"
 
-    # Stage0 (bootstrap) toolchain cache variables
+    # Stage0 (bootstrap) toolchain
     export ac_cv_prog_CC_STAGE0="${CC_FOR_BUILD:-${CC}}"
     export ac_cv_prog_LD_STAGE0="${LD_FOR_BUILD:-${LD}}"
     export ac_cv_prog_AR_STAGE0="${AR_FOR_BUILD:-${AR}}"
 
-    # Platform-specific
     if [[ -n "${OBJDUMP:-}" ]]; then
         export ac_cv_prog_OBJDUMP="${OBJDUMP}"
     fi
 
-    # Tell configure these compilers work (skip test compilation)
-    export ac_cv_prog_cc_g=yes
-    export ac_cv_prog_cxx_g=yes
+    log_info "    Set ac_cv_path_CC=$(which ${CC})"
+    log_info "    Set ac_cv_path_CXX=$(which ${CXX})"
 }
 
 #=============================================================================

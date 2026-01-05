@@ -78,9 +78,21 @@ configure_ghc() {
     esac
 
     # Run configure with all arguments
-    run_and_log "configure" ./configure \
+    if ! run_and_log "configure" ./configure \
         "${common_args[@]}" \
-        "${tc_args[@]}"
+        "${tc_args[@]}"; then
+
+        # Configure failed - dump config.log for debugging
+        log_info "ERROR: Configure failed. Dumping config.log for analysis..."
+        if [[ -f "${SRC_DIR}/config.log" ]]; then
+            echo "=== START config.log (last 200 lines) ==="
+            tail -n 200 "${SRC_DIR}/config.log"
+            echo "=== END config.log ==="
+        else
+            echo "WARNING: config.log not found at ${SRC_DIR}/config.log"
+        fi
+        exit 1
+    fi
 }
 
 post_configure_ghc() {
