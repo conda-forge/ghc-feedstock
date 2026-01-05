@@ -167,6 +167,10 @@ post_configure_fixes() {
     # Cross-compile only: Python runs on build host
     if [[ "${build_platform:-${target_platform}}" != "${target_platform}" ]]; then
         echo "  Fixing cross-compile toolchain for target architecture..."
+        echo "    DEBUG: BUILD=${BUILD}, TARGET=${TARGET}"
+        echo "    DEBUG: conda_target=${conda_target}"
+        echo "    DEBUG: LD=${LD}"
+        echo "    DEBUG: CC=${CC}"
 
         # Python runs on build host
         perl -i -pe "s|^(python =).*|\$1 ${BUILD_PREFIX}/bin/python3|" "${system_config}"
@@ -178,8 +182,15 @@ post_configure_fixes() {
         # Configure may have incorrectly set ld-command to BUILD linker.
         # Force it to use the correct TARGET linker from $LD environment variable.
         echo "    Setting TARGET linker: ${LD}"
+
+        # Show BEFORE state
+        grep "^ld-command\|^settings-ld-command" "${system_config}" | head -5 | sed 's/^/      BEFORE: /'
+
         perl -i -pe "s|^(ld-command\\s*=).*|\$1 ${LD}|" "${system_config}"
         perl -i -pe "s|^(settings-ld-command\\s*=).*|\$1 ${LD}|" "${system_config}"
+
+        # Show AFTER state
+        grep "^ld-command\|^settings-ld-command" "${system_config}" | head -5 | sed 's/^/      AFTER: /'
 
         # Ensure linker args include target sysroot for Stage 1/2
         # Stage 0 uses BUILD sysroot (set by CFLAGS/LDFLAGS during Hadrian build)
