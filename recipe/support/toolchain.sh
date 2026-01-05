@@ -91,6 +91,47 @@ build_toolchain_args() {
 }
 
 #=============================================================================
+# CONFIGURE BYPASS - PREVENT BROKEN COMPILER SEARCH
+#=============================================================================
+# GHC 9.6.7 configure has a bug where it doesn't handle conda toolchain triples
+# correctly. It expects compilers named ${triple}-gcc but conda provides
+# ${conda_triple}-clang. This causes configure to strip prefixes and fail.
+#
+# ROBUST FIX: Set autoconf cache variables to bypass compiler search entirely.
+# Conda-forge ALWAYS provides correct CC/CXX/AR/LD, so we don't need configure
+# to search for them.
+#
+# This bypass will be removed in later GHC versions where the bug is fixed.
+#
+bypass_configure_compiler_search() {
+    log_info "  Bypassing configure compiler search (conda-forge provides correct toolchain)"
+
+    # Tell autoconf we already found these compilers (cache variables)
+    # This prevents AC_PROG_CC, AC_PROG_CXX from running their search logic
+    export ac_cv_prog_CC="${CC}"
+    export ac_cv_prog_CXX="${CXX}"
+    export ac_cv_prog_AR="${AR}"
+    export ac_cv_prog_LD="${LD}"
+    export ac_cv_prog_NM="${NM}"
+    export ac_cv_prog_RANLIB="${RANLIB}"
+    export ac_cv_prog_STRIP="${STRIP}"
+
+    # Stage0 (bootstrap) toolchain cache variables
+    export ac_cv_prog_CC_STAGE0="${CC_FOR_BUILD:-${CC}}"
+    export ac_cv_prog_LD_STAGE0="${LD_FOR_BUILD:-${LD}}"
+    export ac_cv_prog_AR_STAGE0="${AR_FOR_BUILD:-${AR}}"
+
+    # Platform-specific
+    if [[ -n "${OBJDUMP:-}" ]]; then
+        export ac_cv_prog_OBJDUMP="${OBJDUMP}"
+    fi
+
+    # Tell configure these compilers work (skip test compilation)
+    export ac_cv_prog_cc_g=yes
+    export ac_cv_prog_cxx_g=yes
+}
+
+#=============================================================================
 # NOTE: Cross-compile support is now integrated into build_toolchain_args()
 # The CC_STAGE0/LD_STAGE0/AR_STAGE0 mapping is handled there using
 # conda-forge's CC_FOR_BUILD, LD_FOR_BUILD, AR_FOR_BUILD variables.

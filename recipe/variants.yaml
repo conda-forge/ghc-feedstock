@@ -3,11 +3,6 @@ c_stdlib:
     then: sysroot
   - if: not unix
     then: m2w64-sysroot
-# c_stdlib_version:
-#   - 10.13                       # [osx and x86_64]
-#   - 11.3                        # [osx and arm64]
-#   - 2.17                        # [linux]
-#   - 12                          # [not unix]
 
 c_compiler:
   - if: unix

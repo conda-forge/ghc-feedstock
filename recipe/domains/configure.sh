@@ -45,6 +45,10 @@ configure_ghc() {
         setup_windows_sdk
     fi
 
+    # Bypass configure's broken compiler search (GHC 9.6.7 bug)
+    # Conda-forge always provides correct CC/CXX/AR, so we don't need autoconf search
+    bypass_configure_compiler_search
+
     # Build toolchain arguments (handles all platforms uniformly)
     local -a tc_args
     build_toolchain_args tc_args
