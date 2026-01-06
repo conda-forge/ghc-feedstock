@@ -164,48 +164,51 @@ post_configure_fixes() {
         return 0
     fi
 
-    # Cross-compile only: Python runs on build host
+    # Cross-compile only: Port EXACT logic from working feedstock
+    # Reference: ghc-feedstock/recipe/lib/settings-patch.sh --linux-cross mode
     if [[ "${build_platform:-${target_platform}}" != "${target_platform}" ]]; then
         echo "  Fixing cross-compile toolchain for target architecture..."
-        echo "    DEBUG: BUILD=${BUILD}, TARGET=${TARGET}"
-        echo "    DEBUG: conda_target=${conda_target}"
-        echo "    DEBUG: LD=${LD}"
-        echo "    DEBUG: CC=${CC}"
 
-        # Python runs on build host
+        # 1. Python runs on build host (from _patch_fix_python)
         perl -i -pe "s|^(python =).*|\$1 ${BUILD_PREFIX}/bin/python3|" "${system_config}"
 
-        # CRITICAL: Ensure Stage 1/2 use TARGET linker, not BUILD linker
-        # The error "Relocations in generic ELF (EM: 183)" happens when x86_64 ld
-        # tries to link aarch64 object files. Stage 1 GHC must use target arch linker.
-        #
-        # Configure may have incorrectly set ld-command to BUILD linker.
-        # Force it to use the correct TARGET linker from $LD environment variable.
-        echo "    Setting TARGET linker: ${LD}"
+        # 2. Add target prefix to ALL toolchain tools (from _patch_toolchain_prefix)
+        # This converts bare tool names to target-prefixed versions:
+        #   ar    → aarch64-conda-linux-gnu-ar
+        #   clang → aarch64-conda-linux-gnu-clang
+        #   ld    → aarch64-conda-linux-gnu-ld
+        # etc.
+        local tools="ar clang clang++ llc nm opt ranlib"
+        local pattern=$(echo "${tools}" | tr ' ' '|')
+        perl -pi -e "s#(=\\s+)(${pattern})\$#\$1${conda_target}-\$2#" "${system_config}"
+        echo "    ✓ Added target prefix to toolchain tools: ${conda_target}-{ar,clang,ld,...}"
 
-        # Show BEFORE state
-        grep "^ld-command\|^settings-ld-command" "${system_config}" | head -5 | sed 's/^/      BEFORE: /'
+        # 3. Add linker flags (from _patch_linker_flags)
+        # Note: We still add sysroot for Linux cross-compile, but also add rpath
+        perl -pi -e "s#(conf-cc-args-stage[012].*?= )#\$1-Wno-deprecated-non-prototype #" "${system_config}"
+        perl -pi -e "s#(conf-gcc-linker-args-stage[12].*?= )#\$1-Wl,-L${PREFIX}/lib -Wl,-rpath,${PREFIX}/lib #" "${system_config}"
+        perl -pi -e "s#(conf-ld-linker-args-stage[12].*?= )#\$1-L${PREFIX}/lib -rpath ${PREFIX}/lib #" "${system_config}"
+        perl -pi -e "s#(settings-c-compiler-link-flags.*?= )#\$1-Wl,-L${PREFIX}/lib -Wl,-rpath,${PREFIX}/lib #" "${system_config}"
+        perl -pi -e "s#(settings-ld-flags.*?= )#\$1-L${PREFIX}/lib -rpath ${PREFIX}/lib #" "${system_config}"
 
-        perl -i -pe "s|^(ld-command\\s*=).*|\$1 ${LD}|" "${system_config}"
-        perl -i -pe "s|^(settings-ld-command\\s*=).*|\$1 ${LD}|" "${system_config}"
-
-        # Show AFTER state
-        grep "^ld-command\|^settings-ld-command" "${system_config}" | head -5 | sed 's/^/      AFTER: /'
-
-        # Ensure linker args include target sysroot for Stage 1/2
-        # Stage 0 uses BUILD sysroot (set by CFLAGS/LDFLAGS during Hadrian build)
-        # Stage 1/2 must use TARGET sysroot
+        # Linux-specific: Add target sysroot for Stage 1/2
         if [[ "${target_platform}" == linux-* ]]; then
             local target_sysroot="${BUILD_PREFIX}/${conda_target}/sysroot"
-            echo "    Adding TARGET sysroot to linker args: ${target_sysroot}"
-
-            # Add --sysroot to Stage 1/2 linker arguments
-            # Match entire line and prepend sysroot flag to existing value
+            echo "    ✓ Adding TARGET sysroot to linker args: ${target_sysroot}"
             perl -i -pe 's|^(conf-gcc-linker-args-stage1\s*=\s*)(.*)$|\1--sysroot='"${target_sysroot}"' \2|' "${system_config}"
             perl -i -pe 's|^(conf-gcc-linker-args-stage2\s*=\s*)(.*)$|\1--sysroot='"${target_sysroot}"' \2|' "${system_config}"
             perl -i -pe 's|^(conf-ld-linker-args-stage1\s*=\s*)(.*)$|\1--sysroot='"${target_sysroot}"' \2|' "${system_config}"
             perl -i -pe 's|^(conf-ld-linker-args-stage2\s*=\s*)(.*)$|\1--sysroot='"${target_sysroot}"' \2|' "${system_config}"
         fi
+
+        # 4. Add doc tool placeholders (from _patch_doc_placeholders)
+        for tool in xelatex sphinx-build makeindex; do
+            if ! grep -qE "^${tool}\\s*=\\s*\\S" "${system_config}"; then
+                perl -pi -e "s/^${tool}\\s*=.*/${tool} = \\/bin\\/true/" "${system_config}"
+                grep -qE "^${tool}\\s*=\\s*\\S" "${system_config}" || echo "${tool} = /bin/true" >> "${system_config}"
+            fi
+        done
+        echo "    ✓ Added doc tool placeholders (xelatex, sphinx-build, makeindex)"
     fi
 
     # macOS: comprehensive system.config patching (matching modularization branch)
