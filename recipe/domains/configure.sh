@@ -6,6 +6,7 @@
 # See TOOLCHAIN-MINIMAL.md for the analysis showing this is sufficient.
 
 source "${RECIPE_DIR}/support/utils.sh"
+source "${RECIPE_DIR}/support/triples.sh"
 source "${RECIPE_DIR}/support/toolchain.sh"
 
 # Source platform-specific helper libraries
