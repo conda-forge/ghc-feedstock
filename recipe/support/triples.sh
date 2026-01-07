@@ -61,15 +61,41 @@ detect_platform_triples() {
     export BUILD HOST TARGET
 
     # Conda toolchain triples (for creating symlinks, finding binaries)
+    # CRITICAL: conda_target must be in conda format (e.g., aarch64-conda-linux-gnu)
+    # because cross_build_toolchain_args uses it to find sysroot at:
+    # ${BUILD_PREFIX}/${conda_target}/sysroot
     if [[ "${BUILD}" != "${TARGET}" ]]; then
-        # Cross-compile: USE conda-forge's build_alias/host_alias (they have SDK versions)
-        # These are provided by conda-forge and include correct platform-specific details
-        export conda_build="${build_alias}"
-        export conda_host="${build_alias}"  # GHC HOST = BUILD in cross-compile
-        export conda_target="${host_alias}"
+        # Cross-compile: Set build_alias/host_alias for compatibility
+        # These match the working feedstock's triple-helpers.sh pattern
+        local build_conda=$(_conda_toolchain_triple "${build_plat}")
+        local target_conda=$(_conda_toolchain_triple "${target_plat}")
+
+        case "${target_plat}" in
+            linux-*)
+                # For Linux: build_alias/host_alias use GHC-style triples
+                # but conda_* use conda-style for sysroot paths
+                export build_alias="${BUILD}"
+                export host_alias="${BUILD}"  # GHC HOST = BUILD in cross-compile
+                export target_alias="${TARGET}"
+                export conda_build="${build_conda}"
+                export conda_host="${build_conda}"
+                export conda_target="${target_conda}"  # MUST be conda-style for sysroot!
+                ;;
+            osx-*)
+                # For macOS: use conda-style with SDK version for all
+                export build_alias="${build_conda}"
+                export host_alias="${build_conda}"
+                export target_alias="${target_conda}"
+                export conda_build="${build_conda}"
+                export conda_host="${build_conda}"
+                export conda_target="${target_conda}"
+                ;;
+        esac
     else
         # Native build: all three are the same
         local triple=$(_conda_toolchain_triple "${target_plat}")
+        export build_alias="${triple}"
+        export host_alias="${triple}"
         export conda_build="${triple}"
         export conda_host="${triple}"
         export conda_target="${triple}"

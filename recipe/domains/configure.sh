@@ -11,6 +11,7 @@ source "${RECIPE_DIR}/support/toolchain.sh"
 
 # Source platform-specific helper libraries
 source "${RECIPE_DIR}/lib/helpers.sh"
+source "${RECIPE_DIR}/lib/cross-helpers.sh"
 if [[ "${target_platform}" == "win-64" ]]; then
     source "${RECIPE_DIR}/lib/windows-helpers.sh"
 fi
@@ -131,31 +132,31 @@ _configure_linux_native() {
 
 _configure_linux_cross() {
     local arch="$1"
-    local target_triple sysroot
 
-    case "${arch}" in
-        aarch64)
-            target_triple="aarch64-unknown-linux-gnu"
-            sysroot="${BUILD_PREFIX}/aarch64-conda-linux-gnu/sysroot"
-            ;;
-        ppc64le)
-            target_triple="powerpc64le-unknown-linux-gnu"
-            sysroot="${BUILD_PREFIX}/powerpc64le-conda-linux-gnu/sysroot"
-            ;;
-    esac
+    log_info "  Linux cross-compile: ${arch}"
 
-    log_info "  Linux cross-compile: ${arch} → ${target_triple}"
+    # Use cross-helpers.sh toolchain function to build configure args
+    # This sets CFLAGS/CPPFLAGS/CXXFLAGS with --sysroot for target libraries
+    local -a configure_args=()
+
+    # Add cross-compile toolchain args (CC=, AR=, STAGE0 tools, sysroot)
+    # This uses the working feedstock's cross_build_toolchain_args function
+    cross_build_toolchain_args configure_args "${conda_target}" "${conda_host}" "--sysroot"
+
+    log_info "  Configure args from cross_build_toolchain_args:"
+    for arg in "${configure_args[@]}"; do
+        log_info "    ${arg}"
+    done
 
     run_and_log "configure" ./configure \
         --prefix="${PREFIX}" \
-        --build="x86_64-unknown-linux-gnu" \
-        --host="${target_triple}" \
-        --target="${target_triple}" \
+        --build="${conda_build}" \
+        --host="${conda_target}" \
+        --target="${conda_target}" \
         $(_common_configure_args) \
         cross_compiling=yes \
         ac_cv_func_statx=no \
-        CC="${target_triple}-gcc --sysroot=${sysroot}" \
-        LD="${target_triple}-ld --sysroot=${sysroot}"
+        "${configure_args[@]}"
 }
 
 _post_configure_linux_cross() {
