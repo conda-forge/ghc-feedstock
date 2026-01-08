@@ -178,7 +178,7 @@ post_configure_fixes() {
         #   clang → aarch64-conda-linux-gnu-clang
         #   ld    → aarch64-conda-linux-gnu-ld
         # etc.
-        local tools="ar clang clang++ llc nm opt ranlib"
+        local tools="ar clang clang++ ld llc nm opt ranlib"
         local pattern=$(echo "${tools}" | tr ' ' '|')
         perl -pi -e "s#(=\\s+)(${pattern})\$#\$1${conda_target}-\$2#" "${system_config}"
         echo "    ✓ Added target prefix to toolchain tools: ${conda_target}-{ar,clang,ld,...}"
@@ -233,6 +233,26 @@ post_configure_fixes() {
             perl -i -pe "s|(conf-ld-linker-args-stage[12].*?= )|\$1-L${PREFIX}/lib -rpath ${PREFIX}/lib |" "${system_config}"
             perl -i -pe "s|(settings-c-compiler-link-flags.*?= )|\$1-Wl,-L${PREFIX}/lib -Wl,-rpath,${PREFIX}/lib |" "${system_config}"
             perl -i -pe "s|(settings-ld-flags.*?= )|\$1-L${PREFIX}/lib -rpath ${PREFIX}/lib |" "${system_config}"
+
+            # macOS CROSS-COMPILE: Additional critical patches
+            if is_cross_compile; then
+                echo "    Applying macOS cross-compile patches..."
+
+                # CRITICAL: Clear ffi-lib-dir and iconv-lib-dir for cross-compilation
+                # Stage0 needs x86_64 libs, but PREFIX/lib contains arm64 libs
+                perl -i -pe 's#^(ffi-lib-dir\s*=).*#$1#' "${system_config}"
+                perl -i -pe 's#^(iconv-lib-dir\s*=).*#$1#' "${system_config}"
+
+                # Stage0 needs --target for HOST (x86_64), not TARGET (arm64)
+                perl -i -pe "s#(conf-cc-args-stage0\\s*=\\s*).*#\$1--target=${conda_host}#" "${system_config}"
+                perl -i -pe "s#(conf-gcc-linker-args-stage0\\s*=\\s*).*#\$1--target=${conda_host} -Wl,-L${BUILD_PREFIX}/lib -Wl,-rpath,${BUILD_PREFIX}/lib#" "${system_config}"
+                perl -i -pe "s#(conf-ld-linker-args-stage0\\s*=\\s*).*#\$1-L${BUILD_PREFIX}/lib -rpath ${BUILD_PREFIX}/lib#" "${system_config}"
+
+                # Set target ar command with prefix
+                perl -i -pe "s#(settings-ar-command\\s*=\\s*).*#\$1${conda_target}-ar#" "${system_config}"
+
+                echo "    ✓ macOS cross-compile patches applied"
+            fi
 
             # Add doc tool placeholders
             for tool in xelatex sphinx-build makeindex; do

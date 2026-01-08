@@ -151,6 +151,11 @@ build_stage1() {
     # Windows: Use special library build function
     if is_windows; then
         log_info "  Building Stage 1 libraries (Windows-specific)..."
+        # Set global variables expected by windows-helpers.sh
+        HADRIAN_CMD=("${HADRIAN_EXE}" -j"${CPU_COUNT}" --docs=no-sphinx)
+        _add_windows_hadrian_flags HADRIAN_CMD
+        FLAVOUR="${flavour}"
+        HADRIAN_STAGE_OPTS="--freeze1"
         windows_build_stage_libraries 1
     fi
 
@@ -249,6 +254,11 @@ build_stage2() {
 
         # Windows uses special library build function
         if is_windows; then
+            # Set global variables expected by windows-helpers.sh
+            HADRIAN_CMD=("${HADRIAN_EXE}" -j"${CPU_COUNT}" --docs=no-sphinx)
+            _add_windows_hadrian_flags HADRIAN_CMD
+            FLAVOUR="${flavour}"
+            HADRIAN_STAGE_OPTS="--freeze1"
             windows_build_stage_libraries 2
         else
             hadrian_cmd=(
