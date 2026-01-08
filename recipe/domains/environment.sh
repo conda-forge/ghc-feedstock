@@ -117,12 +117,16 @@ _patch_bootstrap_settings_for_cross() {
     local build_ld="${BUILD_PREFIX}/bin/${conda_host}-ld"
     local build_ar="${BUILD_PREFIX}/bin/${conda_host}-ar"
 
-    # Patch C compiler, linker, and archiver
-    perl -i -pe "s|^(C compiler command: ).*|\$1${build_cc}|" "${bootstrap_settings}"
-    perl -i -pe "s|^(ld command: ).*|\$1${build_ld}|" "${bootstrap_settings}"
-    perl -i -pe "s|^(ar command: ).*|\$1${build_ar}|" "${bootstrap_settings}"
+    # GHC settings file uses Haskell tuple format: ("key", "value")
+    # Patch C compiler, linker, and archiver to use BUILD platform tools
+    perl -i -pe 's#\("C compiler command",\s*"[^"]*"\)#("C compiler command", "'"${build_cc}"'")#' "${bootstrap_settings}"
+    perl -i -pe 's#\("ld command",\s*"[^"]*"\)#("ld command", "'"${build_ld}"'")#' "${bootstrap_settings}"
+    perl -i -pe 's#\("ar command",\s*"[^"]*"\)#("ar command", "'"${build_ar}"'")#' "${bootstrap_settings}"
+    perl -i -pe 's#\("Merge objects command",\s*"[^"]*"\)#("Merge objects command", "'"${build_ld}"' -r")#' "${bootstrap_settings}"
 
     log_info "  ✓ Bootstrap settings patched (BUILD toolchain: ${conda_host})"
+    log_info "    C compiler: ${build_cc}"
+    log_info "    ld command: ${build_ld}"
 }
 
 _setup_macos_environment() {
