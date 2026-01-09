@@ -112,6 +112,10 @@ _install_bindist() {
             export CXX="${CXX_FOR_BUILD:-g++}"
         fi
 
+        # Remove autoconf cache (critical for cross-compile)
+        # Autoconf caches compiler paths - must clear for BUILD compiler
+        rm -f config.cache
+
         # Configure bindist
         local -a configure_args=(--prefix="${PREFIX}")
         if is_cross_compile; then
