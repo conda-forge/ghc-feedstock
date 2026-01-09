@@ -183,8 +183,7 @@ build_stage2() {
     if is_cross_compile; then
         log_info "  Building stage 1 libraries (cross-compile)"
 
-        # CRITICAL: These libraries are FOR the target, need target sysroot
-        # Detect target triple to find correct sysroot
+        # Detect target triple (used for log messages only - removed sysroot override)
         local target_triple
         case "${target_platform}" in
             linux-aarch64)
@@ -202,11 +201,10 @@ build_stage2() {
                 ;;
         esac
 
-        # Set target sysroot for Linux cross-compile
-        if [[ -n "${target_triple}" ]]; then
-            export CONDA_BUILD_SYSROOT="${BUILD_PREFIX}/${target_triple}/sysroot"
-            log_info "  Using target sysroot: ${CONDA_BUILD_SYSROOT}"
-        fi
+        # REMOVED: Do NOT override CONDA_BUILD_SYSROOT to target sysroot!
+        # CONDA_BUILD_SYSROOT must stay as BUILD sysroot (set in environment.sh)
+        # Working feedstock NEVER changes CONDA_BUILD_SYSROOT during build
+        # Stage 1 libraries are COMPILED on BUILD machine, need BUILD sysroot for linking
 
         local -a hadrian_cmd=(
             "${HADRIAN_EXE}"
