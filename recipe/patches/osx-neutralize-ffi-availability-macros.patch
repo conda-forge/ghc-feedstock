@@ -1,0 +1,19 @@
+--- a/libraries/ghci/GHCi/FFI.hsc	2026-01-09 10:46:12.386591785 -0600
++++ b/libraries/ghci/GHCi/FFI.hsc	2026-01-09 10:46:21.962576306 -0600
+@@ -30,6 +30,16 @@
+ #endif
+ #endif
+ 
++
++-- Neutralize Apple availability macros for hsc2hs
++-- These macros (API_AVAILABLE, API_UNAVAILABLE, FFI_AVAILABLE_APPLE) cause
++-- parse errors in hsc2hs preprocessing on macOS SDK headers
++#if defined(__APPLE__)
++#define API_AVAILABLE(...)
++#define API_UNAVAILABLE(...)
++#define FFI_AVAILABLE_APPLE
++#define FFI_AVAILABLE_APPLE_2019
++#endif
+ #include <ffi.h>
+ #endif
+ 
