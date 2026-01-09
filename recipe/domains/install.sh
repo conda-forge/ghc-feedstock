@@ -102,6 +102,16 @@ _install_bindist() {
         # Unix: Run configure and make install
         pushd "${bindist_dir}" >/dev/null
 
+        # CRITICAL: Bindist configure runs on BUILD platform, not TARGET
+        # Clear cross-compile environment to use BUILD compiler
+        if is_cross_compile; then
+            log_info "  Clearing cross-compile environment for bindist configure..."
+            unset CC CXX LD AR NM RANLIB OBJDUMP STRIP
+            # Use BUILD platform compiler explicitly
+            export CC="${CC_FOR_BUILD:-gcc}"
+            export CXX="${CXX_FOR_BUILD:-g++}"
+        fi
+
         # Configure bindist
         local -a configure_args=(--prefix="${PREFIX}")
         if is_cross_compile; then
