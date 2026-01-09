@@ -92,11 +92,13 @@ _setup_linux_environment() {
         export CONDA_BUILD_SYSROOT="${BUILD_PREFIX}/${conda_host}/sysroot"
         log_info "  Set CONDA_BUILD_SYSROOT to BUILD platform: ${CONDA_BUILD_SYSROOT}"
 
-        # CRITICAL: Patch bootstrap GHC settings for cross-compile
-        # Bootstrap GHC runs on BUILD machine but its default settings point to
-        # $BUILD_PREFIX/bin/ld which is a symlink to TARGET linker in cross-compile.
-        # Stage0 utilities must be built with BUILD toolchain.
-        _patch_bootstrap_settings_for_cross
+        # CRITICAL (macOS only): Patch bootstrap GHC settings for cross-compile
+        # Linux cross-compile: Uses Hadrian cabal flags (--with-gcc, --with-ar)
+        # macOS cross-compile: Needs bootstrap settings patched
+        # Working feedstock ONLY patches bootstrap settings for macOS, not Linux!
+        if is_macos; then
+            _patch_bootstrap_settings_for_cross
+        fi
     fi
 }
 
