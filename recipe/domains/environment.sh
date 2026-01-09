@@ -117,12 +117,27 @@ _patch_bootstrap_settings_for_cross() {
     local build_ld="${BUILD_PREFIX}/bin/${conda_host}-ld"
     local build_ar="${BUILD_PREFIX}/bin/${conda_host}-ar"
 
+    # Helper function from working feedstock (settings-patch.sh)
     # GHC settings file uses Haskell tuple format: ("key", "value")
+    # This pattern matches the value portion after the key for reliable line-by-line replacement
+    _replace_settings_value() {
+        local file="$1" key="$2" value="$3"
+        perl -pi -e "s#(${key}\", \")[^\"]*#\$1${value}#" "${file}"
+    }
+
+    # Diagnostic: show settings BEFORE patching
+    log_info "  BEFORE patching:"
+    grep -E "(C compiler command|ld command|ar command|Merge objects)" "${bootstrap_settings}" | head -4 || true
+
     # Patch C compiler, linker, and archiver to use BUILD platform tools
-    perl -i -pe 's#\("C compiler command",\s*"[^"]*"\)#("C compiler command", "'"${build_cc}"'")#' "${bootstrap_settings}"
-    perl -i -pe 's#\("ld command",\s*"[^"]*"\)#("ld command", "'"${build_ld}"'")#' "${bootstrap_settings}"
-    perl -i -pe 's#\("ar command",\s*"[^"]*"\)#("ar command", "'"${build_ar}"'")#' "${bootstrap_settings}"
-    perl -i -pe 's#\("Merge objects command",\s*"[^"]*"\)#("Merge objects command", "'"${build_ld}"' -r")#' "${bootstrap_settings}"
+    _replace_settings_value "${bootstrap_settings}" "C compiler command" "${build_cc}"
+    _replace_settings_value "${bootstrap_settings}" "ld command" "${build_ld}"
+    _replace_settings_value "${bootstrap_settings}" "ar command" "${build_ar}"
+    _replace_settings_value "${bootstrap_settings}" "Merge objects command" "${build_ld} -r"
+
+    # Diagnostic: show settings AFTER patching
+    log_info "  AFTER patching:"
+    grep -E "(C compiler command|ld command|ar command|Merge objects)" "${bootstrap_settings}" | head -4 || true
 
     log_info "  ✓ Bootstrap settings patched (BUILD toolchain: ${conda_host})"
     log_info "    C compiler: ${build_cc}"
