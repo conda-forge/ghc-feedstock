@@ -106,14 +106,22 @@ _install_bindist() {
         # Clear cross-compile environment to use BUILD compiler
         if is_cross_compile; then
             log_info "  Clearing cross-compile environment for bindist configure..."
+
+            # Clear autoconf cached variables from main configure run
+            # These cache the TARGET compiler but bindist needs BUILD compiler
+            unset ac_cv_path_CC ac_cv_path_CXX ac_cv_path_LD
+            unset ac_cv_prog_CC ac_cv_prog_CXX ac_cv_prog_LD
+            unset ac_cv_prog_cc_c89 ac_cv_prog_cc_c99 ac_cv_prog_cc_c11
+
+            # Clear environment variables
             unset CC CXX LD AR NM RANLIB OBJDUMP STRIP
+
             # Use BUILD platform compiler explicitly
             export CC="${CC_FOR_BUILD:-gcc}"
             export CXX="${CXX_FOR_BUILD:-g++}"
         fi
 
-        # Remove autoconf cache (critical for cross-compile)
-        # Autoconf caches compiler paths - must clear for BUILD compiler
+        # Remove autoconf cache file (in addition to clearing variables)
         rm -f config.cache
 
         # Configure bindist
