@@ -140,6 +140,25 @@ _install_bindist() {
 
     # Install conda activation scripts
     _install_activation_scripts
+
+    # Install bash completion (Unix only)
+    if is_unix; then
+        _install_bash_completion
+    fi
+}
+
+_install_bash_completion() {
+    log_info "  Installing bash completion..."
+
+    mkdir -p "${PREFIX}/etc/bash_completion.d"
+
+    if [[ -f "${SRC_DIR}/utils/completion/ghc.bash" ]]; then
+        cp "${SRC_DIR}/utils/completion/ghc.bash" \
+           "${PREFIX}/etc/bash_completion.d/ghc"
+        log_info "  ✓ Bash completion installed"
+    else
+        log_info "  ! Bash completion source not found (skipped)"
+    fi
 }
 
 _install_activation_scripts() {
@@ -167,14 +186,34 @@ _verify_install() {
     if is_windows; then
         verify_installed_binaries || die "Windows binary verification failed"
     else
+        # Determine GHC binary location (cross-compile vs native)
+        local ghc_bin="${PREFIX}/bin/ghc"
+        local settings_dir="${PREFIX}/lib/ghc-${PKG_VERSION}/lib"
+
+        if is_cross_compile; then
+            # Cross-compile may install to target-triple subdirectory
+            # Check both locations
+            if [[ ! -x "${ghc_bin}" ]] && [[ -x "${PREFIX}/${TARGET}/bin/ghc" ]]; then
+                ghc_bin="${PREFIX}/${TARGET}/bin/ghc"
+                settings_dir="${PREFIX}/${TARGET}/lib/ghc-${PKG_VERSION}/lib"
+                log_info "  Found cross-compile GHC at ${ghc_bin}"
+            fi
+        fi
+
         # Check GHC installed
-        if [[ ! -x "${PREFIX}/bin/ghc" ]]; then
-            die "GHC not found at ${PREFIX}/bin/ghc"
+        if [[ ! -x "${ghc_bin}" ]]; then
+            log_info "  ERROR: GHC not found at ${ghc_bin}"
+            log_info "  Searching for GHC binary..."
+            find "${PREFIX}" -name "ghc" -type f 2>/dev/null | head -10 || true
+            die "GHC not found at expected location"
         fi
 
         # Check settings file
-        local settings="${PREFIX}/lib/ghc-${PKG_VERSION}/lib/settings"
+        local settings="${settings_dir}/settings"
         if [[ ! -f "${settings}" ]]; then
+            log_info "  WARNING: Settings file not found at ${settings}"
+            log_info "  Searching for settings file..."
+            find "${PREFIX}" -name "settings" -type f 2>/dev/null | head -10 || true
             die "Settings file not found"
         fi
 
