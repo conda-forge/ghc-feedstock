@@ -146,6 +146,29 @@ _patch_bootstrap_settings_for_cross() {
     log_info "    ld command: ${build_ld}"
 }
 
+_clear_bootstrap_ffi_settings() {
+    # Clear ffi-include-dir, ffi-lib-dir, and iconv-lib-dir from bootstrap GHC settings
+    # These point to system SDK paths which cause hsc2hs parse errors with Apple availability macros
+    local bootstrap_settings
+    bootstrap_settings=$(find "${BUILD_PREFIX}/ghc-bootstrap" -name settings -type f 2>/dev/null | head -1)
+
+    if [[ -z "${bootstrap_settings}" ]] || [[ ! -f "${bootstrap_settings}" ]]; then
+        log_info "  WARNING: Bootstrap GHC settings not found, skipping FFI cleanup"
+        return 0
+    fi
+
+    log_info "  Clearing ffi/iconv dirs from bootstrap settings to use conda-forge headers..."
+
+    # Clear the settings values (keep the key, just remove the value after =)
+    # GHC settings format: ("key", "value") - we clear the value portion
+    perl -pi -e 's#^(.*ffi-include-dir.*",\s*")[^"]*#$1#' "${bootstrap_settings}"
+    perl -pi -e 's#^(.*ffi-lib-dir.*",\s*")[^"]*#$1#' "${bootstrap_settings}"
+    perl -pi -e 's#^(.*iconv-include-dir.*",\s*")[^"]*#$1#' "${bootstrap_settings}"
+    perl -pi -e 's#^(.*iconv-lib-dir.*",\s*")[^"]*#$1#' "${bootstrap_settings}"
+
+    log_info "  ✓ Bootstrap FFI/iconv settings cleared (will use conda-forge headers)"
+}
+
 _setup_macos_environment() {
     log_info "  macOS-specific environment setup"
 
@@ -181,6 +204,15 @@ _setup_macos_environment() {
     else
         macos_complete_setup "true"   # Create iconv_compat for native
     fi
+
+    # CRITICAL FIX: Clear ffi-include-dir and ffi-lib-dir from bootstrap GHC settings
+    # Problem: Bootstrap GHC on macOS points to system SDK FFI headers at
+    #   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/ffi
+    # These headers contain Apple availability macros (API_AVAILABLE, FFI_AVAILABLE_APPLE)
+    # that expand to __attribute__ syntax incompatible with hsc2hs parser.
+    # Solution: Clear these settings so hsc2hs uses conda-forge libffi headers instead.
+    # This applies to BOTH native (osx-64) and cross-compile (osx-arm64) builds.
+    _clear_bootstrap_ffi_settings
 
     # macOS SDK path
     if [[ -n "${CONDA_BUILD_SYSROOT:-}" ]]; then
