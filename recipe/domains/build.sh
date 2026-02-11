@@ -10,6 +10,9 @@ source "${RECIPE_DIR}/lib/helpers.sh"
 if [[ "${target_platform}" == "win-64" ]]; then
     source "${RECIPE_DIR}/lib/windows-helpers.sh"
 fi
+if [[ "${target_platform}" == osx-* ]]; then
+    source "${RECIPE_DIR}/lib/macos-common.sh"
+fi
 
 # Global for Hadrian path
 HADRIAN_EXE=""
@@ -148,6 +151,14 @@ build_stage1() {
         patch_windows_settings "${_SRC_DIR}/_build/stage0/lib/settings" --include-paths
     fi
 
+    # macOS: Patch stage0 settings with iconv link flags
+    # CRITICAL: This adds -liconv and -liconv_compat to linker flags
+    # Without this, Stage 2 library linking fails with "iconv not detected"
+    if is_macos; then
+        log_info "  Patching stage0 settings for macOS (iconv link flags)..."
+        macos_update_stage_settings "stage0"
+    fi
+
     # Windows: Use special library build function
     if is_windows; then
         log_info "  Building Stage 1 libraries (Windows-specific)..."
@@ -240,6 +251,14 @@ build_stage2() {
         if is_windows; then
             log_info "  Patching Windows settings with link flags..."
             patch_windows_settings "${_SRC_DIR}/_build/stage1/lib/settings" --link-flags
+        fi
+
+        # macOS: Patch stage1 settings with iconv link flags
+        # CRITICAL: This adds -liconv and -liconv_compat to linker flags
+        # Without this, Stage 2 library linking fails with "iconv not detected"
+        if is_macos; then
+            log_info "  Patching stage1 settings for macOS (iconv link flags)..."
+            macos_update_stage_settings "stage1"
         fi
 
         # Windows: Rebuild touchy.exe before libraries

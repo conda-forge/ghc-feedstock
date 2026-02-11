@@ -55,26 +55,43 @@ configure_ghc() {
     local -a tc_args
     build_toolchain_args tc_args
 
+    # Determine include/lib paths based on platform
+    # Windows: ${_PREFIX}/Library/{include,lib} (conda Windows layout)
+    # Unix:    ${PREFIX}/{include,lib}
+    local inc_dir lib_dir
+    if is_windows; then
+        inc_dir="${_PREFIX}/Library/include"
+        lib_dir="${_PREFIX}/Library/lib"
+    else
+        inc_dir="${PREFIX}/include"
+        lib_dir="${PREFIX}/lib"
+    fi
+
     # Common configure arguments
-    # Use PREFIX for library paths (conda-forge makes build deps available here)
     local -a common_args=(
         "--prefix=${PREFIX}"
         "--with-system-libffi"
-        "--with-ffi-includes=${PREFIX}/include"
-        "--with-ffi-libraries=${PREFIX}/lib"
-        "--with-gmp-includes=${PREFIX}/include"
-        "--with-gmp-libraries=${PREFIX}/lib"
-        "--with-iconv-includes=${PREFIX}/include"
-        "--with-iconv-libraries=${PREFIX}/lib"
+        "--with-ffi-includes=${inc_dir}"
+        "--with-ffi-libraries=${lib_dir}"
+        "--with-gmp-includes=${inc_dir}"
+        "--with-gmp-libraries=${lib_dir}"
+        "--with-iconv-includes=${inc_dir}"
+        "--with-iconv-libraries=${lib_dir}"
     )
 
     # Platform-specific library paths
     case "${target_platform}" in
         linux-*)
             common_args+=(
-                "--with-curses-includes=${PREFIX}/include"
-                "--with-curses-libraries=${PREFIX}/lib"
+                "--with-curses-includes=${inc_dir}"
+                "--with-curses-libraries=${lib_dir}"
                 "--disable-numa"
+            )
+            ;;
+        win-64)
+            # Use conda-provided toolchain, don't download MSYS2 tarballs
+            common_args+=(
+                "--enable-distro-toolchain"
             )
             ;;
     esac
