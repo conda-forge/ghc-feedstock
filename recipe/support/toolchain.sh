@@ -268,6 +268,14 @@ post_configure_fixes() {
                 fi
             done
             ;;
+
+        win-64)
+            # Windows: CRITICAL path format conversion
+            # Configure writes Unix paths (/c/bld/...) but Cabal needs Windows paths (C:/bld/...)
+            # Without this, Cabal treats /c/... as RELATIVE paths and fails to find libraries
+            echo "  Patching system.config for Windows..."
+            patch_windows_system_config
+            ;;
     esac
 
     echo "  ✓ Post-configure fixes applied"
