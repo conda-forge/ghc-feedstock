@@ -146,27 +146,29 @@ _patch_bootstrap_settings_for_cross() {
     log_info "    ld command: ${build_ld}"
 }
 
-_clear_bootstrap_ffi_settings() {
-    # Clear ffi-include-dir, ffi-lib-dir, and iconv-lib-dir from bootstrap GHC settings
-    # These point to system SDK paths which cause hsc2hs parse errors with Apple availability macros
+_redirect_bootstrap_ffi_settings() {
+    # Redirect ffi-include-dir, ffi-lib-dir to conda-forge paths
+    # Problem: System SDK FFI headers contain Apple availability macros incompatible with hsc2hs
+    # Solution: Point to conda-forge libffi which has clean headers
     local bootstrap_settings
     bootstrap_settings=$(find "${BUILD_PREFIX}/ghc-bootstrap" -name settings -type f 2>/dev/null | head -1)
 
     if [[ -z "${bootstrap_settings}" ]] || [[ ! -f "${bootstrap_settings}" ]]; then
-        log_info "  WARNING: Bootstrap GHC settings not found, skipping FFI cleanup"
+        log_info "  WARNING: Bootstrap GHC settings not found, skipping FFI redirect"
         return 0
     fi
 
-    log_info "  Clearing ffi/iconv dirs from bootstrap settings to use conda-forge headers..."
+    log_info "  Redirecting ffi/iconv dirs to conda-forge paths..."
 
-    # Clear the settings values (keep the key, just remove the value after =)
-    # GHC settings format: ("key", "value") - we clear the value portion
-    perl -pi -e 's#^(.*ffi-include-dir.*",\s*")[^"]*#$1#' "${bootstrap_settings}"
-    perl -pi -e 's#^(.*ffi-lib-dir.*",\s*")[^"]*#$1#' "${bootstrap_settings}"
-    perl -pi -e 's#^(.*iconv-include-dir.*",\s*")[^"]*#$1#' "${bootstrap_settings}"
-    perl -pi -e 's#^(.*iconv-lib-dir.*",\s*")[^"]*#$1#' "${bootstrap_settings}"
+    # Replace system SDK paths with conda-forge paths
+    # GHC settings format: ("key", "value") - we replace the value portion
+    # Use PREFIX for both native and cross-compile (libffi is a host dependency)
+    perl -pi -e "s#^(.*ffi-include-dir.*\",\\s*\")[^\"]*#\$1${PREFIX}/include#" "${bootstrap_settings}"
+    perl -pi -e "s#^(.*ffi-lib-dir.*\",\\s*\")[^\"]*#\$1${PREFIX}/lib#" "${bootstrap_settings}"
+    perl -pi -e "s#^(.*iconv-include-dir.*\",\\s*\")[^\"]*#\$1${PREFIX}/include#" "${bootstrap_settings}"
+    perl -pi -e "s#^(.*iconv-lib-dir.*\",\\s*\")[^\"]*#\$1${PREFIX}/lib#" "${bootstrap_settings}"
 
-    log_info "  ✓ Bootstrap FFI/iconv settings cleared (will use conda-forge headers)"
+    log_info "  ✓ Bootstrap FFI/iconv settings redirected to: ${PREFIX}/include, ${PREFIX}/lib"
 }
 
 _setup_macos_environment() {
@@ -205,14 +207,14 @@ _setup_macos_environment() {
         macos_complete_setup "true"   # Create iconv_compat for native
     fi
 
-    # CRITICAL FIX: Clear ffi-include-dir and ffi-lib-dir from bootstrap GHC settings
+    # CRITICAL FIX: Redirect ffi-include-dir and ffi-lib-dir to conda-forge paths
     # Problem: Bootstrap GHC on macOS points to system SDK FFI headers at
     #   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/ffi
     # These headers contain Apple availability macros (API_AVAILABLE, FFI_AVAILABLE_APPLE)
     # that expand to __attribute__ syntax incompatible with hsc2hs parser.
-    # Solution: Clear these settings so hsc2hs uses conda-forge libffi headers instead.
+    # Solution: Redirect to conda-forge libffi which has clean headers.
     # This applies to BOTH native (osx-64) and cross-compile (osx-arm64) builds.
-    _clear_bootstrap_ffi_settings
+    _redirect_bootstrap_ffi_settings
 
     # macOS SDK path
     if [[ -n "${CONDA_BUILD_SYSROOT:-}" ]]; then
