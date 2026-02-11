@@ -213,7 +213,9 @@ _cross_post_install() {
     log_info "  Applying cross-compile post-install fixes..."
 
     # Determine target triple for this build
-    local target="${conda_target:-${TARGET}}"
+    # CRITICAL: GHC installs binaries with GHC-style triple (e.g., aarch64-unknown-linux-gnu)
+    # NOT conda-style triple (aarch64-conda-linux-gnu). Must use TARGET for finding binaries.
+    local target="${TARGET}"
     if [[ -z "${target}" ]]; then
         log_info "  WARNING: No target triple available, skipping cross fixes"
         return 0
@@ -449,8 +451,9 @@ _get_installed_settings_file() {
     fi
 
     # Cross-compile: Check target-prefixed location
+    # CRITICAL: GHC uses GHC-style triple (TARGET), not conda-style (conda_target)
     if is_cross_compile; then
-        local target="${conda_target:-${TARGET}}"
+        local target="${TARGET}"
         local cross_settings="${PREFIX}/lib/${target}-ghc-${PKG_VERSION}/lib/settings"
         if [[ -f "${cross_settings}" ]]; then
             echo "${cross_settings}"
@@ -522,9 +525,10 @@ _verify_install() {
 
     # Check GHC exists
     if [[ ! -x "${ghc_bin}" ]]; then
-        # Cross-compile: Check if short symlink was created
+        # Cross-compile: Check if target-prefixed GHC was installed
+        # CRITICAL: GHC uses GHC-style triple (TARGET), not conda-style (conda_target)
         if is_cross_compile; then
-            local target="${conda_target:-${TARGET}}"
+            local target="${TARGET}"
             local target_ghc="${PREFIX}/bin/${target}-ghc"
             if [[ -x "${target_ghc}" ]]; then
                 ghc_bin="${target_ghc}"
