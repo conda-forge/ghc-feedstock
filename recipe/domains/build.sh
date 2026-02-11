@@ -233,24 +233,53 @@ build_stage2() {
         # Native: build stage 2 executables and libraries
         log_info "  Building stage 2 executables"
 
-        local -a hadrian_cmd=(
-            "${HADRIAN_EXE}"
-            --flavour="${flavour}"
-            -j"${CPU_COUNT}"
-            --docs=no-sphinx
-            --freeze1
-            stage2:exe:ghc-bin
-            stage2:exe:ghc-pkg
-            stage2:exe:hsc2hs
-        )
-        _add_windows_hadrian_flags hadrian_cmd
-
-        run_and_log "build-stage2-exe" "${hadrian_cmd[@]}"
-
-        # Windows: Patch settings with link flags after ghc-bin built
+        # Windows: Split executable build to allow settings patching BETWEEN ghc-bin and other executables
+        # CRITICAL: hsc2hs.exe linking requires library paths patched in Stage1 settings
         if is_windows; then
+            log_info "  Building stage2:exe:ghc-bin (Windows)..."
+            local -a hadrian_cmd=(
+                "${HADRIAN_EXE}"
+                --flavour="${flavour}"
+                -j"${CPU_COUNT}"
+                --docs=no-sphinx
+                --freeze1
+                stage2:exe:ghc-bin
+            )
+            _add_windows_hadrian_flags hadrian_cmd
+            run_and_log "build-stage2-ghc-bin" "${hadrian_cmd[@]}"
+
+            # Patch Stage1 settings IMMEDIATELY after ghc-bin built
             log_info "  Patching Windows settings with link flags..."
             patch_windows_settings "${_SRC_DIR}/_build/stage1/lib/settings" --link-flags
+
+            # Build remaining executables (inherit patched settings)
+            log_info "  Building stage2:exe:ghc-pkg and stage2:exe:hsc2hs (Windows)..."
+            hadrian_cmd=(
+                "${HADRIAN_EXE}"
+                --flavour="${flavour}"
+                -j"${CPU_COUNT}"
+                --docs=no-sphinx
+                --freeze1
+                stage2:exe:ghc-pkg
+                stage2:exe:hsc2hs
+            )
+            _add_windows_hadrian_flags hadrian_cmd
+            run_and_log "build-stage2-pkg-hsc2hs" "${hadrian_cmd[@]}"
+        else
+            # Unix: build all executables together
+            local -a hadrian_cmd=(
+                "${HADRIAN_EXE}"
+                --flavour="${flavour}"
+                -j"${CPU_COUNT}"
+                --docs=no-sphinx
+                --freeze1
+                stage2:exe:ghc-bin
+                stage2:exe:ghc-pkg
+                stage2:exe:hsc2hs
+            )
+            _add_windows_hadrian_flags hadrian_cmd
+
+            run_and_log "build-stage2-exe" "${hadrian_cmd[@]}"
         fi
 
         # macOS: Patch stage1 settings with iconv link flags
