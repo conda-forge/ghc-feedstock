@@ -155,6 +155,19 @@ _setup_macos_environment() {
     unset LDFLAGS
     log_info "  Unset LDFLAGS (incompatible with macOS ld64)"
 
+    # CRITICAL: For native macOS builds, unset build_alias and host_alias
+    # These interfere with configure scripts and library detection (e.g., GMP)
+    # Working feedstock does: unset build_alias host_alias in osx-64.sh
+    if ! is_cross_compile; then
+        unset build_alias host_alias
+        log_info "  Unset build_alias host_alias (interferes with configure scripts)"
+    fi
+
+    # Set DYLD_FALLBACK_LIBRARY_PATH for library detection
+    # DYLD_LIBRARY_PATH overrides default paths, DYLD_FALLBACK_LIBRARY_PATH is safer
+    export DYLD_FALLBACK_LIBRARY_PATH="${BUILD_PREFIX}/lib:${PREFIX}/lib:${DYLD_FALLBACK_LIBRARY_PATH:-}"
+    log_info "  Set DYLD_FALLBACK_LIBRARY_PATH for library detection"
+
     # Complete macOS setup: llvm-ar, iconv_compat, DYLD env, bootstrap patches
     # For cross-compile, skip iconv creation (arm64 uses different approach)
     if is_cross_compile; then
