@@ -35,6 +35,7 @@ source:
           - patches/oar-osname-darwin-rts-configure.patch
       - if: osx
         then:
+          - patches/osx-neutralize-ffi-availability-macros.patch
           - patches/osx-disable-dead-strip-dylibs-Dynamic.hs.patch
           - patches/osx-disable-dead-strip-dylibs-Static.hs.patch
 

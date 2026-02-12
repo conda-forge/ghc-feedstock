@@ -149,7 +149,13 @@ _patch_bootstrap_settings_for_cross() {
 _redirect_bootstrap_ffi_settings() {
     # Redirect ffi-include-dir, ffi-lib-dir to conda-forge paths
     # Problem: System SDK FFI headers contain Apple availability macros incompatible with hsc2hs
-    # Solution: Point to conda-forge libffi which has clean headers
+    # The macOS SDK's ffi.h was updated (after Dec 2025) to add API_AVAILABLE/API_UNAVAILABLE
+    # macros that expand to __attribute__((availability(...))) which confuse hsc2hs.
+    #
+    # Solution: Two-pronged approach:
+    # 1. Point ffi-include-dir/ffi-lib-dir to conda-forge libffi
+    # 2. Add -I${ffi_prefix}/include to C compiler flags so hsc2hs finds conda-forge
+    #    headers BEFORE system SDK headers (C compiler default include path override)
     local bootstrap_settings
     bootstrap_settings=$(find "${BUILD_PREFIX}/ghc-bootstrap" -name settings -type f 2>/dev/null | head -1)
 
@@ -164,10 +170,10 @@ _redirect_bootstrap_ffi_settings() {
     local ffi_prefix
     if is_cross_compile; then
         ffi_prefix="${BUILD_PREFIX}"
-        log_info "  Redirecting ffi/iconv dirs to BUILD_PREFIX (cross-compile)..."
+        log_info "  Redirecting ffi/iconv to BUILD_PREFIX (cross-compile)..."
     else
         ffi_prefix="${PREFIX}"
-        log_info "  Redirecting ffi/iconv dirs to PREFIX (native)..."
+        log_info "  Redirecting ffi/iconv to PREFIX (native)..."
     fi
 
     # Replace system SDK paths with conda-forge paths
@@ -176,6 +182,14 @@ _redirect_bootstrap_ffi_settings() {
     perl -pi -e "s#^(.*ffi-lib-dir.*\",\\s*\")[^\"]*#\$1${ffi_prefix}/lib#" "${bootstrap_settings}"
     perl -pi -e "s#^(.*iconv-include-dir.*\",\\s*\")[^\"]*#\$1${ffi_prefix}/include#" "${bootstrap_settings}"
     perl -pi -e "s#^(.*iconv-lib-dir.*\",\\s*\")[^\"]*#\$1${ffi_prefix}/lib#" "${bootstrap_settings}"
+
+    # CRITICAL: Add -I${ffi_prefix}/include to C compiler flags
+    # This makes hsc2hs find conda-forge's ffi.h (without Apple availability macros)
+    # BEFORE the system SDK's ffi.h. The C compiler's default include path includes
+    # the SDK, but -I flags are searched first.
+    # Format: ("C compiler flags", "existing flags")
+    perl -pi -e "s#(C compiler flags\",\\s*\")[^\"]*#\$1-I${ffi_prefix}/include #" "${bootstrap_settings}"
+    log_info "  Added -I${ffi_prefix}/include to C compiler flags for hsc2hs"
 
     log_info "  ✓ Bootstrap FFI/iconv settings redirected to: ${ffi_prefix}/include, ${ffi_prefix}/lib"
 }
