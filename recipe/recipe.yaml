@@ -71,9 +71,9 @@ requirements:
     - ${{ m2 }}make
     - ${{ m2 }}tar
     
-    - binutils
+    - binutils >=${{ binutils_version }}
     - cabal ==3.10.3.0
-    - curl 8.17.*
+    - curl
     - ghc-bootstrap ==${{ bootstrap_version }}
     - llvm-tools ${{ c_compiler_version }}.*
     - perl 5.32.*
@@ -102,6 +102,9 @@ requirements:
   run_constraints:
     - ${{ c_compiler }}_impl_${{ target_platform }} >=${{ c_compiler_version }}
     - ${{ cxx_compiler }}_impl_${{ target_platform }} >=${{ cxx_compiler_version }}
+    - if: linux
+      then:
+        - ld_impl_${{ target_platform }} >=${{ binutils_version }}
     - if: osx or not unix
       then:
         - lld >=${{ c_compiler_version }}
@@ -172,7 +175,7 @@ tests:
         - ${{ c_stdlib }}_${{ target_platform }} >=${{ c_stdlib_version }}
         - if: linux
           then:
-            - ld_impl_${{ target_platform }}
+            - ld_impl_${{ target_platform }} >=${{ binutils_version }}
           else:
             - lld >=${{ c_compiler_version }}
         - if: osx
@@ -195,7 +198,7 @@ tests:
         - ${{ c_stdlib }}_${{ target_platform }} >=${{ c_stdlib_version }}
         - if: linux
           then:
-            - ld_impl_${{ target_platform }}
+            - ld_impl_${{ target_platform }} >=${{ binutils_version }}
           else:
             - lld >=${{ c_compiler_version }}
         - if: osx
