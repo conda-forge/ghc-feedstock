@@ -158,17 +158,26 @@ _redirect_bootstrap_ffi_settings() {
         return 0
     fi
 
-    log_info "  Redirecting ffi/iconv dirs to conda-forge paths..."
+    # Determine correct prefix for FFI/iconv libraries
+    # Cross-compile: Bootstrap GHC runs on BUILD platform (x86_64), needs BUILD libraries
+    # Native: Bootstrap GHC runs on host platform, needs PREFIX libraries
+    local ffi_prefix
+    if is_cross_compile; then
+        ffi_prefix="${BUILD_PREFIX}"
+        log_info "  Redirecting ffi/iconv dirs to BUILD_PREFIX (cross-compile)..."
+    else
+        ffi_prefix="${PREFIX}"
+        log_info "  Redirecting ffi/iconv dirs to PREFIX (native)..."
+    fi
 
     # Replace system SDK paths with conda-forge paths
     # GHC settings format: ("key", "value") - we replace the value portion
-    # Use PREFIX for both native and cross-compile (libffi is a host dependency)
-    perl -pi -e "s#^(.*ffi-include-dir.*\",\\s*\")[^\"]*#\$1${PREFIX}/include#" "${bootstrap_settings}"
-    perl -pi -e "s#^(.*ffi-lib-dir.*\",\\s*\")[^\"]*#\$1${PREFIX}/lib#" "${bootstrap_settings}"
-    perl -pi -e "s#^(.*iconv-include-dir.*\",\\s*\")[^\"]*#\$1${PREFIX}/include#" "${bootstrap_settings}"
-    perl -pi -e "s#^(.*iconv-lib-dir.*\",\\s*\")[^\"]*#\$1${PREFIX}/lib#" "${bootstrap_settings}"
+    perl -pi -e "s#^(.*ffi-include-dir.*\",\\s*\")[^\"]*#\$1${ffi_prefix}/include#" "${bootstrap_settings}"
+    perl -pi -e "s#^(.*ffi-lib-dir.*\",\\s*\")[^\"]*#\$1${ffi_prefix}/lib#" "${bootstrap_settings}"
+    perl -pi -e "s#^(.*iconv-include-dir.*\",\\s*\")[^\"]*#\$1${ffi_prefix}/include#" "${bootstrap_settings}"
+    perl -pi -e "s#^(.*iconv-lib-dir.*\",\\s*\")[^\"]*#\$1${ffi_prefix}/lib#" "${bootstrap_settings}"
 
-    log_info "  ✓ Bootstrap FFI/iconv settings redirected to: ${PREFIX}/include, ${PREFIX}/lib"
+    log_info "  ✓ Bootstrap FFI/iconv settings redirected to: ${ffi_prefix}/include, ${ffi_prefix}/lib"
 }
 
 _setup_macos_environment() {
