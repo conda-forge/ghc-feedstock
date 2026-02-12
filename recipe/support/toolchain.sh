@@ -185,7 +185,9 @@ post_configure_fixes() {
 
         # 3. Add linker flags (from _patch_linker_flags)
         # Note: We still add sysroot for Linux cross-compile, but also add rpath
-        perl -pi -e "s#(conf-cc-args-stage[012].*?= )#\$1-Wno-deprecated-non-prototype #" "${system_config}"
+        # -Wno-deprecated-non-prototype: suppress old-style function declaration warnings
+        # -Wno-deprecated-declarations: suppress sem_getvalue deprecation (macOS SDK marks it deprecated)
+        perl -pi -e "s#(conf-cc-args-stage[012].*?= )#\$1-Wno-deprecated-non-prototype -Wno-deprecated-declarations #" "${system_config}"
         perl -pi -e "s#(conf-gcc-linker-args-stage[12].*?= )#\$1-Wl,-L${PREFIX}/lib -Wl,-rpath,${PREFIX}/lib #" "${system_config}"
         perl -pi -e "s#(conf-ld-linker-args-stage[12].*?= )#\$1-L${PREFIX}/lib -rpath ${PREFIX}/lib #" "${system_config}"
         perl -pi -e "s#(settings-c-compiler-link-flags.*?= )#\$1-Wl,-L${PREFIX}/lib -Wl,-rpath,${PREFIX}/lib #" "${system_config}"
@@ -228,7 +230,9 @@ post_configure_fixes() {
             perl -i -pe "s|(settings-ar-command\\s*=\\s*).*|\$1llvm-ar|" "${system_config}"
 
             # Add library paths and rpath to linker args
-            perl -i -pe "s|(conf-cc-args-stage[012].*?= )|\$1-Wno-deprecated-non-prototype |" "${system_config}"
+            # -Wno-deprecated-non-prototype: suppress old-style function declaration warnings
+            # -Wno-deprecated-declarations: suppress sem_getvalue deprecation (macOS SDK marks it deprecated)
+            perl -i -pe "s|(conf-cc-args-stage[012].*?= )|\$1-Wno-deprecated-non-prototype -Wno-deprecated-declarations |" "${system_config}"
             perl -i -pe "s|(conf-gcc-linker-args-stage[12].*?= )|\$1-Wl,-L${PREFIX}/lib -Wl,-rpath,${PREFIX}/lib |" "${system_config}"
             perl -i -pe "s|(conf-ld-linker-args-stage[12].*?= )|\$1-L${PREFIX}/lib -rpath ${PREFIX}/lib |" "${system_config}"
             perl -i -pe "s|(settings-c-compiler-link-flags.*?= )|\$1-Wl,-L${PREFIX}/lib -Wl,-rpath,${PREFIX}/lib |" "${system_config}"
