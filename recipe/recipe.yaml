@@ -71,7 +71,7 @@ requirements:
     - ${{ m2 }}make
     - ${{ m2 }}tar
     
-    - binutils >=${{ binutils_version }}
+    - binutils
     - cabal ==3.10.3.0
     - curl
     - ghc-bootstrap ==${{ bootstrap_version }}
@@ -104,7 +104,7 @@ requirements:
     - ${{ cxx_compiler }}_impl_${{ target_platform }} >=${{ cxx_compiler_version }}
     - if: linux
       then:
-        - ld_impl_${{ target_platform }} >=${{ binutils_version }}
+        - ld_impl_${{ target_platform }}
     - if: osx or not unix
       then:
         - lld >=${{ c_compiler_version }}
@@ -175,7 +175,7 @@ tests:
         - ${{ c_stdlib }}_${{ target_platform }} >=${{ c_stdlib_version }}
         - if: linux
           then:
-            - ld_impl_${{ target_platform }} >=${{ binutils_version }}
+            - ld_impl_${{ target_platform }}
           else:
             - lld >=${{ c_compiler_version }}
         - if: osx
@@ -198,7 +198,7 @@ tests:
         - ${{ c_stdlib }}_${{ target_platform }} >=${{ c_stdlib_version }}
         - if: linux
           then:
-            - ld_impl_${{ target_platform }} >=${{ binutils_version }}
+            - ld_impl_${{ target_platform }}
           else:
             - lld >=${{ c_compiler_version }}
         - if: osx
