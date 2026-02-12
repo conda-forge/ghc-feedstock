@@ -187,9 +187,9 @@ _redirect_bootstrap_ffi_settings() {
     # This makes hsc2hs find conda-forge's ffi.h (without Apple availability macros)
     # BEFORE the system SDK's ffi.h. The C compiler's default include path includes
     # the SDK, but -I flags are searched first.
-    # Format: ("C compiler flags", "existing flags")
-    perl -pi -e "s#(C compiler flags\",\\s*\")[^\"]*#\$1-I${ffi_prefix}/include #" "${bootstrap_settings}"
-    log_info "  Added -I${ffi_prefix}/include to C compiler flags for hsc2hs"
+    # Format: ("C compiler flags", "existing flags") - PREPEND, don't replace!
+    perl -pi -e "s#(C compiler flags\",\\s*\")([^\"]*)#\$1-I${ffi_prefix}/include \$2#" "${bootstrap_settings}"
+    log_info "  Prepended -I${ffi_prefix}/include to C compiler flags for hsc2hs"
 
     log_info "  ✓ Bootstrap FFI/iconv settings redirected to: ${ffi_prefix}/include, ${ffi_prefix}/lib"
 }
