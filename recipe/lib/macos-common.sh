@@ -355,6 +355,21 @@ macos_update_stage_settings() {
 
   # Compound mode: platform-link-flags + macos-ar-ranlib in one call
   patch_settings "${settings_file}" --macos-stage="${toolchain}"
+
+  # CRITICAL: Redirect FFI paths to conda-forge to avoid Apple SDK availability macros
+  # The macOS SDK ffi.h (updated after Dec 2025) contains API_AVAILABLE/API_UNAVAILABLE
+  # macros that break hsc2hs preprocessing. Hadrian reads ffi-include-dir from settings
+  # and passes it to Cabal as --extra-include-dirs, which then passes to hsc2hs.
+  # By redirecting to conda-forge libffi, we get clean headers without Apple macros.
+  local ffi_prefix
+  if is_cross_compile; then
+    ffi_prefix="${BUILD_PREFIX}"
+  else
+    ffi_prefix="${PREFIX}"
+  fi
+  echo "  Redirecting FFI paths to ${ffi_prefix} in ${stage_dir} settings..."
+  perl -pi -e "s#^(.*ffi-include-dir.*\",\\s*\")[^\"]*#\$1${ffi_prefix}/include#" "${settings_file}"
+  perl -pi -e "s#^(.*ffi-lib-dir.*\",\\s*\")[^\"]*#\$1${ffi_prefix}/lib#" "${settings_file}"
 }
 
 macos_complete_setup() {
