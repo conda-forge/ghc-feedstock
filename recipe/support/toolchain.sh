@@ -240,13 +240,13 @@ post_configure_fixes() {
             perl -i -pe "s|(settings-c-compiler-link-flags.*?= )|\$1-Wl,-L${PREFIX}/lib -Wl,-rpath,${PREFIX}/lib |" "${system_config}"
             perl -i -pe "s|(settings-ld-flags.*?= )|\$1-L${PREFIX}/lib -rpath ${PREFIX}/lib |" "${system_config}"
 
-            # CRITICAL: Clear ffi-include-dir to prevent system SDK FFI headers
+            # CRITICAL: Override ffi-include-dir to conda-forge path
             # The macOS SDK (post Dec 2025) has ffi.h with Apple availability macros
             # (API_AVAILABLE, FFI_AVAILABLE_APPLE) that break hsc2hs preprocessing.
-            # Clearing ffi-include-dir forces Hadrian to use conda-forge's libffi
-            # headers from PREFIX/include (set by configure --with-ffi-includes).
-            perl -i -pe 's#^(ffi-include-dir\s*=).*#$1#' "${system_config}"
-            echo "    Cleared ffi-include-dir (prevents system SDK FFI headers)"
+            # Setting ffi-include-dir to PREFIX/include ensures conda-forge's clean
+            # libffi headers are used instead of the system SDK's problematic ones.
+            perl -i -pe "s#^(ffi-include-dir\\s*=).*#\$1${PREFIX}/include#" "${system_config}"
+            echo "    Set ffi-include-dir to ${PREFIX}/include (conda-forge libffi)"
 
             # macOS CROSS-COMPILE: Additional critical patches
             if is_cross_compile; then
