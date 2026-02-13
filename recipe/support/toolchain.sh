@@ -187,7 +187,8 @@ post_configure_fixes() {
         # Note: We still add sysroot for Linux cross-compile, but also add rpath
         # -Wno-deprecated-non-prototype: suppress old-style function declaration warnings
         # -Wno-deprecated-declarations: suppress sem_getvalue deprecation (macOS SDK marks it deprecated)
-        perl -pi -e "s#(conf-cc-args-stage[012].*?= )#\$1-Wno-deprecated-non-prototype -Wno-deprecated-declarations #" "${system_config}"
+        # -Wno-macro-redefined: suppress FFI macro redefinition warning (our patch vs system ffi.h on macOS)
+        perl -pi -e "s#(conf-cc-args-stage[012].*?= )#\$1-Wno-deprecated-non-prototype -Wno-deprecated-declarations -Wno-macro-redefined #" "${system_config}"
         perl -pi -e "s#(conf-gcc-linker-args-stage[12].*?= )#\$1-Wl,-L${PREFIX}/lib -Wl,-rpath,${PREFIX}/lib #" "${system_config}"
         perl -pi -e "s#(conf-ld-linker-args-stage[12].*?= )#\$1-L${PREFIX}/lib -rpath ${PREFIX}/lib #" "${system_config}"
         perl -pi -e "s#(settings-c-compiler-link-flags.*?= )#\$1-Wl,-L${PREFIX}/lib -Wl,-rpath,${PREFIX}/lib #" "${system_config}"
@@ -232,7 +233,8 @@ post_configure_fixes() {
             # Add library paths and rpath to linker args
             # -Wno-deprecated-non-prototype: suppress old-style function declaration warnings
             # -Wno-deprecated-declarations: suppress sem_getvalue deprecation (macOS SDK marks it deprecated)
-            perl -i -pe "s|(conf-cc-args-stage[012].*?= )|\$1-Wno-deprecated-non-prototype -Wno-deprecated-declarations |" "${system_config}"
+            # -Wno-macro-redefined: suppress FFI macro redefinition warning (our patch vs system ffi.h)
+            perl -i -pe "s|(conf-cc-args-stage[012].*?= )|\$1-Wno-deprecated-non-prototype -Wno-deprecated-declarations -Wno-macro-redefined |" "${system_config}"
             perl -i -pe "s|(conf-gcc-linker-args-stage[12].*?= )|\$1-Wl,-L${PREFIX}/lib -Wl,-rpath,${PREFIX}/lib |" "${system_config}"
             perl -i -pe "s|(conf-ld-linker-args-stage[12].*?= )|\$1-L${PREFIX}/lib -rpath ${PREFIX}/lib |" "${system_config}"
             perl -i -pe "s|(settings-c-compiler-link-flags.*?= )|\$1-Wl,-L${PREFIX}/lib -Wl,-rpath,${PREFIX}/lib |" "${system_config}"

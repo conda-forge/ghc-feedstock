@@ -279,7 +279,7 @@ _setup_windows_environment() {
     export GHC="${_BUILD_PREFIX}/ghc-bootstrap/bin/ghc.exe"
     # Python path for Hadrian - must use Windows format (C:/...) for GHC
     export PYTHON="${_BUILD_PREFIX_}/python.exe"
-    export LIBRARY_PATH="${_BUILD_PREFIX}/Library/lib${LIBRARY_PATH:+:}${LIBRARY_PATH:-}"
+    export LIBRARY_PATH="${_BUILD_PREFIX}/Library/lib:${_PREFIX}/Library/lib${LIBRARY_PATH:+:}${LIBRARY_PATH:-}"
 
     # Expand conda variables in flags (from windows-helpers.sh)
     windows_expand_conda_variables
@@ -287,9 +287,9 @@ _setup_windows_environment() {
     # Remove problematic flags (from windows-helpers.sh)
     windows_remove_problematic_flags
 
-    export CFLAGS="-I${_BUILD_PREFIX}/Library/include ${CFLAGS:-}"
-    export CXXFLAGS="-I${_BUILD_PREFIX}/Library/include ${CXXFLAGS:-}"
-    export LDFLAGS="-L${_BUILD_PREFIX}/Library/lib -L${_BUILD_PREFIX}/Library/lib/gcc/x86_64-w64-mingw32/15.2.0 ${LDFLAGS:-}"
+    export CFLAGS="-I${_BUILD_PREFIX}/Library/include -I${_PREFIX}/Library/include ${CFLAGS:-}"
+    export CXXFLAGS="-I${_BUILD_PREFIX}/Library/include -I${_PREFIX}/Library/include ${CXXFLAGS:-}"
+    export LDFLAGS="-L${_BUILD_PREFIX}/Library/lib -L${_PREFIX}/Library/lib -L${_BUILD_PREFIX}/Library/lib/gcc/x86_64-w64-mingw32/15.2.0 ${LDFLAGS:-}"
 
     # Fix windres.bat (ghc-bootstrap bug)
     if [[ -f "${_BUILD_PREFIX}/ghc-bootstrap/bin/windres.bat" ]]; then

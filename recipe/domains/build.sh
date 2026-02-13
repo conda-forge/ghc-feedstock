@@ -88,6 +88,16 @@ build_hadrian() {
     if is_macos; then
         export LDFLAGS=""
         log_info "  macOS: Set LDFLAGS='' (ld64 doesn't need explicit flags)"
+
+        # Add library paths for Cabal to find gmp, ffi, etc.
+        # LIBRARY_PATH isn't always respected on macOS, use explicit cabal flags
+        cabal_flags+=(
+            "--extra-lib-dirs=${BUILD_PREFIX}/lib"
+            "--extra-lib-dirs=${PREFIX}/lib"
+            "--extra-include-dirs=${BUILD_PREFIX}/include"
+            "--extra-include-dirs=${PREFIX}/include"
+        )
+        log_info "  macOS: Added extra-lib-dirs/include-dirs for gmp/ffi"
     fi
 
     # Use v2-build (modern cabal command)
