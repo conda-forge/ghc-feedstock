@@ -240,13 +240,14 @@ post_configure_fixes() {
             perl -i -pe "s|(settings-c-compiler-link-flags.*?= )|\$1-Wl,-L${PREFIX}/lib -Wl,-rpath,${PREFIX}/lib |" "${system_config}"
             perl -i -pe "s|(settings-ld-flags.*?= )|\$1-L${PREFIX}/lib -rpath ${PREFIX}/lib |" "${system_config}"
 
-            # CRITICAL: Override ffi-include-dir to conda-forge path
+            # CRITICAL: Override ffi-include-dir to conda-forge path WITH ffi subdirectory
             # The macOS SDK (post Dec 2025) has ffi.h with Apple availability macros
             # (API_AVAILABLE, FFI_AVAILABLE_APPLE) that break hsc2hs preprocessing.
-            # Setting ffi-include-dir to PREFIX/include ensures conda-forge's clean
+            # conda-forge libffi may put ffi.h in include/ffi/ subdirectory (matching SDK layout)
+            # Setting ffi-include-dir to PREFIX/include/ffi ensures conda-forge's clean
             # libffi headers are used instead of the system SDK's problematic ones.
-            perl -i -pe "s#^(ffi-include-dir\\s*=).*#\$1${PREFIX}/include#" "${system_config}"
-            echo "    Set ffi-include-dir to ${PREFIX}/include (conda-forge libffi)"
+            perl -i -pe "s#^(ffi-include-dir\\s*=).*#\$1${PREFIX}/include/ffi#" "${system_config}"
+            echo "    Set ffi-include-dir to ${PREFIX}/include/ffi (conda-forge libffi)"
 
             # macOS CROSS-COMPILE: Additional critical patches
             if is_cross_compile; then
