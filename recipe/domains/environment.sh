@@ -197,11 +197,21 @@ _redirect_bootstrap_ffi_settings() {
 _setup_macos_environment() {
     log_info "  macOS-specific environment setup"
 
-    # CRITICAL: Unset LDFLAGS to prevent Linux-specific flags like -fuse-ld=lld
+    # CRITICAL: Unset LDFLAGS to remove Linux-specific flags like -fuse-ld=lld
     # macOS Clang doesn't support -fuse-ld=lld (ld64 linker, not GNU ld)
     # conda-forge sets LDFLAGS globally, must unset early before cabal/Hadrian
     unset LDFLAGS
-    log_info "  Unset LDFLAGS (incompatible with macOS ld64)"
+    log_info "  Unset LDFLAGS (removed Linux-specific flags)"
+
+    # Re-set LDFLAGS with library paths needed for Stage1 library builds (gmp, ffi)
+    # Cross-compile needs both BUILD_PREFIX (Stage0) and PREFIX (Stage1 target) paths
+    # Native builds need PREFIX paths
+    if is_cross_compile; then
+        export LDFLAGS="-L${BUILD_PREFIX}/lib -L${PREFIX}/lib"
+    else
+        export LDFLAGS="-L${PREFIX}/lib"
+    fi
+    log_info "  Set LDFLAGS=${LDFLAGS} (library paths for gmp/ffi)"
 
     # CRITICAL: For native macOS builds, unset build_alias and host_alias
     # These interfere with configure scripts and library detection (e.g., GMP)

@@ -138,7 +138,7 @@ build_stage1() {
         "${HADRIAN_EXE}"
         --flavour="${flavour}"
         -j"${CPU_COUNT}"
-        --docs=no-sphinx
+        --docs=none
     )
     _add_windows_hadrian_flags hadrian_cmd
 
@@ -173,7 +173,7 @@ build_stage1() {
     if is_windows; then
         log_info "  Building Stage 1 libraries (Windows-specific)..."
         # Set global variables expected by windows-helpers.sh
-        HADRIAN_CMD=("${HADRIAN_EXE}" -j"${CPU_COUNT}" --docs=no-sphinx)
+        HADRIAN_CMD=("${HADRIAN_EXE}" -j"${CPU_COUNT}" --docs=none)
         _add_windows_hadrian_flags HADRIAN_CMD
         FLAVOUR="${flavour}"
         HADRIAN_STAGE_OPTS="--freeze1"
@@ -231,7 +231,7 @@ build_stage2() {
             "${HADRIAN_EXE}"
             --flavour="${flavour}"
             -j"${CPU_COUNT}"
-            --docs=no-sphinx
+            --docs=none
             --freeze1
             --freeze2
             stage1:lib:ghc
@@ -251,7 +251,7 @@ build_stage2() {
                 "${HADRIAN_EXE}"
                 --flavour="${flavour}"
                 -j"${CPU_COUNT}"
-                --docs=no-sphinx
+                --docs=none
                 --freeze1
                 stage2:exe:ghc-bin
             )
@@ -268,7 +268,7 @@ build_stage2() {
                 "${HADRIAN_EXE}"
                 --flavour="${flavour}"
                 -j"${CPU_COUNT}"
-                --docs=no-sphinx
+                --docs=none
                 --freeze1
                 stage2:exe:ghc-pkg
                 stage2:exe:hsc2hs
@@ -281,7 +281,7 @@ build_stage2() {
                 "${HADRIAN_EXE}"
                 --flavour="${flavour}"
                 -j"${CPU_COUNT}"
-                --docs=no-sphinx
+                --docs=none
                 --freeze1
                 stage2:exe:ghc-bin
                 stage2:exe:ghc-pkg
@@ -311,7 +311,7 @@ build_stage2() {
         # Windows uses special library build function
         if is_windows; then
             # Set global variables expected by windows-helpers.sh
-            HADRIAN_CMD=("${HADRIAN_EXE}" -j"${CPU_COUNT}" --docs=no-sphinx)
+            HADRIAN_CMD=("${HADRIAN_EXE}" -j"${CPU_COUNT}" --docs=none)
             _add_windows_hadrian_flags HADRIAN_CMD
             FLAVOUR="${flavour}"
             HADRIAN_STAGE_OPTS="--freeze1"
@@ -321,7 +321,7 @@ build_stage2() {
                 "${HADRIAN_EXE}"
                 --flavour="${flavour}"
                 -j"${CPU_COUNT}"
-                --docs=no-sphinx
+                --docs=none
                 --freeze1
                 stage2:lib:ghc
             )
