@@ -183,12 +183,12 @@ post_configure_fixes() {
         perl -pi -e "s#(=\\s+)(${pattern})\$#\$1${conda_target}-\$2#" "${system_config}"
         echo "    ✓ Added target prefix to toolchain tools: ${conda_target}-{ar,clang,ld,...}"
 
-        # 3. Add linker flags (from _patch_linker_flags)
-        # Note: We still add sysroot for Linux cross-compile, but also add rpath
+        # 3. Add compiler flags (from _patch_linker_flags and _patch_platform_link_flags)
+        # -Wno-strict-prototypes: suppress K&R style function declaration warnings (GHC RTS has these)
         # -Wno-deprecated-non-prototype: suppress old-style function declaration warnings
-        # -Wno-deprecated-declarations: suppress sem_getvalue deprecation (macOS SDK marks it deprecated)
-        # -Wno-macro-redefined: suppress FFI macro redefinition warning (our patch vs system ffi.h on macOS)
-        perl -pi -e "s#(conf-cc-args-stage[012].*?= )#\$1-Wno-deprecated-non-prototype -Wno-deprecated-declarations -Wno-macro-redefined #" "${system_config}"
+        # -Wno-deprecated-declarations: suppress sem_getvalue deprecation
+        # -Wno-macro-redefined: suppress macro redefinition warnings
+        perl -pi -e "s#(conf-cc-args-stage[012].*?= )#\$1-Wno-strict-prototypes -Wno-deprecated-non-prototype -Wno-deprecated-declarations -Wno-macro-redefined #" "${system_config}"
         perl -pi -e "s#(conf-gcc-linker-args-stage[12].*?= )#\$1-Wl,-L${PREFIX}/lib -Wl,-rpath,${PREFIX}/lib #" "${system_config}"
         perl -pi -e "s#(conf-ld-linker-args-stage[12].*?= )#\$1-L${PREFIX}/lib -rpath ${PREFIX}/lib #" "${system_config}"
         perl -pi -e "s#(settings-c-compiler-link-flags.*?= )#\$1-Wl,-L${PREFIX}/lib -Wl,-rpath,${PREFIX}/lib #" "${system_config}"
