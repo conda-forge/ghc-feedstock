@@ -259,16 +259,14 @@ post_configure_fixes() {
                 perl -i -pe 's#^(iconv-lib-dir\s*=).*#$1#' "${system_config}"
 
                 # Stage0 needs --target for HOST (x86_64), not TARGET (arm64)
-                # NOTE: macOS ld64 uses @rpath - don't add explicit -L/-rpath flags
-                # (these cause Ninja parse failures due to spaces being interpreted as binding syntax)
                 perl -i -pe "s#(conf-cc-args-stage0\\s*=\\s*).*#\$1--target=${conda_host}#" "${system_config}"
                 perl -i -pe "s#(conf-gcc-linker-args-stage0\\s*=\\s*).*#\$1--target=${conda_host}#" "${system_config}"
                 perl -i -pe "s#(conf-ld-linker-args-stage0\\s*=\\s*).*#\$1#" "${system_config}"
 
-                # Clear the library path flags we added above - ld64 doesn't need them
-                # and they cause Ninja parse errors
-                perl -i -pe "s#(conf-gcc-linker-args-stage[12]\\s*=\\s*).*#\$1#" "${system_config}"
-                perl -i -pe "s#(conf-ld-linker-args-stage[12]\\s*=\\s*).*#\$1#" "${system_config}"
+                # Stage1/Stage2 need library paths to find arm64 gmp/ffi/iconv in PREFIX
+                # Keep the -L flags but avoid -rpath to prevent Ninja parse issues
+                perl -i -pe "s#(conf-gcc-linker-args-stage[12]\\s*=\\s*).*#\$1-L${PREFIX}/lib#" "${system_config}"
+                perl -i -pe "s#(conf-ld-linker-args-stage[12]\\s*=\\s*).*#\$1-L${PREFIX}/lib#" "${system_config}"
 
                 # Set target ar command with prefix
                 perl -i -pe "s#(settings-ar-command\\s*=\\s*).*#\$1${conda_target}-ar#" "${system_config}"
