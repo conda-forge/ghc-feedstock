@@ -1,6 +1,6 @@
---- a/libraries/ghci/GHCi/FFI.hsc	2026-01-09 10:46:12.386591785 -0600
-+++ b/libraries/ghci/GHCi/FFI.hsc	2026-01-09 10:46:21.962576306 -0600
-@@ -30,6 +30,24 @@
+--- a/libraries/ghci/GHCi/FFI.hsc
++++ b/libraries/ghci/GHCi/FFI.hsc
+@@ -29,6 +29,22 @@
  #endif
  #endif
 
@@ -20,8 +20,6 @@
 +#define FFI_AVAILABLE_APPLE
 +#define FFI_AVAILABLE_APPLE_2019
 +#endif
-+
  #include <ffi.h>
-+
  #endif
 
