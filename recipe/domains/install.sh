@@ -67,7 +67,7 @@ _create_bindist() {
         binary-dist-dir
         --prefix="${PREFIX}"
         -j"${CPU_COUNT}"
-        --docs=no-sphinx
+        --docs=none
     )
 
     # Add flavour
