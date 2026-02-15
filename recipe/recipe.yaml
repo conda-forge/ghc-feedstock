@@ -90,6 +90,12 @@ requirements:
         - ${{ m2 }}coreutils
         - ${{ m2 }}which
 
+    # macOS native builds need libffi in BUILD env so bootstrap GHC
+    # finds conda's ffi.h instead of system SDK's (which has availability macros)
+    - if: osx
+      then:
+        - libffi
+
     - if: build_platform != target_platform
       then:
         - gmp
