@@ -104,7 +104,28 @@ _install_bindist() {
     local bindist_dir
     if is_windows; then
         local ghc_target="x86_64-unknown-mingw32"
-        bindist_dir=$(find "${_SRC_DIR}/_build/bindist" -name "ghc-${PKG_VERSION}-${ghc_target}" -type d | head -1)
+
+        # Try multiple possible locations (Hadrian may use SRC_DIR or _SRC_DIR)
+        bindist_dir=$(find "${_SRC_DIR}/_build/bindist" -name "ghc-${PKG_VERSION}-${ghc_target}" -type d 2>/dev/null | head -1)
+
+        # Fallback: try without underscore (Windows path variations)
+        if [[ -z "${bindist_dir}" ]]; then
+            bindist_dir=$(find "${SRC_DIR}/_build/bindist" -name "ghc-${PKG_VERSION}-${ghc_target}" -type d 2>/dev/null | head -1)
+        fi
+
+        # Fallback: try wildcard pattern (in case target triple is different)
+        if [[ -z "${bindist_dir}" ]]; then
+            bindist_dir=$(find "${_SRC_DIR}/_build/bindist" -name "ghc-${PKG_VERSION}-*" -type d 2>/dev/null | head -1)
+        fi
+
+        # Diagnostic: List what's actually in bindist directory
+        if [[ -z "${bindist_dir}" ]]; then
+            log_info "  DEBUG: Searching for bindist in:"
+            log_info "    ${_SRC_DIR}/_build/bindist/"
+            log_info "  DEBUG: Directory contents:"
+            ls -la "${_SRC_DIR}/_build/bindist/" 2>&1 || log_info "    Directory not found"
+            ls -la "${SRC_DIR}/_build/bindist/" 2>&1 || log_info "    Alternate directory not found"
+        fi
     else
         bindist_dir=$(find "${SRC_DIR}/_build/bindist" -maxdepth 1 -name "ghc-${PKG_VERSION}-*" -type d | head -1)
     fi

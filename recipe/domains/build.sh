@@ -184,6 +184,33 @@ build_stage1() {
         windows_build_stage_libraries 1
     fi
 
+    # macOS: Patch Stage 1 settings to redirect FFI paths (similar to bootstrap)
+    # Stage 1 GHC inherits settings from bootstrap but may regenerate some paths
+    # We need to ensure Stage 1 also uses conda-forge libffi, not system SDK
+    if is_macos; then
+        local stage1_settings="${SRC_DIR}/_build/stage1/lib/settings"
+        if [[ -f "${stage1_settings}" ]]; then
+            log_info "  Patching Stage 1 settings to redirect FFI paths..."
+            local ffi_prefix
+            if is_cross_compile; then
+                ffi_prefix="${BUILD_PREFIX}"
+            else
+                ffi_prefix="${PREFIX}"
+            fi
+
+            # Redirect FFI paths in Stage 1 settings
+            perl -pi -e "s#^(.*ffi-include-dir.*\",\\s*\")[^\"]*#\$1${ffi_prefix}/include#" "${stage1_settings}"
+            perl -pi -e "s#^(.*ffi-lib-dir.*\",\\s*\")[^\"]*#\$1${ffi_prefix}/lib#" "${stage1_settings}"
+
+            # Prepend conda-forge include path to C compiler flags
+            perl -pi -e "s#(C compiler flags\",\\s*\")([^\"]*)#\$1-I${ffi_prefix}/include/ffi -I${ffi_prefix}/include \$2#" "${stage1_settings}"
+
+            log_info "  ✓ Stage 1 FFI settings redirected to ${ffi_prefix}"
+        else
+            log_info "  WARNING: Stage 1 settings not found at ${stage1_settings}"
+        fi
+    fi
+
     log_info "✓ Stage 1 built"
 }
 
@@ -231,6 +258,24 @@ build_stage2() {
         # Working feedstock NEVER changes CONDA_BUILD_SYSROOT during build
         # Stage 1 libraries are COMPILED on BUILD machine, need BUILD sysroot for linking
 
+        # Pre-build ghc-compact to avoid race condition in parallel build
+        # Issue: Cabal tries to copy .so file before it's fully built in parallel
+        # Solution: Build ghc-compact first, then build remaining libraries
+        log_info "  Pre-building ghc-compact library (avoid race condition)..."
+        local -a prebuild_cmd=(
+            "${HADRIAN_EXE}"
+            --flavour="${flavour}"
+            -j1
+            --docs=none
+            --freeze1
+            --freeze2
+            stage1:lib:ghc-compact
+        )
+        _add_windows_hadrian_flags prebuild_cmd
+        run_and_log "prebuild-ghc-compact" "${prebuild_cmd[@]}"
+        log_info "  ✓ ghc-compact pre-built"
+
+        # Now build all Stage 1 libraries (including ghc-compact again, but it's cached)
         local -a hadrian_cmd=(
             "${HADRIAN_EXE}"
             --flavour="${flavour}"
