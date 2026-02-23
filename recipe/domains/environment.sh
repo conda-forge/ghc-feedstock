@@ -246,11 +246,9 @@ _setup_macos_environment() {
     #   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/ffi
     # These headers contain Apple availability macros (API_AVAILABLE, FFI_AVAILABLE_APPLE)
     # that expand to __attribute__ syntax incompatible with hsc2hs parser.
-    # Solution: For cross-compile, redirect to conda-forge libffi which has clean headers.
-    # For native builds, rely on libffi in BUILD deps + source patch to neutralize macros.
-    if is_cross_compile; then
-        _redirect_bootstrap_ffi_settings
-    fi
+    # Solution: Redirect to conda-forge libffi which has clean headers.
+    # This applies to BOTH native (osx-64) and cross-compile (osx-arm64) builds.
+    _redirect_bootstrap_ffi_settings
 
     # macOS SDK path
     if [[ -n "${CONDA_BUILD_SYSROOT:-}" ]]; then
