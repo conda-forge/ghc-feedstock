@@ -13,6 +13,10 @@ fi
 if [[ "${target_platform}" == osx-* ]]; then
     source "${RECIPE_DIR}/lib/macos-common.sh"
 fi
+# Source cross-compile helpers when needed
+if [[ "${build_platform:-${target_platform}}" != "${target_platform}" ]]; then
+    source "${RECIPE_DIR}/lib/cross-helpers.sh"
+fi
 
 # Global for Hadrian path
 HADRIAN_EXE=""

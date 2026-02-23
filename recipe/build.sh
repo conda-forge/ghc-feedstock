@@ -6,8 +6,10 @@
 set -eu
 
 # Ensure Bash 5.2+
-if [[ ${BASH_VERSINFO[0]} -lt 5 || (${BASH_VERSINFO[0]} -eq 5 && ${BASH_VERSINFO[1]} -lt 2) ]]; then
-    exec "${BUILD_PREFIX}/bin/bash" "$0" "$@"
+if [[ ${BASH_VERSINFO[0]} -lt 5 || (${BASH_VERSINFO[0]) -eq 5 && ${BASH_VERSINFO[1]} -lt 2) ]]; then
+    # Use _BUILD_PREFIX (Unix format) for Windows compatibility
+    bash_path="${_BUILD_PREFIX:-${BUILD_PREFIX}}/bin/bash"
+    exec "${bash_path}" "$0" "$@"
 fi
 
 # Source support utilities
