@@ -28,6 +28,12 @@ fi
 install_ghc() {
     log_info "Phase: Install GHC"
 
+    # CRITICAL: Initialize platform triples (BUILD, HOST, TARGET)
+    # These are needed by is_cross_compile() and _cross_post_install()
+    # Without this, cross-compile post-install fixes are silently skipped
+    detect_platform_triples
+    log_info "  Platform triples initialized: BUILD=${BUILD}, TARGET=${TARGET}"
+
     # Create binary distribution
     _create_bindist
 
