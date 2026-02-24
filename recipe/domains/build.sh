@@ -341,6 +341,23 @@ build_stage2() {
             run_and_log "build-stage2-exe" "${hadrian_cmd[@]}"
         fi
 
+        # macOS: Patch Stage 2 settings to redirect FFI paths (similar to Stage 1 fix)
+        # CRITICAL: Stage 2 regenerates settings after build, needs FFI redirect
+        # Without this, hsc2hs and other Stage 2 tools may use system SDK FFI
+        if is_macos && ! is_cross_compile; then
+            local stage2_settings="${SRC_DIR}/_build/stage2/lib/settings"
+            if [[ -f "${stage2_settings}" ]]; then
+                log_info "  Patching Stage 2 settings to redirect FFI paths..."
+                local ffi_prefix="${PREFIX}"
+
+                perl -pi -e "s#^(.*ffi-include-dir.*\",\\s*\")[^\"]*#\$1${ffi_prefix}/include#" "${stage2_settings}"
+                perl -pi -e "s#^(.*ffi-lib-dir.*\",\\s*\")[^\"]*#\$1${ffi_prefix}/lib#" "${stage2_settings}"
+                perl -pi -e "s#(C compiler flags\",\\s*\")([^\"]*)#\$1-I${ffi_prefix}/include/ffi -I${ffi_prefix}/include \$2#" "${stage2_settings}"
+
+                log_info "  ✓ Stage 2 FFI settings redirected to ${ffi_prefix}"
+            fi
+        fi
+
         # macOS: Patch stage1 settings with iconv link flags
         # CRITICAL: This adds -liconv and -liconv_compat to linker flags
         # Without this, Stage 2 library linking fails with "iconv not detected"

@@ -118,6 +118,11 @@ _install_bindist() {
             bindist_dir=$(find "${_SRC_DIR}/_build/bindist" -name "ghc-${PKG_VERSION}-*" -type d 2>/dev/null | head -1)
         fi
 
+        # Fallback: try wildcard on alternate path (SRC_DIR without underscore)
+        if [[ -z "${bindist_dir}" ]]; then
+            bindist_dir=$(find "${SRC_DIR}/_build/bindist" -name "ghc-${PKG_VERSION}-*" -type d 2>/dev/null | head -1)
+        fi
+
         # Diagnostic: List what's actually in bindist directory
         if [[ -z "${bindist_dir}" ]]; then
             log_info "  DEBUG: Searching for bindist in:"
@@ -199,18 +204,34 @@ _setup_bindist_cross_environment() {
 
     # Use explicit conda toolchain paths for BUILD platform
     # CRITICAL: Use full paths to conda toolchain, not fallback to system gcc
+    # Try multiple naming conventions for conda compilers
     local host="${conda_host:-x86_64-conda-linux-gnu}"
+    local compiler_found=0
 
+    # Try: x86_64-conda-linux-gnu-clang (full conda naming)
     if [[ -x "${BUILD_PREFIX}/bin/${host}-clang" ]]; then
-        # Prefer clang from conda toolchain
         export CC="${BUILD_PREFIX}/bin/${host}-clang"
         export CXX="${BUILD_PREFIX}/bin/${host}-clang++"
         log_info "    Using conda clang: ${CC}"
+        compiler_found=1
+    # Try: x86_64-linux-gnu-clang (without -conda-)
+    elif [[ -x "${BUILD_PREFIX}/bin/x86_64-linux-gnu-clang" ]]; then
+        export CC="${BUILD_PREFIX}/bin/x86_64-linux-gnu-clang"
+        export CXX="${BUILD_PREFIX}/bin/x86_64-linux-gnu-clang++"
+        log_info "    Using linux-gnu clang: ${CC}"
+        compiler_found=1
+    # Try: unwrapped clang in BUILD_PREFIX/bin
+    elif [[ -x "${BUILD_PREFIX}/bin/clang" ]]; then
+        export CC="${BUILD_PREFIX}/bin/clang"
+        export CXX="${BUILD_PREFIX}/bin/clang++"
+        log_info "    Using unwrapped clang: ${CC}"
+        compiler_found=1
+    # Fallback: CC_FOR_BUILD if set
     elif [[ -n "${CC_FOR_BUILD:-}" ]]; then
-        # Fallback to CC_FOR_BUILD if set
         export CC="${CC_FOR_BUILD}"
         export CXX="${CXX_FOR_BUILD:-${CC_FOR_BUILD/clang/clang++}}"
         log_info "    Using CC_FOR_BUILD: ${CC}"
+        compiler_found=1
     else
         # Last resort: system gcc (may fail on some systems)
         export CC="gcc"
