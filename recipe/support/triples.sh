@@ -30,12 +30,14 @@ detect_platform_triples() {
     local target_plat="${target_platform}"
 
     # Normalize to GHC format (conda uses linux, GHC wants unknown-linux-gnu)
+    # CRITICAL: macOS requires SDK version suffix (e.g., 13.4.0, 20.0.0)
+    # Without version, GHC's bindist configure script rejects the platform triple
     case "${build_plat}" in
         linux-64)       BUILD="x86_64-unknown-linux-gnu" ;;
         linux-aarch64)  BUILD="aarch64-unknown-linux-gnu" ;;
         linux-ppc64le)  BUILD="powerpc64le-unknown-linux-gnu" ;;
-        osx-64)         BUILD="x86_64-apple-darwin" ;;
-        osx-arm64)      BUILD="aarch64-apple-darwin" ;;
+        osx-64)         BUILD="x86_64-apple-darwin13.4.0" ;;
+        osx-arm64)      BUILD="aarch64-apple-darwin20.0.0" ;;
         win-64)         BUILD="x86_64-w64-mingw32" ;;
     esac
 
@@ -43,8 +45,8 @@ detect_platform_triples() {
         linux-64)       HOST="x86_64-unknown-linux-gnu" ;;
         linux-aarch64)  HOST="aarch64-unknown-linux-gnu" ;;
         linux-ppc64le)  HOST="powerpc64le-unknown-linux-gnu" ;;
-        osx-64)         HOST="x86_64-apple-darwin" ;;
-        osx-arm64)      HOST="aarch64-apple-darwin" ;;
+        osx-64)         HOST="x86_64-apple-darwin13.4.0" ;;
+        osx-arm64)      HOST="aarch64-apple-darwin20.0.0" ;;
         win-64)         HOST="x86_64-w64-mingw32" ;;
     esac
 
@@ -52,8 +54,8 @@ detect_platform_triples() {
         linux-64)       TARGET="x86_64-unknown-linux-gnu" ;;
         linux-aarch64)  TARGET="aarch64-unknown-linux-gnu" ;;
         linux-ppc64le)  TARGET="powerpc64le-unknown-linux-gnu" ;;
-        osx-64)         TARGET="x86_64-apple-darwin" ;;
-        osx-arm64)      TARGET="aarch64-apple-darwin" ;;
+        osx-64)         TARGET="x86_64-apple-darwin13.4.0" ;;
+        osx-arm64)      TARGET="aarch64-apple-darwin20.0.0" ;;
         win-64)         TARGET="x86_64-w64-mingw32" ;;
     esac
 
