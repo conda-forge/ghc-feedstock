@@ -1,0 +1,307 @@
+#!/usr/bin/env bash
+# domains/configure.sh - ALL CONFIGURE LOGIC FOR ALL PLATFORMS
+# Domain-centric: everything about "configure" is here
+#
+# STREAMLINED: Uses support/toolchain.sh for minimal, correct toolchain setup.
+# See TOOLCHAIN-MINIMAL.md for the analysis showing this is sufficient.
+
+source "${RECIPE_DIR}/support/utils.sh"
+source "${RECIPE_DIR}/support/triples.sh"
+source "${RECIPE_DIR}/support/toolchain.sh"
+
+# Source platform-specific helper libraries
+source "${RECIPE_DIR}/lib/helpers.sh"
+source "${RECIPE_DIR}/lib/cross-helpers.sh"
+if [[ "${target_platform}" == "win-64" ]]; then
+    source "${RECIPE_DIR}/lib/windows-helpers.sh"
+fi
+
+#=============================================================================
+# PUBLIC API (called from build.sh)
+#=============================================================================
+
+configure_ghc() {
+    log_info "Phase: Configure GHC"
+
+    # macOS: Rename VERSION file to avoid C++20 <version> header collision
+    # C++ configure tests try to include <version> but find ./VERSION instead
+    if is_macos && [[ -f "${SRC_DIR}/VERSION" ]]; then
+        log_info "  Renaming VERSION file to avoid C++20 header collision..."
+        mv "${SRC_DIR}/VERSION" "${SRC_DIR}/VERSION.ghc"
+    fi
+
+    # Windows: Pre-configure environment variables
+    if is_windows; then
+        log_info "  Setting Windows pre-configure variables..."
+        # Force use of conda-provided toolchain and libraries (not inplace MinGW)
+        export UseSystemMingw=YES
+        export WindowsToolchainAutoconf=NO
+        export WINDOWS_TOOLCHAIN_AUTOCONF=no
+        export UseSystemFfi=YES
+        export CXX_STD_LIB_LIBS="stdc++"
+
+        # Set autoconf variables (Windows-specific: ffi, DLLWRAP, WINDRES)
+        set_autoconf_toolchain_vars --windows
+
+        # Set up Windows SDK paths
+        setup_windows_sdk
+    fi
+
+    # Bypass configure's broken compiler search (GHC 9.6.7 bug)
+    # Conda-forge always provides correct CC/CXX/AR, so we don't need autoconf search
+    bypass_configure_compiler_search
+
+    # Build toolchain arguments (handles all platforms uniformly)
+    local -a tc_args
+    build_toolchain_args tc_args
+
+    # Determine include/lib paths based on platform
+    # Windows: ${_PREFIX}/Library/{include,lib} (conda Windows layout)
+    # Unix:    ${PREFIX}/{include,lib}
+    local inc_dir lib_dir
+    if is_windows; then
+        inc_dir="${_PREFIX}/Library/include"
+        lib_dir="${_PREFIX}/Library/lib"
+    else
+        inc_dir="${PREFIX}/include"
+        lib_dir="${PREFIX}/lib"
+    fi
+
+    # Common configure arguments
+    local -a common_args=(
+        "--prefix=${PREFIX}"
+        "--with-system-libffi"
+        "--with-ffi-includes=${inc_dir}"
+        "--with-ffi-libraries=${lib_dir}"
+        "--with-gmp-includes=${inc_dir}"
+        "--with-gmp-libraries=${lib_dir}"
+        "--with-iconv-includes=${inc_dir}"
+        "--with-iconv-libraries=${lib_dir}"
+    )
+
+    # Platform-specific library paths
+    case "${target_platform}" in
+        linux-*)
+            common_args+=(
+                "--with-curses-includes=${inc_dir}"
+                "--with-curses-libraries=${lib_dir}"
+                "--disable-numa"
+            )
+            ;;
+        win-64)
+            # Use conda-provided toolchain, don't download MSYS2 tarballs
+            common_args+=(
+                "--enable-distro-toolchain"
+            )
+            ;;
+    esac
+
+    # Run configure with all arguments
+    if ! run_and_log "configure" ./configure \
+        "${common_args[@]}" \
+        "${tc_args[@]}"; then
+
+        # Configure failed - dump config.log for debugging
+        log_info "ERROR: Configure failed. Dumping config.log for analysis..."
+        if [[ -f "${SRC_DIR}/config.log" ]]; then
+            echo "=== START config.log (last 200 lines) ==="
+            tail -n 200 "${SRC_DIR}/config.log"
+            echo "=== END config.log ==="
+        else
+            echo "WARNING: config.log not found at ${SRC_DIR}/config.log"
+        fi
+        exit 1
+    fi
+}
+
+post_configure_ghc() {
+    log_info "Phase: Post-Configure"
+
+    # macOS: Restore VERSION file
+    if is_macos && [[ -f "${SRC_DIR}/VERSION.ghc" ]]; then
+        log_info "  Restoring VERSION file..."
+        mv "${SRC_DIR}/VERSION.ghc" "${SRC_DIR}/VERSION"
+    fi
+
+    # Minimal fixes - configure handles most things correctly
+    # See TOOLCHAIN-MINIMAL.md for why this is sufficient
+    post_configure_fixes
+
+    log_info "✓ Post-configure complete"
+}
+
+#=============================================================================
+# LINUX CONFIGURE (native and cross)
+#=============================================================================
+
+_configure_linux_native() {
+    log_info "  Linux x86_64 native"
+
+    run_and_log "configure" ./configure \
+        --prefix="${PREFIX}" \
+        --build="x86_64-unknown-linux-gnu" \
+        --host="x86_64-unknown-linux-gnu" \
+        --target="x86_64-unknown-linux-gnu" \
+        $(_common_configure_args) \
+        ac_cv_func_statx=no \
+        CC="${CC}" CXX="${CXX}" LD="${LD}" AR="${AR}"
+}
+
+_configure_linux_cross() {
+    local arch="$1"
+
+    log_info "  Linux cross-compile: ${arch}"
+
+    # Use cross-helpers.sh toolchain function to build configure args
+    # This sets CFLAGS/CPPFLAGS/CXXFLAGS with --sysroot for target libraries
+    local -a configure_args=()
+
+    # Add cross-compile toolchain args (CC=, AR=, STAGE0 tools, sysroot)
+    # This uses the working feedstock's cross_build_toolchain_args function
+    cross_build_toolchain_args configure_args "${conda_target}" "${conda_host}" "--sysroot"
+
+    log_info "  Configure args from cross_build_toolchain_args:"
+    for arg in "${configure_args[@]}"; do
+        log_info "    ${arg}"
+    done
+
+    run_and_log "configure" ./configure \
+        --prefix="${PREFIX}" \
+        --build="${conda_build}" \
+        --host="${conda_target}" \
+        --target="${conda_target}" \
+        $(_common_configure_args) \
+        cross_compiling=yes \
+        ac_cv_func_statx=no \
+        "${configure_args[@]}"
+}
+
+_post_configure_linux_cross() {
+    local settings="$1"
+
+    # Strip BUILD_PREFIX from tools
+    perl -i -pe "s|${BUILD_PREFIX}/||g" "${settings}"
+
+    # Fix Python path
+    perl -i -pe "s|^(python:).*|\$1 ${BUILD_PREFIX}/bin/python3|" "${settings}"
+}
+
+#=============================================================================
+# MACOS CONFIGURE (native and cross)
+#=============================================================================
+
+_configure_macos_native() {
+    log_info "  macOS x86_64 native"
+
+    _setup_macos_llvm_ar  # macOS-specific: use llvm-ar
+
+    run_and_log "configure" ./configure \
+        --prefix="${PREFIX}" \
+        --build="x86_64-apple-darwin" \
+        --host="x86_64-apple-darwin" \
+        --target="x86_64-apple-darwin" \
+        $(_common_configure_args) \
+        CC="${CC}" CXX="${CXX}" LD="${LD}" \
+        AR="${BUILD_PREFIX}/bin/llvm-ar" \
+        RANLIB="${BUILD_PREFIX}/bin/llvm-ranlib"
+}
+
+_configure_macos_cross() {
+    log_info "  macOS arm64 cross-compile"
+
+    _setup_macos_llvm_ar
+
+    run_and_log "configure" ./configure \
+        --prefix="${PREFIX}" \
+        --build="x86_64-apple-darwin" \
+        --host="aarch64-apple-darwin" \
+        --target="aarch64-apple-darwin" \
+        $(_common_configure_args) \
+        cross_compiling=yes \
+        CC="${CC}" CXX="${CXX}" LD="${LD}" \
+        AR="${BUILD_PREFIX}/bin/llvm-ar" \
+        RANLIB="${BUILD_PREFIX}/bin/llvm-ranlib"
+}
+
+_post_configure_macos_native() {
+    local settings="$1"
+    _patch_macos_ar_ranlib "${settings}"
+}
+
+_post_configure_macos_cross() {
+    local settings="$1"
+    _patch_macos_ar_ranlib "${settings}"
+    perl -i -pe "s|^(python:).*|\$1 ${BUILD_PREFIX}/bin/python3|" "${settings}"
+}
+
+_setup_macos_llvm_ar() {
+    # macOS Apple ld64 requires BSD archive format (llvm-ar), not GNU ar
+    export AR="${BUILD_PREFIX}/bin/llvm-ar"
+    export RANLIB="${BUILD_PREFIX}/bin/llvm-ranlib"
+}
+
+_patch_macos_ar_ranlib() {
+    local settings="$1"
+    perl -i -pe "s|^(ar-prog:).*|\$1 ${BUILD_PREFIX}/bin/llvm-ar|" "${settings}"
+    perl -i -pe "s|^(ranlib-prog:).*|\$1 ${BUILD_PREFIX}/bin/llvm-ranlib|" "${settings}"
+}
+
+#=============================================================================
+# WINDOWS CONFIGURE
+#=============================================================================
+
+_configure_windows() {
+    log_info "  Windows MinGW-w64"
+
+    _setup_windows_sdk  # Windows-specific SDK setup
+
+    run_and_log "configure" ./configure \
+        --prefix="${PREFIX}" \
+        --build="x86_64-w64-mingw32" \
+        --host="x86_64-w64-mingw32" \
+        --target="x86_64-w64-mingw32" \
+        --enable-distro-toolchain \
+        $(_common_configure_args) \
+        CC="${CC}" CXX="${CXX}" LD="${LD}"
+}
+
+_post_configure_windows() {
+    local settings="$1"
+
+    # Expand conda variables in settings
+    perl -i -pe "s|%BUILD_PREFIX%|${BUILD_PREFIX}|g" "${settings}"
+    perl -i -pe "s|%PREFIX%|${PREFIX}|g" "${settings}"
+
+    # Remove problematic flags
+    perl -i -pe 's|-Wl,--export-all-symbols||g' "${settings}"
+}
+
+_setup_windows_sdk() {
+    # Windows SDK path setup
+    export INCLUDE="${BUILD_PREFIX}/Library/include"
+    export LIB="${BUILD_PREFIX}/Library/lib"
+}
+
+#=============================================================================
+# SHARED HELPERS (inline, not in separate file)
+#=============================================================================
+
+_common_configure_args() {
+    echo "--with-system-libffi \
+          --with-ffi-includes=${PREFIX}/include \
+          --with-ffi-libraries=${PREFIX}/lib \
+          --with-gmp-includes=${PREFIX}/include \
+          --with-gmp-libraries=${PREFIX}/lib"
+}
+
+_patch_linker_flags() {
+    local settings="$1"
+    perl -i -pe "s|^(ld-options:.*)|\$1 ${LDFLAGS:-}|" "${settings}"
+}
+
+_patch_doc_placeholders() {
+    local settings="$1"
+    local doc_dir="${PREFIX}/share/doc/ghc-${PKG_VERSION}"
+    perl -i -pe "s|{docdir}|${doc_dir}|g" "${settings}"
+    perl -i -pe "s|{htmldir}|${doc_dir}/html|g" "${settings}"
+}
