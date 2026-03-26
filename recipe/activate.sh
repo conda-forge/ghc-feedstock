@@ -1,3 +1,3 @@
 #!/bin/bash
 
-ghc-pkg recache
+"${CONDA_PREFIX}"/bin/ghc-pkg recache
