@@ -1,0 +1,23 @@
+--- a/rts/ReportMemoryMap.c
++++ b/rts/ReportMemoryMap.c
+@@ -13,6 +13,7 @@
+ #include "Rts.h"
+
+ #include <string.h>
++#include <inttypes.h>
+
+ #if defined(darwin_HOST_OS)
+ #include <mach/mach.h>
+@@ -62,10 +63,10 @@ void reportMemoryMap(void) {
+             default:          type = "unknown"; break;
+             }
+
+-            debugBelch("%08llx-%08llx %8zuK %3s (%s)\n",
++            debugBelch("%08" PRIxPTR "-%08" PRIxPTR " %8zuK %3s (%s)\n",
+                        (uintptr_t) info.BaseAddress,
+                        (uintptr_t) info.BaseAddress + info.RegionSize,
+-                       (size_t) info.RegionSize,
++                       (size_t) info.RegionSize / 1024,
+                        protection, type);
+         }
+         addr = (uint8_t *) info.BaseAddress + info.RegionSize;
