@@ -1,0 +1,24 @@
+Move FFI and libdw include directories from include-dirs to extra-include-dirs.
+
+In Hadrian's cIncludeArgs (Settings/Builders/Common.hs), include-dirs values
+get prefixed with the package path, which breaks absolute paths like those
+from --with-ffi-includes. extra-include-dirs (depIncludeDirs) are used as-is.
+
+--- a/rts/rts.cabal.in
++++ b/rts/rts.cabal.in
+@@ -151,9 +151,13 @@
+     if !flag(smp)
+        cpp-options: -DNOSMP
+
++    -- Package-relative include dirs (get prefixed with package path)
+     include-dirs: include
+-                  @FFIIncludeDir@
+-                  @LibdwIncludeDir@
++
++    -- Absolute include dirs from system dependencies (not prefixed)
++    extra-include-dirs: @FFIIncludeDir@
++                        @LibdwIncludeDir@
++
+     includes: Rts.h
+     install-includes: Cmm.h HsFFI.h MachDeps.h Rts.h RtsAPI.h Stg.h
+                       ghcautoconf.h ghcconfig.h ghcplatform.h ghcversion.h
