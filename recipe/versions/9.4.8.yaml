@@ -1,0 +1,84 @@
+# GHC 9.4.8 Version Metadata
+# This file contains version-specific configuration for building GHC 9.4.8
+
+version: "9.4.8"
+bootstrap_version: "9.2.8"
+sha256: "0bf407eb67fe3e3c24b0f4c8dea8cb63e07f63ca0f76cf2058565143507ab85e"
+
+# Source URL pattern (version is substituted)
+source_url: "https://downloads.haskell.org/~ghc/${version}/ghc-${version}-src.tar.xz"
+
+# Windows NOT supported for GHC 9.4.8
+windows_supported: false
+
+# Hadrian build flavour by platform
+# Note: osx uses release+no_profiled_libs due to issues with quick flavour
+hadrian_flavour:
+  linux-64: "quick"
+  linux-aarch64: "quick"
+  linux-ppc64le: "quick"
+  osx-64: "release+no_profiled_libs"
+  osx-arm64: "release+no_profiled_libs"
+  win-64: null  # Not supported
+
+# Bindist install targets (GHC 9.4.x has same targets as 9.2.x)
+install_targets: "install_bin install_lib"
+
+# Known bugs requiring runtime workarounds
+bugs:
+  # AC_ARG_WITH parsing bug in libraries/ghc-bignum/configure
+  # Similar to 9.2.x - needs fix-ghc-bignum-intree-gmp-check.patch
+  intree_gmp_bug: true
+
+  # GHC 9.4.x fixed the touchy.exe cross-platform bug
+  touchy_exe_cross_platform_bug: false
+
+  # PIE relocation - may still be present, needs testing
+  pie_relocation_error:
+    platforms: [linux-64, linux-aarch64, linux-ppc64le]
+
+  # Windows not supported, so no timezone symbol issues
+  mingw32_timezone_symbols: false
+
+# Patches to apply (relative to recipe/patches/)
+patches:
+  # Common patches (identical across versions)
+  common:
+    - common/skip-bindist-recache-crosscompile.patch
+    - common/patch-osname-macos.patch
+
+  # Version-specific patches
+  version:
+    - 9.4/make-alex-happy-optional.patch
+    - 9.4/update-hadrian-cabal-project.patch
+    - 9.4/hadrian-cabal-3.10-compat.patch
+    - 9.4/fix-ghc-bignum-intree-gmp-check.patch
+    - 9.4/relax-ghc-boot-th-bounds.patch
+
+  # Platform-conditional patches
+  linux:
+    - 9.4/fix-no-pie-detection-configure.patch
+
+  osx:
+    - 9.4/remove-dangerous-macos-linker-flags.patch
+
+  osx_arm64:
+    - common/patch-osname-macos.patch
+
+  windows: []  # Not supported
+
+  cross_compile:
+    - common/skip-bindist-recache-crosscompile.patch
+
+# Compiler version requirements by platform
+compiler_versions:
+  c_compiler_version:
+    linux: "14"
+    osx: "17"
+  binutils_version: "2.40"
+
+# Special build notes
+notes:
+  - "Windows not supported for GHC 9.4.8"
+  - "macOS uses release+no_profiled_libs flavour (quick has dynamic lib issues)"
+  - "Cross-compilation creates separate conda environments for bootstrap"

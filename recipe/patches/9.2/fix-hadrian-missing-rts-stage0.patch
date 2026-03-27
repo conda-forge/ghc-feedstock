@@ -1,0 +1,46 @@
+From: conda-forge
+Subject: [PATCH] Handle missing RTS package in Stage0 package database
+
+When cross-version bootstrapping (e.g., using GHC 9.6.7 to build GHC 9.2.8),
+we deliberately skip registering RTS at Stage0 to avoid ABI incompatibility.
+The bootstrap GHC's RTS has different symbols than our locally-built RTS,
+and Stage0 utilities link against bootstrap libs expecting bootstrap's RTS.
+
+However, the hackRtsPackage function in Cabal/Parse.hs expects exactly one
+RTS package in the installed package database. When RTS is missing (because
+we skipped registration), it errors with "No (or multiple) GHC rts package
+is registered!".
+
+This patch modifies hackRtsPackage to return the index unchanged when no
+RTS package is found. The bootstrap GHC will fall back to its global package
+database which has the compatible RTS.
+
+--- a/hadrian/src/Hadrian/Haskell/Cabal/Parse.hs
++++ b/hadrian/src/Hadrian/Haskell/Cabal/Parse.hs
+@@ -232,14 +232,19 @@ resolveContextData context@Context {..} = do
+         hackRtsPackage index | null (C.allPackages index) = index
+         -- ^ do not hack the empty index
+         hackRtsPackage index = case C.lookupPackageName index (C.mkPackageName "rts") of
++            -- Normal case: exactly one RTS package found, hack its options
+             [(_, [rts])] -> C.insert rts {
+                 Installed.ldOptions   = [],
+                 Installed.libraryDirs = filter (not . ("gcc-lib" `isSuffixOf`))
+                                                (Installed.libraryDirs rts)} index
+-            -- GHC <= 6.12 had @$topdir/gcc-lib@ in their @library-dirs@ for the
+-            -- 'rts' package, which causes problems when we try to use the
+-            -- in-tree @mingw@, due to accidentally picking up the incompatible
+-            -- libraries there. So we filter out @gcc-lib@ from the RTS's
+-            -- @library-dirs@ here.
+-            _ -> error "No (or multiple) GHC rts package is registered!"
++                -- GHC <= 6.12 had @$topdir/gcc-lib@ in their @library-dirs@ for the
++                -- 'rts' package, which causes problems when we try to use the
++                -- in-tree @mingw@, due to accidentally picking up the incompatible
++                -- libraries there. So we filter out @gcc-lib@ from the RTS's
++                -- @library-dirs@ here.
++            -- Cross-bootstrap case: RTS not in Stage0 DB (deliberately skipped).
++            -- Return index unchanged - bootstrap GHC uses its global DB's RTS.
++            [] -> index
++            -- Multiple RTS packages is still an error
++            _ -> error "Multiple GHC rts packages registered!"
+
+         (buildInfo, modules, mainIs) = biModules (C.localPkgDescr lbi')

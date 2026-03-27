@@ -1,0 +1,27 @@
+diff --git a/rts/StgMiscClosures.cmm b/rts/StgMiscClosures.cmm
+--- a/rts/StgMiscClosures.cmm
++++ b/rts/StgMiscClosures.cmm
+@@ -369,7 +369,10 @@ stg_ctoi_t
+
+     Sp = Sp - WDS(tuple_stack);
+
+-    PUSH_TUPLE_REGS(tuple_info);
++    // Note: PUSH_TUPLE_REGS was renamed to PUSH_ARG_REGS in GHC 9.6+
++    // When using GHC 9.6.7 as bootstrap, we need to use the new macro name
++    // since the CMM parser is from the bootstrap compiler, not the source.
++    PUSH_ARG_REGS(tuple_info);
+
+     /* jump to the BCO that will finish the return of the tuple */
+     Sp_adj(-3);
+@@ -390,7 +393,10 @@ INFO_TABLE_RET( stg_ret_t, RET_BCO )
+     /* number of words spilled on stack */
+     tuple_stack  = (tuple_info >> 24) & 0xff;
+
+-    POP_TUPLE_REGS(tuple_info);
++    // Note: POP_TUPLE_REGS was renamed to POP_ARG_REGS in GHC 9.6+
++    // When using GHC 9.6.7 as bootstrap, we need to use the new macro name
++    // since the CMM parser is from the bootstrap compiler, not the source.
++    POP_ARG_REGS(tuple_info);
+
+     /* Sp points to the topmost argument now */
+     jump %ENTRY_CODE(Sp(tuple_stack)) [*]; // NB. all registers live!

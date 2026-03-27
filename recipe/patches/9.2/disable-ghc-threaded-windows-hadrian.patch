@@ -1,0 +1,29 @@
+From: conda-forge
+Subject: [PATCH] Disable ghcThreaded on Windows in Hadrian default flavour
+
+On Windows, building GHC with -threaded causes "builderMainLoop: invalid argument"
+errors when Stage 0 GHC spawns processes to build Stage 1/2. This is due to a bug
+in process-1.6.16.0 (bundled with GHC 9.2.8) related to Windows job objects.
+
+This patch modifies Hadrian's default flavour to set ghcThreaded=False on Windows,
+which prevents the -threaded flag from being passed to ghc.exe builds on Windows.
+
+See:
+- https://hackage.haskell.org/package/process-1.6.24.0/changelog (fix in 1.6.18.0)
+- https://github.com/haskell/cabal/issues/7309
+
+diff --git a/hadrian/src/Settings/Default.hs b/hadrian/src/Settings/Default.hs
+--- a/hadrian/src/Settings/Default.hs
++++ b/hadrian/src/Settings/Default.hs
+@@ -218,7 +218,10 @@ defaultFlavour = Flavour
+     , ghciWithDebugger   = False
+     , ghcProfiled        = False
+     , ghcDebugged        = False
+-    , ghcThreaded        = True
++    -- CONDA-FORGE: Disable -threaded on Windows to avoid builderMainLoop errors
++    -- caused by process-1.6.16.0 job object bug (fixed in 1.6.18.0).
++    -- GHC 9.2.8 bundles process-1.6.16.0, so we disable threading on Windows.
++    , ghcThreaded        = not windowsHost
+     , ghcDocs            = cmdDocsArgs }
+
+ -- | Default logic for determining whether to build
