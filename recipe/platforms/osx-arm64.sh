@@ -1,0 +1,223 @@
+#!/usr/bin/env bash
+# ==============================================================================
+# Platform Configuration: macOS arm64 (Cross-compiled from x86_64)
+# ==============================================================================
+# macOS cross-compilation from x86_64 to arm64.
+#
+# Build Strategy:
+# - Stage 1: Build cross-compiler using x86_64 bootstrap GHC
+# - Stage 2: Use Stage 1 to build arm64-targeted binaries
+#
+# Key implementation details:
+# - Uses bootstrap GHC from BUILD_PREFIX (no separate env needed)
+# - Disables copy optimization to force cross binary compilation
+# - Uses llvm-ar for Apple ld64 compatibility
+# - Applies -fno-lto to prevent ABI mismatches
+# ==============================================================================
+
+set -eu
+
+# Source common hook defaults (provides no-op implementations)
+source "${RECIPE_DIR}/lib/common-hooks.sh"
+source "${RECIPE_DIR}/lib/cross-helpers.sh"
+source "${RECIPE_DIR}/lib/macos-common.sh"
+
+# Platform metadata
+PLATFORM_NAME="macOS arm64 (cross-compiled from x86_64)"
+PLATFORM_TYPE="cross"
+INSTALL_METHOD="bindist"
+FLAVOUR="release"
+
+# ==============================================================================
+# Architecture Configuration
+# ==============================================================================
+
+# Configure all triple variables (auto-detects cross mode)
+# Sets: ghc_build, ghc_host, ghc_target, ghc_triple, conda_*, *_arch
+configure_triples
+
+# ==============================================================================
+# Phase 1: Environment Setup
+# ==============================================================================
+
+platform_setup_environment() {
+  echo "  Setting up macOS cross-compilation environment..."
+
+  # GHC, PATH already set by common_setup_environment
+
+  # Use shared macOS setup for LLVM ar (skip iconv compat - arm64 uses different approach)
+  macos_setup_llvm_ar
+
+  # Create symlinks for host tools (needed for stage1 build)
+  ln -sf "${BUILD_PREFIX}/bin/${conda_host}-ar" "${BUILD_PREFIX}/bin/ar" 2>/dev/null || true
+  ln -sf "${BUILD_PREFIX}/bin/${conda_host}-as" "${BUILD_PREFIX}/bin/as" 2>/dev/null || true
+  ln -sf "${BUILD_PREFIX}/bin/${conda_host}-ld" "${BUILD_PREFIX}/bin/ld" 2>/dev/null || true
+
+  echo "  ✓ macOS cross-compilation environment ready"
+}
+
+# ==============================================================================
+# Phase 2: Bootstrap Setup - uses default (phases.sh verifies GHC automatically)
+# ==============================================================================
+
+# ==============================================================================
+# Phase 3: Cabal Setup - uses default
+# ==============================================================================
+
+# ==============================================================================
+# Phase 4: Configure GHC
+# ==============================================================================
+
+platform_configure_ghc() {
+  echo "  Configuring GHC for cross-compilation..."
+
+  # Build system config using nameref helper (cross-compile: only target, no build/host)
+  local -a system_config
+  build_system_config system_config "" "" "${target_alias}"
+
+  # Build standard configure args using nameref helper (--with-gmp, --with-ffi, etc.)
+  local -a configure_args
+  build_configure_args configure_args "-L${PREFIX}/lib ${LDFLAGS:-}"
+
+  # Set autoconf variables (macOS + cross-compile LLVM tools)
+  set_autoconf_toolchain_vars --macos --cross
+
+  # Add cross-compilation toolchain args (target tools + STAGE0 tools + sysroot)
+  # Uses direct variable assignment (CC=, AR=, etc.) per configure.ac API
+  cross_build_toolchain_args configure_args "${conda_target}" "${conda_host}" "--sysroot"
+
+  run_and_log "configure" ./configure -v "${system_config[@]}" "${configure_args[@]}" || {
+    cat config.log
+    return 1
+  }
+
+  echo "  ✓ GHC configured"
+}
+
+platform_post_configure_ghc() {
+  echo "  Patching system.config for cross-compilation..."
+
+  # Use standardized cross-compile patching from cross-helpers.sh
+  # This handles: strip BUILD_PREFIX, fix python path, add toolchain prefix, linker flags
+  cross_patch_system_config "${conda_target}" "ar clang clang++ llc nm objdump opt ranlib"
+
+  # Apply macOS-specific cross-compile patches from macos-common.sh
+  # This handles: system-ar, ffi/iconv lib dirs, stage0 flags, ar command, objdump fix
+  macos_cross_system_config_patches "${conda_host}" "${conda_target}"
+
+  # Use shared helper for bootstrap settings (cross-compile mode)
+  macos_patch_bootstrap_settings "${conda_host}" "cross"
+
+  echo "  ✓ System config patched"
+}
+
+# ==============================================================================
+# Phase 5: Build Hadrian - uses default with cross-compile flags
+# ==============================================================================
+
+platform_pre_build_hadrian() {
+  # Set up Hadrian cabal flags using cross-compile helper
+  cross_setup_hadrian_flags
+}
+
+# ==============================================================================
+# Phase 6: Build Stage 1
+# ==============================================================================
+
+platform_pre_build_stage1() {
+  disable_copy_optimization
+
+  # Set up build environment for stage1 (using build-host tools)
+  export AR="${AR_STAGE0}"
+  export AS="${BUILD_PREFIX}/bin/${conda_host}-as"
+  export CC="${BUILD_PREFIX}/bin/${conda_host}-clang"
+  export CXX="${BUILD_PREFIX}/bin/${conda_host}-clang++"
+  export LD="${BUILD_PREFIX}/bin/${conda_host}-ld"
+  # Note: Symlinks for host tools created in platform_setup_environment
+}
+
+platform_build_stage1() {
+  echo "  Building Stage 1 cross-compiler..."
+
+  # Build Stage 1 GHC compiler
+  run_and_log "stage1-ghc" "${HADRIAN_CMD[@]}" --flavour="${FLAVOUR}" \
+    stage1:exe:ghc-bin ${HADRIAN_STAGE_OPTS}
+
+  # Build Stage 1 supporting tools
+  run_and_log "stage1-pkg" "${HADRIAN_CMD[@]}" --flavour="${FLAVOUR}" \
+    stage1:exe:ghc-pkg ${HADRIAN_STAGE_OPTS}
+  run_and_log "stage1-hsc2hs" "${HADRIAN_CMD[@]}" --flavour="${FLAVOUR}" \
+    stage1:exe:hsc2hs ${HADRIAN_STAGE_OPTS}
+
+  # Update stage0 settings with llvm-ar before building libraries
+  local settings_file="${SRC_DIR}/_build/stage0/lib/settings"
+  [[ -f "${settings_file}" ]] && {
+    update_settings_link_flags "${settings_file}"
+    set_macos_conda_ar_ranlib "${settings_file}" "${CONDA_TOOLCHAIN_BUILD}"
+  }
+
+  # Verify Stage0 GHC works
+  "${SRC_DIR}/_build/stage0/bin/${ghc_target}-ghc" --version || {
+    echo "WARNING: Stage0 GHC failed to report version"
+  }
+
+  # Build libraries with release flavour (for full ways: vanilla, profiling, dynamic)
+  # Note: build_stage_libraries has built-in retry logic for -dynamic-too race conditions
+  build_stage_libraries 1
+
+  echo "  ✓ Stage 1 cross-compiler built"
+}
+
+# ==============================================================================
+# Phase 7: Build Stage 2
+# ==============================================================================
+
+platform_build_stage2() {
+  echo "  Building Stage 2 cross-compiled binaries..."
+
+  run_and_log "stage2-exe" "${HADRIAN_CMD[@]}" --flavour="${FLAVOUR}" \
+    stage2:exe:ghc-bin --freeze1 ${HADRIAN_STAGE_OPTS}
+
+  # Update stage1 settings with llvm-ar before building libraries
+  local settings_file="${SRC_DIR}/_build/stage1/lib/settings"
+  [[ -f "${settings_file}" ]] && {
+    update_settings_link_flags "${settings_file}"
+    set_macos_conda_ar_ranlib "${settings_file}" "${CONDA_TOOLCHAIN_BUILD}"
+  }
+
+  run_and_log "build-all" "${HADRIAN_CMD[@]}" --flavour="${FLAVOUR}" \
+    --freeze1 --freeze2 --docs=no-sphinx-pdfs --progress-info=none
+
+  echo "  ✓ Stage 2 cross-compiled binaries built"
+}
+
+# ==============================================================================
+# Phase 8: Install GHC
+# ==============================================================================
+
+platform_install_ghc() {
+  # Use shared cross-compile bindist install with macOS-specific C++ std lib skip
+  # (avoids configure failing on libc++ link test which runs x86_64 tests)
+  cross_bindist_install "${conda_target}" "CXX_STD_LIB_LIBS='c++ c++abi'"
+}
+
+# ==============================================================================
+# Phase 9: Post-Install
+# ==============================================================================
+
+platform_post_install() {
+  # Use shared cross-compile post-install (macOS doesn't need wrapper fixes)
+  cross_post_install "${conda_target}" "no-wrapper-fix"
+
+  # Update installed settings with llvm-ar (required for Apple ld64)
+  local settings_file=$(find "${PREFIX}/lib" -name settings | head -n 1)
+  [[ -f "${settings_file}" ]] && set_macos_conda_ar_ranlib "${settings_file}" "${CONDA_TOOLCHAIN_BUILD}"
+
+  # Verify installation (may fail for cross-compiled binary - that's expected)
+  echo "  Verifying GHC installation..."
+  "${PREFIX}/bin/ghc" --version || {
+    echo "WARNING: Installed GHC failed to run (expected for cross-compiled binary)"
+  }
+
+  echo "  ✓ macOS arm64 post-install complete"
+}
