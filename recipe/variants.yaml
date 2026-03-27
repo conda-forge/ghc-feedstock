@@ -1,0 +1,23 @@
+c_stdlib:
+  - if: linux
+    then: sysroot
+  - if: not unix
+    then: m2w64-sysroot
+
+c_compiler:
+  - if: unix
+    then: clang
+    else: gcc
+c_compiler_version:
+  - if: unix
+    then: 19
+    else: 15
+
+cxx_compiler:
+  - if: unix
+    then: clangxx
+    else: gxx
+cxx_compiler_version:
+  - if: unix
+    then: 19
+    else: 15
