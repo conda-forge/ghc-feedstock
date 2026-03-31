@@ -1,0 +1,16 @@
+c_stdlib:                  # [not unix]
+  - m2w64-sysroot          # [not unix]
+c_stdlib_version:  # [linux or win]
+  - "2.28"                 # [linux]
+  - "12"                   # [win]
+
+c_compiler:
+  - clang
+c_compiler_version:
+  - 19                     # [unix and not aarch64]
+  - 18                     # [not unix or aarch64]
+cxx_compiler:
+  - clangxx
+cxx_compiler_version:
+  - 19                     # [unix and not aarch64]
+  - 18                     # [not unix or aarch64]
