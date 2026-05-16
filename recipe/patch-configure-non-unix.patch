@@ -1,0 +1,34 @@
+--- a/configure
++++ b/configure
+@@ -4860,3 +4860,4 @@
+ { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking whether the C compiler works" >&5
+ printf %s "checking whether the C compiler works... " >&6; }
++ac_link='$CC $CFLAGS $CPPFLAGS $LDFLAGS conftest.$ac_ext $LIBS >&5'
+ ac_link_default=`printf "%s\n" "$ac_link" | sed 's/ -o *conftest[^ ]*//'`
+@@ -7154,3 +7155,3 @@
+ printf "%s\n" "$ac_try_echo"; } >&5
+-  (eval "$ac_link") 2>&5
++  (eval "$ac_link -o conftest.exe") 2>&5
+   ac_status=$?
+@@ -8231,3 +8232,3 @@
+     # Clang version preserves whitespace lines, but emcc removes.
+-    if test "$(cat ./conftest.pp.js | tr -d '\n')" = "// 1" ; then
++    if test "$(cat ./conftest.pp.js | tr -d '\r\n')" = "// 1" ; then
+       { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+@@ -13212,2 +13213,3 @@
+ libstdc++
++#elif defined(_MSC_VER) || defined(_MSVC_STL_VERSION)
++msvc
+ #else
+@@ -13231,2 +13234,6 @@
+ printf "%s\n" "libstdc++" >&6; }
++        elif grep "msvc" actest.out >/dev/null; then
++            CXX_STD_LIB_FLAVOUR="msvc"
++            { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: msvc" >&5
++printf "%s\n" "msvc" >&6; }
+         else
+@@ -13245,2 +13252,4 @@
+         if ! "$CXX" -c actest.cpp; then
++            (eval cat actest.cpp) 2>&5
++            (eval "$CXX -c actest.cpp") 2>&5
+             as_fn_error $? "Failed to compile test object" "$LINENO" 5

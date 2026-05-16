@@ -1,0 +1,34 @@
+diff --git a/hadrian/src/Settings/Builders/Ghc.hs b/hadrian/src/Settings/Builders/Ghc.hs
+index c1b0584c59..bd7d294eb9 100644
+--- a/hadrian/src/Settings/Builders/Ghc.hs
++++ b/hadrian/src/Settings/Builders/Ghc.hs
+@@ -15,6 +15,8 @@ import qualified Data.Set as Set
+ import System.Directory
+ import Data.Version.Extra
+ 
++import System.Environment (lookupEnv)
++
+ ghcBuilderArgs :: Args
+ ghcBuilderArgs = mconcat
+   [ compileAndLinkHs, compileC, compileCxx, findHsDependencies
+@@ -108,6 +110,9 @@ ghcLinkArgs = builder (Ghc LinkHs) ? do
+     osxTarget <- expr isOsxTarget
+     winTarget <- expr isWinTarget
+ 
++    -- Get PREFIX from environment variable
++    maybePrefix <- exprIO (lookupEnv "PREFIX")
++
+     let
+         dynamic = Dynamic `wayUnit` way
+         originToLibsDir = makeRelativeNoSysLink originPath distPath
+@@ -147,6 +152,10 @@ ghcLinkArgs = builder (Ghc LinkHs) ? do
+                 , notStage0 ? targetSupportsRPaths ? mconcat
+                       [ arg ("-optl-Wl,-rpath," ++ rpath)
+                       , isProgram pkg ? arg ("-optl-Wl,-rpath," ++ bindistRpath)
++                      -- Add PREFIX/lib to rpath on macOS if PREFIX is set
++                      , osxTarget ? case maybePrefix of
++                          Just prefix -> arg ("-optl-Wl,-rpath," ++ prefix ++ "/lib")
++                          Nothing     -> mempty
+                       -- The darwin and Windows linkers don't support/require the -zorigin option
+                       , not (osxTarget || winTarget) ? arg "-optl-Wl,-zorigin"
+                       -- We set RPATH directly (relative to $ORIGIN). There's

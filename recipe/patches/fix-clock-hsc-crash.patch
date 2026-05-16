@@ -1,0 +1,14 @@
+{-# LANGUAGE CPP, ForeignFunctionInterface #-}
+{-# LANGUAGE CApiFFI #-}
+
+#include <time.h>
+#if defined(_WIN32)
+foreign import ccall unsafe "hstime_clock_gettime"
+  c_clock_gettime :: ClockID -> Ptr TimeSpec -> IO CInt
+
+#elif defined(_WIN32)
+foreign import capi unsafe "hs_clock_win32.c hs_clock_win32_gettime"
+  c_clock_gettime :: ClockID -> Ptr TimeSpec -> IO CInt
+
+#else
+#endif

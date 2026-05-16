@@ -1,0 +1,26 @@
+c_stdlib:                  # [not unix]
+  # - m2w64-sysroot          # [not unix]
+  - vs          # [not unix]
+c_stdlib_version:
+  - "10.13"                # [osx and x86_64]
+  - "11.0"                 # [osx and arm64]
+  - "2.28"                 # [linux]
+  # - "12"                   # [not unix]
+
+c_compiler:
+  - clang                  # [unix]
+  - clang                    # [not unix]
+c_compiler_version:
+  - 18                     # [unix]
+  - 19                     # [not unix]
+cxx_compiler:
+  - clangxx                # [unix]
+  - clangxx                    # [not unix]
+cxx_compiler_version:
+  - 18                     # [unix]
+  - 19                     # [not unix]
+
+# Add clock and file-io to the list of packages to patch for Windows
+win_patched_packages:
+  - clock-0.8.4
+  - file-io-0.1.4

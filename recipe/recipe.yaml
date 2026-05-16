@@ -1,0 +1,206 @@
+context:
+  version: "9.12.2"
+  boot_version: "9.10.1"
+  cabal_version: "3.14.2.0"
+
+package:
+  name: ghc
+  version: ${{ version }}
+
+source:
+  - url: https://downloads.haskell.org/~ghc/${{ version }}/ghc-${{ version }}-src.tar.xz
+    sha256: 0e49cd5dde43f348c5716e5de9a5d7a0f8d68d945dc41cf75dfdefe65084f933
+    patches:
+      - patch-rpath-macos.patch
+      - patches/fix-clock-hsc-crash.patch
+      - if: not unix
+        then:
+          - patch-configure-non-unix.patch
+          - patch-remove-selftest-non-unix.patch
+
+  # Bootstrap GHC compilers
+  - if: osx
+    then:
+      url: https://downloads.haskell.org/~ghc/${{ boot_version }}/ghc-${{ boot_version }}-x86_64-apple-darwin.tar.xz
+      sha256: 8cf22188930e10d7ac5270d425e21a3dab606af73a655493639345200c650be9
+      target_directory: bootstrap-ghc
+  - if: linux
+    then:
+      url: https://downloads.haskell.org/~ghc/${{ boot_version }}/ghc-${{ boot_version }}-x86_64-ubuntu20_04-linux.tar.xz
+      sha256: ae3be406fdb73bd2b0c22baada77a8ff2f8cde6220dd591dc24541cfe9d895eb
+      target_directory: bootstrap-ghc
+  - if: not unix
+    then:
+      # url: https://downloads.haskell.org/~ghc/9.12.2/ghc-9.12.2-x86_64-unknown-mingw32.tar.gz
+      # sha256: 76847b0125547e975791fdbb9b9c963961aa81d833299d75a37ca48338fcc232
+      url: https://downloads.haskell.org/~ghc/${{ boot_version }}/ghc-${{ boot_version }}-x86_64-unknown-mingw32.tar.gz
+      sha256: 2e7d766deaaaef95ddc563aebc5f6cbeb286c51a3c124ab31a89a250f88711f9
+      target_directory: bootstrap-ghc
+
+  # Cabal install
+  - if: osx
+    then:
+      url: https://downloads.haskell.org/~cabal/cabal-install-${{ cabal_version }}/cabal-install-${{ cabal_version }}-x86_64-darwin.tar.xz
+      sha256: f9d0cac59deeeb1d35f72f4aa7e5cba3bfe91d838e9ce69b8bc9fc855247ce0f
+      target_directory: bootstrap-cabal
+  - if: linux
+    then:
+      url: https://downloads.haskell.org/~cabal/cabal-install-${{ cabal_version }}/cabal-install-${{ cabal_version }}-x86_64-linux-ubuntu20_04.tar.xz
+      sha256: 974a0c29cae721a150d5aa079a65f2e1c0843d1352ffe6aedd7594b176c3e1e6
+      target_directory: bootstrap-cabal
+  - if: not unix
+    then:
+      url: https://downloads.haskell.org/~cabal/cabal-install-${{ cabal_version }}/cabal-install-${{ cabal_version }}-x86_64-windows.zip
+      sha256: 7b97779519f7c4e86d7a87ff2ec57777c17ca69389b968f363fbfbdbf4ae8536
+      target_directory: bootstrap-cabal
+
+build:
+  number: 0
+  skip: unix
+  script:
+    env:
+      BOOT_VERSION: ${{ boot_version }}
+
+requirements:
+  build:
+    - ${{ compiler('c') }}
+    - ${{ compiler('cxx') }}
+    - ${{ stdlib('c') }}
+
+    - if: build_platform != target_platform
+      then:
+        - gmp
+        - libffi
+
+    - if: target_platform == "linux-aarch64"
+      then: sysroot_${{ build_platform }} >=2.28
+
+    - if: linux
+      then:
+        - patchelf
+        - perl
+
+    - if: unix
+      then:
+        - autoconf
+        - automake
+        - gmp
+        - m4
+        - make
+        - ncurses
+        - sed
+      else:
+        - binutils
+        - m2-autoconf
+        - m2-automake-wrapper
+        - m2-bash
+        - m2-findutils
+        - m2-grep
+        - m2-m4
+        - m2-make
+        - m2-which
+        - vs2019_win-64
+    - llvm-tools ${{ c_compiler_version }}.*
+    - pkg-config
+    - python 3.12.*
+    - sphinx
+    - zstd
+  host:
+    - gmp
+    - libiconv
+    - libffi
+    - if: unix
+      then:
+        - ncurses
+  run:
+    - ${{ compiler('c') }}
+    - ${{ compiler('cxx') }}
+    - gmp
+    - libffi
+    - llvm-tools ${{ c_compiler_version }}.*
+    - if: unix
+      then:
+        - ncurses
+
+tests:
+  - package_contents:
+      files:
+        - etc/bash_completion.d/ghc
+        - etc/conda/activate.d/ghc_activate.sh
+
+        - lib/ghc-${{ version }}/lib/html/**
+        - lib/ghc-${{ version }}/lib/latex/haddock.sty
+        - lib/ghc-${{ version }}/lib/llvm-passes
+        - lib/ghc-${{ version }}/lib/llvm-targets
+        - lib/ghc-${{ version }}/lib/package.conf.d/**
+        - lib/ghc-${{ version }}/lib/dyld.mjs
+        - lib/ghc-${{ version }}/lib/ghc-interp.js
+        - lib/ghc-${{ version }}/lib/ghc-usage.txt
+        - lib/ghc-${{ version }}/lib/ghci-usage.txt
+        - lib/ghc-${{ version }}/lib/post-link.mjs
+        - lib/ghc-${{ version }}/lib/prelude.mjs
+        - lib/ghc-${{ version }}/lib/settings
+        - lib/ghc-${{ version }}/lib/template-hsc.h
+
+        - share/doc/ghc-${{ version }}/html/**
+        - share/man/man1/ghc.1
+
+  - script: |
+      ghc --version
+
+  - script: |
+      echo 'main = putStrLn "Hello conda-forge"' > hello.hs
+      ghc hello.hs
+      ./hello
+
+  # - script:
+  #     interpreter: python
+  #     content: |
+  #       import os, sys, pathlib
+  #       binaries = [
+  #         "ghc", "ghc-pkg", "ghci", "haddock", "hp2ps",
+  #         "hpc", "hsc2hs", "runghc", "runhaskell"
+  #       ]
+  #       all_files=[f'{b}' for b in binaries] + [f'{b}-${{ version }}' for b in binaries]
+  #       missing=[f for f in all_files if not pathlib.Path(os.environ['CONDA_PREFIX']).joinpath('bin', f).exists()]
+  #       exit(1) if missing else exit(0)
+
+  # - script:
+  #     interpreter: python
+  #     content: |
+  #       import os, sys, pathlib
+  #       binaries = [
+  #         "ghc", "ghc-pkg", "runghc", "runhaskell"
+  #       ]
+  #       all_files=[f'{b}' for b in binaries] + [f'{b}-${{ version }}' for b in binaries]
+  #       missing=[f for f in all_files if not pathlib.Path(os.environ['CONDA_PREFIX']).joinpath('lib', 'ghc-${{ version }}', 'bin', f).exists()]
+  #       exit(1) if missing else exit(0)
+
+  # - script:
+  #     interpreter: python
+  #     content: |
+  #       import os, sys, pathlib
+  #       binaries = [
+  #         "ghc-iserv", "ghc-iserv-dyn", "ghc-iserv-prof", "unlit",
+  #         "ghc-toolchain-bin","haddock", "hp2ps", "hpc", "hsc2hs",
+  #       ]
+  #       all_files=[f'{b}' for b in binaries] + [f'{b}-ghc-${{ version }}' for b in binaries]
+  #       missing=[f for f in all_files if not pathlib.Path(os.environ['CONDA_PREFIX']).joinpath('lib', 'ghc-${{ version }}', 'bin', f).exists()]
+  #       exit(1) if missing else exit(0)
+
+about:
+  homepage: https://haskell.org/ghc/
+  license: BSD-3-Clause
+  license_file: LICENSE
+  summary: Glorious Glasgow Haskell Compilation System
+  description: |
+    GHC is a state-of-the-art, open source, compiler and interactive environment 
+    for the functional language Haskell.
+  documentation: https://www.haskell.org/ghc/documentation.html
+  repository: https://gitlab.haskell.org/ghc/ghc
+
+extra:
+  recipe-maintainers:
+    - eggzilla
+    - step21
+    - xhochy
