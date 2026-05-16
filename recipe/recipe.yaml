@@ -1,0 +1,215 @@
+context:
+  version: "9.6.7"
+  bootstrap_version: "9.2.8"
+  m2: ${{ "m2-" if not unix }}
+  dot: ${{ "./" if unix }}
+
+package:
+  name: ghc
+  version: ${{ version }}
+
+source:
+  - url: https://downloads.haskell.org/~ghc/${{ version }}/ghc-${{ version }}-src.tar.xz
+    sha256: d053bf6ce1d588a75cfe8c9316269486e9d8fb89dcdf6fd92836fa2e3df61305
+    patches:
+      - if: aarch64 or ppc64le or arm64
+        then: patches/xcc-skip-ghcpkg-recache-BinaryDist.hs.patch
+      - if: not unix
+        then:
+          - patches/w64-use-conda-toolchain-Builder.hs.patch
+          - patches/w64-use-system-gmp-Flag.hs.patch
+          - patches/w64-ffi-include-interpolation-Generate.hs.patch
+          - patches/w64-ffi-extra-include-dirs-rts.cabal.in.patch
+          - patches/w64-rtsflags-include-ThrIOManager.c.patch
+          - patches/w64-threadlabels-include-ConsoleHandler.c.patch
+          - patches/w64-utimbuf-struct-Internals.hs.patch
+          - patches/w64-disable-pecoff-limit-SplitSections.hs.patch
+          - patches/w64-allow-system-toolchain-BaseDir.hs.patch
+          - patches/w64-format-specifier-ReportMemoryMap.c.patch
+          - patches/w64-format-specifier-PEi386.c.patch
+          - patches/w64-format-specifier-MMap.c.patch
+          - patches/w64-stdlib-include-Utilities.c.patch
+      - if: arm64
+        then:
+          - patches/oar-osname-darwin-rts-configure.patch
+      - if: osx
+        then:
+          - patches/osx-disable-dead-strip-dylibs-Dynamic.hs.patch
+          - patches/osx-disable-dead-strip-dylibs-Static.hs.patch
+
+build:
+  number: 0
+  script:
+    env:
+      BOOTSTRAP_VERSION: ${{ bootstrap_version }}
+  dynamic_linking:
+    missing_dso_allowlist:
+      - if: osx
+        then:
+          - /usr/lib/libSystem.B.dylib
+      - if: not unix
+        then:
+          - C:\\Windows\\system32\\SHLWAPI.dll
+          - C:\\Windows\\system32\\WINMM.dll
+          - C:\\Windows\\system32\\WSOCK32.dll
+
+requirements:
+  build:
+    - ${{ compiler('c') }}
+    - ${{ compiler('cxx') }}
+    - ${{ stdlib('c') }}
+    
+    - ${{ m2 }}autoconf
+    - ${{ m2 }}automake${{ "-wrapper" if not unix }}
+    - ${{ m2 }}bash >=5.2
+    - ${{ m2 }}file
+    - ${{ m2 }}findutils
+    - ${{ m2 }}grep
+    - ${{ m2 }}m4
+    - ${{ m2 }}make
+    - ${{ m2 }}tar
+    
+    - binutils >=${{ binutils_version }}
+    - cabal ==3.10.3.0
+    - curl
+    - ghc-bootstrap ==${{ bootstrap_version }}
+    - llvm-tools ${{ c_compiler_version }}.*
+    - perl 5.32.*
+    - pkg-config
+    - python 3.10.*
+
+    - if: not unix
+      then:
+        - libgcc-devel_win-64
+        - ${{ m2 }}coreutils
+        - ${{ m2 }}which
+
+    - if: build_platform != target_platform
+      then:
+        - gmp
+        - libffi
+        - libiconv
+        - ncurses
+  host:
+    - gmp
+    - libffi
+    - if: unix
+      then:
+        - libiconv
+        - ncurses
+  run_constraints:
+    - ${{ c_compiler }}_impl_${{ target_platform }} >=${{ c_compiler_version }}
+    - ${{ cxx_compiler }}_impl_${{ target_platform }} >=${{ cxx_compiler_version }}
+    - if: linux
+      then:
+        - ld_impl_${{ target_platform }} >=${{ binutils_version }}
+    - if: osx or not unix
+      then:
+        - lld >=${{ c_compiler_version }}
+    
+tests:
+  - package_contents:
+      bin:
+        - ghc
+        - ghc-pkg
+        - ghci
+        - hp2ps
+        - hsc2hs
+        - if: build_platform == target_platform
+          then:
+            - haddock
+            - hpc
+            - runghc
+            - runhaskell
+        - if: not unix
+          then:
+            - ghc_windres.bat
+      files:
+        - etc/conda/activate.d/ghc_activate.${{ "sh" if unix else "bat" }}
+        - if: unix
+          then:
+            - etc/bash_completion.d/ghc
+            - lib/ghc-${{ version }}/lib/llvm-passes
+            - lib/ghc-${{ version }}/lib/llvm-targets
+            - lib/ghc-${{ version }}/lib/package.conf.d/**
+            - lib/ghc-${{ version }}/lib/ghc-usage.txt
+            - lib/ghc-${{ version }}/lib/ghci-usage.txt
+            - lib/ghc-${{ version }}/lib/settings
+            - lib/ghc-${{ version }}/lib/template-hsc.h
+            - lib/ghc-${{ version }}/lib/*-ghc-${{ version }}/**
+          else:
+            - include/**
+            - lib/bin/ghc-iserv.exe
+            - lib/bin/touchy.exe
+            - lib/bin/unlit.exe
+            - lib/ghc-usage.txt
+            - lib/ghci-usage.txt
+            - lib/llvm-passes
+            - lib/llvm-targets
+            - lib/package.conf.d/**
+            - lib/settings
+            - lib/template-hsc.h
+            - lib/x86_64-windows-ghc-${{ version }}/**
+
+  - script:
+      - ghc --version
+      - ghc-pkg --version
+      - ghci --version
+      - hsc2hs --version
+      - if: build_platform == target_platform
+        then:
+          - haddock --version
+          - hpc help
+          - runghc --version
+          - runhaskell --version
+
+  - script:
+      - printf 'main = putStrLn "Hi CF"\n' > Hi.hs && ghc Hi.hs && ${{ dot }}Hi && rm ${{ dot }}Hi
+      - printf 'main = putStrLn "Hi TH CF"\n' > Hi.hs && ghc -threaded Hi.hs && ${{ dot }}Hi && rm ${{ dot }}Hi
+    requirements:
+      run:
+        - ${{ compiler('c') }}
+        - ${{ stdlib('c') }}
+        - if: linux
+          then:
+            - ld_impl_${{ target_platform }} ${{ binutils_version }}
+          else:
+            - lld ${{ c_compiler_version }}.*
+
+  - script:
+      - if: unix
+        then:
+          - printf 'main = putStrLn "Hi P CF"\n' > Hi.hs && ghc -prof Hi.hs && ${{ dot }}Hi && rm ${{ dot }}Hi
+          - printf 'main = putStrLn "Hi CF"\n' > Hi.hs && ghc -dynamic Hi.hs && ${{ dot }}Hi && rm ${{ dot }}Hi
+          - printf 'main = putStrLn "Hi TH CF"\n' > Hi.hs && ghc -dynamic -threaded Hi.hs && ${{ dot }}Hi && rm ${{ dot }}Hi
+          - printf 'import System.Posix.Signals\nmain = installHandler sigTERM Default Nothing >> putStrLn "Signal test"\n' > signal_test.hs
+          - ghc signal_test.hs && ${{ dot }}signal_test
+        else:
+          - echo "Skipped test due to 32bit relocation issue with large GHC"
+    requirements:
+      run:
+        - ${{ compiler('c') }}
+        - ${{ stdlib('c') }}
+        - if: linux
+          then:
+            - ld_impl_${{ target_platform }} ${{ binutils_version }}
+          else:
+            - lld ${{ c_compiler_version }}.*
+
+about:
+  homepage: https://haskell.org/ghc/
+  license: BSD-3-Clause
+  license_file:
+    - LICENSE
+  summary: Glorious Glasgow Haskell Compilation System
+  description: |
+    GHC is a state-of-the-art, open source, compiler and interactive environment 
+    for the functional language Haskell.
+  documentation: https://www.haskell.org/ghc/documentation.html
+  repository: https://gitlab.haskell.org/ghc/ghc
+
+extra:
+  recipe-maintainers:
+    - eggzilla
+    - step21
+    - xhochy

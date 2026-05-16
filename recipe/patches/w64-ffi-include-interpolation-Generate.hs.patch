@@ -1,0 +1,17 @@
+Enable FFI and Libdw include directory interpolation in Hadrian.
+
+Adds interpolation settings for FFIIncludeDir and LibdwIncludeDir so they
+can be substituted into cabal files during build.
+
+--- a/hadrian/src/Rules/Generate.hs
++++ b/hadrian/src/Rules/Generate.hs
+@@ -296,6 +296,9 @@
+             settingWord s = read <$> setting s
+         ws <- settingWord TargetWordSize
+         return $ toCabalBool (ws == 8)
++    -- Add FFI and Libdw include directories from configure
++    , interpolateSetting "FFIIncludeDir" FfiIncludeDir
++    , interpolateSetting "LibdwIncludeDir" LibdwIncludeDir
+     ]
+   where
+     flag = interpolateCabalFlag
