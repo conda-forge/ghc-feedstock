@@ -1,0 +1,22 @@
+diff --git a/compiler/GHC/Linker/Dynamic.hs b/compiler/GHC/Linker/Dynamic.hs
+--- a/compiler/GHC/Linker/Dynamic.hs
++++ b/compiler/GHC/Linker/Dynamic.hs
+@@ -194,12 +194,13 @@ linkDynLib logger tmpfs dflags0 unit_env o_files dep_packages
+                  ++ map Option pkg_lib_path_opts
+                  ++ map Option pkg_link_opts
+                  ++ map Option pkg_framework_opts
+-                 -- dead_strip_dylibs, will remove unused dylibs, and thus save
++                 -- NOTE: Do NOT use -dead_strip_dylibs on conda-forge builds!
++                 -- It removes RTS symbols that appear unused at link time but are
++                 -- needed at runtime, causing "evacuate: strange closure type 0"
++                 -- GC crashes. The headerpad is still needed for rpath injection.
+                  -- space in the load commands. The -headerpad is necessary so
+                  -- that we can inject more @rpath's later for the leftover
+                  -- libraries in the runInjectRpaths phase below.
+-                 --
+-                 -- See Note [Dynamic linking on macOS]
+-                 ++ [ Option "-Wl,-dead_strip_dylibs", Option "-Wl,-headerpad,8000" ]
++                 ++ [ Option "-Wl,-headerpad,8000" ]
+               )
+             -- Make sure to honour -fno-use-rpaths if set on darwin as well; see #20004
+             when (gopt Opt_RPath dflags) $

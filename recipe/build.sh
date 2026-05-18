@@ -1,76 +1,48 @@
-#!/bin/bash
+#!/usr/bin/env bash
+# build.sh - DOMAIN SPLIT entry point
+# Organized by WHAT (configure, build, install) not by WHO (platform)
+# Each domain file contains ALL platform logic for its concern
 
-set -exuo pipefail
+set -eu
 
-unset host_alias
-unset build_alias
-
-export GHC_BUILD=$(echo $BUILD | sed "s/conda/unknown/g")
-export GHC_HOST=$(echo $HOST | sed "s/conda/unknown/g")
-
-if [[ "${target_platform}" == linux-* ]]; then
-  # Make sure libraries for build are found without LDFLAGS
-  cp $BUILD_PREFIX/lib/libgmp.so $BUILD_PREFIX/$BUILD/sysroot/usr/lib/
-  cp $BUILD_PREFIX/lib/libncurses.so $BUILD_PREFIX/$BUILD/sysroot/usr/lib/
-  cp $BUILD_PREFIX/lib/libtinfo.so $BUILD_PREFIX/$BUILD/sysroot/usr/lib/
-
-  # Make sure libraries for host are found without LDFLAGS
-  cp $PREFIX/lib/libgmp.so $BUILD_PREFIX/$HOST/sysroot/usr/lib/
-  cp $PREFIX/lib/libncurses.so $BUILD_PREFIX/$HOST/sysroot/usr/lib/
-  cp $PREFIX/lib/libtinfo.so $BUILD_PREFIX/$HOST/sysroot/usr/lib/
-
-  # workaround some bugs in autoconf scripts
-  cp $(which $AR) $BUILD_PREFIX/bin/$GHC_HOST-ar
-  cp $(which $GCC) $BUILD_PREFIX/bin/$GHC_HOST-gcc
+# Ensure Bash 5.2+
+if [[ ${BASH_VERSINFO[0]} -lt 5 || (${BASH_VERSINFO[0]} -eq 5 && ${BASH_VERSINFO[1]} -lt 2) ]]; then
+    # Use _BUILD_PREFIX (Unix format) for Windows compatibility
+    bash_path="${_BUILD_PREFIX:-${BUILD_PREFIX}}/bin/bash"
+    exec "${bash_path}" "$0" "$@"
 fi
 
-mkdir stage0
-stage0="$( pwd )/stage0"
-pushd binary
-  cp $BUILD_PREFIX/share/gnuconfig/config.* .
-  # stage0 compiler: --build=$GHC_BUILD --host=$GHC_BUILD --target=$GHC_BUILD
-  (
-    unset CFLAGS
-    LDFLAGS=${LDFLAGS//$PREFIX/$BUILD_PREFIX}
-    CC=${CC_FOR_BUILD:-$CC}
-    AR=($CC -print-prog-name=ar)
-    NM=($CC -print-prog-name=nm)
-    if [[ "${build_platform}" == linux-* ]]; then
-      CPP=$BUILD-cpp
-    fi
-    LD=$BUILD-ld OBJDUMP=$BUILD-objdump RANLIB=$BUILD-ranlib STRIP=$BUILD-strip ./configure --prefix="${stage0}" --with-gmp-includes=$BUILD_PREFIX/include --with-gmp-libraries=$BUILD_PREFIX/lib --build=$GHC_BUILD --host=$GHC_BUILD --target=$GHC_BUILD || (cat config.log; exit 1)
-    make install -j${CPU_COUNT}
-  )
-popd
+# Source support utilities
+source "${RECIPE_DIR}/support/utils.sh"
+source "${RECIPE_DIR}/support/triples.sh"
 
-pushd source
-  # stage1 compiler: --build=$GHC_BUILD --host=$GHC_BUILD --target=$GHC_HOST
-  # stage2 compiler: --build=$GHC_BUILD --host=$GHC_HOST --target=$GHC_HOST
-  if [[ "${target_platform}" == linux-* ]]; then
-    export CC=$(basename $GCC)
-    export AR=$(basename $AR)
-    export LD=$(basename $LD)
-    export RANLIB=$(basename $RANLIB)
-  fi
-  cp $BUILD_PREFIX/share/gnuconfig/config.* .
-  (
-    PATH="${stage0}/bin:${PATH}"
-    ./configure --prefix=$PREFIX --with-gmp-includes=$PREFIX/include --with-gmp-libraries=$PREFIX/lib --with-ffi-includes=$PREFIX/include --with-ffi-libraries=$PREFIX/lib --target=$GHC_HOST
-    EXTRA_HC_OPTS=""
-    for flag in ${LDFLAGS}; do
-	EXTRA_HC_OPTS="${EXTRA_HC_OPTS} -optl${flag}"
-    done
-    make HADDOCK_DOCS=NO BUILD_SPHINX_HTML=NO BUILD_SPHINX_PDF=NO "EXTRA_HC_OPTS=${EXTRA_HC_OPTS}" -j${CPU_COUNT}
-    make HADDOCK_DOCS=NO BUILD_SPHINX_HTML=NO BUILD_SPHINX_PDF=NO "EXTRA_HC_OPTS=${EXTRA_HC_OPTS}" install -j${CPU_COUNT}
-  )
-  # Delete profile-enabled static libraries, other distributions don't seem to ship them either and they are very heavy.
-  find $PREFIX/lib/ghc-${PKG_VERSION} -name '*_p.a' -delete
-  find $PREFIX/lib/ghc-${PKG_VERSION} -name '*.p_o' -delete
-popd
+# Source domain modules (each handles ALL platforms for its concern)
+source "${RECIPE_DIR}/domains/environment.sh"  # ALL environment setup
+source "${RECIPE_DIR}/domains/configure.sh"    # ALL configure logic
+source "${RECIPE_DIR}/domains/build.sh"        # ALL build logic
+source "${RECIPE_DIR}/domains/settings.sh"     # ALL settings patching
+source "${RECIPE_DIR}/domains/install.sh"      # ALL install logic
 
-# Delete package cache as it is invalid on installation.
-# This needs to be regenerated on activation.
-rm $PREFIX/lib/ghc-${PKG_VERSION}/package.conf.d/package.cache
+#=============================================================================
+# MAIN BUILD FLOW
+#=============================================================================
+# Navigation tip: Want to understand configure?
+#   → Open domains/configure.sh - EVERYTHING about configure is there
+# Want to understand install?
+#   → Open domains/install.sh - ALL platforms, ALL install logic
 
-mkdir -p "${PREFIX}/etc/conda/activate.d"
-cp "${RECIPE_DIR}/activate.sh" "${PREFIX}/etc/conda/activate.d/${PKG_NAME}_activate.sh"
+echo "===================================================================="
+echo "  GHC ${PKG_VERSION} for ${target_platform}"
+echo "  Style: DOMAIN SPLIT (organized by concern, not platform)"
+echo "===================================================================="
+
+setup_environment      # domains/environment.sh - ALL platform env setup
+configure_ghc          # domains/configure.sh - ALL configure logic
+post_configure_ghc     # domains/configure.sh - ALL post-configure
+build_hadrian          # domains/build.sh - ALL Hadrian build
+build_stage1           # domains/build.sh - ALL stage1 build
+build_stage2           # domains/build.sh - ALL stage2 build
+install_ghc            # domains/install.sh - ALL install
+post_install_ghc       # domains/install.sh - ALL post-install
+
+echo "  ✓ Build complete"

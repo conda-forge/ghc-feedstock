@@ -1,0 +1,25 @@
+--- a/libraries/ghci/GHCi/FFI.hsc
++++ b/libraries/ghci/GHCi/FFI.hsc
+@@ -29,6 +29,22 @@
+ #endif
+ #endif
+
++-- Neutralize Apple availability macros for hsc2hs
++-- The macOS SDK's ffi.h uses FFI_AVAILABLE_APPLE which expands to
++-- API_AVAILABLE(...) API_UNAVAILABLE(...) - these __attribute__ macros
++-- cause parse errors in hsc2hs preprocessing.
++-- We must neutralize BOTH the FFI macros AND the underlying API macros
++-- because ffi.h may redefine FFI_AVAILABLE_APPLE using API_AVAILABLE.
++#if defined(__APPLE__)
++#undef API_AVAILABLE
++#undef API_UNAVAILABLE
++#undef FFI_AVAILABLE_APPLE
++#undef FFI_AVAILABLE_APPLE_2019
++#define API_AVAILABLE(...)
++#define API_UNAVAILABLE(...)
++#define FFI_AVAILABLE_APPLE
++#define FFI_AVAILABLE_APPLE_2019
++#endif
+ #include <ffi.h>
+ #endif
+
