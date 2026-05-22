@@ -1,0 +1,26 @@
+Fix %zu format specifier for Windows MinGW compatibility.
+
+Windows MinGW doesn't fully support %zu format specifier in all contexts.
+Use %llu with explicit cast to unsigned long long for portability.
+
+--- a/rts/linker/PEi386.c
++++ b/rts/linker/PEi386.c
+@@ -1462,7 +1462,8 @@ printMapping(ObjectCode* oc, int norelocs)
+                 "  off rel %lu\n"
+                 "  ptr raw 0x%lx\n"
+                 "    align %u\n"
+-                " data adj %zu\n",
++                /* Use %llu for Windows MinGW compatibility */
++                " data adj %llu\n",
+                 sectab_i->Misc.VirtualSize,
+                 sectab_i->VirtualAddress,
+                 sectab_i->SizeOfRawData,
+@@ -1471,7 +1472,7 @@ printMapping(ObjectCode* oc, int norelocs)
+                 sectab_i->PointerToRelocations,
+                 sectab_i->PointerToRawData,
+                 getSectionAlignment (section),
+-                getAlignedValue (section.size, section)
++                (unsigned long long) getAlignedValue (section.size, section)
+               );
+
+       noRelocs = section.info->noRelocs;

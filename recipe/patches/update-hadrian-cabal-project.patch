@@ -1,0 +1,28 @@
+--- a/hadrian/cabal.project
++++ b/hadrian/cabal.project
+@@ -1,9 +1,17 @@
+ packages: ./
+
+ -- This essentially freezes the build plan for hadrian
+-index-state: 2022-11-10T10:48:39Z
++-- Updated index-state to get packages compatible with base-4.17
++-- (GHC 9.4.8 uses base-4.17.x)
++index-state: 2024-01-01T00:00:00Z
+
+ -- N.B. Compile with -O0 since this is not a performance-critical executable
+ -- and the Cabal takes nearly twice as long to build with -O1. See #16817.
+ package Cabal
+   optimization: False
++
++-- Allow newer versions ONLY for building Hadrian itself
++-- GHC libraries will be built from source with their own versions
++allow-newer:
++  hadrian:base,
++  hadrian:Cabal,
++  hadrian:unix
++
++-- Build Hadrian and all dependencies statically
++-- (We don't install Hadrian, so no need for dynamic libraries)
++package *
++  shared: False
++  executable-dynamic: False

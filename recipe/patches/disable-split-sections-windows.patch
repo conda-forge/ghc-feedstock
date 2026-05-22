@@ -1,0 +1,24 @@
+Disable split-sections on Windows to avoid PE/COFF section limit.
+
+Windows PE/COFF format has a hard limit of ~65535 sections per object file.
+With split-sections enabled, large compilation units exceed this limit.
+
+--- a/hadrian/src/Settings/Builders/SplitSections.hs
++++ b/hadrian/src/Settings/Builders/SplitSections.hs
+@@ -12,12 +12,15 @@ import Oracles.Setting
+ splitSectionsArgs :: Args
+ splitSectionsArgs = do
+   pkg <- getPackage
+   osx <- expr isOsxTarget
++  win <- expr isWinTarget
+   notSt0 <- notStage0
+   flav <- expr flavour
+   if ( ghcSplitSections flav
+          -- Flavour enables split-sections
+     && not osx
+          -- OS X doesn't support split sections
++    && not win
++         -- Windows PE/COFF has a hard limit on number of sections (~65535)
+     && notSt0
+          -- Disable for stage 0 because we aren't going to ship
+          -- the resulting binaries and consequently there is no
