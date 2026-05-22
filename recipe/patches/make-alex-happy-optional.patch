@@ -1,0 +1,14 @@
+--- a/hadrian/src/Builder.hs
++++ b/hadrian/src/Builder.hs
+@@ -384,7 +384,9 @@ systemBuilderPath _ = return ""
+ -- | Is a builder optional?
+ isOptional :: Builder -> Bool
+ isOptional = \case
+-    Objdump  -> True
+-    _        -> False
++    Objdump -> True
++    Alex    -> True
++    Happy   -> True
++    _       -> False
+
+ -- | Determine the location of a system 'Builder'.
