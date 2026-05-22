@@ -6,9 +6,12 @@ package:
   version: {{ version }}
 
 source:
-  - url: https://downloads.haskell.org/~ghc/{{ version }}/{{ name }}-{{ version }}-x86_64-apple-darwin.tar.xz  # [osx]
-    folder: binary  # [osx]
-    sha256: 287db0f9c338c9f53123bfa8731b0996803ee50f6ee847fe388092e5e5132047  # [osx]
+  - url: https://downloads.haskell.org/~ghc/{{ version }}/{{ name }}-{{ version }}-x86_64-apple-darwin.tar.xz  # [build_platform == "osx-64"]
+    folder: binary  # [build_platform == "osx-64"]
+    sha256: dc469fc3c35fd2a33a5a575ffce87f13de7b98c2d349a41002e200a56d9bba1c  # [build_platform == "osx-64"]
+  - url: https://downloads.haskell.org/~ghc/{{ version }}/{{ name }}-{{ version }}-aarch64-apple-darwin.tar.xz  # [build_platform == "osx-arm64"]
+    folder: binary  # [build_platform == "osx-arm64"]
+    sha256: 287db0f9c338c9f53123bfa8731b0996803ee50f6ee847fe388092e5e5132047  # [build_platform == "osx-arm64"]
   - url: https://downloads.haskell.org/~ghc/{{ version }}/{{ name }}-{{ version }}-x86_64-centos7-linux.tar.xz  # [build_platform == "linux-64"]
     folder: binary  # [build_platform == "linux-64"]
     sha256: 262a50bfb5b7c8770e0d99f54d42e5876968da7bf93e2e4d6cfe397891a36d05  # [build_platform == "linux-64"]
@@ -24,6 +27,7 @@ requirements:
   build:
     - {{ compiler('c') }}
     - {{ compiler('cxx') }}
+    - {{ stdlib('c') }}
     - patchelf  # [linux]
     - gnuconfig
     - gmp
@@ -33,16 +37,14 @@ requirements:
     - automake
     - autoconf
     - libtool
-    - llvmdev 9.*  # [aarch64]
+    - xz-tools
   host:
-    - xz
     - gmp
     - ncurses
     - libffi
     - cffi
   run:
     - {{ c_compiler }}_{{ target_platform }} >={{ c_compiler_version }}
-    - llvm-tools 9.*  # [aarch64]
 
 test:
   files:
