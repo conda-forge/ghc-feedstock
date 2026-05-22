@@ -1,0 +1,29 @@
+diff --git a/hadrian/src/Rules/BinaryDist.hs b/hadrian/src/Rules/BinaryDist.hs
+index 1234567..abcdefg 100644
+--- a/hadrian/src/Rules/BinaryDist.hs
++++ b/hadrian/src/Rules/BinaryDist.hs
+@@ -194,12 +194,17 @@ bindistRules = do
+         copyDirectory (rtsIncludeDir)         bindistFilesDir
+         when windowsHost $ createGhcii (bindistFilesDir -/- "bin")
+
+-        -- Call ghc-pkg recache, after copying so the package.cache is
+-        -- accurate, then it's on the distributor to use `cp -a` to install
+-        -- a relocatable bindist.
+-        --
+-        -- N.B. the ghc-pkg executable may be prefixed with a target triple
+-        -- (c.f. #20267).
+-        ghcPkgName <- programName (vanillaContext Stage1 ghcPkg)
+-        cmd_ (bindistFilesDir -/- "bin" -/- ghcPkgName) ["recache"]
++        -- Call ghc-pkg recache to make package.cache accurate
++        -- Skip this during cross-compilation since the ghc-pkg binary
++        -- in the bindist is for the target architecture and cannot run
++        -- on the build machine. The package.cache will be regenerated
++        -- by the bindist's configure/install process.
++        cross <- flag CrossCompiling
++        unless cross $ do
++            -- N.B. the ghc-pkg executable may be prefixed with a target triple
++            -- (c.f. #20267).
++            ghcPkgName <- programName (vanillaContext Stage1 ghcPkg)
++            cmd_ (bindistFilesDir -/- "bin" -/- ghcPkgName) ["recache"]
+
+

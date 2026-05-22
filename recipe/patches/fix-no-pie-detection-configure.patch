@@ -1,0 +1,42 @@
+--- a/configure
++++ b/configure
+@@ -7455,6 +7455,11 @@ printf "%s\n" "#define HAVE_VISIBILITY_HIDDEN 1" >>confdefs.h
+
+    { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking whether GCC supports -no-pie" >&5
+ printf %s "checking whether GCC supports -no-pie... " >&6; }
++   # Allow override via environment variable (for when test incorrectly fails)
++   if test -n "$CONF_GCC_SUPPORTS_NO_PIE"; then
++       { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: $CONF_GCC_SUPPORTS_NO_PIE (cached)" >&5
++printf "%s\n" "$CONF_GCC_SUPPORTS_NO_PIE (cached)" >&6; }
++   else
+    echo 'int main() { return 0; }' > conftest.c
+    # Some GCC versions only warn when passed an unrecognized flag.
+    if $CC -no-pie -Werror -x c /dev/null -dM -E > conftest.txt 2>&1 && ! grep -i unrecognized conftest.txt > /dev/null 2>&1; then
+@@ -7467,6 +7472,7 @@ printf "%s\n" "no" >&6; }
+    fi
+    rm -f conftest.c conftest.o conftest
+
++   fi
+
+     # Check whether --enable-ld-override was given.
+ if test ${enable_ld_override+y}
+@@ -10212,6 +10218,11 @@ ac_link='$CC -o conftest$ac_exeext $CFLAGS $CPPFLAGS $LDFLAGS conftest.$ac_ext
+
+    { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking whether GCC supports -no-pie" >&5
+ printf %s "checking whether GCC supports -no-pie... " >&6; }
++   # Allow override via environment variable (for when test incorrectly fails)
++   if test -n "$CONF_GCC_SUPPORTS_NO_PIE"; then
++       { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: $CONF_GCC_SUPPORTS_NO_PIE (cached)" >&5
++printf "%s\n" "$CONF_GCC_SUPPORTS_NO_PIE (cached)" >&6; }
++   else
+    echo 'int main() { return 0; }' > conftest.c
+    # Some GCC versions only warn when passed an unrecognized flag.
+    if $CC -no-pie -Werror -x c /dev/null -dM -E > conftest.txt 2>&1 && ! grep -i unrecognized conftest.txt > /dev/null 2>&1; then
+@@ -10224,6 +10235,7 @@ printf "%s\n" "no" >&6; }
+    fi
+    rm -f conftest.c conftest.o conftest
+
++   fi
+
+
+
