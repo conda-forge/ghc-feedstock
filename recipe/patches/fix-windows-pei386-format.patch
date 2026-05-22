@@ -1,0 +1,21 @@
+--- a/rts/linker/PEi386.c
++++ b/rts/linker/PEi386.c
+@@ -1423,7 +1423,9 @@ ocGetNames_PEi386 ( ObjectCode* oc )
+                 "  ptr raw 0x%lx\n"
+                 "    align %u\n"
+-                " data adj %zu\n",
++                // Windows MinGW doesn't support %zu format specifier properly
++                // Use %llu instead and cast to unsigned long long
++                " data adj %llu\n",
+                 sectab_i->Misc.VirtualSize,
+                 sectab_i->VirtualAddress,
+                 sectab_i->SizeOfRawData,
+@@ -1432,7 +1434,7 @@ ocGetNames_PEi386 ( ObjectCode* oc )
+                 sectab_i->PointerToRelocations,
+                 sectab_i->PointerToRawData,
+                 getSectionAlignment (section),
+-                getAlignedValue (section.size, section)
++                (unsigned long long) getAlignedValue (section.size, section)
+               );
+
+       noRelocs = section.info->noRelocs;

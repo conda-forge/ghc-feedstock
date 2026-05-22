@@ -1,0 +1,12 @@
+--- a/rts/StgRun.h
++++ b/rts/StgRun.h
+@@ -8,4 +8,10 @@
+
+ #pragma once
+
++#if defined(__powerpc64__) && defined(_LITTLE_ENDIAN)
++/* PowerPC64LE: Remove RTS_PRIVATE to allow StgRun to be exported from shared libraries */
++StgRegTable * StgRun (StgFunPtr f, StgRegTable *basereg);
++#else
+ RTS_PRIVATE StgRegTable * StgRun (StgFunPtr f, StgRegTable *basereg);
++#endif

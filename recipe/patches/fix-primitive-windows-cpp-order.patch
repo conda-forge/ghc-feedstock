@@ -1,0 +1,32 @@
+Move unI# function before derivePrim macro for Windows CPP compatibility
+
+The Windows C preprocessor processes macros in a single pass, causing
+"Variable not in scope: unI" errors when derivePrim macro references
+unI# before it's defined. This patch moves the unI# helper function
+to appear before the derivePrim macro definition.
+
+This issue only affects Windows builds as Unix preprocessors handle
+forward references differently.
+
+--- a/Data/Primitive/Types.hs
++++ b/Data/Primitive/Types.hs
+@@ -289,6 +289,10 @@
+   pokeElemOff (Ptr addr#) (I# i#) (PrimStorable a) = primitive_ $ \s# ->
+     writeOffAddr# addr# i# a s#
+
++
++-- Helper function for derivePrim macro (moved before macro for Windows CPP compatibility)
++unI# :: Int -> Int#
++unI# (I# n#) = n#
+ #define derivePrim(ty, ctr, sz, align, idx_arr, rd_arr, wr_arr, set_arr, idx_addr, rd_addr, wr_addr, set_addr) \
+ instance Prim (ty) where {                                        \
+   sizeOfType# _ = unI# sz                                         \
+@@ -342,8 +346,6 @@
+ shimmedSetInt8Array# m (I# off) (I# len) i = IO (\s -> (# liberate# (GHC.Exts.setByteArray# m off len i (liberate# s)), () #))
+ #endif
+
+-unI# :: Int -> Int#
+-unI# (I# n#) = n#
+
+ derivePrim(Word, W#, sIZEOF_WORD, aLIGNMENT_WORD,
+            indexWordArray#, readWordArray#, writeWordArray#, setWordArray#,

@@ -1,0 +1,10 @@
+[
+  {
+    "session_id": "6b02f762-430c-4efa-8e5d-685b61a4bd2a",
+    "transcript_path": "/home/memento/.claude/projects/-home-memento-PycharmProjects-Conda-Feedstocks-ghc-feedstock-9-10-2/6b02f762-430c-4efa-8e5d-685b61a4bd2a.jsonl",
+    "cwd": "/home/memento/PycharmProjects/Conda-Feedstocks/ghc-feedstock-9.10.2/recipe/patches",
+    "hook_event_name": "Notification",
+    "message": "Claude needs your permission to use Bash",
+    "notification_type": "permission_prompt"
+  }
+]

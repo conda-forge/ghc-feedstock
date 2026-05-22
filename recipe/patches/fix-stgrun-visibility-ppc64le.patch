@@ -1,0 +1,31 @@
+--- a/rts/StgCRunAsm.S
++++ b/rts/StgCRunAsm.S
+@@ -41,7 +41,7 @@
+ 	.section	".text"
+ 	.align 2
+         .globl StgRun
+-        .hidden StgRun
++/*      .hidden StgRun */
+         .type StgRun,@function
+ StgRun:
+         .localentry StgRun,.-StgRun
+--- a/rts/StgCRun.c
++++ b/rts/StgCRun.c
+@@ -600,7 +600,7 @@
+ {
+         __asm__ volatile (
+                 "\t.globl StgRun\n"
+-                "\t.hidden StgRun\n"
++                /* "\t.hidden StgRun\n" */
+                 "\t.type StgRun,@function\n"
+                 "StgRun:\n"
+                 "\tmflr 0\n"
+@@ -705,7 +705,7 @@
+                 ".section \".opd\",\"aw\"\n"
+                 ".align 3\n"
+                 ".globl StgRun\n"
+-                ".hidden StgRun\n"
++                /* ".hidden StgRun\n" */
+                 "StgRun:\n"
+                 "\t.quad\t.StgRun,.TOC.@tocbase,0\n"
+                 "\t.size StgRun,.-StgRun\n"

@@ -1,0 +1,11 @@
+--- a/rts/StgRun.h
++++ b/rts/StgRun.h
+@@ -8,4 +8,8 @@
+
+ #pragma once
+
++#if defined(powerpc64_HOST_ARCH)
++StgRegTable * StgRun (StgFunPtr f, StgRegTable *basereg);
++#else
+ RTS_PRIVATE StgRegTable * StgRun (StgFunPtr f, StgRegTable *basereg);
++#endif

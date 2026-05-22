@@ -1,0 +1,105 @@
+[
+  {
+    "session_id": "6b02f762-430c-4efa-8e5d-685b61a4bd2a",
+    "transcript_path": "/home/memento/.claude/projects/-home-memento-PycharmProjects-Conda-Feedstocks-ghc-feedstock-9-10-2/6b02f762-430c-4efa-8e5d-685b61a4bd2a.jsonl",
+    "cwd": "/home/memento/PycharmProjects/Conda-Feedstocks/ghc-feedstock-9.10.2/recipe/patches",
+    "permission_mode": "default",
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Read",
+    "tool_input": {
+      "file_path": "/home/memento/PycharmProjects/Conda-Feedstocks/ghc-feedstock-9.10.2/recipe/patches/fix-stgcrun-ppc64le-abi-v2.patch"
+    },
+    "tool_use_id": "toolu_01MoVjBNcuPK9fji9MSpnbbV"
+  },
+  {
+    "session_id": "6b02f762-430c-4efa-8e5d-685b61a4bd2a",
+    "transcript_path": "/home/memento/.claude/projects/-home-memento-PycharmProjects-Conda-Feedstocks-ghc-feedstock-9-10-2/6b02f762-430c-4efa-8e5d-685b61a4bd2a.jsonl",
+    "cwd": "/home/memento/PycharmProjects/Conda-Feedstocks/ghc-feedstock-9.10.2/recipe/patches",
+    "permission_mode": "default",
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "cd /tmp && curl -sL \"https://downloads.haskell.org/~ghc/9.10.3/ghc-9.10.3-src.tar.xz\" | tar -xJ && cd ghc-9.10.3 && echo \"=== Before ABI patch ===\" && grep -n \"\\.hidden StgRun\" rts/StgCRun.c",
+      "description": "Check pristine line numbers for .hidden StgRun"
+    },
+    "tool_use_id": "toolu_0195ZZNxREnbaX6Yh5Zknq3f"
+  },
+  {
+    "session_id": "6b02f762-430c-4efa-8e5d-685b61a4bd2a",
+    "transcript_path": "/home/memento/.claude/projects/-home-memento-PycharmProjects-Conda-Feedstocks-ghc-feedstock-9-10-2/6b02f762-430c-4efa-8e5d-685b61a4bd2a.jsonl",
+    "cwd": "/home/memento/PycharmProjects/Conda-Feedstocks/ghc-feedstock-9.10.2/recipe/patches",
+    "permission_mode": "default",
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "cd /tmp && mkdir -p ghc-patch-test-$$ && cd ghc-patch-test-$$ && curl -sL \"https://downloads.haskell.org/~ghc/9.10.3/ghc-9.10.3-src.tar.xz\" | tar -xJ --strip-components=1",
+      "description": "Download pristine GHC to test patch application"
+    },
+    "tool_use_id": "toolu_01KQTusZ5brXFgcAq1oGibxf"
+  },
+  {
+    "session_id": "6b02f762-430c-4efa-8e5d-685b61a4bd2a",
+    "transcript_path": "/home/memento/.claude/projects/-home-memento-PycharmProjects-Conda-Feedstocks-ghc-feedstock-9-10-2/6b02f762-430c-4efa-8e5d-685b61a4bd2a.jsonl",
+    "cwd": "/home/memento/PycharmProjects/Conda-Feedstocks/ghc-feedstock-9.10.2/recipe/patches",
+    "permission_mode": "default",
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "find /home/memento/PycharmProjects/Conda-Feedstocks/ghc-feedstock-9.10.2 -name \"StgCRunAsm.S\" -o -name \"StgCRun.c\" 2>/dev/null | head -5",
+      "description": "Find any built source files in the build tree"
+    },
+    "tool_use_id": "toolu_01SphPUQNrNy3qfUoiA86NAd"
+  },
+  {
+    "session_id": "6b02f762-430c-4efa-8e5d-685b61a4bd2a",
+    "transcript_path": "/home/memento/.claude/projects/-home-memento-PycharmProjects-Conda-Feedstocks-ghc-feedstock-9-10-2/6b02f762-430c-4efa-8e5d-685b61a4bd2a.jsonl",
+    "cwd": "/home/memento/PycharmProjects/Conda-Feedstocks/ghc-feedstock-9.10.2/recipe/patches",
+    "permission_mode": "default",
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "echo \"=== StgCRunAsm.S (assembly) - checking .hidden around line 44 ===\" && sed -n '40,50p' /home/memento/PycharmProjects/Conda-Feedstocks/ghc-feedstock-9.10.2/build_artifacts/bld/rattler-build_ghc_1763995654/work/rts/StgCRunAsm.S",
+      "description": "Check if .hidden was removed in assembly file"
+    },
+    "tool_use_id": "toolu_01G57s2Tdn8fe1C4brK2ojum"
+  },
+  {
+    "session_id": "6b02f762-430c-4efa-8e5d-685b61a4bd2a",
+    "transcript_path": "/home/memento/.claude/projects/-home-memento-PycharmProjects-Conda-Feedstocks-ghc-feedstock-9-10-2/6b02f762-430c-4efa-8e5d-685b61a4bd2a.jsonl",
+    "cwd": "/home/memento/PycharmProjects/Conda-Feedstocks/ghc-feedstock-9.10.2/recipe/patches",
+    "permission_mode": "default",
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "echo \"=== StgCRun.c - checking .hidden around line 603 ===\" && sed -n '598,608p' /home/memento/PycharmProjects/Conda-Feedstocks/ghc-feedstock-9.10.2/build_artifacts/bld/rattler-build_ghc_1763995654/work/rts/StgCRun.c && echo \"\" && echo \"=== StgCRun.c - checking .hidden around line 713 ===\" && sed -n '708,718p' /home/memento/PycharmProjects/Conda-Feedstocks/ghc-feedstock-9.10.2/build_artifacts/bld/rattler-build_ghc_1763995654/work/rts/StgCRun.c",
+      "description": "Check if .hidden was removed in C file"
+    },
+    "tool_use_id": "toolu_01Q3DU6y5oreXDEhLXLnBzY3"
+  },
+  {
+    "session_id": "6b02f762-430c-4efa-8e5d-685b61a4bd2a",
+    "transcript_path": "/home/memento/.claude/projects/-home-memento-PycharmProjects-Conda-Feedstocks-ghc-feedstock-9-10-2/6b02f762-430c-4efa-8e5d-685b61a4bd2a.jsonl",
+    "cwd": "/home/memento/PycharmProjects/Conda-Feedstocks/ghc-feedstock-9.10.2/recipe/patches",
+    "permission_mode": "default",
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "echo \"=== Current patch expects these line numbers ===\" && grep \"^@@\" recipe/patches/fix-stgrun-visibility-ppc64le.patch",
+      "description": "Check what line numbers the patch expects"
+    },
+    "tool_use_id": "toolu_01319qyvvTkWQ8FM9APite34"
+  },
+  {
+    "session_id": "6b02f762-430c-4efa-8e5d-685b61a4bd2a",
+    "transcript_path": "/home/memento/.claude/projects/-home-memento-PycharmProjects-Conda-Feedstocks-ghc-feedstock-9-10-2/6b02f762-430c-4efa-8e5d-685b61a4bd2a.jsonl",
+    "cwd": "/home/memento/PycharmProjects/Conda-Feedstocks/ghc-feedstock-9.10.2/recipe/patches",
+    "permission_mode": "default",
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "cd /home/memento/PycharmProjects/Conda-Feedstocks/ghc-feedstock-9.10.2 && echo \"=== Current patch line numbers ===\" && grep \"^@@\" recipe/patches/fix-stgrun-visibility-ppc64le.patch",
+      "description": "Check patch line numbers"
+    },
+    "tool_use_id": "toolu_01LiBd34kJBRxYj1gKdsNDHQ"
+  }
+]
