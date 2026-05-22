@@ -1,0 +1,17 @@
+--- a/rts/include/rts/ghc_ffi.h
++++ b/rts/include/rts/ghc_ffi.h
+@@ -8,6 +8,9 @@
+
+ #pragma once
+
++/* Include system ffi.h first to avoid macro redefinition */
++#include "ffi.h"
++
+ /*
+  * Note [FFI_GO_CLOSURES workaround]
+  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+@@ -25,4 +28,3 @@
+ #endif
+ #endif
+
+-#include "ffi.h"

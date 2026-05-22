@@ -1,0 +1,21 @@
+--- a/rts/configure
++++ b/rts/configure
+@@ -2005,6 +2005,9 @@
+         HostOS="mingw32"
+         ;;
+       # As far as I'm aware, none of these have relevant variants
++      osx)
++        HostOS="darwin"
++        ;;
+       freebsd|dragonfly|hpux|linuxaout|kfreebsdgnu|freebsd2|darwin|nextstep2|nextstep3|sunos4|ultrix|haiku)
+         HostOS="$host_os"
+         ;;
+@@ -3116,7 +3119,7 @@
+         linux|linux-android)
+             test -z "$2" || eval "$2=OSLinux"
+             ;;
+-        darwin|ios|watchos|tvos)
++        darwin|osx|ios|watchos|tvos)
+             test -z "$2" || eval "$2=OSDarwin"
+             ;;
+         solaris2)

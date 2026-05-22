@@ -1,0 +1,17 @@
+diff --git a/compiler/cbits/genSym.c b/compiler/cbits/genSym.c
+index 1234567..abcdefg 100644
+--- a/compiler/cbits/genSym.c
++++ b/compiler/cbits/genSym.c
+@@ -10,7 +10,11 @@
+ // The CPP is thus about the RTS version GHC is linked against, and not the
+ // version of the GHC being built.
+ #if !MIN_VERSION_GLASGOW_HASKELL(9,8,4,0)
++#if defined(__GNUC__)
++__attribute__((weak))
++#endif
+ HsWord64 ghc_unique_counter64 = 0;
+ #endif
+ #if !MIN_VERSION_GLASGOW_HASKELL(9,3,0,0)
++__attribute__((weak))
+ HsInt ghc_unique_inc     = 1;
+ #endif
