@@ -1,0 +1,39 @@
+diff --git a/compiler/GHC/Linker/Static.hs b/compiler/GHC/Linker/Static.hs
+--- a/compiler/GHC/Linker/Static.hs
++++ b/compiler/GHC/Linker/Static.hs
+@@ -133,11 +133,12 @@ linkBinary' logger tmpfs dflags unit_env dep_units o_files = do
+       else pure pkg_lib_path_opts
+
+     let
++      -- NOTE: Do NOT use -dead_strip on conda-forge builds!
++      -- It removes RTS symbols needed at runtime, causing
++      -- "evacuate: strange closure type 0" GC crashes.
+       dead_strip
+-        | gopt Opt_WholeArchiveHsLibs dflags = []
+-        | otherwise = if osSubsectionsViaSymbols (platformOS platform)
+-                        then ["-Wl,-dead_strip"]
+-                        else []
++        = []
++
+     let lib_paths = libraryPaths dflags
+     let lib_path_opts = map ("-L"++) lib_paths
+
+@@ -256,14 +257,14 @@
+                       ++ pkg_link_opts
+                       ++ pkg_framework_opts
+                       ++ (if platformOS platform == OSDarwin
+-                          --  dead_strip_dylibs, will remove unused dylibs, and thus save
+-                          --  space in the load commands. The -headerpad is necessary so
++                          --  NOTE: Do NOT use -dead_strip_dylibs on conda-forge builds!
++                          --  It removes RTS symbols that appear unused at link time but
++                          --  are needed at runtime, causing "evacuate: strange closure
++                          --  type 0" GC crashes. The -headerpad is still necessary so
+                           --  that we can inject more @rpath's later for the left over
+                           --  libraries during runInjectRpaths phase.
+-                          --
+-                          --  See Note [Dynamic linking on macOS].
+-                          then [ "-Wl,-dead_strip_dylibs", "-Wl,-headerpad,8000" ]
++                          then [ "-Wl,-headerpad,8000" ]
+                           else [])
+                     ))
+
