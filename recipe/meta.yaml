@@ -12,36 +12,39 @@ source:
   - url: https://downloads.haskell.org/~ghc/{{ version }}/{{ name }}-{{ version }}-x86_64-centos7-linux.tar.xz  # [build_platform == "linux-64"]
     folder: binary  # [build_platform == "linux-64"]
     sha256: 262a50bfb5b7c8770e0d99f54d42e5876968da7bf93e2e4d6cfe397891a36d05  # [build_platform == "linux-64"]
+  - url: https://downloads.haskell.org/~ghc/{{ version }}/{{ name }}-{{ version }}-x86_64-unknown-mingw32.tar.xz   # [build_platform == "win-64"]
+    folder: binary  # [build_platform == "win-64"]
+    sha256: b6515b0ea3f7a6e34d92e7fcd0c1fef50d6030fe8f46883000185289a4b8ea9a  # [build_platform == "win-64"]
   - url: https://downloads.haskell.org/~ghc/{{ version }}/{{ name }}-{{ version }}-src.tar.xz
     folder: source
     sha256: e3eef6229ce9908dfe1ea41436befb0455fefb1932559e860ad4c606b0d03c9d
 
 build:
   number: 0
-  skip: true  # [not unix]
 
 requirements:
   build:
-    - {{ compiler('c') }}
-    - {{ compiler('cxx') }}
+    - {{ compiler('c') }}      # [not win]
+    - {{ compiler('cxx') }}    # [not win]
     - patchelf  # [linux]
-    - gnuconfig
-    - gmp
-    - ncurses
-    - perl
-    - make
-    - automake
-    - autoconf
-    - libtool
+    - gnuconfig  # [not win]
+    - gmp  # [not win]
+    - ncurses  # [not win]
+    - perl  # [not win]
+    - make  # [not win]
+    - automake  # [not win]
+    - autoconf  # [not win]
+    - libtool  # [not win]
     - llvmdev 9.*  # [aarch64]
+
   host:
-    - xz
-    - gmp
-    - ncurses
-    - libffi
-    - cffi
+    - xz  # [not win]
+    - gmp  # [not win]
+    - ncurses  # [not win]
+    - libffi  # [not win]
+    - cffi  # [not win]
   run:
-    - {{ c_compiler }}_{{ target_platform }} >={{ c_compiler_version }}
+    - {{ c_compiler }}_{{ target_platform }} >={{ c_compiler_version }}  # [not win]
     - llvm-tools 9.*  # [aarch64]
 
 test:
@@ -55,7 +58,7 @@ about:
   home: https://haskell.org/ghc/
   license: BSD-3-Clause
   license_family: BSD
-  license_file: binary/LICENSE
+  license_file: source/LICENSE
   summary: Glorious Glasgow Haskell Compilation System
 
   doc_url: https://downloads.haskell.org/~ghc/latest/docs/html/users_guide/
