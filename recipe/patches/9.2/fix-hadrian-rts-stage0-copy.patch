@@ -1,0 +1,41 @@
+From: conda-forge
+Subject: [PATCH] Copy bootstrap's RTS to Stage0 package database
+
+When using GHC 9.6.7 to bootstrap GHC 9.2.8 on Windows, Stage0 utilities
+(like hsc2hs) link against bootstrap libraries which expect bootstrap's RTS
+symbols. The skip logic prevents building our RTS, but other packages still
+need the RTS .conf file to exist in the Stage0 package database.
+
+This patch copies bootstrap's RTS description (with absolute paths via
+--expand-pkgroot) to the Stage0 package database, allowing the linker to
+find bootstrap's RTS library.
+
+NOTE: This patch must be applied AFTER fix-cabal-register-package-db.patch
+as line numbers depend on that patch being applied first.
+
+--- a/hadrian/src/Rules/Register.hs
++++ b/hadrian/src/Rules/Register.hs
+@@ -129,8 +129,22 @@ registerPackageRules rs stage = do
+             error $ "Version mismatch: " ++ confPkgId ++ " vs " ++ srcPkgId
+ 
+         -- Skip RTS at Stage0 - use bootstrap's RTS from global DB
+-        when skipRtsAtStage0 $
++        when skipRtsAtStage0 $ do
+             liftIO $ putStrLn "# Skipping RTS registration (using bootstrap RTS)"
++            -- But we still need to create the .conf file for other packages
++            -- that depend on RTS. Copy bootstrap's RTS with absolute paths.
++            pkgDbPath <- packageDbPath stage
++            ghcPkgPath <- builderPath (GhcPkg Init stage)
++            -- Get bootstrap's RTS with expanded paths (converts ${pkgroot})
++            Stdout rtsDesc <- cmd [ghcPkgPath]
++                ["--expand-pkgroot", "--no-user-package-db", "describe", "rts"]
++            liftIO $ writeFile conf rtsDesc
++            -- Register in Stage0 package database
++            cmd_ [ghcPkgPath]
++                ["--no-user-package-db", "--global-package-db", pkgDbPath
++                , "update", conf, "-v0", "--force"]
++            liftIO $ putStrLn $ "# Copied bootstrap RTS to " ++ conf
++            return ()
+ 
+         let ctx = Context stage pkg vanilla
+         case stage of

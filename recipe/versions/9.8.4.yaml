@@ -1,0 +1,102 @@
+# GHC 9.8.4 Version Metadata
+# This file contains version-specific configuration for building GHC 9.8.4
+
+version: "9.8.4"
+bootstrap_version: "9.2.8"
+sha256: "17e8188f3c8a5c2f73fb4e35d01032e8dc258835ec876d52c8ad8ee3d24b2fc5"
+
+# Source URL pattern (version is substituted)
+source_url: "https://downloads.haskell.org/~ghc/${version}/ghc-${version}-src.tar.xz"
+
+# Windows NOT supported for GHC 9.8.4
+windows_supported: false
+
+# Hadrian build flavour by platform
+hadrian_flavour:
+  linux-64: "release"
+  linux-aarch64: "release"
+  linux-ppc64le: "release"
+  osx-64: "release"
+  osx-arm64: "release"
+  win-64: null  # Not supported
+
+# Bindist install targets
+install_targets: "install_bin install_lib install_man"
+
+# Known bugs requiring runtime workarounds
+bugs:
+  # GHC 9.8.x has no intree-gmp bug
+  intree_gmp_bug: false
+
+  # No touchy.exe bug
+  touchy_exe_cross_platform_bug: false
+
+  # No PIE relocation issues (fixed in 9.6+)
+  pie_relocation_error: false
+
+  # Windows not supported
+  mingw32_timezone_symbols: false
+
+  # Duplicate symbol when bootstrapping with older GHC versions
+  # Requires fix-duplicate-ghc-unique-counter.patch
+  duplicate_unique_counter:
+    bootstrap_versions: ["9.2.8", "9.6.7"]
+
+  # FFI_GO_CLOSURES macro conflict with conda libffi on macOS
+  # Requires fix-ffi-go-closures-conflict.patch
+  ffi_go_closures_conflict:
+    platforms: [osx-64, osx-arm64]
+
+# Patches to apply (relative to recipe/patches/)
+patches:
+  # Common patches (identical across versions)
+  common:
+    - common/skip-bindist-recache-crosscompile.patch
+    - common/patch-osname-macos.patch
+
+  # Version-specific patches
+  version:
+    - 9.8/fix-duplicate-ghc-unique-counter.patch
+
+  # Platform-conditional patches
+  linux: []
+
+  osx:
+    - 9.8/fix-ffi-go-closures-conflict.patch
+
+  osx_arm64:
+    - common/patch-osname-macos.patch
+
+  windows: []  # Not supported
+
+  cross_compile:
+    - common/skip-bindist-recache-crosscompile.patch
+
+# Compiler version requirements by platform
+compiler_versions:
+  c_compiler_version:
+    linux: "14"
+    osx: "17"
+  binutils_version: "2.40"
+
+# Build order notes
+# GHC 9.8.x requires building ghc-prim and ghc-bignum separately before full lib
+build_notes:
+  separate_prim_builds: true
+  build_order:
+    - "stage1:exe:ghc-bin"
+    - "stage1:lib:ghc-prim"
+    - "stage1:lib:ghc-bignum"
+    - "stage1:lib:ghc"
+    - "stage2:lib:ghc-prim"
+    - "stage2:lib:ghc-bignum"
+    - "stage2:exe:ghc-bin"
+    - "stage2:lib:ghc"
+    - "install"
+
+# Special build notes
+notes:
+  - "Windows not supported for GHC 9.8.4"
+  - "Bootstrap uses GHC 9.2.8 (standardized across all versions)"
+  - "Requires separate ghc-prim and ghc-bignum build steps"
+  - "Uses hadrian/build script directly (not cabal v2-build hadrian)"

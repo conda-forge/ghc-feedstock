@@ -1,0 +1,78 @@
+# GHC 9.2.8 Version Metadata
+# This file contains version-specific configuration for building GHC 9.2.8
+
+version: "9.2.8"
+bootstrap_version: "9.2.8"
+sha256: "5f13d1786bf4fd12f4b45faa37abedb5bb3f36d5e58f7da5307e8bfe88a567a1"
+
+# Source URL pattern (version is substituted)
+source_url: "https://downloads.haskell.org/~ghc/${version}/ghc-${version}-src.tar.xz"
+
+# Hadrian build flavour by platform
+hadrian_flavour:
+  linux-64: "quick"
+  linux-aarch64: "quick"
+  linux-ppc64le: "quick"
+  osx-64: "quick"
+  osx-arm64: "quick"
+  win-64: "quickest"
+
+# Bindist install targets (GHC 9.2.x doesn't have install_man)
+install_targets: "install_bin install_lib install_includes"
+
+# Known bugs requiring runtime workarounds
+bugs:
+  # AC_ARG_WITH parsing bug: --with-intree-gmp=no triggers YES
+  intree_gmp_bug: true
+
+  # m4/fp_settings.m4 sets touchy.exe on all platforms
+  touchy_exe_cross_platform_bug: true
+
+  # RTS static libs not compiled with -fPIC, causes PIE relocation errors
+  pie_relocation_error:
+    platforms: [linux-64, linux-aarch64, linux-ppc64le]
+
+  # Bootstrap GHC time library needs MSVCRT timezone symbols
+  mingw32_timezone_symbols:
+    platforms: [win-64]
+
+# Patches to apply (relative to recipe/patches/)
+patches:
+  # Common patches (identical across versions)
+  common:
+    - common/add-threadlabels-include-consolehandler.patch
+    - common/fix-windows-reportmemorymap-format.patch
+    - common/fix-windows-utimbuf-type.patch
+    - common/patch-osname-macos.patch
+    - common/skip-mingw-copy-conda.patch
+
+  # Version-specific patches
+  version:
+    - 9.2/make-alex-happy-optional.patch
+    - 9.2/update-hadrian-cabal-project.patch
+
+  # Platform-conditional patches
+  linux:
+    - 9.2/fix-no-pie-detection-configure.patch
+
+  osx:
+    - 9.2/remove-dangerous-macos-linker-flags.patch
+
+  osx_arm64:
+    - common/patch-osname-macos.patch
+
+  windows:
+    - 9.2/skip-mingw-copy-conda.patch
+    - 9.2/force-system-gmp-windows.patch
+    - 9.2/add-ffi-include-dir-substitution.patch
+    - 9.2/fix-windows-thriomanager-include.patch
+    - 9.2/fix-hp2ps-utilities-stdlib.patch
+    - 9.2/fix-windows-pei386-format.patch
+    - 9.2/skip-mingw-detection-error.patch
+
+# Compiler version requirements by platform
+compiler_versions:
+  c_compiler_version:
+    linux: "14"
+    osx: "17"
+  binutils_version: "2.40"

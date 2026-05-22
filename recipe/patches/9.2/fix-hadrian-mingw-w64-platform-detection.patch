@@ -1,0 +1,25 @@
+Fix Hadrian to recognize MinGW-w64 platform vendor string
+
+Windows does not support -dynamic-too, so shared libraries cannot be built.
+The platformSupportsSharedLibs check needs to recognize both "unknown" vendor
+(traditional GHC builds) and "w64" vendor (MinGW-w64 toolchain used by conda-forge).
+
+Without this fix, the MinGW-w64 platform string "x86_64-w64-mingw32" is not
+recognized as a "bad platform" for shared libs, causing Hadrian to request
+dynamic RTS builds (like threadedLoggingDynamic) that fail because Windows
+cannot build .dll files without -dynamic-too support.
+
+--- a/hadrian/src/Oracles/Flag.hs
++++ b/hadrian/src/Oracles/Flag.hs
+@@ -62,7 +62,10 @@
+ platformSupportsSharedLibs = do
+     badPlatform   <- anyTargetPlatform [ "powerpc-unknown-linux"
+                                        , "x86_64-unknown-mingw32"
+-                                       , "i386-unknown-mingw32" ]
++                                       , "x86_64-w64-mingw32"
++                                       , "i686-w64-mingw32"
++                                       , "i386-unknown-mingw32"
++                                       , "i386-w64-mingw32" ]
+     solaris       <- anyTargetPlatform [ "i386-unknown-solaris2" ]
+     solarisBroken <- flag SolarisBrokenShld
+     return $ not (badPlatform || solaris && solarisBroken)

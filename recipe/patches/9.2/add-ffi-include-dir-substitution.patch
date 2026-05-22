@@ -1,0 +1,18 @@
+--- a/rts/rts.cabal.in
++++ b/rts/rts.cabal.in
+@@ -148,8 +148,13 @@ library
+        cpp-options: -DNOSMP
+ 
+     include-dirs: build ../includes includes
+-                  includes/dist-derivedconstants/header @FFIIncludeDir@
+-                  @LibdwIncludeDir@
++                  includes/dist-derivedconstants/header
++
++    -- Absolute include dirs from system dependencies (not prepended with rts/)
++    -- FFI and libdw from configure --with-ffi-includes and --with-libdw-includes
++    extra-include-dirs: @FFIIncludeDir@
++                        @LibdwIncludeDir@
++
+     includes: Stg.h
+     install-includes: Cmm.h HsFFI.h MachDeps.h Rts.h RtsAPI.h Stg.h
+                       ghcautoconf.h ghcconfig.h ghcplatform.h ghcversion.h

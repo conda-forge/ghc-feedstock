@@ -1,0 +1,16 @@
+--- a/hadrian/src/Settings/Packages.hs
++++ b/hadrian/src/Settings/Packages.hs
+@@ -436,7 +436,12 @@ rtsWarnings = mconcat
+     , arg "-Wnested-externs"
+     , arg "-Wredundant-decls"
+     , arg "-Wundef"
+-    , arg "-fno-strict-aliasing" ]
++    , arg "-fno-strict-aliasing"
++    -- GCC 15 compatibility: suppress warnings treated as errors
++    , arg "-Wno-redundant-decls"
++    , arg "-Wno-calloc-transposed-args"
++    , arg "-Wno-misleading-indentation"
++    ]
+
+ -- | Expands to Cabal `--extra-lib-dirs` and `--extra-include-dirs` flags if
+ -- the respective paths are not null.

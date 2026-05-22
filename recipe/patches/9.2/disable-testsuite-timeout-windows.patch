@@ -1,0 +1,36 @@
+From: Claude <noreply@anthropic.com>
+Subject: [PATCH] Disable testsuite timeout utility for Windows builds
+
+The GHC source tarball doesn't include testsuite/timeout/, but Hadrian's
+stage0Packages includes the timeout package on Windows. This causes builds
+to fail when querying stagePackages because Hadrian tries to read the
+non-existent testsuite/timeout/timeout.cabal file.
+
+The timeout utility is only needed for running the testsuite, not for
+building GHC itself. Since we don't run the testsuite during conda-forge
+builds, we can safely exclude it from the package list.
+
+This patch removes `timeout` from both stage0Packages and testsuitePackages.
+
+--- a/hadrian/src/Settings/Default.hs
++++ b/hadrian/src/Settings/Default.hs
+@@ -85,7 +85,8 @@
+              , unlit
+              ]
+           ++ [ terminfo | not windowsHost, not cross ]
+-          ++ [ timeout  | windowsHost                ]
++          -- Disabled: timeout is in testsuite/ which is not in source tarball
++          -- ++ [ timeout  | windowsHost                ]
+           ++ [ touchy   | windowsHost                ]
+           ++ [ hp2ps    | cross                      ]
+
+@@ -137,7 +138,8 @@
+
+ -- | Packages that are built only for the testsuite.
+ testsuitePackages :: Action [Package]
+-testsuitePackages = return ([ timeout | windowsHost ] ++ [ checkPpr, checkExact ])
++-- Disabled: timeout is in testsuite/ which is not in source tarball
++testsuitePackages = return [ checkPpr, checkExact ]
+
+ -- | Default build ways for library packages:
+ -- * We always build 'vanilla' way.

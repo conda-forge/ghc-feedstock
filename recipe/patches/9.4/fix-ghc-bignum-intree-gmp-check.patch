@@ -1,0 +1,16 @@
+--- a/libraries/ghc-bignum/configure
++++ b/libraries/ghc-bignum/configure
+@@ -3530,7 +3530,12 @@ fi
+
+ # Check whether --with-intree-gmp was given.
+ if test "${with_intree_gmp+set}" = set; then :
+-  withval=$with_intree_gmp; GMP_FORCE_INTREE=YES
++  withval=$with_intree_gmp;
++  if test "$withval" = "yes"; then
++    GMP_FORCE_INTREE=YES
++  else
++    GMP_FORCE_INTREE=NO
++  fi
+ else
+   GMP_FORCE_INTREE=NO
+ fi

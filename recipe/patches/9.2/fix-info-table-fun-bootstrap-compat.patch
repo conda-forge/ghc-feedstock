@@ -1,0 +1,15 @@
+diff --git a/rts/StgMiscClosures.cmm b/rts/StgMiscClosures.cmm
+--- a/rts/StgMiscClosures.cmm
++++ b/rts/StgMiscClosures.cmm
+@@ -413,7 +413,10 @@ INFO_TABLE_RET( stg_ret_t, RET_BCO )
+    Entry code for a BCO
+    ------------------------------------------------------------------------- */
+
+-INFO_TABLE_FUN( stg_BCO, 3, 0, BCO, "BCO", "BCO", ARG_BCO )
++// Note: INFO_TABLE_FUN gained an extra SRT offset parameter in GHC 9.6+
++// When using GHC 9.6.7 as bootstrap, we need to add the extra 0 parameter
++// since the CMM parser is from the bootstrap compiler, not the source.
++INFO_TABLE_FUN( stg_BCO, 3, 0, BCO, "BCO", "BCO", 0, ARG_BCO )
+     /* explicit stack */
+ {
+   /* entering a BCO means "apply it", same as a function */

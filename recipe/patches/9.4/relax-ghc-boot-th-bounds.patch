@@ -1,0 +1,11 @@
+--- a/libraries/ghc-boot-th/ghc-boot-th.cabal
++++ b/libraries/ghc-boot-th/ghc-boot-th.cabal
+@@ -24,7 +24,7 @@ library
+         ghc-boot-th
+
+     build-depends:
+-        base       >= 4.7 && < 4.17
++        base       >= 4.7
+
+     default-language: Haskell2010
+     other-extensions:
