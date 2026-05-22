@@ -1,0 +1,25 @@
+From 0a1e3a76bc33b65cb65f0f4e483596bf8436f1ef Mon Sep 17 00:00:00 2001
+From: "Uwe L. Korn" <uwe.korn@quantco.com>
+Date: Wed, 22 Dec 2021 22:50:48 +0100
+Subject: [PATCH] Use CC_GHC_TARGET in gmp build
+
+---
+ libraries/integer-gmp/gmp/ghc.mk | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/libraries/integer-gmp/gmp/ghc.mk b/libraries/integer-gmp/gmp/ghc.mk
+index 440114a..dde9878 100644
+--- a/libraries/integer-gmp/gmp/ghc.mk
++++ b/libraries/integer-gmp/gmp/ghc.mk
+@@ -133,7 +133,7 @@ libraries/integer-gmp/gmp/libgmp.a libraries/integer-gmp/gmp/gmp.h:
+ 	#        dependency on ncurses through gmp.  readline is only relevant
+ 	#        for gmp test programs. (See gmp's configure)
+ 	cd libraries/integer-gmp/gmp/gmpbuild; \
+-	    CC=$(CCX) CXX=$(CCX) NM=$(NM) AR=$(AR_STAGE1) ./configure \
++	    CC=${CC_GHC_TARGET} CXX=${CC_GHC_TARGET} NM=$(NM) AR=$(AR_STAGE1) ./configure \
+ 	          --enable-shared=no --with-pic=yes --with-readline=no \
+ 	          --host=$(TARGETPLATFORM) --build=$(BUILDPLATFORM)
+ 	$(MAKE) -C libraries/integer-gmp/gmp/gmpbuild MAKEFLAGS=
+-- 
+2.34.1
+

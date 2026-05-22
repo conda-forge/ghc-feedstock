@@ -1,0 +1,49 @@
+MACOSX_DEPLOYMENT_TARGET:
+- '11.0'
+c_compiler:
+- clang
+c_compiler_version:
+- '11'
+channel_sources:
+- conda-forge
+channel_targets:
+- conda-forge main
+conda_target_arch:
+- arm64-apple-darwin20.0.0
+cxx_compiler:
+- clangxx
+cxx_compiler_version:
+- '11'
+ghc_target_arch:
+- aarch64-apple-darwin
+ghc_target_platform:
+- osx-arm64
+gmp:
+- '6'
+libffi:
+- '3.3'
+macos_machine:
+- arm64-apple-darwin20.0.0
+ncurses:
+- '6.2'
+perl:
+- 5.32.1
+pin_run_as_build:
+  gmp:
+    max_pin: x
+  libffi:
+    max_pin: x.x
+  ncurses:
+    max_pin: x.x
+  xz:
+    max_pin: x.x
+target_platform:
+- osx-arm64
+xz:
+- '5.2'
+zip_keys:
+- - c_compiler_version
+  - cxx_compiler_version
+- - ghc_target_arch
+  - conda_target_arch
+  - ghc_target_platform
