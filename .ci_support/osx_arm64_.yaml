@@ -1,42 +1,37 @@
 MACOSX_DEPLOYMENT_TARGET:
-- '10.9'
+- '11.0'
+MACOSX_SDK_VERSION:
+- '11.0'
 c_compiler:
 - clang
 c_compiler_version:
-- '11'
+- '18'
+c_stdlib:
+- macosx_deployment_target
+c_stdlib_version:
+- '11.0'
 channel_sources:
-- conda-forge,defaults
+- conda-forge
 channel_targets:
 - conda-forge main
 cxx_compiler:
 - clangxx
 cxx_compiler_version:
-- '11'
+- '18'
 gmp:
 - '6'
 libffi:
-- '3.3'
+- '3.4'
+libiconv:
+- '1'
 macos_machine:
-- x86_64-apple-darwin13.4.0
+- arm64-apple-darwin20.0.0
 ncurses:
-- '6.2'
-perl:
-- 5.26.2
-pin_run_as_build:
-  gmp:
-    max_pin: x
-  libffi:
-    max_pin: x.x
-  ncurses:
-    max_pin: x.x
-  perl:
-    max_pin: x.x.x
-  xz:
-    max_pin: x.x
+- '6'
 target_platform:
-- osx-64
-xz:
-- '5.2'
+- osx-arm64
 zip_keys:
 - - c_compiler_version
   - cxx_compiler_version
+zstd:
+- '1.5'
