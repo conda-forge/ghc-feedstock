@@ -1,0 +1,19 @@
+binutils_version:
+  - 2.44
+
+c_stdlib:                       # [linux]
+  - sysroot                     # [linux]
+c_stdlib_version:
+  - 2.17                        # [linux]
+
+c_compiler:
+  - clang
+c_compiler_version:
+  - 17                          # [osx]
+  - 19                          # [linux]
+
+cxx_compiler:
+  - clangxx
+cxx_compiler_version:
+  - 17                          # [osx]
+  - 19                          # [linux]

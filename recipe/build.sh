@@ -1,76 +1,160 @@
 #!/bin/bash
 
-set -exuo pipefail
+set -exu
 
-unset host_alias
-unset build_alias
+# Hadrian 9.2 races on DerivedConstants.h with many jobs
+hadrian_jobs=$(( ${CPU_COUNT:-1} > 4 ? 4 : ${CPU_COUNT:-1} ))
 
-export GHC_BUILD=$(echo $BUILD | sed "s/conda/unknown/g")
-export GHC_HOST=$(echo $HOST | sed "s/conda/unknown/g")
+export MergeObjsCmd=${LD_GOLD:-${LD}}
+export M4=${BUILD_PREFIX}/bin/m4
+export PYTHON=${BUILD_PREFIX}/bin/python
+export PATH=${BUILD_PREFIX}/ghc-bootstrap/bin${PATH:+:}${PATH:-}
 
-if [[ "${target_platform}" == linux-* ]]; then
-  # Make sure libraries for build are found without LDFLAGS
-  cp $BUILD_PREFIX/lib/libgmp.so $BUILD_PREFIX/$BUILD/sysroot/usr/lib/
-  cp $BUILD_PREFIX/lib/libncurses.so $BUILD_PREFIX/$BUILD/sysroot/usr/lib/
-  cp $BUILD_PREFIX/lib/libtinfo.so $BUILD_PREFIX/$BUILD/sysroot/usr/lib/
+export CABAL="${BUILD_PREFIX}/bin/cabal"
+export CABAL_DIR="${SRC_DIR}/.cabal"
 
-  # Make sure libraries for host are found without LDFLAGS
-  cp $PREFIX/lib/libgmp.so $BUILD_PREFIX/$HOST/sysroot/usr/lib/
-  cp $PREFIX/lib/libncurses.so $BUILD_PREFIX/$HOST/sysroot/usr/lib/
-  cp $PREFIX/lib/libtinfo.so $BUILD_PREFIX/$HOST/sysroot/usr/lib/
+# Append $2 to the value of settings key $1 in file $3 (once)
+append_setting() {
+  KEY="$1" VAL="$2" perl -pi -e 's#("\Q$ENV{KEY}\E", ")([^"]*)#$1.$2.(index($2,$ENV{VAL})<0 ? " $ENV{VAL}" : "")#e' "$3"
+}
 
-  # workaround some bugs in autoconf scripts
-  cp $(which $AR) $BUILD_PREFIX/bin/$GHC_HOST-ar
-  cp $(which $GCC) $BUILD_PREFIX/bin/$GHC_HOST-gcc
+# Use the prefixed conda tools in a GHC settings file
+use_conda_tools() {
+  TC="${CONDA_TOOLCHAIN_HOST}" perl -pi -e 's#"[/\w]*?(ar|clang|clang\+\+|ld|ranlib|llc|objdump|opt)"#"$ENV{TC}-$1"#' "$1"
+}
+
+update_settings() {
+  append_setting "C compiler flags" "${extra_cflags}" "$1"
+  append_setting "C++ compiler flags" "${extra_cflags}" "$1"
+  append_setting "C compiler link flags" "${extra_link}" "$1"
+  append_setting "ld flags" "${extra_ld}" "$1"
+  use_conda_tools "$1"
+  if [[ "${target_platform}" == osx-* ]]; then
+    perl -pi -e 's#("ar command", ")[^"]*#$1llvm-ar#; s#("ar flags", ")[^"]*#$1qcs#' "$1"
+    TC="${CONDA_TOOLCHAIN_HOST}" perl -pi -e 's#("(clang|llc|opt|ranlib) command", ")[^"]*#$1$ENV{TC}-$2#' "$1"
+  fi
+}
+
+CONFIGURE_ARGS=(
+  --prefix="${PREFIX}"
+  --with-system-libffi=yes
+  --with-curses-includes="${PREFIX}"/include
+  --with-curses-libraries="${PREFIX}"/lib
+  --with-ffi-includes="${PREFIX}"/include
+  --with-ffi-libraries="${PREFIX}"/lib
+  --with-gmp-includes="${PREFIX}"/include
+  --with-gmp-libraries="${PREFIX}"/lib
+  --with-iconv-includes="${PREFIX}"/include
+  --with-iconv-libraries="${PREFIX}"/lib
+)
+HADRIAN_FLAGS=(--flavour=quick --docs=none --progress-info=none)
+
+mkdir -p "${CABAL_DIR}" && "${CABAL}" user-config init
+"${CABAL}" v2-update
+
+if [[ "${target_platform}" == osx-* ]]; then
+  # build_alias/host_alias interfere with configure scripts
+  unset build_alias
+  unset host_alias
+
+  triple=x86_64-apple-darwin13.4.0
+  extra_cflags="-fno-lto -Wno-strict-prototypes"
+  extra_link="-fno-lto -Wl,-L${PREFIX}/lib -Wl,-liconv -Wl,-L${PREFIX}/lib/ghc-${PKG_VERSION}/lib -Wl,-liconv_compat"
+  extra_ld="-L${PREFIX}/lib -liconv -L${PREFIX}/lib/ghc-${PKG_VERSION}/lib -liconv_compat"
+
+  # Shim so that linking against conda-forge libiconv resolves _iconv_open
+  mkdir -p "${PREFIX}/lib/ghc-${PKG_VERSION}/lib"
+  ${CC} -dynamiclib -o "${PREFIX}/lib/ghc-${PKG_VERSION}/lib/libiconv_compat.dylib" "${RECIPE_DIR}/osx_iconv_compat.c" \
+    -L"${PREFIX}/lib" -liconv \
+    -Wl,-rpath,"${PREFIX}/lib" \
+    -install_name "${PREFIX}/lib/ghc-${PKG_VERSION}/lib/libiconv_compat.dylib"
+
+  export DYLD_INSERT_LIBRARIES="${PREFIX}/lib/libiconv.dylib:${PREFIX}/lib/ghc-${PKG_VERSION}/lib/libiconv_compat.dylib"
+  export DYLD_LIBRARY_PATH="${BUILD_PREFIX}/lib:${PREFIX}/lib:${DYLD_LIBRARY_PATH:-}"
+
+  # Only archiver that avoids mismatched arch errors when linking
+  export AR=llvm-ar
+  export ac_cv_path_ac_pt_CC=""
+  export ac_cv_path_ac_pt_CXX=""
+  export DEVELOPER_DIR=""
+  for tool in AR CC CXX LD RANLIB; do
+    export ac_cv_prog_${tool}="${!tool}"
+    export ac_cv_path_${tool}="${!tool}"
+  done
+
+  update_settings "$(find "${BUILD_PREFIX}"/ghc-bootstrap -name settings | head -n 1)"
+  hadrian=("${SRC_DIR}"/hadrian/build "-j${hadrian_jobs}")
+else
+  arch=$(uname -m)
+  triple="${arch}-unknown-linux"
+  extra_cflags="-Wno-strict-prototypes"
+  extra_link="-Wl,-L${BUILD_PREFIX}/lib -Wl,-L${PREFIX}/lib -Wl,-rpath,${BUILD_PREFIX}/lib -Wl,-rpath,${PREFIX}/lib"
+  extra_ld="-L${BUILD_PREFIX}/lib -L${PREFIX}/lib -rpath ${BUILD_PREFIX}/lib -rpath ${PREFIX}/lib"
+
+  export LIBRARY_PATH="${BUILD_PREFIX}/lib:${PREFIX}/lib${LIBRARY_PATH:+:}${LIBRARY_PATH:-}"
+  export LD_LIBRARY_PATH="${BUILD_PREFIX}/lib:${PREFIX}/lib${LD_LIBRARY_PATH:+:}${LD_LIBRARY_PATH:-}"
+
+  (cd "${SRC_DIR}"/hadrian/ && ${CABAL} v2-build -j hadrian)
+  hadrian_bin=$(find "${SRC_DIR}"/hadrian/dist-newstyle/build -name hadrian -type f | head -1)
+  hadrian=("${hadrian_bin}" "-j${hadrian_jobs}" --directory "${SRC_DIR}")
 fi
 
-mkdir stage0
-stage0="$( pwd )/stage0"
-pushd binary
-  cp $BUILD_PREFIX/share/gnuconfig/config.* .
-  # stage0 compiler: --build=$GHC_BUILD --host=$GHC_BUILD --target=$GHC_BUILD
-  (
-    unset CFLAGS
-    LDFLAGS=${LDFLAGS//$PREFIX/$BUILD_PREFIX}
-    CC=${CC_FOR_BUILD:-$CC}
-    AR=($CC -print-prog-name=ar)
-    NM=($CC -print-prog-name=nm)
-    if [[ "${build_platform}" == linux-* ]]; then
-      CPP=$BUILD-cpp
-    fi
-    LD=$BUILD-ld OBJDUMP=$BUILD-objdump RANLIB=$BUILD-ranlib STRIP=$BUILD-strip ./configure --prefix="${stage0}" --with-gmp-includes=$BUILD_PREFIX/include --with-gmp-libraries=$BUILD_PREFIX/lib --build=$GHC_BUILD --host=$GHC_BUILD --target=$GHC_BUILD || (cat config.log; exit 1)
-    make install -j${CPU_COUNT}
-  )
-popd
+# configure wrongly detects -no-pie support with clang, see fix-no-pie-detection-configure.patch
+CONF_GCC_SUPPORTS_NO_PIE=YES ./configure --build="${triple}" --host="${triple}" "${CONFIGURE_ARGS[@]}"
 
-pushd source
-  # stage1 compiler: --build=$GHC_BUILD --host=$GHC_BUILD --target=$GHC_HOST
-  # stage2 compiler: --build=$GHC_BUILD --host=$GHC_HOST --target=$GHC_HOST
-  if [[ "${target_platform}" == linux-* ]]; then
-    export CC=$(basename $GCC)
-    export AR=$(basename $AR)
-    export LD=$(basename $LD)
-    export RANLIB=$(basename $RANLIB)
-  fi
-  cp $BUILD_PREFIX/share/gnuconfig/config.* .
-  (
-    PATH="${stage0}/bin:${PATH}"
-    ./configure --prefix=$PREFIX --with-gmp-includes=$PREFIX/include --with-gmp-libraries=$PREFIX/lib --with-ffi-includes=$PREFIX/include --with-ffi-libraries=$PREFIX/lib --target=$GHC_HOST
-    EXTRA_HC_OPTS=""
-    for flag in ${LDFLAGS}; do
-	EXTRA_HC_OPTS="${EXTRA_HC_OPTS} -optl${flag}"
-    done
-    make HADDOCK_DOCS=NO BUILD_SPHINX_HTML=NO BUILD_SPHINX_PDF=NO "EXTRA_HC_OPTS=${EXTRA_HC_OPTS}" -j${CPU_COUNT}
-    make HADDOCK_DOCS=NO BUILD_SPHINX_HTML=NO BUILD_SPHINX_PDF=NO "EXTRA_HC_OPTS=${EXTRA_HC_OPTS}" install -j${CPU_COUNT}
-  )
-  # Delete profile-enabled static libraries, other distributions don't seem to ship them either and they are very heavy.
-  find $PREFIX/lib/ghc-${PKG_VERSION} -name '*_p.a' -delete
-  find $PREFIX/lib/ghc-${PKG_VERSION} -name '*.p_o' -delete
-popd
+if [[ "${target_platform}" == osx-* ]]; then
+  system_config="${SRC_DIR}"/hadrian/cfg/system.config
+  perl -pi -e "s#${BUILD_PREFIX}/bin/##" "${system_config}"
+  perl -pi -e 's#(=\s+)(ar)$#$1llvm-$2#' "${system_config}"
+  perl -pi -e "s#(=\\s+)(clang|clang\\+\\+|llc|nm|opt|ranlib)\$#\$1${triple}-\$2#" "${system_config}"
+  perl -pi -e "s#(conf-gcc-linker-args-stage[12].*?= )#\$1-Wl,-L${PREFIX}/lib -Wl,-rpath,${PREFIX}/lib #" "${system_config}"
+  perl -pi -e "s#(conf-ld-linker-args-stage[12].*?= )#\$1-L${PREFIX}/lib -rpath ${PREFIX}/lib #" "${system_config}"
+fi
 
-# Delete package cache as it is invalid on installation.
-# This needs to be regenerated on activation.
-rm $PREFIX/lib/ghc-${PKG_VERSION}/package.conf.d/package.cache
+"${hadrian[@]}" stage1:exe:ghc-bin "${HADRIAN_FLAGS[@]}"
+update_settings "${SRC_DIR}"/_build/stage0/lib/settings
+# Generate RTS headers first; hadrian 9.2 does not order them before rts C compiles
+"${hadrian[@]}" _build/stage1/lib/DerivedConstants.h _build/stage1/lib/ghcautoconf.h _build/stage1/lib/ghcplatform.h "${HADRIAN_FLAGS[@]}"
+"${hadrian[@]}" stage1:lib:ghc "${HADRIAN_FLAGS[@]}"
+update_settings "${SRC_DIR}"/_build/stage0/lib/settings
+"${hadrian[@]}" stage2:exe:ghc-bin "${HADRIAN_FLAGS[@]}" --freeze1
+update_settings "${SRC_DIR}"/_build/stage1/lib/settings
+"${hadrian[@]}" stage2:lib:ghc "${HADRIAN_FLAGS[@]}" --freeze1
+"${hadrian[@]}" install --prefix="${PREFIX}" "${HADRIAN_FLAGS[@]}" --freeze1 --freeze2
+
+# Make the installed settings relocatable and drop build-time paths
+settings_file=$(find "${PREFIX}"/lib/ -name settings | head -1)
+if [[ "${target_platform}" == osx-* ]]; then
+  append_setting "C compiler flags" "-fno-lto" "${settings_file}"
+  append_setting "C++ compiler flags" "-fno-lto" "${settings_file}"
+  append_setting "C compiler link flags" '-v -fuse-ld=lld -fno-lto -fno-use-linker-plugin -Wl,-L$topdir/../../../lib -Wl,-rpath,$topdir/../../../lib -liconv -Wl,-L$topdir/../lib -Wl,-rpath,$topdir/../lib -liconv_compat' "${settings_file}"
+  perl -pi -e 's#-undefined\s+dynamic_lookup##g; s#-dead_strip(_dylibs)?##g' "${settings_file}"
+else
+  topdir_arch='$topdir'/${arch}-linux-ghc-${PKG_VERSION}
+  append_setting "C compiler link flags" "-Wl,-L${topdir_arch} -Wl,-rpath,${topdir_arch} -Wl,-L"'$topdir'"/../../../lib -Wl,-rpath,"'$topdir'"/../../../lib" "${settings_file}"
+  append_setting "ld flags" "-L${topdir_arch} -rpath ${topdir_arch} -L"'$topdir'"/../../../lib -rpath "'$topdir'"/../../../lib" "${settings_file}"
+  perl -pi -e 's#("C compiler supports -no-pie", ")[^"]*#$1YES#' "${settings_file}"
+fi
+for p in "${BUILD_PREFIX}" "${PREFIX}"; do
+  perl -pi -e "s#(-Wl,-L|-Wl,-rpath,|-L|-rpath )${p}/lib(\\s|\"|\\))#\$2#g" "${settings_file}"
+done
+use_conda_tools "${settings_file}"
+perl -pi -e "s#(${BUILD_PREFIX}|${PREFIX})/(bin|lib)/##g" "${settings_file}"
+
+mkdir -p "${PREFIX}"/etc/bash_completion.d
+cp utils/completion/ghc.bash "${PREFIX}"/etc/bash_completion.d/ghc
+
+# Package cache is invalid on installation, regenerated on activation
+rm -f "${PREFIX}"/lib/*ghc-"${PKG_VERSION}"/lib/package.conf.d/package.cache
+rm -f "${PREFIX}"/lib/*ghc-"${PKG_VERSION}"/lib/package.conf.d/package.cache.lock
 
 mkdir -p "${PREFIX}/etc/conda/activate.d"
 cp "${RECIPE_DIR}/activate.sh" "${PREFIX}/etc/conda/activate.d/${PKG_NAME}_activate.sh"
+
+# Link dynamic libraries with the -ghc<version> suffix to their unsuffixed names
+find "${PREFIX}/lib" -name "*-ghc${PKG_VERSION}.dylib" -o -name "*-ghc${PKG_VERSION}.so" | while read -r lib; do
+  base_lib="${lib//-ghc${PKG_VERSION}./.}"
+  if [[ ! -e "${base_lib}" ]]; then
+    ln -s "$(basename "${lib}")" "${base_lib}"
+  fi
+done
